@@ -4,7 +4,8 @@ Created on Oct 23, 2014
 @author: cjh
 '''
 
-from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWriteHandler, logstdout
+from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWriteHandler, logstdout, StarClusterLogFilter
+import cumulus.starcluster.logging
 from websim.celeryconfig import app
 import starcluster.config
 import starcluster.logger
@@ -17,22 +18,13 @@ import uuid
 import sys
 
 
+
 @app.task
-def start_cluster(cluster_template, cluster_name):
+@cumulus.starcluster.logging.capture
+def start_cluster(cluster_template, cluster_name, log_write_url=None):
     default_config_url = "http://0.0.0.0:8080/api/v1/file/544e41b6ff34c706dd4f79bc/download"
-    api_url = 'http://0.0.0.0:8080/api/v1'
-    cluster_id = '544e66baff34c74de4497a47'
 
-    log_write_url = '%s/clusters/%s/log' % (api_url, cluster_id)
-
-    logger = starcluster.logger.get_starcluster_logger()
-    logger.setLevel(logging.INFO)
-    logger.addHandler(StarClusterLogHandler(log_write_url, logging.DEBUG))
-
-    sys.stdout = StarClusterCallWriteHandler()
-    call_id = uuid.uuid4()
-    threadlocal = threading.local()
-    threadlocal.id = call_id
+    config_filepath = None
 
     try:
 
@@ -61,7 +53,7 @@ def start_cluster(cluster_template, cluster_name):
         with logstdout():
             config.get_cluster_manager().list_clusters()
     finally:
-        if os.path.exists(config_filepath):
+        if config_filepath and os.path.exists(config_filepath):
             os.remove(config_filepath)
 
 @app.task

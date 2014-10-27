@@ -4,8 +4,10 @@ import sys
 import contextlib
 import requests
 import json
-
+import threading
 import starcluster.logger
+import functools
+import uuid
 
 class StarClusterLogHandler(logging.Handler):
     def __init__(self, url, level=logging.NOTSET):
@@ -29,6 +31,28 @@ def logstdout():
     finally:
         sys.stdout = old_stdout
 
+def capture(func):
+    @functools.wraps(func)
+    def captureDecorator(self, *args, **kwargs):
+        logger = starcluster.logger.get_starcluster_logger()
+        logger.setLevel(logging.INFO)
+        handler = StarClusterLogHandler(kwargs['log_write_url'], logging.DEBUG)
+        logger.addHandler(handler)
+        call_id = uuid.uuid4()
+        threadlocal = threading.local()
+        threadlocal.id = call_id
+
+        try:
+            r = func(self, *args, **kwargs)
+        finally:
+            del threadlocal.id
+            logger.removeHandler(handler)
+
+        return r
+
+    return captureDecorator
+
+
 class StarClusterCallWriteHandler:
     def __init__(self):
         self._logger = starcluster.logger.get_starcluster_logger()
@@ -37,3 +61,11 @@ class StarClusterCallWriteHandler:
         if value != '\n':
             self._logger.info(value)
 
+class StarClusterLogFilter():
+    def __init__(self, id):
+        self._id = id
+
+    def filter(self, record):
+        threadlocal = threading.local()
+
+        return threadlocal.id == id
