@@ -21,10 +21,12 @@ import sys
 
 @app.task
 @cumulus.starcluster.logging.capture
-def start_cluster(cluster_template, cluster_name, log_write_url=None):
+def start_cluster(name, template, log_write_url=None):
     default_config_url = "http://0.0.0.0:8080/api/v1/file/544e41b6ff34c706dd4f79bc/download"
 
     config_filepath = None
+
+    print >> sys.stderr, template
 
     try:
 
@@ -43,7 +45,7 @@ def start_cluster(cluster_template, cluster_name, log_write_url=None):
         config = starcluster.config.StarClusterConfig(config_filepath)
 
         config.load()
-        sc = config.get_cluster_template(cluster_template, cluster_template)
+        sc = config.get_cluster_template(template, template)
 
         result = sc.is_valid()
 
