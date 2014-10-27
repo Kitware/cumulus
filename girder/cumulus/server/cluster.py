@@ -13,10 +13,12 @@ class Cluster(Resource):
         self.resourceName = 'clusters'
         self.route('POST', (), self.create)
         self.route('POST', (':id', 'log'), self.handle_log_record)
+        self.route('GET', (':id', 'log'), self.log)
         self.route('PUT', (':id', 'start'), self.start)
         self.route('PUT', (':id', 'status'), self.update_status)
         self.route('GET', (':id', 'status'), self.status)
         self.route('PUT', (':id', 'terminate'), self.terminate)
+
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('cluster', 'cumulus')
 
@@ -77,7 +79,9 @@ class Cluster(Resource):
 
     @access.public
     def status(self, id, params):
-        return self._model.status(id)
+        status = self._model.status(id)
+
+        return {'status': status}
 
     status.description = (Description(
             'Get the clusters current state'
@@ -100,3 +104,25 @@ class Cluster(Resource):
         .param(
             'id',
             'The cluster to terminate.', paramType='path'))
+
+    @access.public
+    def log(self, id, params):
+
+        offset = 0
+        if 'offset' in params:
+            offset = int(params['offset'])
+
+        log_records = self._model.log_records(id, offset)
+
+        return {'log': log_records}
+
+    log.description = (Description(
+            'Get log entries for cluster'
+        )
+        .param(
+            'id',
+            'The cluster to get log entries for.', paramType='path')
+        .param(
+            'offset',
+            'The cluster to get log entries for.', required=False, paramType='query'))
+

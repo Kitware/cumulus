@@ -35,7 +35,7 @@ class Cluster(AccessControlledModel):
 
     def status(self, id):
         cluster = self.load(id, force=True)
-        return {'status': cluster['status']}
+        return cluster['status']
 
     def terminate(self, id, log_write_url, status_url):
 
@@ -44,3 +44,9 @@ class Cluster(AccessControlledModel):
 
         terminate_cluster.delay(cluster['name'],
                             log_write_url=log_write_url, status_url=status_url)
+
+    def log_records(self, id, offset=0):
+        # TODO Need to figure out perms a remove this force
+        cluster = self.load(id, force=True)
+
+        return cluster['log'][offset:]
