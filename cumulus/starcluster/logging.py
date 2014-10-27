@@ -61,6 +61,10 @@ class StarClusterCallWriteHandler:
         if value != '\n':
             self._logger.info(value)
 
+    def flush(self):
+        # Do nothing for now
+        pass
+
 class StarClusterLogFilter():
     def __init__(self, id):
         self._id = id
