@@ -9,6 +9,7 @@ import cumulus.starcluster.logging
 from websim.celeryconfig import app
 import starcluster.config
 import starcluster.logger
+import starcluster.exception
 import requests
 import tempfile
 import os
@@ -91,6 +92,9 @@ def terminate_cluster(name, log_write_url=None, status_url=None):
             cm.terminate_cluster(name, force=True)
 
         # Now update the status of the cluster
+        r = requests.put(status_url, data={'status': 'terminated'})
+        r.raise_for_status()
+    except starcluster.exception.ClusterDoesNotExist:
         r = requests.put(status_url, data={'status': 'terminated'})
         r.raise_for_status()
     finally:
