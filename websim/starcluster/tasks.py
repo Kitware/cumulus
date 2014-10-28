@@ -22,16 +22,12 @@ import sys
 
 @app.task
 @cumulus.starcluster.logging.capture
-def start_cluster(name, template, log_write_url=None, status_url=None):
-    default_config_url = "http://0.0.0.0:8080/api/v1/file/544e41b6ff34c706dd4f79bc/download"
-
+def start_cluster(name, template, log_write_url=None, status_url=None, config_url=None):
     config_filepath = None
-
-    print >> sys.stderr, template
 
     try:
 
-        r = requests.get(default_config_url)
+        r = requests.get(config_url)
         r.raise_for_status()
 
         # Write config to temp file
@@ -64,13 +60,11 @@ def start_cluster(name, template, log_write_url=None, status_url=None):
 
 @app.task
 @cumulus.starcluster.logging.capture
-def terminate_cluster(name, log_write_url=None, status_url=None):
-    default_config_url = "http://0.0.0.0:8080/api/v1/file/544e41b6ff34c706dd4f79bc/download"
-
+def terminate_cluster(name, log_write_url=None, status_url=None, config_url=None):
 
     try:
 
-        r = requests.get(default_config_url)
+        r = requests.get(config_url)
         r.raise_for_status()
 
         # Write config to temp file

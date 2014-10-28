@@ -1,10 +1,12 @@
 import cherrypy
 import json
+import re
 
 from girder.api.rest import Resource
 from girder.api import access
 from girder.api.describe import Description
 
+from websim.starcluster.tasks import start_cluster, terminate_cluster
 
 
 class Cluster(Resource):
@@ -30,8 +32,9 @@ class Cluster(Resource):
     def create(self, params):
         name = params['name']
         template = params['template']
+        config_id = params['configId']
 
-        return self._model.create(name, template)
+        return self._model.create(config_id, name, template)
 
     create.description = (Description(
             'Create a cluster'
@@ -44,15 +47,30 @@ class Cluster(Resource):
             'template',
             'The cluster template to use'+
             '(default="(empty)")',
-            required=True))
+            required=True, paramType='query')
+        .param(
+            'configId',
+            'The starcluster config to use when creating',
+            required=True, paramType='query'))
 
     @access.public
     def start(self, id, params):
 
         log_write_url = cherrypy.url().replace('start', 'log')
         status_url = cherrypy.url().replace('start', 'status')
+        status_url = cherrypy.url().replace('start', 'status')
+        config_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
+        config_url += '/starcluster-configs/%s?format=ini'
 
-        return self._model.start(id, log_write_url, status_url)
+        # TODO Need to figure out perms a remove this force
+        cluster = self._model.load(id, force=True)
+
+        # Need to replace config id
+        config_url = config_url % cluster['configId']
+
+        start_cluster.delay(cluster['name'], cluster['template'],
+                            log_write_url=log_write_url, status_url=status_url,
+                            config_url=config_url)
 
     start.description = (Description(
             'Start a cluster'
@@ -95,8 +113,17 @@ class Cluster(Resource):
 
         log_write_url = cherrypy.url().replace('terminate', 'log')
         status_url = cherrypy.url().replace('terminate', 'status')
+        config_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
+        config_url += '/starcluster-configs/%s?format=ini'
 
-        return self._model.terminate(id, log_write_url, status_url)
+        # TODO Need to figure out perms a remove this force
+        cluster = self._model.load(id, force=True)
+
+        config_url = config_url % cluster['configId']
+
+        terminate_cluster.delay(cluster['name'],
+                            log_write_url=log_write_url, status_url=status_url,
+                            config_url=config_url)
 
     terminate.description = (Description(
             'Terminate a cluster'
