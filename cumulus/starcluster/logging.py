@@ -10,15 +10,16 @@ import functools
 import uuid
 
 class StarClusterLogHandler(logging.Handler):
-    def __init__(self, url, level=logging.NOTSET):
+    def __init__(self, token, url, level=logging.NOTSET):
         super(StarClusterLogHandler, self).__init__(level)
         self._url = url
+        self._headers = {'Girder-Token':  token}
 
     def emit(self, record):
         json_str = json.dumps(record, default=lambda obj: obj.__dict__)
         print >> sys.stderr,  json_str
         print >> sys.stderr,  self._url
-        r = requests.post(self._url, data=json_str)
+        r = requests.post(self._url, headers=self._headers, data=json_str)
         r.raise_for_status()
 
 @contextlib.contextmanager
@@ -36,7 +37,8 @@ def capture(func):
     def captureDecorator(self, *args, **kwargs):
         logger = starcluster.logger.get_starcluster_logger()
         logger.setLevel(logging.INFO)
-        handler = StarClusterLogHandler(kwargs['log_write_url'], logging.DEBUG)
+        handler = StarClusterLogHandler(kwargs['girder_token'],
+                                        kwargs['log_write_url'], logging.DEBUG)
         logger.addHandler(handler)
         call_id = uuid.uuid4()
         threadlocal = threading.local()

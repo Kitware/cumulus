@@ -5,6 +5,7 @@ import re
 from girder.api.rest import Resource
 from girder.api import access
 from girder.api.describe import Description
+from girder.constants import AccessType
 
 from websim.starcluster.tasks import start_cluster, terminate_cluster
 
@@ -24,17 +25,20 @@ class Cluster(Resource):
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('cluster', 'cumulus')
 
-    @access.public
+    @access.user
     def handle_log_record(self, id, params):
-        return self._model.add_log_record(id, json.load(cherrypy.request.body))
+        user = self.getCurrentUser()
+        return self._model.add_log_record(user, id, json.load(cherrypy.request.body))
 
-    @access.public
+    @access.user
     def create(self, params):
         name = params['name']
         template = params['template']
         config_id = params['configId']
 
-        return self._model.create(config_id, name, template)
+        user = self.getCurrentUser()
+
+        return self._model.create(user, config_id, name, template)
 
     create.description = (Description(
             'Create a cluster'
@@ -53,7 +57,7 @@ class Cluster(Resource):
             'The starcluster config to use when creating',
             required=True, paramType='query'))
 
-    @access.public
+    @access.user
     def start(self, id, params):
 
         log_write_url = cherrypy.url().replace('start', 'log')
@@ -62,15 +66,15 @@ class Cluster(Resource):
         config_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
         config_url += '/starcluster-configs/%s?format=ini'
 
-        # TODO Need to figure out perms a remove this force
-        cluster = self._model.load(id, force=True)
+        (user, token) = self.getCurrentUser(returnToken=True)
+        cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
 
         # Need to replace config id
         config_url = config_url % cluster['configId']
 
         start_cluster.delay(cluster['name'], cluster['template'],
                             log_write_url=log_write_url, status_url=status_url,
-                            config_url=config_url)
+                            config_url=config_url, girder_token=token['_id'])
 
     start.description = (Description(
             'Start a cluster'
@@ -79,11 +83,12 @@ class Cluster(Resource):
             'id',
             'The cluster id to start.', paramType='path'))
 
-    @access.public
+    @access.user
     def update_status(self, id, params):
         status = params['status']
+        user = self.getCurrentUser()
 
-        return self._model.update_status(id, status)
+        return self._model.update_status(user, id, status)
 
     update_status.description = (Description(
             'Update the clusters current state'
@@ -95,9 +100,10 @@ class Cluster(Resource):
             'status',
             'The cluster status.', paramType='query'))
 
-    @access.public
+    @access.user
     def status(self, id, params):
-        status = self._model.status(id)
+        user = self.getCurrentUser()
+        status = self._model.status(user, id)
 
         return {'status': status}
 
@@ -108,7 +114,7 @@ class Cluster(Resource):
             'id',
             'The cluster id to get the status of.', paramType='path'))
 
-    @access.public
+    @access.user
     def terminate(self, id, params):
 
         log_write_url = cherrypy.url().replace('terminate', 'log')
@@ -116,14 +122,14 @@ class Cluster(Resource):
         config_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
         config_url += '/starcluster-configs/%s?format=ini'
 
-        # TODO Need to figure out perms a remove this force
-        cluster = self._model.load(id, force=True)
+        (user, token) = self.getCurrentUser(returnToken=True)
+        cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
 
         config_url = config_url % cluster['configId']
 
         terminate_cluster.delay(cluster['name'],
                             log_write_url=log_write_url, status_url=status_url,
-                            config_url=config_url)
+                            config_url=config_url, girder_token=token['_id'])
 
     terminate.description = (Description(
             'Terminate a cluster'
@@ -132,14 +138,14 @@ class Cluster(Resource):
             'id',
             'The cluster to terminate.', paramType='path'))
 
-    @access.public
+    @access.user
     def log(self, id, params):
-
+        user = self.getCurrentUser()
         offset = 0
         if 'offset' in params:
             offset = int(params['offset'])
 
-        log_records = self._model.log_records(id, offset)
+        log_records = self._model.log_records(user, id, offset)
 
         return {'log': log_records}
 

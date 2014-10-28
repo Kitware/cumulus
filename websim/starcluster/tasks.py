@@ -22,17 +22,20 @@ import sys
 
 @app.task
 @cumulus.starcluster.logging.capture
-def start_cluster(name, template, log_write_url=None, status_url=None, config_url=None):
+def start_cluster(name, template, log_write_url=None, status_url=None, config_url=None,
+                  girder_token=None):
     config_filepath = None
 
     try:
+        headers = {'Girder-Token':  girder_token}
+        r = requests.get(config_url, headers=headers)
+        r.raise_for_status()
 
-        r = requests.get(config_url)
+        r = requests.put(status_url, headers=headers, data={'status': 'initializing'})
         r.raise_for_status()
 
         # Write config to temp file
         (fd, config_filepath)  = tempfile.mkstemp()
-
 
         try:
             os.write(fd, r.text)
@@ -52,7 +55,7 @@ def start_cluster(name, template, log_write_url=None, status_url=None, config_ur
             sc.start()
 
         # Now update the status of the cluster
-        r = requests.put(status_url, data={'status': 'running'})
+        r = requests.put(status_url, headers=headers, data={'status': 'running'})
         r.raise_for_status()
     finally:
         if config_filepath and os.path.exists(config_filepath):
@@ -60,11 +63,12 @@ def start_cluster(name, template, log_write_url=None, status_url=None, config_ur
 
 @app.task
 @cumulus.starcluster.logging.capture
-def terminate_cluster(name, log_write_url=None, status_url=None, config_url=None):
+def terminate_cluster(name, log_write_url=None, status_url=None, config_url=None,
+                      girder_token=None):
 
     try:
-
-        r = requests.get(config_url)
+        headers = {'Girder-Token':  girder_token}
+        r = requests.get(config_url, headers=headers)
         r.raise_for_status()
 
         # Write config to temp file
@@ -86,10 +90,10 @@ def terminate_cluster(name, log_write_url=None, status_url=None, config_url=None
             cm.terminate_cluster(name, force=True)
 
         # Now update the status of the cluster
-        r = requests.put(status_url, data={'status': 'terminated'})
+        r = requests.put(status_url, headers=headers, data={'status': 'terminated'})
         r.raise_for_status()
     except starcluster.exception.ClusterDoesNotExist:
-        r = requests.put(status_url, data={'status': 'terminated'})
+        r = requests.put(status_url, headers=headers, data={'status': 'terminated'})
         r.raise_for_status()
     finally:
         if config_filepath and os.path.exists(config_filepath):

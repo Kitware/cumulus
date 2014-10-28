@@ -17,8 +17,10 @@ class StarClusterConfig(Resource):
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('starclusterconfig', 'cumulus')
 
-    @access.public
+    @access.user
     def import_file(self, params):
+        user = self.getCurrentUser()
+
         config_parser = ConfigParser()
 
         name = params['name']
@@ -57,7 +59,7 @@ class StarClusterConfig(Resource):
                 else:
                     config[section_type] = options
 
-        return self._model.create(name, config)
+        return self._model.create(user, name, config)
 
 
     import_file.description = (Description(
@@ -72,14 +74,16 @@ class StarClusterConfig(Resource):
             'The contents of the INI file',
             required=True, paramType='body'))
 
-    @access.public
+    @access.user
     def get(self, id, params):
+        user = self.getCurrentUser()
+
         format = 'json'
 
         if 'format' in params:
             format = params['format']
 
-        config = self._model.get(id)
+        config = self._model.get(user, id)
 
         if format == 'json':
             return config['config']

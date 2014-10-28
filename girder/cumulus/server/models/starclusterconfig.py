@@ -1,8 +1,8 @@
 import cherrypy
 
 from girder.models.model_base import AccessControlledModel
+from girder.constants import AccessType
 from bson.objectid import ObjectId
-
 
 class Starclusterconfig(AccessControlledModel):
 
@@ -12,12 +12,13 @@ class Starclusterconfig(AccessControlledModel):
     def validate(self, doc):
         return doc
 
-    def create(self, name,  config):
+    def create(self, user, name,  config):
         doc = {'name': name, 'config': config}
-        doc = self.save(doc)
+
+        doc  = self.setUserAccess(doc, user=user, level=AccessType.ADMIN, save=True)
 
         return str(doc['_id'])
 
-    def get(self, id):
-        return self.load(id, force=True)
+    def get(self, user, id):
+        return self.load(id, user=user, level=AccessType.READ)
 
