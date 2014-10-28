@@ -126,3 +126,16 @@ class Cluster(Resource):
             'offset',
             'The cluster to get log entries for.', required=False, paramType='query'))
 
+#    @access.public
+#    def config(self, id):
+#        pass
+
+#    config.description = (Description(
+#            'Get StarCluster configuration for this cluster'
+#        )
+#        .param(
+#            'id',
+#            'The cluster to get configuration for.', paramType='path'))
+
+
+
