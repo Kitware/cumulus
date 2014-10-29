@@ -6,7 +6,7 @@ Created on Oct 23, 2014
 
 from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWriteHandler, logstdout, StarClusterLogFilter
 import cumulus.starcluster.logging
-from websim.celeryconfig import app
+from cumulus.celeryconfig import app
 import starcluster.config
 import starcluster.logger
 import starcluster.exception

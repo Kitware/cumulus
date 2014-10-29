@@ -7,7 +7,7 @@ from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
 
-from websim.starcluster.tasks import start_cluster, terminate_cluster, submit_job
+from cumulus.starcluster.tasks import start_cluster, terminate_cluster, submit_job
 
 
 class Cluster(Resource):
