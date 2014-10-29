@@ -20,16 +20,18 @@ class Job(Resource):
     def create(self, params):
         user = self.getCurrentUser()
         script = cherrypy.request.body.read()
-
+        name = params['name']
         return {'id': self._model.create(user, script)}
 
     create.description = (Description(
             'Create a new job'
         )
         .param(
+            'Human readable identify for job',
+            'The commands to run.', required=True, paramType='query')
+        .param(
             'script',
             'The commands to run.', required=True, paramType='body'))
-
 
     @access.user
     def terminate(self, id, params):

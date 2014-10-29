@@ -12,8 +12,8 @@ class Job(AccessControlledModel):
     def validate(self, doc):
         return doc
 
-    def create(self, user, script):
-        job = {'script': script, 'status': 'created'}
+    def create(self, user, name,  script):
+        job = {'name': name, 'script': script, 'status': 'created'}
 
         doc  = self.setUserAccess(job, user=user, level=AccessType.ADMIN, save=True)
 
