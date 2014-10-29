@@ -28,3 +28,8 @@ class Job(AccessControlledModel):
         # Load first to force access check
         self.load(id, user=user, level=AccessType.ADMIN)
         return self.update({'_id': ObjectId(id)}, {'$set': {'status': status}})
+
+    def set_sge_job_id(self, user, id, job_id):
+        # Load first to force access check
+        self.load(id, user=user, level=AccessType.ADMIN)
+        return self.update({'_id': ObjectId(id)}, {'$set': {'sgeJobId': job_id}})

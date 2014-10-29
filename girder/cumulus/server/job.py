@@ -12,6 +12,7 @@ class Job(Resource):
         self.route('PUT', (':id', 'status'), self.update_status)
         self.route('GET', (':id', 'status'), self.status)
         self.route('PUT', (':id', 'terminate'), self.terminate)
+        self.route('PUT', (':id', 'sgeJobId'), self.set_sge_job_id)
 
         self._model = self.model('job', 'cumulus')
 
@@ -70,3 +71,23 @@ class Job(Resource):
         .param(
             'id',
             'The job id.', paramType='path'))
+
+    @access.user
+    def set_sge_job_id(self, id, params):
+        user = self.getCurrentUser()
+        job_id = params['sgeJobId']
+
+        self._model.set_sge_job_id(user, id, job_id)
+
+    set_sge_job_id.description = (Description(
+            'Sets the SGE job ID for this job'
+        )
+        .param(
+            'id',
+            'The job id.', required=True, paramType='path')
+        .param(
+            'sgeJobId',
+            'The job id.', required=True, paramType='query'))
+
+
+

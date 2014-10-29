@@ -43,7 +43,7 @@ def capture(func):
         call_id = uuid.uuid4()
         threadlocal = threading.local()
         threadlocal.id = call_id
-        handler.addFilter(StarClusterLogFilter(call_id))
+        handler.addFilter(StarClusterLogFilter(threadlocal, call_id))
 
         try:
             r = func(self, *args, **kwargs)
@@ -69,10 +69,11 @@ class StarClusterCallWriteHandler:
         pass
 
 class StarClusterLogFilter():
-    def __init__(self, id):
+    def __init__(self, threadlocal, id):
         self._id = id
+        self._threadlocal = threadlocal
 
     def filter(self, record):
-        threadlocal = threading.local()
+        call_id = getattr(self._threadlocal, 'id', None)
 
-        return threadlocal.id != id
+        return call_id != id

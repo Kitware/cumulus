@@ -7,7 +7,7 @@ from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
 
-from websim.starcluster.tasks import start_cluster, terminate_cluster
+from websim.starcluster.tasks import start_cluster, terminate_cluster, submit_job
 
 
 class Cluster(Resource):
@@ -162,7 +162,22 @@ class Cluster(Resource):
 
     @access.user
     def submit_job(self, id, jobId, params):
-        pass
+        (user, token) = self.getCurrentUser(returnToken=True)
+        cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+
+        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
+        log_write_url = '%s/clusters/%s/log' % (base_url, id)
+        config_url = '%s/starcluster-configs/%s?format=ini' % (base_url, cluster['configId'])
+
+        job = self.model('job', 'cumulus').load(jobId, user=user, level=AccessType.ADMIN)
+        job_id = job['_id']
+        status_url = '%s/jobs/%s/status' % (base_url, job_id)
+        jobid_url = '%s/jobs/%s/sgeJobId' % (base_url, job_id)
+
+        submit_job.delay(cluster['name'], job['script'],
+                            log_write_url=log_write_url, status_url=status_url,
+                            config_url=config_url, girder_token=token['_id'],
+                            jobid_url=jobid_url)
 
     submit_job.description = (Description(
             'Submit a job to the cluster'
