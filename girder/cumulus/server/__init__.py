@@ -4,9 +4,9 @@ print >> sys.stderr,  "LOADING >>>>"
 
 from .cluster import Cluster
 from .starclusterconfig import StarClusterConfig
+from .job import Job
 
 def load(info):
-    print "LOADING"
     info['apiRoot'].clusters = Cluster()
-    print dir(info['apiRoot'])
     info['apiRoot'].starcluster_configs = StarClusterConfig()
+    info['apiRoot'].jobs = Job()

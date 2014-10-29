@@ -21,6 +21,7 @@ class Cluster(Resource):
         self.route('PUT', (':id', 'status'), self.update_status)
         self.route('GET', (':id', 'status'), self.status)
         self.route('PUT', (':id', 'terminate'), self.terminate)
+        self.route('PUT', (':id', 'job', ':jobId', 'submit'), self.submit_job)
 
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('cluster', 'cumulus')
@@ -38,7 +39,7 @@ class Cluster(Resource):
 
         user = self.getCurrentUser()
 
-        return self._model.create(user, config_id, name, template)
+        return {'id': self._model.create(user, config_id, name, template)}
 
     create.description = (Description(
             'Create a cluster'
@@ -159,6 +160,19 @@ class Cluster(Resource):
             'offset',
             'The cluster to get log entries for.', required=False, paramType='query'))
 
+    @access.user
+    def submit_job(self, id, jobId, params):
+        pass
+
+    submit_job.description = (Description(
+            'Submit a job to the cluster'
+        )
+        .param(
+            'id',
+            'The cluster to submit the job to.', paramType='path')
+        .param(
+            'jobId',
+            'The cluster to get log entries for.', required=False, paramType='path'))
 #    @access.public
 #    def config(self, id):
 #        pass

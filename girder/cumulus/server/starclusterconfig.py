@@ -59,7 +59,7 @@ class StarClusterConfig(Resource):
                 else:
                     config[section_type] = options
 
-        return self._model.create(user, name, config)
+        return {'id': self._model.create(user, name, config)}
 
 
     import_file.description = (Description(
