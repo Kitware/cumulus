@@ -48,7 +48,7 @@ def start_cluster(name, template, log_write_url=None, status_url=None, config_ur
 
         config_filepath = _write_config_file(girder_token, config_url)
         headers = {'Girder-Token':  girder_token}
-        r = requests.put(status_url, headers=headers, data={'status': 'initializing'})
+        r = requests.put(status_url, headers=headers, params={'status': 'initializing'})
         r.raise_for_status()
 
         config = starcluster.config.StarClusterConfig(config_filepath)
@@ -62,7 +62,7 @@ def start_cluster(name, template, log_write_url=None, status_url=None, config_ur
             sc.start()
 
         # Now update the status of the cluster
-        r = requests.put(status_url, headers=headers, data={'status': 'running'})
+        r = requests.put(status_url, headers=headers, params={'status': 'running'})
         r.raise_for_status()
     finally:
         if config_filepath and os.path.exists(config_filepath):
@@ -86,10 +86,10 @@ def terminate_cluster(name, log_write_url=None, status_url=None, config_url=None
 
         # Now update the status of the cluster
         headers = {'Girder-Token':  girder_token}
-        r = requests.put(status_url, headers=headers, data={'status': 'terminated'})
+        r = requests.put(status_url, headers=headers, params={'status': 'terminated'})
         r.raise_for_status()
     except starcluster.exception.ClusterDoesNotExist:
-        r = requests.put(status_url, headers=headers, data={'status': 'terminated'})
+        r = requests.put(status_url, headers=headers, params={'status': 'terminated'})
         r.raise_for_status()
     finally:
         if config_filepath and os.path.exists(config_filepath):
@@ -149,11 +149,11 @@ def submit_job(name, script, log_write_url=None, status_url=None, config_url=Non
 
             job_id = m.group(1)
 
-            r = requests.put(jobid_url, headers=headers, data={'sgeJobId': job_id})
+            r = requests.put(jobid_url, headers=headers, params={'sgeJobId': job_id})
             r.raise_for_status()
 
             # Update the state
-            r = requests.put(status_url, headers=headers, data={'status': 'queued'})
+            r = requests.put(status_url, headers=headers, params={'status': 'queued'})
             r.raise_for_status()
 
             # Now monitor the jobs progress
@@ -162,15 +162,15 @@ def submit_job(name, script, log_write_url=None, status_url=None, config_url=Non
 
         # Now update the status of the cluster
         headers = {'Girder-Token':  girder_token}
-        r = requests.put(status_url, headers=headers, data={'status': 'queued'})
+        r = requests.put(status_url, headers=headers, params={'status': 'queued'})
         r.raise_for_status()
     except starcluster.exception.RemoteCommandFailed as ex:
         print  >> sys.stderr,  ex.message
     except starcluster.exception.ClusterDoesNotExist:
-        r = requests.put(status_url, headers=headers, data={'status': 'error'})
+        r = requests.put(status_url, headers=headers, params={'status': 'error'})
         r.raise_for_status()
     except Exception as ex:
-        r = requests.put(status_url, headers=headers, data={'status': 'error'})
+        r = requests.put(status_url, headers=headers, params={'status': 'error'})
         r.raise_for_status()
         raise
     finally:
@@ -225,13 +225,13 @@ def monitor_job(task, name, job_id, status_url=None, log_write_url=None, config_
             # N.B. throw=False to prevent Retry exception being raised
             task.retry(throw=False, countdown=5)
 
-        r = requests.put(status_url, headers=headers, data={'status': status})
+        r = requests.put(status_url, headers=headers, params={'status': status})
         r.raise_for_status()
     except starcluster.exception.RemoteCommandFailed as ex:
         print  >> sys.stderr,  ex.message
     except Exception as ex:
         print  >> sys.stderr,  ex
-        r = requests.put(status_url, headers=headers, data={'status': 'error'})
+        r = requests.put(status_url, headers=headers, params={'status': 'error'})
         r.raise_for_status()
         raise
     finally:
