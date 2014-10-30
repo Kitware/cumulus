@@ -7,6 +7,7 @@ Created on Oct 23, 2014
 from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWriteHandler, logstdout, StarClusterLogFilter
 import cumulus.starcluster.logging
 from cumulus.celeryconfig import app
+import cumulus.girderclient
 import starcluster.config
 import starcluster.logger
 import starcluster.exception
@@ -18,7 +19,8 @@ import threading
 import uuid
 import sys
 import re
-from StringIO import StringIO
+import inspect
+import time
 
 
 def _write_config_file(girder_token, config_url):
@@ -97,7 +99,7 @@ def terminate_cluster(name, log_write_url=None, status_url=None, config_url=None
 
 @app.task
 @cumulus.starcluster.logging.capture
-def submit_job(name, script, log_write_url=None, status_url=None, config_url=None,
+def submit_job(name, job_id, script, log_write_url=None, status_url=None, config_url=None,
                girder_token=None, jobid_url=None):
 
     config_filepath = None
@@ -124,8 +126,12 @@ def submit_job(name, script, log_write_url=None, status_url=None, config_url=Non
             cluster = cm.get_cluster(name)
             master = cluster.master_node
 
+            # Create job directory
+            job_dir = os.path.join(job_id, time.strftime('%Y-%m-%d-%H-%M-%S'))
+            master.ssh.makedirs(job_dir)
+
             # put the script to master
-            master.ssh.put(script_filepath)
+            master.ssh.put(script_filepath, job_dir)
             # Now submit the job
             output = master.ssh.execute('qconf -sp orte')
             slots = -1
@@ -138,7 +144,15 @@ def submit_job(name, script, log_write_url=None, status_url=None, config_url=Non
             if slots < 0:
                 raise Exception('Unable to retrieve number of slots')
 
-            output = master.ssh.execute('qsub -pe orte %s ./%s' % (slots, script_name))
+            stdout_file = '%s/%s.o' % (job_dir, script_name)
+            stderr_file = '%s/%s.e' % (job_dir, script_name)
+
+            cmd = 'cd %s && qsub -o %s, -e %s -pe orte %s ./%s' \
+                        % (job_dir, stdout_file, stderr_file, slots, script_name)
+
+            print >> sys.stderr,  cmd
+
+            output = master.ssh.execute(cmd)
 
             if len(output) != 1:
                 raise Exception('Unexpected output: %s' % output)
@@ -158,7 +172,7 @@ def submit_job(name, script, log_write_url=None, status_url=None, config_url=Non
 
             # Now monitor the jobs progress
             monitor_job.delay(name, job_id, status_url=status_url, config_url=config_url,
-                              girder_token=girder_token, log_write_url=log_write_url)
+                              girder_token=girder_token, log_write_url=log_write_url, job_dir=job_dir)
 
         # Now update the status of the cluster
         headers = {'Girder-Token':  girder_token}
@@ -187,7 +201,7 @@ queued_state = ['qw', 'q', 'w', 's', 'h', 't']
 
 @app.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
-def monitor_job(task, name, job_id, status_url=None, log_write_url=None, config_url=None, girder_token=None):
+def monitor_job(task, name, job_id, status_url=None, log_write_url=None, config_url=None, girder_token=None, job_dir=None):
     config_filepath = None
     headers = {'Girder-Token':  girder_token}
 
@@ -224,6 +238,13 @@ def monitor_job(task, name, job_id, status_url=None, log_write_url=None, config_
             # Job is still active so schedule self again in about 5 secs
             # N.B. throw=False to prevent Retry exception being raised
             task.retry(throw=False, countdown=5)
+        else:
+            # Fire off task to upload the output
+            upload_job_output.delay(name, job_id, status_url=status_url,
+                                    log_write_url=log_write_url,
+                                    config_url=config_url,
+                                    girder_token=girder_token,
+                                    job_dir=job_dir)
 
         r = requests.put(status_url, headers=headers, params={'status': status})
         r.raise_for_status()
@@ -234,6 +255,35 @@ def monitor_job(task, name, job_id, status_url=None, log_write_url=None, config_
         r = requests.put(status_url, headers=headers, params={'status': 'error'})
         r.raise_for_status()
         raise
+    finally:
+        if config_filepath and os.path.exists(config_filepath):
+            os.remove(config_filepath)
+
+@app.task
+@cumulus.starcluster.logging.capture
+def upload_job_output(name, job_id, status_url=None, log_write_url=None, config_url=None, girder_token=None, job_dir=None):
+    config_filepath = None
+    headers = {'Girder-Token':  girder_token}
+
+    try:
+        config_filepath = _write_config_file(girder_token, config_url)
+        config = starcluster.config.StarClusterConfig(config_filepath)
+        config.load()
+        cm = config.get_cluster_manager()
+        cluster = cm.get_cluster(name)
+        master = cluster.master_node
+
+        # First put girder client on master
+        path = inspect.getsourcefile(cumulus.girderclient)
+        master.ssh.put(path)
+
+        base_url = re.match('(.*)/jobs.*', status_url).group(1)
+        upload_cmd = 'python girderclient.py --dir %s --url "%s" --collection 54513fa4ff34c70948c27fdb --token %s --folder %s' \
+                        % (job_dir, base_url, girder_token, job_id)
+        print  >> sys.stderr, "cmd: %s" % upload_cmd
+        print  >> sys.stderr, master.ssh.execute(upload_cmd)
+    except starcluster.exception.RemoteCommandFailed as ex:
+        print  >> sys.stderr,  ex.message
     finally:
         if config_filepath and os.path.exists(config_filepath):
             os.remove(config_filepath)

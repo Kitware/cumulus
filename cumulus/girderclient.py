@@ -65,12 +65,10 @@ class DirectoryUploader():
         uploaded = 0
 
         while (uploaded != datalen):
-            print "UPLOADING: " + str(uploaded)
             chunk_size = datalen - uploaded
             if chunk_size > max_chunk_size:
                 chunk_size = max_chunk_size
 
-            print "%d - %d" % (uploaded, chunk_size)
             part = data[uploaded:uploaded+chunk_size]
 
             m = MultipartEncoder(
@@ -94,7 +92,6 @@ class DirectoryUploader():
 
             parent_id = self._create_folder(dir_name, parent_id)
             for filename in file_list:
-                print os.path.join(root, filename)
                 self._upload_file(os.path.join(root, filename), parent_id)
 
 def main():

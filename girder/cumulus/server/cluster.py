@@ -174,7 +174,7 @@ class Cluster(Resource):
         status_url = '%s/jobs/%s/status' % (base_url, job_id)
         jobid_url = '%s/jobs/%s/sgeJobId' % (base_url, job_id)
 
-        submit_job.delay(cluster['name'], job['script'],
+        submit_job.delay(cluster['name'], str(job['_id']), job['script'],
                             log_write_url=log_write_url, status_url=status_url,
                             config_url=config_url, girder_token=token['_id'],
                             jobid_url=jobid_url)

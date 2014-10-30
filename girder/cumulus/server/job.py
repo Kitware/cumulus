@@ -21,14 +21,14 @@ class Job(Resource):
         user = self.getCurrentUser()
         script = cherrypy.request.body.read()
         name = params['name']
-        return {'id': self._model.create(user, script)}
+        return {'id': self._model.create(user, name, script)}
 
     create.description = (Description(
             'Create a new job'
         )
         .param(
-            'Human readable identify for job',
-            'The commands to run.', required=True, paramType='query')
+            'name',
+            'Human readable identify for job.', required=True, paramType='query')
         .param(
             'script',
             'The commands to run.', required=True, paramType='body'))

@@ -29,12 +29,12 @@ class StarClusterConfig(Resource):
 
         config_parser.readfp(io.BytesIO(content))
 
-        valid_sections = ['global', 'key', 'aws', 'cluster', 'permission', 'plugin_section']
+        valid_sections = ['global', 'key', 'aws', 'cluster', 'permission', 'plugin']
 
         config = {}
 
         for section in config_parser.sections():
-            parts = section.split(' ')
+            parts = filter(None, section.split(' '))
 
             section_name = None
 
