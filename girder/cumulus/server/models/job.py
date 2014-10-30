@@ -12,12 +12,17 @@ class Job(AccessControlledModel):
     def validate(self, doc):
         return doc
 
-    def create(self, user, name,  script):
-        job = {'name': name, 'script': script, 'status': 'created'}
+    def create(self, user, name,  commands, output_collection_id):
+        job = {
+            'name': name,
+            'commands': commands,
+            'outputCollectionId': output_collection_id,
+            'status': 'created'
+        }
 
         doc  = self.setUserAccess(job, user=user, level=AccessType.ADMIN, save=True)
 
-        return str(doc['_id'])
+        return doc
 
     def status(self, user, id):
         job = self.load(id, user=user, level=AccessType.READ)

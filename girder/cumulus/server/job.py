@@ -19,19 +19,28 @@ class Job(Resource):
     @access.user
     def create(self, params):
         user = self.getCurrentUser()
-        script = cherrypy.request.body.read()
-        name = params['name']
-        return {'id': self._model.create(user, name, script)}
+
+        body = json.loads(cherrypy.request.body.read())
+        commands = body['commands']
+        name = body['name']
+        output_collection_id = body['outputCollectionId']
+
+        job = self._model.create(user, name, commands, output_collection_id)
+
+        cherrypy.response.status = 201
+        cherrypy.response.headers['Location'] = '/jobs/%s' % job['_id']
+
+        # Don't return the access object
+        del job['access']
+
+        return job
 
     create.description = (Description(
             'Create a new job'
         )
         .param(
-            'name',
-            'Human readable identify for job.', required=True, paramType='query')
-        .param(
-            'script',
-            'The commands to run.', required=True, paramType='body'))
+            'body',
+            'The job parameters in JSON format.', dataType='JobParameters', paramType='body', required=True))
 
     @access.user
     def terminate(self, id, params):
