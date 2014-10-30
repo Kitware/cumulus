@@ -162,6 +162,7 @@ class Cluster(Resource):
 
     @access.user
     def submit_job(self, id, jobId, params):
+        job_id = jobId
         (user, token) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
 
@@ -169,25 +170,25 @@ class Cluster(Resource):
         log_write_url = '%s/clusters/%s/log' % (base_url, id)
         config_url = '%s/starcluster-configs/%s?format=ini' % (base_url, cluster['configId'])
 
-        job = self.model('job', 'cumulus').load(jobId, user=user, level=AccessType.ADMIN)
-        job_id = job['_id']
-        status_url = '%s/jobs/%s/status' % (base_url, job_id)
-        jobid_url = '%s/jobs/%s/sgeJobId' % (base_url, job_id)
+        job = self.model('job', 'cumulus').load(job_id, user=user, level=AccessType.ADMIN)
 
-        submit_job.delay(cluster['name'], str(job['_id']), job['script'],
-                            log_write_url=log_write_url, status_url=status_url,
-                            config_url=config_url, girder_token=token['_id'],
-                            jobid_url=jobid_url)
+        job['_id'] = str(job['_id'])
+        del job['access']
+
+        submit_job.delay(cluster['name'], job,
+                            log_write_url=log_write_url,  config_url= config_url,
+                            girder_token=token['_id'],
+                            base_url=base_url)
 
     submit_job.description = (Description(
             'Submit a job to the cluster'
         )
         .param(
             'id',
-            'The cluster to submit the job to.', paramType='path')
+            'The cluster to submit the job to.', required=True, paramType='path')
         .param(
             'jobId',
-            'The cluster to get log entries for.', required=False, paramType='path'))
+            'The cluster to get log entries for.', required=True, paramType='path'))
 #    @access.public
 #    def config(self, id):
 #        pass

@@ -29,12 +29,16 @@ class Job(AccessControlledModel):
 
         return job['status']
 
-    def update_status(self, user, id, status):
+    def update(self, user, id, status=None, sge_id=None):
         # Load first to force access check
-        self.load(id, user=user, level=AccessType.ADMIN)
-        return self.update({'_id': ObjectId(id)}, {'$set': {'status': status}})
+        job = self.load(id, user=user, level=AccessType.ADMIN)
 
-    def set_sge_job_id(self, user, id, job_id):
-        # Load first to force access check
-        self.load(id, user=user, level=AccessType.ADMIN)
-        return self.update({'_id': ObjectId(id)}, {'$set': {'sgeJobId': job_id}})
+        set = {}
+
+        if status:
+            job['status'] = status
+
+        if sge_id:
+            job['sgeId'] = sge_id
+
+        return self.save(job)
