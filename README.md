@@ -1,3 +1,3 @@
 cumulus
 =======
-REST API for create/managing StatClusters
+REST API for creating and using StatClusters
