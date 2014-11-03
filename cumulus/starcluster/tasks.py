@@ -58,8 +58,8 @@ def start_cluster(name, template, log_write_url=None, status_url=None, config_ur
 
         config_filepath = _write_config_file(girder_token, config_url)
         headers = {'Girder-Token':  girder_token}
-        r = requests.put(status_url, headers=headers, params={'status': 'initializing'})
-        r.raise_for_status()
+        r = requests.patch(status_url, headers=headers, json={'status': 'initializing'})
+        _check_status(r)
 
         config = starcluster.config.StarClusterConfig(config_filepath)
 
@@ -72,7 +72,7 @@ def start_cluster(name, template, log_write_url=None, status_url=None, config_ur
             sc.start()
 
         # Now update the status of the cluster
-        r = requests.put(status_url, headers=headers, params={'status': 'running'})
+        r = requests.patch(status_url, headers=headers, json={'status': 'running'})
         _check_status(r)
     finally:
         if config_filepath and os.path.exists(config_filepath):
@@ -96,10 +96,10 @@ def terminate_cluster(name, log_write_url=None, status_url=None, config_url=None
 
         # Now update the status of the cluster
         headers = {'Girder-Token':  girder_token}
-        r = requests.put(status_url, headers=headers, params={'status': 'terminated'})
+        r = requests.patch(status_url, headers=headers, json={'status': 'terminated'})
         _check_status(r)
     except starcluster.exception.ClusterDoesNotExist:
-        r = requests.put(status_url, headers=headers, params={'status': 'terminated'})
+        r = requests.patch(status_url, headers=headers, json={'status': 'terminated'})
         _check_status(r)
     finally:
         if config_filepath and os.path.exists(config_filepath):

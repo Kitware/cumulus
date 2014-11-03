@@ -34,8 +34,6 @@ class Job(AccessControlledModel):
         # Load first to force access check
         job = self.load(id, user=user, level=AccessType.ADMIN)
 
-        set = {}
-
         if status:
             job['status'] = status
 

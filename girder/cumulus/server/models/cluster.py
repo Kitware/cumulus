@@ -25,10 +25,14 @@ class Cluster(AccessControlledModel):
         self.load(id, user=user, level=AccessType.ADMIN)
         self.update({'_id': ObjectId(id)}, {'$push': {'log': record}})
 
-    def update_status(self, user, id, status):
+    def update_cluster(self, user, id, status):
         # Load first to force access check
-        self.load(id, user=user, level=AccessType.ADMIN)
-        return self.update({'_id': ObjectId(id)}, {'$set': {'status': status}})
+        cluster = self.load(id, user=user, level=AccessType.ADMIN)
+
+        if status:
+            cluster['status'] = status
+
+        return self.save(cluster)
 
     def status(self, user, id):
         cluster = self.load(id, user=user, level=AccessType.READ)

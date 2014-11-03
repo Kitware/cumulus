@@ -3,9 +3,8 @@ import json
 from girder.api.rest import Resource
 from girder.api import access
 from girder.api.describe import Description
-from girder.api.docs import addModel
 from girder.constants import AccessType
-
+from girder.api.docs import addModel
 
 class Job(Resource):
     def __init__(self):

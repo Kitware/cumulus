@@ -6,6 +6,7 @@ from girder.api.rest import Resource
 from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
+from girder.api.docs import addModel
 
 from cumulus.starcluster.tasks import start_cluster, terminate_cluster, submit_job
 
@@ -18,7 +19,7 @@ class Cluster(Resource):
         self.route('POST', (':id', 'log'), self.handle_log_record)
         self.route('GET', (':id', 'log'), self.log)
         self.route('PUT', (':id', 'start'), self.start)
-        self.route('PUT', (':id', 'status'), self.update_status)
+        self.route('PATCH', (':id',), self.update)
         self.route('GET', (':id', 'status'), self.status)
         self.route('PUT', (':id', 'terminate'), self.terminate)
         self.route('PUT', (':id', 'job', ':jobId', 'submit'), self.submit_job)
@@ -62,16 +63,14 @@ class Cluster(Resource):
     def start(self, id, params):
 
         log_write_url = cherrypy.url().replace('start', 'log')
-        status_url = cherrypy.url().replace('start', 'status')
-        status_url = cherrypy.url().replace('start', 'status')
-        config_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
-        config_url += '/starcluster-configs/%s?format=ini'
+        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
+        status_url = '%s/clusters/%s' % (base_url, id)
 
         (user, token) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
 
         # Need to replace config id
-        config_url = config_url % cluster['configId']
+        config_url = '%s/starcluster-configs/%s?format=ini' % (base_url, cluster['configId'])
 
         start_cluster.delay(cluster['name'], cluster['template'],
                             log_write_url=log_write_url, status_url=status_url,
@@ -85,21 +84,38 @@ class Cluster(Resource):
             'The cluster id to start.', paramType='path'))
 
     @access.user
-    def update_status(self, id, params):
-        status = params['status']
+    def update(self, id, params):
+        body = json.loads(cherrypy.request.body.read())
         user = self.getCurrentUser()
 
-        return self._model.update_status(user, id, status)
+        if 'status' in body:
+            status = body['status']
 
-    update_status.description = (Description(
-            'Update the clusters current state'
+        cluster = self._model.update_cluster(user, id, status)
+
+        # Don't return the access object
+        del cluster['access']
+        # Don't return the log
+        del cluster['log']
+
+        return cluster
+
+    addModel("ClusterUpdateParameters", {
+        "id":"ClusterUpdateParameters",
+        "properties":{
+            "status": {"type": "string", "description": "The new status. (optional)"}
+        }
+    })
+
+
+    update.description = (Description(
+            'Update the cluster'
         )
+        .param('id',
+              'The id of the cluster to update', paramType='path')
         .param(
-            'id',
-            'The cluster id to update status on.', paramType='path')
-        .param(
-            'status',
-            'The cluster status.', paramType='query'))
+            'body',
+            'The properties to update.', dataType='ClusterUpdateParameters' , paramType='body'))
 
     @access.user
     def status(self, id, params):
