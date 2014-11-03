@@ -17,7 +17,7 @@ class Starclusterconfig(AccessControlledModel):
 
         doc  = self.setUserAccess(doc, user=user, level=AccessType.ADMIN, save=True)
 
-        return str(doc['_id'])
+        return doc
 
     def get(self, user, id):
         return self.load(id, user=user, level=AccessType.READ)

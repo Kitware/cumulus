@@ -1,9 +1,12 @@
 import io
 import cherrypy
-from girder.api.rest import Resource
+import json
+from girder.api.rest import Resource, RestException
 from girder.api import access
 from girder.api.describe import Description
 from ConfigParser import ConfigParser
+
+
 
 
 
@@ -11,22 +14,15 @@ class StarClusterConfig(Resource):
 
     def __init__(self):
         self.resourceName = 'starcluster-configs'
-        self.route('POST', ('content',), self.import_file)
+        self.route('POST', (), self.create)
         self.route('GET', (':id',), self.get)
 
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('starclusterconfig', 'cumulus')
 
-    @access.user
-    def import_file(self, params):
-        user = self.getCurrentUser()
-
+    def _import_file(self, params):
         config_parser = ConfigParser()
-
-        name = params['name']
-
         content = cherrypy.request.body.read()
-
         config_parser.readfp(io.BytesIO(content))
 
         valid_sections = ['global', 'key', 'aws', 'cluster', 'permission', 'plugin']
@@ -59,19 +55,42 @@ class StarClusterConfig(Resource):
                 else:
                     config[section_type] = options
 
-        return {'id': self._model.create(user, name, config)}
+        return config;
 
+    @access.user
+    def create(self, params):
+        user = self.getCurrentUser()
+        name = params['name']
 
-    import_file.description = (Description(
+        content_type = cherrypy.request.headers['Content-Type']
+
+        if content_type == 'text/plain':
+            config = self._import_file(params)
+        elif content_type == 'application/json':
+            config = json.load(cherrypy.request.body)
+        else:
+            raise RestException('Unsupported Content-Type: %s' % content_type)
+
+        config = self._model.create(user, name, config)
+        del config['access']
+        cherrypy.response.status = 201
+        cherrypy.response.headers['Location'] = '/starcluster-configs/%s' % config['_id']
+
+        return config
+
+    create.description = (Description(
             'Upload cluster configuration'
         )
         .param(
             'name',
             'Human readable name of configuration.',
             required=True, paramType='query')
+        .consumes('application/json')
+        .consumes('text/plain')
         .param(
             'content',
-            'The contents of the INI file',
+            'The contents of the INI file (text/plain) or JSON config ' +
+            '(application/json), be sure to set the correct Content-Type ',
             required=True, paramType='body'))
 
     @access.user
