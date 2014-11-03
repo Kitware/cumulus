@@ -26,7 +26,7 @@ import traceback
 def _write_config_file(girder_token, config_url):
         headers = {'Girder-Token':  girder_token}
 
-        r = requests.get(config_url, headers=headers)
+        r = requests.get(config_url, headers=headers, params={'format': 'ini'})
         r.raise_for_status()
 
         # Write config to temp file
@@ -50,9 +50,15 @@ def _check_status(request):
 
 @app.task
 @cumulus.starcluster.logging.capture
-def start_cluster(name, template, log_write_url=None, status_url=None, config_url=None,
-                  girder_token=None):
+def start_cluster(cluster, base_url=None, log_write_url=None, girder_token=None):
     config_filepath = None
+    name = cluster['name']
+    template = cluster['template']
+    cluster_id = cluster['_id']
+    config_id = cluster['configId']
+    log_write_url = '%s/clusters/%s/log' % (base_url, cluster_id)
+    config_url = '%s/starcluster-configs/%s' % (base_url, config_id)
+    status_url = '%s/clusters/%s' % (base_url, cluster_id)
 
     try:
 
@@ -80,8 +86,14 @@ def start_cluster(name, template, log_write_url=None, status_url=None, config_ur
 
 @app.task
 @cumulus.starcluster.logging.capture
-def terminate_cluster(name, log_write_url=None, status_url=None, config_url=None,
-                      girder_token=None):
+def terminate_cluster(cluster, base_url=None, log_write_url=None, girder_token=None):
+    name = cluster['name']
+    cluster_id = cluster['_id']
+    config_id = cluster['configId']
+    log_write_url = '%s/clusters/%s/log' % (base_url, cluster_id)
+    config_url = '%s/starcluster-configs/%s' % (base_url, config_id)
+    status_url = '%s/clusters/%s' % (base_url, cluster_id)
+
 
     config_filepath = None
     try:

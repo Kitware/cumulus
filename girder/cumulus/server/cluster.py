@@ -27,6 +27,13 @@ class Cluster(Resource):
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('cluster', 'cumulus')
 
+    def _clean(self, cluster):
+        del cluster['access']
+        del cluster['log']
+        cluster['_id'] = str(cluster['_id'])
+
+        return cluster
+
     @access.user
     def handle_log_record(self, id, params):
         user = self.getCurrentUser()
@@ -61,20 +68,14 @@ class Cluster(Resource):
 
     @access.user
     def start(self, id, params):
-
-        log_write_url = cherrypy.url().replace('start', 'log')
         base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
-        status_url = '%s/clusters/%s' % (base_url, id)
-
+        log_write_url = '%s/clusters/%s/log' % (base_url, id)
         (user, token) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+        cluster = self._clean(cluster)
 
-        # Need to replace config id
-        config_url = '%s/starcluster-configs/%s?format=ini' % (base_url, cluster['configId'])
-
-        start_cluster.delay(cluster['name'], cluster['template'],
-                            log_write_url=log_write_url, status_url=status_url,
-                            config_url=config_url, girder_token=token['_id'])
+        start_cluster.delay(cluster, base_url=base_url, log_write_url=log_write_url,
+                            girder_token=token['_id'])
 
     start.description = (Description(
             'Start a cluster'
@@ -133,20 +134,17 @@ class Cluster(Resource):
 
     @access.user
     def terminate(self, id, params):
-
-        log_write_url = cherrypy.url().replace('terminate', 'log')
-        status_url = cherrypy.url().replace('terminate', 'status')
-        config_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
-        config_url += '/starcluster-configs/%s?format=ini'
+        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
+        log_write_url = '%s/clusters/%s/log' % (base_url, id)
 
         (user, token) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+        cluster = self._clean(cluster)
 
-        config_url = config_url % cluster['configId']
+        print cluster
 
-        terminate_cluster.delay(cluster['name'],
-                            log_write_url=log_write_url, status_url=status_url,
-                            config_url=config_url, girder_token=token['_id'])
+        terminate_cluster.delay(cluster, base_url=base_url, log_write_url=log_write_url,
+                                girder_token=token['_id'])
 
     terminate.description = (Description(
             'Terminate a cluster'
