@@ -14,11 +14,11 @@ class Cluster(AccessControlledModel):
 
     def create(self, user, config_id, name, template):
         cluster = {'name': name, 'template': template,
-                   'log': [], 'status': 'stopped', 'configId': config_id}
+                   'log': [], 'status': 'created', 'configId': config_id}
 
         doc  = self.setUserAccess(cluster, user=user, level=AccessType.ADMIN, save=True)
 
-        return str(doc['_id'])
+        return doc
 
     def add_log_record(self, user, id, record):
         # Load first to force access check

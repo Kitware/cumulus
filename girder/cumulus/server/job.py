@@ -18,6 +18,13 @@ class Job(Resource):
 
         self._model = self.model('job', 'cumulus')
 
+    def _clean(self, job):
+        del job['access']
+        del job['log']
+        job['_id'] = str(job['_id'])
+
+        return job
+
     @access.user
     def create(self, params):
         user = self.getCurrentUser()
@@ -144,3 +151,18 @@ class Job(Resource):
         .param(
             'offset',
             'The offset to start getting entiries at.', required=False, paramType='query'))
+
+    @access.user
+    def get(self, id, params):
+        user = self.getCurrentUser()
+        job = self._model.load(id, user=user, level=AccessType.ADMIN)
+        job = self._clean(job)
+
+        return job
+
+    get.description = (Description(
+            'Get a job'
+        )
+        .param(
+            'id',
+            'The job is.', paramType='path', required=True))
