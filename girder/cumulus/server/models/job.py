@@ -17,7 +17,8 @@ class Job(AccessControlledModel):
             'name': name,
             'commands': commands,
             'outputCollectionId': output_collection_id,
-            'status': 'created'
+            'status': 'created',
+            'log': []
         }
 
         doc  = self.setUserAccess(job, user=user, level=AccessType.ADMIN, save=True)
@@ -29,7 +30,7 @@ class Job(AccessControlledModel):
 
         return job['status']
 
-    def update(self, user, id, status=None, sge_id=None):
+    def update_job(self, user, id, status=None, sge_id=None):
         # Load first to force access check
         job = self.load(id, user=user, level=AccessType.ADMIN)
 
@@ -42,3 +43,15 @@ class Job(AccessControlledModel):
             job['sgeId'] = sge_id
 
         return self.save(job)
+
+    def add_log_record(self, user, _id, record):
+        # Load first to force access check
+        print type(id)
+        self.load(_id, user=user, level=AccessType.ADMIN)
+        print 'ID: |%s|'%  id
+        self.update({'_id': ObjectId(_id)}, {'$push': {'log': record}})
+
+    def log_records(self, user, id, offset=0):
+        job = self.load(id, user=user, level=AccessType.READ)
+
+        return job['log'][offset:]

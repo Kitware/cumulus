@@ -22,12 +22,16 @@ class DirectoryUploader():
         folder_id = self._create_folder(self._root_folder, self._target_collection_id, 'collection')
         self._upload(folder_id, self._dir)
 
+    def _check_status(self, request):
+        if request.status_code != 200:
+            print >> sys.stderr, request.json()
+            request.raise_for_status()
+
     def _create_folder(self, name, parent_id, parent_type='folder'):
         params = {'parentType': parent_type, 'parentId': parent_id, 'name': name}
 
         r = requests.post( '%s/folder' % self._base_url, params=params, headers=self._headers)
-        r.raise_for_status()
-
+        self._check_status(r)
         obj = r.json()
 
         if '_id' in obj:
@@ -53,8 +57,7 @@ class DirectoryUploader():
         }
 
         r = requests.post( '%s/file' % self._base_url, params=params, headers=self._headers)
-
-        r.raise_for_status()
+        self._check_status(r)
         obj = r.json()
 
         if '_id' in obj:
@@ -82,7 +85,7 @@ class DirectoryUploader():
 
             r = requests.post('%s/file/chunk' % self._base_url, params=params,
                                      data=m, headers=self._headers)
-            r.raise_for_status()
+            self._check_status(r)
 
             uploaded += chunk_size
 

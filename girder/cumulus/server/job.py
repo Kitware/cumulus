@@ -14,6 +14,8 @@ class Job(Resource):
         self.route('PATCH', (':id',), self.update)
         self.route('GET', (':id', 'status'), self.status)
         self.route('PUT', (':id', 'terminate'), self.terminate)
+        self.route('POST', (':id', 'log'), self.add_log_record)
+        self.route('GET', (':id', 'log'), self.log)
 
         self._model = self.model('job', 'cumulus')
 
@@ -75,10 +77,12 @@ class Job(Resource):
         if 'sgeId' in body:
             sge_id = body['sgeId']
 
-        job = self._model.update(user, id, status, sge_id)
+        job = self._model.update_job(user, id, status, sge_id)
 
         # Don't return the access object
         del job['access']
+        # Don't return the log
+        del job['log']
 
         return job
 
@@ -114,5 +118,30 @@ class Job(Resource):
             'The job id.', paramType='path'))
 
 
+    @access.user
+    def add_log_record(self, id, params):
+        user = self.getCurrentUser()
+        return self._model.add_log_record(user, id, json.load(cherrypy.request.body))
 
+    add_log_record.description = None
 
+    @access.user
+    def log(self, id, params):
+        user = self.getCurrentUser()
+        offset = 0
+        if 'offset' in params:
+            offset = int(params['offset'])
+
+        log_records = self._model.log_records(user, id, offset)
+
+        return {'log': log_records}
+
+    log.description = (Description(
+            'Get log entries for cluster'
+        )
+        .param(
+            'id',
+            'The job to get log entries for.', paramType='path')
+        .param(
+            'offset',
+            'The offset to start getting entiries at.', required=False, paramType='query'))

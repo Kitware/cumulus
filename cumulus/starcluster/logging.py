@@ -16,10 +16,11 @@ class StarClusterLogHandler(logging.Handler):
         self._headers = {'Girder-Token':  token}
 
     def emit(self, record):
-        json_str = json.dumps(record, default=lambda obj: obj.__dict__)
+        json_str = json.dumps(record.__dict__, default=str)
         print >> sys.stderr,  json_str
         print >> sys.stderr,  self._url
         r = requests.post(self._url, headers=self._headers, data=json_str)
+        print >> sys.stderr, self._url
         r.raise_for_status()
 
 @contextlib.contextmanager

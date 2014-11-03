@@ -167,16 +167,15 @@ class Cluster(Resource):
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
 
         base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
-        log_write_url = '%s/clusters/%s/log' % (base_url, id)
         config_url = '%s/starcluster-configs/%s?format=ini' % (base_url, cluster['configId'])
 
         job = self.model('job', 'cumulus').load(job_id, user=user, level=AccessType.ADMIN)
-
+        log_url = '%s/jobs/%s/log' % (base_url, job_id)
         job['_id'] = str(job['_id'])
         del job['access']
 
         submit_job.delay(cluster['name'], job,
-                            log_write_url=log_write_url,  config_url= config_url,
+                            log_write_url=log_url,  config_url= config_url,
                             girder_token=token['_id'],
                             base_url=base_url)
 
