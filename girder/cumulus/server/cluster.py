@@ -119,11 +119,12 @@ class Cluster(Resource):
 
     addModel('ClusterParameters', {
         "id": "ClusterParameters",
+        "required": ["name", "template", "config"],
         "properties": {
-            "name": {"type": "string", "description": "The name to give the cluster.", "required": True},
-            "template":  {"type": "string", "description": "The cluster template to use.", "required": True},
+            "name": {"type": "string", "description": "The name to give the cluster."},
+            "template":  {"type": "string", "description": "The cluster template to use."},
             "config": {"type": "array", "description": "List of configuration to use, either ids or inline config.",
-                       "items": {"$ref": "Id"}, "required": True}
+                       "items": {"$ref": "Id"}}
         }})
 
     create.description = (Description(
@@ -249,6 +250,7 @@ class Cluster(Resource):
         job_id = jobId
         (user, token) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+        cluster = self._clean(cluster)
 
         base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
         config_url = '%s/starcluster-configs/%s?format=ini' % (
@@ -260,7 +262,7 @@ class Cluster(Resource):
         job['_id'] = str(job['_id'])
         del job['access']
 
-        submit_job.delay(cluster['name'], job,
+        submit_job.delay(cluster, job,
                          log_write_url=log_url,  config_url=config_url,
                          girder_token=token['_id'],
                          base_url=base_url)

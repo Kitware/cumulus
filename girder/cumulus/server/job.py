@@ -34,7 +34,12 @@ class Job(Resource):
         name = body['name']
         output_collection_id = body['outputCollectionId']
 
-        job = self._model.create(user, name, commands, output_collection_id)
+        on_complete = None
+        if 'onComplete' in body:
+            on_complete = body['onComplete']
+
+        job = self._model.create(user, name, commands, output_collection_id,
+                                 on_complete)
 
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/jobs/%s' % job['_id']
@@ -46,10 +51,12 @@ class Job(Resource):
 
     addModel('JobParameters', {
         "id":"JobParameters",
+        "required": ["commands", "name", "outputCollectionId"],
         "properties":{
             "commands": {"type": "string", "description": "The commands to run."},
             "name":  {"type": "string", "description": "The human readable job name."},
-            "outputCollectionId": {"type": "string", "description": "The id of the collection to upload the output to."}
+            "outputCollectionId": {"type": "string", "description": "The id of the collection to upload the output to."},
+            "onComplete": {"type": "string", "description": "Operation to perform on cluster when job is finish (for example 'terminate'", "required": False}
         }})
 
     create.description = (Description(

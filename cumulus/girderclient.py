@@ -15,7 +15,6 @@ class DirectoryUploader():
         self._root_folder = folder
         self._headers = {'Girder-Token': girder_token}
         self._girder_token = girder_token
-        print self._headers
 
     def run(self):
 
