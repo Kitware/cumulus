@@ -16,7 +16,7 @@ class Job(Resource):
         self.route('POST', (':id', 'log'), self.add_log_record)
         self.route('GET', (':id', 'log'), self.log)
         self.route('DELETE', (':id', ), self.delete)
-
+        self.route('GET', (':id',), self.get)
 
         self._model = self.model('job', 'cumulus')
 
@@ -46,22 +46,44 @@ class Job(Resource):
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/jobs/%s' % job['_id']
 
-        # Don't return the access object
-        del job['access']
+        return self._clean(job)
 
-        return job
-
+    addModel('JobOnCompleteParams', {
+        'id': 'JobOnCompleteParams',
+        'properties': {
+            'cluster': {
+                'type': 'string',
+                'enum': ['terminate'],
+                'description': 'Cluster operation to perform when job is complete.'
+            }
+        }
+    })
 
 
     addModel('JobParameters', {
-        "id":"JobParameters",
-        "required": ["commands", "name", "outputCollectionId"],
-        "properties":{
-            "commands": {"type": "array", "description": "The commands to run.", "items": {"type": "string"}},
-            "name":  {"type": "string", "description": "The human readable job name."},
-            "outputCollectionId": {"type": "string", "description": "The id of the collection to upload the output to."},
-            "onComplete": {"type": "string", "description": "Operation to perform on cluster when job is finish (for example 'terminate'", "required": False}
-        }})
+        'id':'JobParameters',
+        'required': ['commands', 'name', 'outputCollectionId'],
+        'properties':{
+            'commands': {
+                'type': 'array',
+                'description': 'The commands to run.',
+                'items': {
+                    'type': 'string'
+                }
+            },
+            'name': {
+                'type': 'string',
+                'description': 'The human readable job name.'
+            },
+            'outputCollectionId': {
+                'type': 'string',
+                'description': 'The id of the collection to upload the output to.'
+            },
+            'onComplete': {
+                '$ref': 'JobOnCompleteParams'
+            }
+        }
+    })
 
     create.description = (Description(
             'Create a new job'

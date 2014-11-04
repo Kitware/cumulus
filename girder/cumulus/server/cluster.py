@@ -139,23 +139,52 @@ class Cluster(Resource):
 
     @access.user
     def start(self, id, params):
+        body = json.loads(cherrypy.request.body.read())
         base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
         log_write_url = '%s/clusters/%s/log' % (base_url, id)
         (user, token) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
         cluster = self._clean(cluster)
 
-        print cluster
+        on_start_submit = None
+        if 'onStart' in body and 'submitJob' in body['onStart']:
+            on_start_submit = body['onStart']['submitJob']
 
         start_cluster.delay(cluster, base_url=base_url, log_write_url=log_write_url,
-                            girder_token=token['_id'])
+                            girder_token=token['_id'], on_start_submit=on_start_submit)
+
+    addModel('ClusterOnStartParms', {
+        'id': 'ClusterOnStartParms',
+        'properties': {
+            'submitJob': {
+                'pattern': '^[0-9a-fA-F]{24}$',
+                'type': 'string',
+                'description': 'The id of a Job to submit when the cluster is started.'
+            }
+        }
+    })
+
+
+    addModel('ClusterStartParams', {
+        'id': 'ClusterStartParams',
+        'properties': {
+            'onStart': {
+                '$ref': 'ClusterOnStartParms'
+            }
+        }
+    })
 
     start.description = (Description(
         'Start a cluster'
     )
         .param(
             'id',
-            'The cluster id to start.', paramType='path'))
+            'The cluster id to start.', paramType='path', required=True
+        )
+        .param(
+            'body', 'Parameter used when starting cluster', paramType='body',
+            dataType='ClusterStartParams'))
+
 
     @access.user
     def update(self, id, params):

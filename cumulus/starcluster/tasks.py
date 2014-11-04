@@ -50,7 +50,8 @@ def _check_status(request):
 
 @app.task
 @cumulus.starcluster.logging.capture
-def start_cluster(cluster, base_url=None, log_write_url=None, girder_token=None):
+def start_cluster(cluster, base_url=None, log_write_url=None, girder_token=None,
+                  on_start_submit=None):
     config_filepath = None
     name = cluster['name']
     template = cluster['template']
@@ -80,6 +81,20 @@ def start_cluster(cluster, base_url=None, log_write_url=None, girder_token=None)
         # Now update the status of the cluster
         r = requests.patch(status_url, headers=headers, json={'status': 'running'})
         _check_status(r)
+
+        # Now if we have job to submit do it!
+        if on_start_submit:
+            job_url = '%s/jobs/%s' % (base_url, on_start_submit)
+
+            # Get the Job information
+            r = requests.get(job_url, headers=headers)
+            _check_status(r)
+            job = r.json()
+            log_url = '%s/jobs/%s/log' % (base_url, on_start_submit)
+            submit_job.delay(cluster, job, log_write_url=log_url,
+                       config_url=config_url, girder_token=girder_token,
+                       base_url=base_url)
+
     finally:
         if config_filepath and os.path.exists(config_filepath):
             os.remove(config_filepath)
@@ -349,7 +364,8 @@ def upload_job_output(cluster, job, base_url=None, log_write_url=None, config_ur
             raise Exception('Unable to extract PID from: %s' % output)
 
         on_complete = None
-        if 'onComplete' in job and job['onComplete'] == 'terminate':
+        if 'onComplete' in job and 'cluster' in job['onComplete'] and \
+            job['onComplete']['cluster'] == 'terminate':
             on_complete = terminate_cluster.s(cluster, base_url=base_url,
                                               log_write_url=log_write_url,
                                               girder_token=girder_token)
