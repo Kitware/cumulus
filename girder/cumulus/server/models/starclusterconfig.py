@@ -12,10 +12,8 @@ class Starclusterconfig(AccessControlledModel):
     def validate(self, doc):
         return doc
 
-    def create(self, user, name,  config):
-        doc = {'name': name, 'config': config}
-
-        doc  = self.setUserAccess(doc, user=user, level=AccessType.ADMIN, save=True)
+    def create(self, user, config):
+        doc  = self.setUserAccess(config, user=user, level=AccessType.ADMIN, save=True)
 
         return doc
 

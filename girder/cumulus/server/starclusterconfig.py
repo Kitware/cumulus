@@ -5,10 +5,8 @@ from girder.api.rest import Resource, RestException
 from girder.api import access
 from girder.api.describe import Description
 from ConfigParser import ConfigParser
-
-
-
-
+from girder.api.docs import addModel
+from girder.constants import AccessType
 
 class StarClusterConfig(Resource):
 
@@ -16,11 +14,19 @@ class StarClusterConfig(Resource):
         self.resourceName = 'starcluster-configs'
         self.route('POST', (), self.create)
         self.route('GET', (':id',), self.get)
-
+        self.route('PATCH', (':id','import'), self.import_config)
+        self.route('DELETE', (':id',), self.delete)
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('starclusterconfig', 'cumulus')
 
-    def _import_file(self, params):
+    def _clean(self, config):
+        del config['access']
+
+        return config
+
+    @access.user
+    def import_config(self, id, params):
+        user = self.getCurrentUser()
         config_parser = ConfigParser()
         content = cherrypy.request.body.read()
         config_parser.readfp(io.BytesIO(content))
@@ -55,43 +61,73 @@ class StarClusterConfig(Resource):
                 else:
                     config[section_type] = options
 
-        return config;
+        star_config = self._model.load(id, user=user, level=AccessType.READ)
+        star_config['config'] = config
+        self._model.save(star_config)
+
+        return self._clean(star_config);
+
+    import_config.description = (Description(
+        'Import star cluster configuration in ini format'
+    )
+    .param(
+        'id',
+        'The config to upload the configuration to',
+        required=True, paramType='path')
+    .param(
+        'body',
+        'The contents of the INI file',
+        required=True, paramType='body')
+    .consumes('text/plain'))
 
     @access.user
     def create(self, params):
         user = self.getCurrentUser()
-        name = params['name']
 
-        content_type = cherrypy.request.headers['Content-Type']
+        config = json.load(cherrypy.request.body)
+        config = self._model.create(user, config)
 
-        if content_type == 'text/plain':
-            config = self._import_file(params)
-        elif content_type == 'application/json':
-            config = json.load(cherrypy.request.body)
-        else:
-            raise RestException('Unsupported Content-Type: %s' % content_type)
-
-        config = self._model.create(user, name, config)
-        del config['access']
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/starcluster-configs/%s' % config['_id']
 
-        return config
+        return self._clean(config)
+
+    addModel("Global", {
+        "id": "Global",
+        "properties": {
+            "default_template": {
+                "type": "string"
+            }
+        }
+    })
+    addModel('StarClusterConfig', {
+        "id": "StartClusterConfig",
+        "required": "global",
+        "properties": {
+            "global": {"type": "Global"},
+            "key": {"type": "array"},
+            "aws": {"type": "array"},
+            "cluster": {"type": "array"},
+            "permission": {"type": "array"},
+            "plugin": {"type": "array"}
+        }
+    })
+
+    addModel('NamedStarClusterConfig', {
+        "id": "NamedStarClusterConfig",
+        "required": ["name"],
+        "properties": {
+            "name": {"type": "string", "description": "The name of the configuration."},
+            "config":  {"type": "StarClusterConfig", "description": "The JSON configuration."}
+        }})
 
     create.description = (Description(
-            'Upload cluster configuration'
-        )
-        .param(
-            'name',
-            'Human readable name of configuration.',
-            required=True, paramType='query')
-        .consumes('application/json')
-        .consumes('text/plain')
-        .param(
-            'content',
-            'The contents of the INI file (text/plain) or JSON config ' +
-            '(application/json), be sure to set the correct Content-Type ',
-            required=True, paramType='body'))
+        'Create cluster configuration'
+    )
+    .param(
+        'body',
+        'The JSON configuation ',
+        required=True, paramType='body', dataType='NamedStarClusterConfig'))
 
     @access.user
     def get(self, id, params):
