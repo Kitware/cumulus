@@ -328,17 +328,15 @@ def upload_job_output(cluster, job, base_url=None, log_write_url=None, config_ur
         upload_output = '%s.upload.out' % job_id
         upload_cmd = 'nohup %s  &> %s  &\n' % (upload_cmd, upload_output)
 
-        upload_script = None
-        (fd, upload_script)  = tempfile.mkstemp()
-        script_name = os.path.basename(upload_script)
-        try:
-            os.write(fd, upload_cmd)
-            os.write(fd, 'echo $!\n')
-        finally:
-            os.close(fd)
+        with tempfile.NamedTemporaryFile() as upload_script:
+            script_name = os.path.basename(upload_script.name)
+            upload_script.write(upload_cmd)
+            upload_script.write('echo $!\n')
+            upload_script.flush()
+            master.ssh.put(upload_script.name)
 
         upload_cmd = './%s' % script_name
-
+        master.ssh.chmod(700, upload_cmd)
         output = master.ssh.execute(upload_cmd)
 
         if len(output) != 1:
