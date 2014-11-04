@@ -177,7 +177,8 @@ class Cluster(Resource):
     addModel("ClusterUpdateParameters", {
         "id": "ClusterUpdateParameters",
         "properties": {
-            "status": {"type": "string", "description": "The new status. (optional)"}
+            "status": {"type": "string", "enum": [ "created", "running", "stopped", "terminated" ],
+                       "description": "The new status. (optional)"}
         }
     })
 
@@ -188,7 +189,8 @@ class Cluster(Resource):
                'The id of the cluster to update', paramType='path')
         .param(
             'body',
-            'The properties to update.', dataType='ClusterUpdateParameters', paramType='body'))
+            'The properties to update.', dataType='ClusterUpdateParameters', paramType='body')
+        .notes('Internal - Used by Celery tasks'))
 
     @access.user
     def status(self, id, params):

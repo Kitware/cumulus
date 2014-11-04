@@ -106,7 +106,17 @@ class Job(Resource):
     addModel("JobUpdateParameters", {
         "id":"JobUpdateParameters",
         "properties":{
-            "status": {"type": "string", "description": "The new status. (optional)"},
+            "status": {
+                "type": "string",
+                "enum": [
+                    "created",
+                    "queued",
+                    "running",
+                    "error",
+                    "completed"
+                ],
+                "description": "The new status. (optional)"
+            },
             "sgeId": {"type": "integer", "description": "The SGE job id. (optional)"}
         }
     })
@@ -119,7 +129,8 @@ class Job(Resource):
               'The id of the job to update', paramType='path')
         .param(
             'body',
-            'The properties to update.', dataType='JobUpdateParameters' , paramType='body'))
+            'The properties to update.', dataType='JobUpdateParameters' , paramType='body')
+        .notes('Internal - Used by Celery tasks'))
 
     @access.user
     def status(self, id, params):

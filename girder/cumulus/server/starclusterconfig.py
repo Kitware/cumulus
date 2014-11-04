@@ -100,16 +100,63 @@ class StarClusterConfig(Resource):
             }
         }
     })
+
+    addModel("StarClusterSetting", {
+        "id": "StarClusterSetting",
+        "type": "object",
+        "additionalProperties": {
+            "type": "string"
+        }
+    })
+
+    addModel("Section", {
+        "id": "Section",
+        "type": "object",
+        "additionalProperties": {
+            "type": "array",
+            "items": {
+                "$ref": "StarClusterSetting"
+            }
+        }
+    })
+
     addModel('StarClusterConfig', {
         "id": "StartClusterConfig",
         "required": "global",
         "properties": {
-            "global": {"type": "Global"},
-            "key": {"type": "array"},
-            "aws": {"type": "array"},
-            "cluster": {"type": "array"},
-            "permission": {"type": "array"},
-            "plugin": {"type": "array"}
+            "global": {
+                "type": "Global",
+            },
+            "key": {
+                "type": "array",
+                "items": {
+                    "$ref": "Section"
+                }
+            },
+            "aws": {
+                "type": "array",
+                "items": {
+                    "$ref": "Section"
+                }
+            },
+            "cluster": {
+                "type": "array",
+                "items": {
+                    "$ref": "Section"
+                }
+            },
+            "permission": {
+                "type": "array",
+                "items": {
+                    "$ref": "Section"
+                }
+            },
+            "plugin": {
+                "type": "array",
+                "items": {
+                    "$ref": "Section"
+                }
+            }
         }
     })
 
