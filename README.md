@@ -1,3 +1,3 @@
 cumulus
 =======
-A REST API for creating and using StatClusters
+A REST API for creating and using StarClusters
