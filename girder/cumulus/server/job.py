@@ -51,11 +51,13 @@ class Job(Resource):
 
         return job
 
+
+
     addModel('JobParameters', {
         "id":"JobParameters",
         "required": ["commands", "name", "outputCollectionId"],
         "properties":{
-            "commands": {"type": "string", "description": "The commands to run."},
+            "commands": {"type": "array", "description": "The commands to run.", "items": {"type": "string"}},
             "name":  {"type": "string", "description": "The human readable job name."},
             "outputCollectionId": {"type": "string", "description": "The id of the collection to upload the output to."},
             "onComplete": {"type": "string", "description": "Operation to perform on cluster when job is finish (for example 'terminate'", "required": False}

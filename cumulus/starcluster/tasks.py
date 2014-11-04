@@ -140,7 +140,8 @@ def submit_job(cluster, job, log_write_url=None, config_url=None,
         script_filepath = os.path.join(tempfile.gettempdir(), script_name)
 
         with open(script_filepath, 'w') as fp:
-            fp.write(job['commands'])
+            for command in job['commands']:
+                fp.write('%s\n' % command)
 
         # TODO should we log this to the cluster resource or a separte job log?
         with logstdout():
