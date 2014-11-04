@@ -20,3 +20,11 @@ class Starclusterconfig(AccessControlledModel):
     def get(self, user, id):
         return self.load(id, user=user, level=AccessType.READ)
 
+
+    def delete(self, id):
+        if type(id) is not ObjectId:
+            id = ObjectId(id)
+
+        return self.remove({'_id': ObjectId(id)})
+
+

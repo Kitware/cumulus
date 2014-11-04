@@ -43,3 +43,12 @@ class Cluster(AccessControlledModel):
         cluster = self.load(id, user=user, level=AccessType.READ)
 
         return cluster['log'][offset:]
+
+    def delete(self, user, id):
+        cluster = self.load(id, user=user, level=AccessType.READ)
+
+        # Remove the config associated with the cluster first
+        self.model('starclusterconfig', 'cumulus').remove({'_id': cluster['configId']})
+
+        return self.remove(cluster)
+

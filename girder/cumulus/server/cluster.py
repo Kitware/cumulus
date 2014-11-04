@@ -24,6 +24,7 @@ class Cluster(Resource):
         self.route('PUT', (':id', 'terminate'), self.terminate)
         self.route('PUT', (':id', 'job', ':jobId', 'submit'), self.submit_job)
         self.route('GET', (':id', ), self.get)
+        self.route('DELETE', (':id', ), self.delete)
 
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('cluster', 'cumulus')
@@ -291,3 +292,15 @@ class Cluster(Resource):
         .param(
             'id',
             'The cluster is.', paramType='path', required=True))
+
+    @access.user
+    def delete(self, id, params):
+        user = self.getCurrentUser()
+        self._model.delete(user, id)
+
+    delete.description = (Description(
+            'Delete a cluster and its configuration'
+        )
+        .param(
+            'id',
+            'The cluster id.', paramType='path', required=True))

@@ -15,6 +15,8 @@ class Job(Resource):
         self.route('PUT', (':id', 'terminate'), self.terminate)
         self.route('POST', (':id', 'log'), self.add_log_record)
         self.route('GET', (':id', 'log'), self.log)
+        self.route('DELETE', (':id', ), self.delete)
+
 
         self._model = self.model('job', 'cumulus')
 
@@ -172,4 +174,15 @@ class Job(Resource):
         )
         .param(
             'id',
-            'The job is.', paramType='path', required=True))
+            'The job id.', paramType='path', required=True))
+
+    @access.user
+    def delete(self, id, params):
+        self._model.delete(id)
+
+    delete.description = (Description(
+            'Delete a job'
+        )
+        .param(
+            'id',
+            'The job id.', paramType='path', required=True))

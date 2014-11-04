@@ -56,3 +56,9 @@ class Job(AccessControlledModel):
         job = self.load(id, user=user, level=AccessType.READ)
 
         return job['log'][offset:]
+
+    def delete(self, id):
+        if type(id) is not ObjectId:
+            id = ObjectId(id)
+
+        return self.remove({'_id': ObjectId(id)})

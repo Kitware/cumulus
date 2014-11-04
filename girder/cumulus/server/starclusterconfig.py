@@ -175,3 +175,14 @@ class StarClusterConfig(Resource):
             'format',
             'The format to fetch in "json" or "ini".',
             required=False, paramType='query'))
+
+    @access.user
+    def delete(self, id, params):
+        self._model.delete(id)
+
+    delete.description = (Description(
+            'Delete a starcluster configuration'
+        )
+        .param(
+            'id',
+            'The starcluster configuration id.', paramType='path', required=True))
