@@ -8,9 +8,8 @@ from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
 
-from cumulus.starcluster.tasks import start_cluster, terminate_cluster, submit_job, \
-                                      download_job_input
-
+import cumulus.starcluster.tasks.job
+import cumulus.starcluster.tasks.cluster
 
 class Cluster(Resource):
 
@@ -151,7 +150,7 @@ class Cluster(Resource):
         if 'onStart' in body and 'submitJob' in body['onStart']:
             on_start_submit = body['onStart']['submitJob']
 
-        start_cluster.delay(cluster, base_url=base_url, log_write_url=log_write_url,
+        cumulus.starcluster.tasks.cluster.start_cluster.delay(cluster, base_url=base_url, log_write_url=log_write_url,
                             girder_token=token['_id'], on_start_submit=on_start_submit)
 
     addModel('ClusterOnStartParms', {
@@ -247,7 +246,7 @@ class Cluster(Resource):
 
         print cluster
 
-        terminate_cluster.delay(cluster, base_url=base_url, log_write_url=log_write_url,
+        cumulus.starcluster.tasks.cluster.terminate_cluster.delay(cluster, base_url=base_url, log_write_url=log_write_url,
                                 girder_token=token['_id'])
 
     terminate.description = (Description(
@@ -295,18 +294,7 @@ class Cluster(Resource):
         job['_id'] = str(job['_id'])
         del job['access']
 
-        # Do we inputs to download ?
-        if 'input' in job and len(job['input']) > 0:
-            print "down the garden path"
-            download_job_input.delay(cluster, job, base_url=base_url,
-                               log_write_url=log_url, config_url=config_url,
-                               girder_token=token['_id'])
-        else:
-            submit_job.delay(cluster, job,
-                             log_write_url=log_url,  config_url=config_url,
-                             girder_token=token['_id'],
-                             base_url=base_url)
-
+        cumulus.starcluster.tasks.job.submit(cluster, job, base_url, log_url, config_url, token['_id'])
 
     submit_job.description = (Description(
         'Submit a job to the cluster'

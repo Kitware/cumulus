@@ -1,11 +1,6 @@
-'''
-Created on Oct 23, 2014
-
-@author: cjh
-'''
-
 from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWriteHandler, logstdout, StarClusterLogFilter
 import cumulus.starcluster.logging
+from cumulus.starcluster.tasks.common import _write_config_file, _check_status, _log_exception
 from cumulus.celeryconfig import app
 import cumulus.girderclient
 import starcluster.config
@@ -23,114 +18,7 @@ import inspect
 import time
 import traceback
 
-def _write_config_file(girder_token, config_url):
-        headers = {'Girder-Token':  girder_token}
 
-        r = requests.get(config_url, headers=headers, params={'format': 'ini'})
-        r.raise_for_status()
-
-        # Write config to temp file
-        (fd, config_filepath)  = tempfile.mkstemp()
-
-        try:
-            os.write(fd, r.text)
-        finally:
-            os.close(fd)
-
-        return config_filepath
-
-def _log_exception(ex):
-    log = starcluster.logger.get_starcluster_logger()
-    log.error(traceback.format_exc())
-
-def _check_status(request):
-    if request.status_code != 200:
-        print sys.stderr, request.json()
-        request.raise_for_status()
-
-@app.task
-@cumulus.starcluster.logging.capture
-def start_cluster(cluster, base_url=None, log_write_url=None, girder_token=None,
-                  on_start_submit=None):
-    config_filepath = None
-    name = cluster['name']
-    template = cluster['template']
-    cluster_id = cluster['_id']
-    config_id = cluster['configId']
-    log_write_url = '%s/clusters/%s/log' % (base_url, cluster_id)
-    config_url = '%s/starcluster-configs/%s' % (base_url, config_id)
-    status_url = '%s/clusters/%s' % (base_url, cluster_id)
-
-    try:
-
-        config_filepath = _write_config_file(girder_token, config_url)
-        headers = {'Girder-Token':  girder_token}
-        r = requests.patch(status_url, headers=headers, json={'status': 'initializing'})
-        _check_status(r)
-
-        config = starcluster.config.StarClusterConfig(config_filepath)
-
-        config.load()
-        sc = config.get_cluster_template(template, name)
-
-        result = sc.is_valid()
-
-        with logstdout():
-            sc.start()
-
-        # Now update the status of the cluster
-        r = requests.patch(status_url, headers=headers, json={'status': 'running'})
-        _check_status(r)
-
-        # Now if we have job to submit do it!
-        if on_start_submit:
-            job_url = '%s/jobs/%s' % (base_url, on_start_submit)
-
-            # Get the Job information
-            r = requests.get(job_url, headers=headers)
-            _check_status(r)
-            job = r.json()
-            log_url = '%s/jobs/%s/log' % (base_url, on_start_submit)
-            submit_job.delay(cluster, job, log_write_url=log_url,
-                       config_url=config_url, girder_token=girder_token,
-                       base_url=base_url)
-
-    finally:
-        if config_filepath and os.path.exists(config_filepath):
-            os.remove(config_filepath)
-
-@app.task
-@cumulus.starcluster.logging.capture
-def terminate_cluster(cluster, base_url=None, log_write_url=None, girder_token=None):
-    name = cluster['name']
-    cluster_id = cluster['_id']
-    config_id = cluster['configId']
-    log_write_url = '%s/clusters/%s/log' % (base_url, cluster_id)
-    config_url = '%s/starcluster-configs/%s' % (base_url, config_id)
-    status_url = '%s/clusters/%s' % (base_url, cluster_id)
-
-
-    config_filepath = None
-    try:
-        config_filepath = _write_config_file(girder_token, config_url)
-        config = starcluster.config.StarClusterConfig(config_filepath)
-        config.load()
-        cm = config.get_cluster_manager()
-
-
-        with logstdout():
-            cm.terminate_cluster(name, force=True)
-
-        # Now update the status of the cluster
-        headers = {'Girder-Token':  girder_token}
-        r = requests.patch(status_url, headers=headers, json={'status': 'terminated'})
-        _check_status(r)
-    except starcluster.exception.ClusterDoesNotExist:
-        r = requests.patch(status_url, headers=headers, json={'status': 'terminated'})
-        _check_status(r)
-    finally:
-        if config_filepath and os.path.exists(config_filepath):
-            os.remove(config_filepath)
 
 @app.task
 @cumulus.starcluster.logging.capture
@@ -309,6 +197,20 @@ def submit_job(cluster, job, log_write_url=None, config_url=None,
             os.remove(config_filepath)
         if script_filepath and os.path.exists(script_filepath):
             os.remove(script_filepath)
+
+def submit(cluster, job, base_url, log_url, config_url, girder_token):
+
+    # Do we inputs to download ?
+    if 'input' in job and len(job['input']) > 0:
+
+        download_job_input.delay(cluster, job, base_url=base_url,
+                           log_write_url=log_url, config_url=config_url,
+                           girder_token=girder_token)
+    else:
+        submit_job.delay(cluster, job,
+                         log_write_url=log_url,  config_url=config_url,
+                         girder_token=girder_token,
+                         base_url=base_url)
 
 # Running states
 running_state = ['r', 'd', 'e']
