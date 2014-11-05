@@ -1,7 +1,7 @@
 from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWriteHandler, logstdout, StarClusterLogFilter
 import cumulus.starcluster.logging
 from cumulus.starcluster.tasks.common import _write_config_file, _check_status, _log_exception
-from cumulus.celeryconfig import app
+from cumulus.starcluster.tasks.celery import app
 import cumulus.girderclient
 import starcluster.config
 import starcluster.logger
