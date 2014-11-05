@@ -128,8 +128,6 @@ class JobInputDownloader(GirderBase):
 
         job = r.json()
 
-
-
         for i in job['input']:
             item_id = i['itemId']
             target_path = i['path']

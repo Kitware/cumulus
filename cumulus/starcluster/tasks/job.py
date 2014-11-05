@@ -394,7 +394,9 @@ def monitor_process(task, name, job, pid, nohup_out, log_write_url=None, config_
                 master.ssh.get(nohup_out)
                 # Log the output
                 with open(nohup_out, 'r') as fp:
-                    log.info('Job process output: %s' % fp.read())
+                    output = fp.read()
+                    if output:
+                        log.error('Job download/upload error: %s' % output)
             finally:
                 if nohup_out and os.path.exists(nohup_out):
                     os.remove(nohup_out)
