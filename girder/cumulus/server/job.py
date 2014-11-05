@@ -33,15 +33,8 @@ class Job(Resource):
 
         body = json.loads(cherrypy.request.body.read())
         commands = body['commands']
-        name = body['name']
-        output_collection_id = body['outputCollectionId']
 
-        on_complete = None
-        if 'onComplete' in body:
-            on_complete = body['onComplete']
-
-        job = self._model.create(user, name, commands, output_collection_id,
-                                 on_complete)
+        job = self._model.create(user, body)
 
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/jobs/%s' % job['_id']
@@ -59,6 +52,19 @@ class Job(Resource):
         }
     })
 
+    addModel('InputItem', {
+        'id': 'InputItem',
+        'properties': {
+            'itemId': {
+                'type': 'string',
+                'description': 'The item id'
+            },
+            'path': {
+                'type': 'string',
+                'description': 'The path to download this item to'
+            }
+        }
+    })
 
     addModel('JobParameters', {
         'id':'JobParameters',
@@ -74,6 +80,13 @@ class Job(Resource):
             'name': {
                 'type': 'string',
                 'description': 'The human readable job name.'
+            },
+            'input': {
+                'type': 'array',
+                'description': 'The commands to run.',
+                'items': {
+                    '$ref': 'InputItem'
+                }
             },
             'outputCollectionId': {
                 'type': 'string',
