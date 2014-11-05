@@ -4,52 +4,42 @@ import os
 import json
 import argparse
 import sys
+import io
+import zipfile
+import tempfile
+import shutil
 
 max_chunk_size = 1024 * 1024 * 64
 
-class DirectoryUploader():
-    def __init__(self, dir, base_url, target_collection_id, folder, girder_token):
-        self._dir = dir
-        self._base_url = base_url
-        self._target_collection_id = target_collection_id
-        self._root_folder = folder
-        self._headers = {'Girder-Token': girder_token}
+class GirderBase(object):
+    def __init__(self, girder_token):
         self._girder_token = girder_token
-
-    def run(self):
-
-        folder_id = self._create_folder(self._root_folder, self._target_collection_id, 'collection')
-        self._upload(folder_id, self._dir)
+        self._headers = {'Girder-Token': self._girder_token}
 
     def _check_status(self, request):
         if request.status_code != 200:
             print >> sys.stderr, request.json()
             request.raise_for_status()
 
-    def _create_folder(self, name, parent_id, parent_type='folder'):
-        params = {'parentType': parent_type, 'parentId': parent_id, 'name': name}
+class DirectoryUploader(GirderBase):
+    def __init__(self, girder_token, base_url, item_id, dir):
+        self._dir = dir
+        self._base_url = base_url
+        self._item_id = item_id
+        super(DirectoryUploader, self).__init__(girder_token)
 
-        r = requests.post( '%s/folder' % self._base_url, params=params, headers=self._headers)
-        self._check_status(r)
-        obj = r.json()
+    def run(self):
 
-        if '_id' in obj:
-            folder_id = obj['_id']
-        else:
-            raise Exception('Unexpected response: ' + json.dumps(obj))
+        self._upload(self._item_id, self._dir)
 
-        return folder_id
-
-    def _upload_file(self, path, parent_id):
-        name = os.path.basename(path)
-
+    def _upload_file(self, name, path, parent_id):
         # TODO will need to stream for large files ...
         with open(path, 'rb') as fp:
             data = fp.read()
 
         datalen = len(data)
         params = {
-            'parentType': 'folder',
+            'parentType': 'item',
             'parentId': parent_id,
             'name': name,
             'size': datalen
@@ -89,28 +79,89 @@ class DirectoryUploader():
             uploaded += chunk_size
 
     def _upload(self, parent_id, path):
-        for root, subdirs, file_list in os.walk(path):
-            dir_name = os.path.basename(root)
-
-            parent_id = self._create_folder(dir_name, parent_id)
+        for root,_ , file_list in os.walk(path):
             for filename in file_list:
-                self._upload_file(os.path.join(root, filename), parent_id)
+                file_path = os.path.join(root, filename)
+                name = os.path.relpath(file_path, path)
+                self._upload_file(name, os.path.join(root, filename), parent_id)
+
+class JobInputDownloader(GirderBase):
+    def __init__(self, girder_token, base_url, job_id, dest):
+        self._girder_token = girder_token
+        self._base_url = base_url
+        self._job_id = job_id
+        self._dest = dest
+        super(JobInputDownloader, self).__init__(girder_token)
+
+    def _download_item(self, item_id, target_path):
+        # Download the item in zip format
+        item_url = '%s/item/%s/download' % (self._base_url, item_id)
+        r = requests.get(item_url, headers=self._headers)
+        self._check_status(r)
+        files = zipfile.ZipFile(io.BytesIO(r.content))
+
+        dest_path = os.path.join(self._dest, target_path)
+
+        if os.path.exists(dest_path):
+            raise Exception('Target destination already exists: %s' % dest_path)
+
+        temp_dir = None
+        try:
+            temp_dir = tempfile.mkdtemp()
+            files.extractall(temp_dir)
+            item_dirs = os.listdir(temp_dir)
+
+            if len(item_dirs) != 1:
+                raise Exception('Expecting single item directory, got: %s' % len(item_dirs))
+
+            items_files = os.path.join(temp_dir, item_dirs[0])
+            shutil.move(items_files, dest_path)
+        finally:
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+
+    def run(self):
+        job_url = '%s/jobs/%s' % ( self._base_url, self._job_id)
+
+        r = requests.get(job_url, headers=self._headers)
+        self._check_status(r)
+
+        job = r.json()
+
+
+
+        for i in job['input']:
+            item_id = i['itemId']
+            target_path = i['path']
+            self._download_item(item_id, target_path)
+
 
 def main():
-    parser = argparse.ArgumentParser(description='Girder client for upload')
-    # TODO When we do the download we will probably want this
-    #subparsers = parser.add_subparsers(title="actions")
+    parser = argparse.ArgumentParser(description='Girder client for download/upload')
 
-    parser.add_argument('--dir', help='Directory to upload', required=True)
-    parser.add_argument('--url', help='Base URL for Girder ops', required=True)
-    parser.add_argument('--collection', help='Root collection id', required=True)
-    parser.add_argument('--folder', help='Root folder name', required=True)
+    # Common arguments
     parser.add_argument('--token', help='The Grider token to use when access server', required=True)
+    parser.add_argument('--url', help='Base URL for Girder ops', required=True)
+
+    subparsers = parser.add_subparsers(title="actions", dest='action')
+
+    # Upload
+    upload_parser = subparsers.add_parser('upload', help='Upload directory to girder')
+    upload_parser.add_argument('--dir', help='Directory to upload', required=True)
+    upload_parser.add_argument('--item', help='The item to upload files to', required=True)
+
+    # Download
+    download_parser = subparsers.add_parser('download', help='Download file from a Girder item')
+    download_parser.add_argument('--job', help='The job to download input for', required=True)
+    download_parser.add_argument('--dir', help='The target directory', required=True)
 
     config = parser.parse_args()
 
-    DirectoryUploader(config.dir, config.url, config.collection, config.folder,
-                      config.token).run()
+    if config.action == 'upload':
+        DirectoryUploader(config.token, config.url, config.item, config.dir).run()
+    elif config.action == 'download':
+        JobInputDownloader(config.token, config.url, config.job, config.dir).run()
+
 
 if __name__ == "__main__":
     main()
