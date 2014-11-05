@@ -66,6 +66,17 @@ class Job(Resource):
         }
     })
 
+    addModel('OutputItem', {
+        'id': 'OutputItem',
+        'properties': {
+            'itemId': {
+                'type': 'string',
+                'description': 'The item id'
+            }
+        }
+    })
+
+
     addModel('JobParameters', {
         'id':'JobParameters',
         'required': ['commands', 'name', 'outputCollectionId'],
@@ -88,9 +99,8 @@ class Job(Resource):
                     '$ref': 'InputItem'
                 }
             },
-            'outputCollectionId': {
-                'type': 'string',
-                'description': 'The id of the collection to upload the output to.'
+            'output': {
+                '$ref': 'OutputItem'
             },
             'onComplete': {
                 '$ref': 'JobOnCompleteParams'

@@ -319,7 +319,6 @@ def upload_job_output(cluster, job, base_url=None, log_write_url=None, config_ur
     log = starcluster.logger.get_starcluster_logger()
     config_filepath = None
     headers = {'Girder-Token':  girder_token}
-    collection_id = job['outputCollectionId']
     job_id = job['_id']
     status_url = '%s/jobs/%s' % (base_url, job_id)
     job_name = job['name']
@@ -338,8 +337,9 @@ def upload_job_output(cluster, job, base_url=None, log_write_url=None, config_ur
         master.ssh.put(path)
 
         log.info('Uploading output for "%s"' % job_name)
-        upload_cmd = 'python girderclient.py --dir %s --url "%s" --collection %s --token %s --folder %s' \
-                        % (job_dir, base_url, collection_id, girder_token, job_id)
+
+        upload_cmd = 'python girderclient.py --token %s --url "%s" upload --dir %s  --item %s' \
+                        % (girder_token, base_url, job_dir, job['output']['itemId'])
 
         upload_output = '%s.upload.out' % job_id
         upload_cmd = 'nohup %s  &> %s  &\n' % (upload_cmd, upload_output)
