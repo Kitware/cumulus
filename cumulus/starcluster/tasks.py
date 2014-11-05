@@ -134,6 +134,82 @@ def terminate_cluster(cluster, base_url=None, log_write_url=None, girder_token=N
 
 @app.task
 @cumulus.starcluster.logging.capture
+def download_job_input(cluster, job, base_url=None, log_write_url=None, config_url=None, girder_token=None):
+    log = starcluster.logger.get_starcluster_logger()
+    config_filepath = None
+    headers = {'Girder-Token':  girder_token}
+    job_id = job['_id']
+    status_url = '%s/jobs/%s' % (base_url, job_id)
+    job_name = job['name']
+    name = cluster['name']
+
+    try:
+        config_filepath = _write_config_file(girder_token, config_url)
+        config = starcluster.config.StarClusterConfig(config_filepath)
+        config.load()
+        cm = config.get_cluster_manager()
+        sc = cm.get_cluster(name)
+        master = sc.master_node
+
+        # First put girder client on master
+        path = inspect.getsourcefile(cumulus.girderclient)
+        master.ssh.put(path)
+
+        # Create job directory
+        master.ssh.mkdir('./%s' % job_id)
+
+        log.info('Downloading input for "%s"' % job_name)
+
+        r = requests.patch(status_url, json={'status': 'downloading'}, headers=headers)
+        _check_status(r)
+
+        download_cmd = 'python girderclient.py --token %s --url "%s" download --dir %s  --job %s' \
+                        % (girder_token, base_url, job_id, job_id)
+
+        download_output = '%s.download.out' % job_id
+        download_cmd = 'nohup %s  &> %s  &\n' % (download_cmd, download_output)
+
+        with tempfile.NamedTemporaryFile() as download_script:
+            script_name = os.path.basename(download_script.name)
+            download_script.write(download_cmd)
+            download_script.write('echo $!\n')
+            download_script.flush()
+            master.ssh.put(download_script.name)
+
+        download_cmd = './%s' % script_name
+        master.ssh.chmod(700, download_cmd)
+        output = master.ssh.execute(download_cmd)
+
+        # Remove download script
+        master.ssh.unlink(download_cmd)
+
+        if len(output) != 1:
+            raise Exception('PID not returned by execute command')
+
+        try:
+            pid = int(output[0])
+        except ValueError:
+            raise Exception('Unable to extract PID from: %s' % output)
+
+        # When the download is complete submit the job
+        on_complete = submit_job.s(cluster, job, log_write_url=log_write_url,
+                                   config_url=config_url, girder_token=girder_token,
+                                   base_url=base_url)
+
+        monitor_process(name, job, pid, download_output, log_write_url=log_write_url,
+                        config_url=config_url, girder_token=girder_token,
+                        base_url=base_url, on_complete=on_complete)
+
+    except starcluster.exception.RemoteCommandFailed as ex:
+        r = requests.patch(status_url, headers=headers, json={'status': 'error'})
+        _check_status(r)
+        _log_exception(ex)
+    finally:
+        if config_filepath and os.path.exists(config_filepath):
+            os.remove(config_filepath)
+
+@app.task
+@cumulus.starcluster.logging.capture
 def submit_job(cluster, job, log_write_url=None, config_url=None,
                girder_token=None, base_url=None):
     log = starcluster.logger.get_starcluster_logger()
@@ -141,6 +217,7 @@ def submit_job(cluster, job, log_write_url=None, config_url=None,
     script_filepath = None
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
+    job_dir = job_id
     status_url = '%s/jobs/%s' % (base_url, job_id)
     name = cluster['name']
 
@@ -165,12 +242,9 @@ def submit_job(cluster, job, log_write_url=None, config_url=None,
             sc = cm.get_cluster(name)
             master = sc.master_node
 
-            # Create job directory
-            job_dir = os.path.join(job['_id'], time.strftime('%Y-%m-%d-%H-%M-%S'))
-            master.ssh.makedirs(job_dir)
-
+            master.ssh.mkdir(job_id, ignore_failure=True)
             # put the script to master
-            master.ssh.put(script_filepath, job_dir)
+            master.ssh.put(script_filepath, job_id)
             # Now submit the job
             output = master.ssh.execute('qconf -sp orte')
             slots = -1
@@ -211,7 +285,7 @@ def submit_job(cluster, job, log_write_url=None, config_url=None,
             # Now monitor the jobs progress
             monitor_job.s(cluster, job, config_url=config_url,
                           girder_token=girder_token, log_write_url=log_write_url,
-                          job_dir=job_dir, base_url=base_url).apply_async(countdown=5)
+                          base_url=base_url).apply_async(countdown=5)
 
         # Now update the status of the cluster
         headers = {'Girder-Token':  girder_token}
@@ -244,12 +318,13 @@ queued_state = ['qw', 'q', 'w', 's', 'h', 't']
 
 @app.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
-def monitor_job(task, cluster, job, log_write_url=None, config_url=None, girder_token=None,
-                job_dir=None, base_url=None):
+def monitor_job(task, cluster, job, log_write_url=None, config_url=None,
+                girder_token=None, base_url=None):
     log = starcluster.logger.get_starcluster_logger()
     config_filepath = None
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
+    job_dir = job_id
     sge_id = job['sgeId']
     job_name = job['name']
     status_url = '%s/jobs/%s' % (base_url, job_id)
@@ -355,6 +430,9 @@ def upload_job_output(cluster, job, base_url=None, log_write_url=None, config_ur
         master.ssh.chmod(700, upload_cmd)
         output = master.ssh.execute(upload_cmd)
 
+        # Remove upload script
+        master.ssh.unlink(upload_cmd)
+
         if len(output) != 1:
             raise Exception('PID not returned by execute command')
 
@@ -390,7 +468,6 @@ def monitor_process(task, name, job, pid, nohup_out, log_write_url=None, config_
     config_filepath = None
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
-    sge_id = job['sgeId']
     job_name = job['name']
     status_url = '%s/jobs/%s' % (base_url, job_id)
 
