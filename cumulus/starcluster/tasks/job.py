@@ -145,11 +145,8 @@ def submit_job(cluster, job, log_write_url=None, config_url=None,
             if slots < 0:
                 raise Exception('Unable to retrieve number of slots')
 
-            stdout_file = '%s/%s.o' % (job_dir, script_name)
-            stderr_file = '%s/%s.e' % (job_dir, script_name)
-
-            cmd = 'cd %s && qsub -o %s, -e %s -pe orte %s ./%s' \
-                        % (job_dir, stdout_file, stderr_file, slots, script_name)
+            cmd = 'cd %s && qsub -cwd -pe orte %s ./%s' \
+                        % (job_dir, slots, script_name)
 
             log.info('Submitting "%s" to run on %s nodes' % (script_name, slots))
 
