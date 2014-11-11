@@ -150,8 +150,8 @@ class Cluster(Resource):
         if 'onStart' in body and 'submitJob' in body['onStart']:
             on_start_submit = body['onStart']['submitJob']
 
-        cumulus.starcluster.tasks.cluster.start_cluster.delay(cluster, base_url=base_url, log_write_url=log_write_url,
-                            girder_token=token['_id'], on_start_submit=on_start_submit)
+        cumulus.starcluster.tasks.cluster.start_cluster.delay(cluster, log_write_url=log_write_url,
+                            on_start_submit=on_start_submit)
 
     addModel('ClusterOnStartParms', {
         'id': 'ClusterOnStartParms',
@@ -244,8 +244,7 @@ class Cluster(Resource):
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
         cluster = self._clean(cluster)
 
-        cumulus.starcluster.tasks.cluster.terminate_cluster.delay(cluster, base_url=base_url, log_write_url=log_write_url,
-                                girder_token=token['_id'])
+        cumulus.starcluster.tasks.cluster.terminate_cluster.delay(cluster, log_write_url=log_write_url)
 
     terminate.description = (Description(
         'Terminate a cluster'
@@ -292,7 +291,7 @@ class Cluster(Resource):
         job['_id'] = str(job['_id'])
         del job['access']
 
-        cumulus.starcluster.tasks.job.submit(cluster, job, base_url, log_url, config_url, token['_id'])
+        cumulus.starcluster.tasks.job.submit(cluster, job, log_url, config_url)
 
     submit_job.description = (Description(
         'Submit a job to the cluster'

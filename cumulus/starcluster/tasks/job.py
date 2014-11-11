@@ -2,8 +2,9 @@ from __future__ import absolute_import
 from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWriteHandler, logstdout, StarClusterLogFilter
 import cumulus.starcluster.logging
 from cumulus.starcluster.tasks.common import _write_config_file, _check_status, _log_exception
+from cumulus.common import girder_token
 from cumulus.starcluster.tasks.celery import app
-from cumulus import config
+import cumulus
 import cumulus.girderclient
 import starcluster.config
 import starcluster.logger
@@ -22,33 +23,19 @@ import traceback
 from celery import signature
 
 
-def _authenticate(base_url, username, password):
-    authResponse = requests.get('%s/user/authentication' % base_url,
-                                auth=(username, password))
-
-    return authResponse.json()['authToken']['token']
-
-_token = None
-
-def _girder_token():
-    if not _token:
-        _token = _authenticate(config.baseUrl, config.user, config.password)
-
-    return _token
-
 @app.task
 @cumulus.starcluster.logging.capture
-def download_job_input(cluster, job, base_url=None, log_write_url=None, config_url=None, girder_token=None):
+def download_job_input(cluster, job, log_write_url=None, config_url=None):
     log = starcluster.logger.get_starcluster_logger()
     config_filepath = None
-    headers = {'Girder-Token':  girder_token}
+    headers = {'Girder-Token':  girder_token()}
     job_id = job['_id']
-    status_url = '%s/jobs/%s' % (base_url, job_id)
+    status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
     job_name = job['name']
     name = cluster['name']
 
     try:
-        config_filepath = _write_config_file(girder_token, config_url)
+        config_filepath = _write_config_file(girder_token(), config_url)
         config = starcluster.config.StarClusterConfig(config_filepath)
         config.load()
         cm = config.get_cluster_manager()
@@ -68,7 +55,7 @@ def download_job_input(cluster, job, base_url=None, log_write_url=None, config_u
         _check_status(r)
 
         download_cmd = 'python girderclient.py --token %s --url "%s" download --dir %s  --job %s' \
-                        % (girder_token, base_url, job_id, job_id)
+                        % (girder_token(), cumulus.config.girder.baseUrl, job_id, job_id)
 
         download_output = '%s.download.out' % job_id
         download_cmd = 'nohup %s  &> %s  &\n' % (download_cmd, download_output)
@@ -97,12 +84,10 @@ def download_job_input(cluster, job, base_url=None, log_write_url=None, config_u
 
         # When the download is complete submit the job
         on_complete = submit_job.s(cluster, job, log_write_url=log_write_url,
-                                   config_url=config_url, girder_token=girder_token,
-                                   base_url=base_url)
+                                   config_url=config_url)
 
         monitor_process.delay(name, job, pid, download_output, log_write_url=log_write_url,
-                        config_url=config_url, girder_token=girder_token,
-                        base_url=base_url, on_complete=on_complete)
+                        config_url=config_url, on_complete=on_complete)
 
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers, json={'status': 'error'})
@@ -114,19 +99,18 @@ def download_job_input(cluster, job, base_url=None, log_write_url=None, config_u
 
 @app.task
 @cumulus.starcluster.logging.capture
-def submit_job(cluster, job, log_write_url=None, config_url=None,
-               girder_token=None, base_url=None):
+def submit_job(cluster, job, log_write_url=None, config_url=None):
     log = starcluster.logger.get_starcluster_logger()
     config_filepath = None
     script_filepath = None
-    headers = {'Girder-Token':  girder_token}
+    headers = {'Girder-Token':  girder_token()}
     job_id = job['_id']
     job_dir = job_id
-    status_url = '%s/jobs/%s' % (base_url, job_id)
+    status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
     name = cluster['name']
 
     try:
-        config_filepath = _write_config_file(girder_token, config_url)
+        config_filepath = _write_config_file(girder_token(), config_url)
         config = starcluster.config.StarClusterConfig(config_filepath)
 
         # Write out script to upload to master
@@ -185,11 +169,10 @@ def submit_job(cluster, job, log_write_url=None, config_url=None,
 
             # Now monitor the jobs progress
             monitor_job.s(cluster, job, config_url=config_url,
-                          girder_token=girder_token, log_write_url=log_write_url,
-                          base_url=base_url).apply_async(countdown=5)
+                          log_write_url=log_write_url).apply_async(countdown=5)
 
         # Now update the status of the cluster
-        headers = {'Girder-Token':  girder_token}
+        headers = {'Girder-Token':  girder_token()}
         r = requests.patch(status_url, headers=headers, json={'status': 'queued'})
         _check_status(r)
     except starcluster.exception.RemoteCommandFailed as ex:
@@ -211,19 +194,16 @@ def submit_job(cluster, job, log_write_url=None, config_url=None,
         if script_filepath and os.path.exists(script_filepath):
             os.remove(script_filepath)
 
-def submit(cluster, job, base_url, log_url, config_url, girder_token):
+def submit(cluster, job, log_url, config_url):
 
     # Do we inputs to download ?
     if 'input' in job and len(job['input']) > 0:
 
-        download_job_input.delay(cluster, job, base_url=base_url,
-                           log_write_url=log_url, config_url=config_url,
-                           girder_token=girder_token)
+        download_job_input.delay(cluster, job, log_write_url=log_url,
+                                 config_url=config_url)
     else:
         submit_job.delay(cluster, job,
-                         log_write_url=log_url,  config_url=config_url,
-                         girder_token=girder_token,
-                         base_url=base_url)
+                         log_write_url=log_url,  config_url=config_url)
 
 # Running states
 running_state = ['r', 'd', 'e']
@@ -233,20 +213,19 @@ queued_state = ['qw', 'q', 'w', 's', 'h', 't']
 
 @app.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
-def monitor_job(task, cluster, job, log_write_url=None, config_url=None,
-                girder_token=None, base_url=None):
+def monitor_job(task, cluster, job, log_write_url=None, config_url=None):
     log = starcluster.logger.get_starcluster_logger()
     config_filepath = None
-    headers = {'Girder-Token':  girder_token}
+    headers = {'Girder-Token':  girder_token()}
     job_id = job['_id']
     job_dir = job_id
     sge_id = job['sgeId']
     job_name = job['name']
-    status_url = '%s/jobs/%s' % (base_url, job_id)
+    status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
     name = cluster['name']
 
     try:
-        config_filepath = _write_config_file(girder_token, config_url)
+        config_filepath = _write_config_file(girder_token(), config_url)
         config = starcluster.config.StarClusterConfig(config_filepath)
         config.load()
         cm = config.get_cluster_manager()
@@ -281,10 +260,8 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None,
         else:
             # Fire off task to upload the output
             log.info('Jobs "%s" complete' % job_name)
-            upload_job_output.delay(cluster, job, base_url=base_url,
-                                    log_write_url=log_write_url,
+            upload_job_output.delay(cluster, job, log_write_url=log_write_url,
                                     config_url=config_url,
-                                    girder_token=girder_token,
                                     job_dir=job_dir)
 
         r = requests.patch(status_url, headers=headers, json={'status': status})
@@ -305,17 +282,17 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None,
 
 @app.task
 @cumulus.starcluster.logging.capture
-def upload_job_output(cluster, job, base_url=None, log_write_url=None, config_url=None, girder_token=None, job_dir=None):
+def upload_job_output(cluster, job, log_write_url=None, config_url=None, job_dir=None):
     log = starcluster.logger.get_starcluster_logger()
     config_filepath = None
-    headers = {'Girder-Token':  girder_token}
+    headers = {'Girder-Token':  girder_token()}
     job_id = job['_id']
-    status_url = '%s/jobs/%s' % (base_url, job_id)
+    status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
     job_name = job['name']
     name = cluster['name']
 
     try:
-        config_filepath = _write_config_file(girder_token, config_url)
+        config_filepath = _write_config_file(girder_token(), config_url)
         config = starcluster.config.StarClusterConfig(config_filepath)
         config.load()
         cm = config.get_cluster_manager()
@@ -329,7 +306,7 @@ def upload_job_output(cluster, job, base_url=None, log_write_url=None, config_ur
         log.info('Uploading output for "%s"' % job_name)
 
         upload_cmd = 'python girderclient.py --token %s --url "%s" upload --dir %s  --item %s' \
-                        % (girder_token, base_url, job_dir, job['output']['itemId'])
+                        % (girder_token(), cumulus.config.girder.baseUrl, job_dir, job['output']['itemId'])
 
         upload_output = '%s.upload.out' % job_id
         upload_cmd = 'nohup %s  &> %s  &\n' % (upload_cmd, upload_output)
@@ -361,12 +338,10 @@ def upload_job_output(cluster, job, base_url=None, log_write_url=None, config_ur
             job['onComplete']['cluster'] == 'terminate':
             on_complete = signature(
                 'cumulus.starcluster.tasks.cluster.terminate_cluster',
-                args=(cluster,), kwargs={'base_url': base_url, 'log_write_url': log_write_url,
-                                 'girder_token': girder_token})
+                args=(cluster,), kwargs={'log_write_url': log_write_url})
 
         monitor_process.delay(name, job, pid, upload_output, log_write_url=log_write_url,
-                        config_url=config_url, girder_token=girder_token,
-                        base_url=base_url, on_complete=on_complete)
+                        config_url=config_url, on_complete=on_complete)
 
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers, json={'status': 'error'})
@@ -379,16 +354,16 @@ def upload_job_output(cluster, job, base_url=None, log_write_url=None, config_ur
 @app.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
 def monitor_process(task, name, job, pid, nohup_out, log_write_url=None, config_url=None,
-                    girder_token=None, base_url=None, on_complete=None):
+                    on_complete=None):
     log = starcluster.logger.get_starcluster_logger()
     config_filepath = None
-    headers = {'Girder-Token':  girder_token}
+    headers = {'Girder-Token':  girder_token()}
     job_id = job['_id']
     job_name = job['name']
-    status_url = '%s/jobs/%s' % (base_url, job_id)
+    status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
 
     try:
-        config_filepath = _write_config_file(girder_token, config_url)
+        config_filepath = _write_config_file(girder_token(), config_url)
         config = starcluster.config.StarClusterConfig(config_filepath)
         config.load()
         cm = config.get_cluster_manager()
