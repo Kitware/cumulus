@@ -18,7 +18,8 @@ class GirderBase(object):
 
     def _check_status(self, request):
         if request.status_code != 200:
-            print >> sys.stderr, request.json()
+            if request.headers['Content-Type'] == 'application/json':
+                print >> sys.stderr, request.json()
             request.raise_for_status()
 
 class DirectoryUploader(GirderBase):
@@ -94,31 +95,47 @@ class JobInputDownloader(GirderBase):
         super(JobInputDownloader, self).__init__(girder_token)
 
     def _download_item(self, item_id, target_path):
-        # Download the item in zip format
-        item_url = '%s/item/%s/download' % (self._base_url, item_id)
-        r = requests.get(item_url, headers=self._headers)
+
+        item_files_url = '%s/item/%s/files' % (self._base_url, item_id)
+        r = requests.get(item_files_url, headers=self._headers)
         self._check_status(r)
-        files = zipfile.ZipFile(io.BytesIO(r.content))
 
-        dest_path = os.path.join(self._dest, target_path)
+        files = r.json()
 
-        if os.path.exists(dest_path):
-            raise Exception('Target destination already exists: %s' % dest_path)
+        if len(files) == 1:
+            item_url = '%s/item/%s/download' % (self._base_url, item_id)
+            r = requests.get(item_url, headers=self._headers)
+            self._check_status(r)
+            dest_path = os.path.join(self._dest, target_path, files[0]['name'])
+            os.makedirs(os.path.dirname(dest_path))
+            with open(dest_path, 'w') as fp:
+                fp.write(r.content)
+        elif len(files) > 1:
+            # Download the item in zip format
+            item_url = '%s/item/%s/download' % (self._base_url, item_id)
+            r = requests.get(item_url, headers=self._headers)
+            self._check_status(r)
+            files = zipfile.ZipFile(io.BytesIO(r.content))
 
-        temp_dir = None
-        try:
-            temp_dir = tempfile.mkdtemp()
-            files.extractall(temp_dir)
-            item_dirs = os.listdir(temp_dir)
+            dest_path = os.path.join(self._dest, target_path)
 
-            if len(item_dirs) != 1:
-                raise Exception('Expecting single item directory, got: %s' % len(item_dirs))
+            if os.path.exists(dest_path):
+                raise Exception('Target destination already exists: %s' % dest_path)
 
-            items_files = os.path.join(temp_dir, item_dirs[0])
-            shutil.move(items_files, dest_path)
-        finally:
-            if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
+            temp_dir = None
+            try:
+                temp_dir = tempfile.mkdtemp()
+                files.extractall(temp_dir)
+                item_dirs = os.listdir(temp_dir)
+
+                if len(item_dirs) != 1:
+                    raise Exception('Expecting single item directory, got: %s' % len(item_dirs))
+
+                items_files = os.path.join(temp_dir, item_dirs[0])
+                shutil.move(items_files, dest_path)
+            finally:
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
 
     def run(self):
         job_url = '%s/jobs/%s' % ( self._base_url, self._job_id)
