@@ -3,6 +3,7 @@ from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWr
 import cumulus.starcluster.logging
 from cumulus.starcluster.tasks.common import _write_config_file, _check_status, _log_exception
 from cumulus.starcluster.tasks.celery import app
+from cumulus import config
 import cumulus.girderclient
 import starcluster.config
 import starcluster.logger
@@ -20,6 +21,20 @@ import time
 import traceback
 from celery import signature
 
+
+def _authenticate(base_url, username, password):
+    authResponse = requests.get('%s/user/authentication' % base_url,
+                                auth=(username, password))
+
+    return authResponse.json()['authToken']['token']
+
+_token = None
+
+def _girder_token():
+    if not _token:
+        _token = _authenticate(config.baseUrl, config.user, config.password)
+
+    return _token
 
 @app.task
 @cumulus.starcluster.logging.capture

@@ -3,3 +3,5 @@ boto==2.32.0
 celery==3.1.16
 requests==2.4.3
 requests-toolbelt==0.3.0
+jsonschema=2.4.0
+easydict=1.5
