@@ -396,6 +396,11 @@ def monitor_process(task, name, job, pid, nohup_out, log_write_url=None, config_
                     output = fp.read()
                     if output:
                         log.error('Job download/upload error: %s' % output)
+                        # If we have output then set the error state on the
+                        # job and return
+                        r = requests.patch(status_url, headers=headers, json={'status': 'error'})
+                        _check_status(r)
+                        return
             finally:
                 if nohup_out and os.path.exists(nohup_out):
                     os.remove(nohup_out)
