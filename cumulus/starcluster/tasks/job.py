@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWriteHandler, logstdout, StarClusterLogFilter
 import cumulus.starcluster.logging
-from cumulus.starcluster.tasks.common import _write_config_file, _check_status, _log_exception, terminate_cluster
+from cumulus.starcluster.tasks.common import _write_config_file, _check_status, _log_exception
 from cumulus.starcluster.tasks.celery import app
 import cumulus.girderclient
 import starcluster.config
@@ -17,7 +18,7 @@ import re
 import inspect
 import time
 import traceback
-
+from celery import signature
 
 
 @app.task
@@ -84,7 +85,7 @@ def download_job_input(cluster, job, base_url=None, log_write_url=None, config_u
                                    config_url=config_url, girder_token=girder_token,
                                    base_url=base_url)
 
-        monitor_process(name, job, pid, download_output, log_write_url=log_write_url,
+        monitor_process.delay(name, job, pid, download_output, log_write_url=log_write_url,
                         config_url=config_url, girder_token=girder_token,
                         base_url=base_url, on_complete=on_complete)
 
@@ -343,11 +344,12 @@ def upload_job_output(cluster, job, base_url=None, log_write_url=None, config_ur
         on_complete = None
         if 'onComplete' in job and 'cluster' in job['onComplete'] and \
             job['onComplete']['cluster'] == 'terminate':
-            on_complete = terminate_cluster.s(cluster, base_url=base_url,
-                                              log_write_url=log_write_url,
-                                              girder_token=girder_token)
+            on_complete = signature(
+                'cumulus.starcluster.tasks.cluster.terminate_cluster',
+                args=(cluster,), kwargs={'base_url': base_url, 'log_write_url': log_write_url,
+                                 'girder_token': girder_token})
 
-        monitor_process(name, job, pid, upload_output, log_write_url=log_write_url,
+        monitor_process.delay(name, job, pid, upload_output, log_write_url=log_write_url,
                         config_url=config_url, girder_token=girder_token,
                         base_url=base_url, on_complete=on_complete)
 
@@ -400,7 +402,7 @@ def monitor_process(task, name, job, pid, nohup_out, log_write_url=None, config_
 
             # Fire off the on_compete task if we have one
             if on_complete:
-                on_complete.delay()
+                signature(on_complete).delay()
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers, json={'status': 'error'})
         _check_status(r)

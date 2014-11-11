@@ -244,9 +244,7 @@ class Cluster(Resource):
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
         cluster = self._clean(cluster)
 
-        print cluster
-
-        cumulus.starcluster.tasks.common.terminate_cluster.delay(cluster, base_url=base_url, log_write_url=log_write_url,
+        cumulus.starcluster.tasks.cluster.terminate_cluster.delay(cluster, base_url=base_url, log_write_url=log_write_url,
                                 girder_token=token['_id'])
 
     terminate.description = (Description(
