@@ -2,12 +2,14 @@ import cherrypy
 from girder.models.model_base import AccessControlledModel
 from bson.objectid import ObjectId
 from girder.constants import AccessType
+import cumulus
+from .base import BaseModel
 
-
-class Cluster(AccessControlledModel):
+class Cluster(BaseModel):
 
     def initialize(self):
         self.name = 'clusters'
+        super(Cluster, self).initialize()
 
     def validate(self, doc):
         return doc
@@ -16,18 +18,22 @@ class Cluster(AccessControlledModel):
         cluster = {'name': name, 'template': template,
                    'log': [], 'status': 'created', 'configId': config_id}
 
-        doc  = self.setUserAccess(cluster, user=user, level=AccessType.ADMIN, save=True)
+        self.setUserAccess(cluster, user=user, level=AccessType.ADMIN)
+        group = {
+            '_id': ObjectId(self._group_id)
+        }
+        doc  = self.setGroupAccess(cluster, group, level=AccessType.ADMIN, save=True)
 
         return doc
 
     def add_log_record(self, user, id, record):
         # Load first to force access check
-        self.load(id, user=user, level=AccessType.ADMIN)
+        self.load(id, user=user, level=AccessType.WRITE)
         self.update({'_id': ObjectId(id)}, {'$push': {'log': record}})
 
     def update_cluster(self, user, id, status):
         # Load first to force access check
-        cluster = self.load(id, user=user, level=AccessType.ADMIN)
+        cluster = self.load(id, user=user, level=AccessType.WRITE)
 
         if status:
             cluster['status'] = status
@@ -45,7 +51,7 @@ class Cluster(AccessControlledModel):
         return cluster['log'][offset:]
 
     def delete(self, user, id):
-        cluster = self.load(id, user=user, level=AccessType.READ)
+        cluster = self.load(id, user=user, level=AccessType.ADMIN)
 
         # Remove the config associated with the cluster first
         self.model('starclusterconfig', 'cumulus').remove({'_id': cluster['configId']})

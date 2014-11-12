@@ -1,14 +1,16 @@
 import io
 import cherrypy
 import json
-from girder.api.rest import Resource, RestException
+from girder.api.rest import RestException
 from girder.api import access
 from girder.api.describe import Description
 from ConfigParser import ConfigParser
 from girder.api.docs import addModel
 from girder.constants import AccessType
+from . import base
+import cumulus
 
-class StarClusterConfig(Resource):
+class StarClusterConfig(base.BaseResource):
 
     def __init__(self):
         self.resourceName = 'starcluster-configs'
@@ -61,7 +63,7 @@ class StarClusterConfig(Resource):
                 else:
                     config[section_type] = options
 
-        star_config = self._model.load(id, user=user, level=AccessType.READ)
+        star_config = self._model.load(id, user=user, level=AccessType.ADMIN)
         star_config['config'] = config
         self._model.save(star_config)
 
@@ -84,8 +86,10 @@ class StarClusterConfig(Resource):
     def create(self, params):
         user = self.getCurrentUser()
 
+        self.check_group_membership(user, cumulus.config.girder.group)
+
         config = json.load(cherrypy.request.body)
-        config = self._model.create(user, config)
+        config = self._model.create(config)
 
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/starcluster-configs/%s' % config['_id']
@@ -225,7 +229,8 @@ class StarClusterConfig(Resource):
 
     @access.user
     def delete(self, id, params):
-        self._model.delete(id)
+        user = self.getCurrentUser()
+        self._model.delete(user, id)
 
     delete.description = (Description(
             'Delete a starcluster configuration'

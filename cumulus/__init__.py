@@ -10,13 +10,16 @@ config_schema = {
     "properties" : {
         "girder" : {
             "type" : "object",
-            "required": ["baseUrl", "user", "password"],
+            "required": ["baseUrl", "user", "password", "group"],
             'properties': {
                 "baseUrl": {
                     "type": "string",
                     "pattern": "^http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+$"
                 },
                 "user": {
+                    "type": "string"
+                },
+                "group": {
                     "type": "string"
                 },
                 "password": {

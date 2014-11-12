@@ -74,7 +74,6 @@ class Cluster(Resource):
 
         return merged_config
 
-    @access.user
     def _create_config(self, config):
         config_model = self.model('starclusterconfig', 'cumulus')
 
@@ -82,13 +81,12 @@ class Cluster(Resource):
 
         for c in config:
             if '_id' in c:
-                c = config_model.load(c['_id'],
-                        user=self.getCurrentUser(), level=AccessType.ADMIN)
+                c = config_model.load(c['_id'], force=True)
                 c = c['config']
 
             loaded_config.append(c)
 
-        config = config_model.save({'config': self._merge_configs(loaded_config)})
+        config = config_model.create({'config': self._merge_configs(loaded_config)})
 
         return config['_id']
 

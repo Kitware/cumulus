@@ -40,6 +40,6 @@ def _log_exception(ex):
 
 def _check_status(request):
     if request.status_code != 200:
-        print sys.stderr, request.json()
+        print >> sys.stderr, request.content
         request.raise_for_status()
 

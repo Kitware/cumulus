@@ -1,15 +1,20 @@
 import cherrypy
-from girder.models.model_base import AccessControlledModel
+from girder.models.model_base import AccessControlledModel, ValidationException
 from bson.objectid import ObjectId
 from girder.constants import AccessType
+import cumulus
+from .base import BaseModel
 
-
-class Job(AccessControlledModel):
+class Job(BaseModel):
 
     def initialize(self):
         self.name = 'jobs'
+        super(Job, self).initialize()
 
     def validate(self, doc):
+        if not doc['name']:
+         raise ValidationException('Name must not be empty.', 'name')
+
         return doc
 
     def create(self, user, job):
@@ -17,7 +22,11 @@ class Job(AccessControlledModel):
         job['status'] = 'created'
         job['log'] =  []
 
-        doc  = self.setUserAccess(job, user=user, level=AccessType.ADMIN, save=True)
+        self.setUserAccess(job, user=user, level=AccessType.ADMIN)
+        group = {
+            '_id': ObjectId(self._group_id)
+        }
+        doc  = self.setGroupAccess(job, group, level=AccessType.ADMIN, save=True)
 
         return doc
 
@@ -28,7 +37,7 @@ class Job(AccessControlledModel):
 
     def update_job(self, user, id, status=None, sge_id=None):
         # Load first to force access check
-        job = self.load(id, user=user, level=AccessType.ADMIN)
+        job = self.load(id, user=user, level=AccessType.WRITE)
 
         if status:
             job['status'] = status
@@ -41,7 +50,7 @@ class Job(AccessControlledModel):
     def add_log_record(self, user, _id, record):
         # Load first to force access check
         print type(id)
-        self.load(_id, user=user, level=AccessType.ADMIN)
+        self.load(_id, user=user, level=AccessType.WRITE)
         print 'ID: |%s|'%  id
         self.update({'_id': ObjectId(_id)}, {'$push': {'log': record}})
 
@@ -50,8 +59,8 @@ class Job(AccessControlledModel):
 
         return job['log'][offset:]
 
-    def delete(self, id):
-        if type(id) is not ObjectId:
-            id = ObjectId(id)
+    def delete(self, user, id):
+
+        job = self.load(id, user=user, level=AccessType.ADMIN)
 
         return self.remove({'_id': ObjectId(id)})

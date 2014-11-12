@@ -336,9 +336,10 @@ def upload_job_output(cluster, job, log_write_url=None, config_url=None, job_dir
         on_complete = None
         if 'onComplete' in job and 'cluster' in job['onComplete'] and \
             job['onComplete']['cluster'] == 'terminate':
+            cluster_log_url = '%s/clusters/%s/log' % (cumulus.config.girder.baseUrl, cluster['_id'])
             on_complete = signature(
                 'cumulus.starcluster.tasks.cluster.terminate_cluster',
-                args=(cluster,), kwargs={'log_write_url': log_write_url})
+                args=(cluster,), kwargs={'log_write_url': cluster_log_url})
 
         monitor_process.delay(name, job, pid, upload_output, log_write_url=log_write_url,
                         config_url=config_url, on_complete=on_complete)

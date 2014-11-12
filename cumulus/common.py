@@ -11,6 +11,7 @@ def _authenticate(base_url, username, password):
 _token = None
 
 def girder_token():
+    global _token
     if not _token:
         _token = _authenticate(cumulus.config.girder.baseUrl,
                                cumulus.config.girder.user,
