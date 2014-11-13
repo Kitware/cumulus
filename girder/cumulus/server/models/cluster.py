@@ -1,5 +1,5 @@
 import cherrypy
-from girder.models.model_base import AccessControlledModel
+from girder.models.model_base import AccessControlledModel, ValidationException
 from bson.objectid import ObjectId
 from girder.constants import AccessType
 import cumulus
@@ -12,6 +12,40 @@ class Cluster(BaseModel):
         super(Cluster, self).initialize()
 
     def validate(self, doc):
+
+        if not doc['name']:
+            raise ValidationException('Name must not be empty.', 'name')
+
+        query = {
+            'name': doc['name']
+        }
+
+        if '_id' in doc:
+            query['_id'] = {'$ne': doc['_id']}
+
+        duplicate = self.findOne(query, fields=['_id'])
+        if duplicate:
+            raise ValidationException('A cluster with that name already exists.', 'name')
+
+        # Check the template exists
+        config = self.model('starclusterconfig', 'cumulus').load(doc['configId'], force=True)
+        config = config['config']
+
+        found = False
+        for template in config['cluster']:
+            name,_ = template.iteritems().next()
+
+            print '$' +  name + '$'
+            print '$' +  doc['template'] + '$'
+            if doc['template'] == name:
+                found = True
+                break
+
+        print found
+
+        if not found:
+            raise ValidationException('A cluster template \'%s\' not found in configuration.' % doc['template'], 'template')
+
         return doc
 
     def create(self, user, config_id, name, template):
@@ -22,7 +56,9 @@ class Cluster(BaseModel):
         group = {
             '_id': ObjectId(self._group_id)
         }
-        doc  = self.setGroupAccess(cluster, group, level=AccessType.ADMIN, save=True)
+        doc  = self.setGroupAccess(cluster, group, level=AccessType.ADMIN)
+
+        self.save(doc)
 
         return doc
 
