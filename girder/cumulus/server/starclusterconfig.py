@@ -234,9 +234,9 @@ class StarClusterConfig(base.BaseResource):
     @access.user
     def delete(self, id, params):
         user = self.getCurrentUser()
-        config = self.load(id, user=user, level=AccessType.ADMIN)
+        config = self._model.load(id, user=user, level=AccessType.ADMIN)
 
-        self._modle.remove(doc)
+        self._model.remove(config)
 
     delete.description = (Description(
             'Delete a starcluster configuration'

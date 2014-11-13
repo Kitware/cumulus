@@ -6,19 +6,25 @@ from bson.objectid import ObjectId
 import cumulus
 from .base import BaseModel
 
+print "Config loading"
+
 class Starclusterconfig(BaseModel):
+
+    def __init__(self):
+        super(Starclusterconfig, self).__init__()
 
     def initialize(self):
         self.name = 'starclusterconfigs'
-        super(Starclusterconfig, self).initialize()
 
     def validate(self, doc):
         return doc
 
     def create(self, config):
+
         group = {
-            '_id': ObjectId(self._group_id)
+            '_id': ObjectId(self.get_group_id())
         }
+
         doc  = self.setGroupAccess(config, group, level=AccessType.ADMIN, save=True)
 
         return doc
