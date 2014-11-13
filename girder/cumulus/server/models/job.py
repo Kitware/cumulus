@@ -26,7 +26,9 @@ class Job(BaseModel):
         group = {
             '_id': ObjectId(self._group_id)
         }
-        doc  = self.setGroupAccess(job, group, level=AccessType.ADMIN, save=True)
+        doc  = self.setGroupAccess(job, group, level=AccessType.ADMIN)
+
+        self.save(job)
 
         return doc
 
