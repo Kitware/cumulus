@@ -7,6 +7,7 @@ from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
+from girder.api.rest import RestException
 
 import cumulus.starcluster.tasks.job
 import cumulus.starcluster.tasks.cluster
@@ -137,7 +138,14 @@ class Cluster(Resource):
 
     @access.user
     def start(self, id, params):
-        body = json.loads(cherrypy.request.body.read())
+        json_body = None
+
+        print cherrypy.request.body.read
+        if cherrypy.request.body:
+            body = cherrypy.request.body.read()
+            if body:
+                json_body = json.loads(body)
+
         base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
         log_write_url = '%s/clusters/%s/log' % (base_url, id)
         (user, token) = self.getCurrentUser(returnToken=True)
@@ -145,8 +153,8 @@ class Cluster(Resource):
         cluster = self._clean(cluster)
 
         on_start_submit = None
-        if 'onStart' in body and 'submitJob' in body['onStart']:
-            on_start_submit = body['onStart']['submitJob']
+        if json_body and 'onStart' in json_body and 'submitJob' in json_body['onStart']:
+            on_start_submit = json_body['onStart']['submitJob']
 
         cumulus.starcluster.tasks.cluster.start_cluster.delay(cluster, log_write_url=log_write_url,
                             on_start_submit=on_start_submit)
@@ -181,7 +189,7 @@ class Cluster(Resource):
         )
         .param(
             'body', 'Parameter used when starting cluster', paramType='body',
-            dataType='ClusterStartParams'))
+            dataType='ClusterStartParams', required=False))
 
 
     @access.user
