@@ -285,6 +285,10 @@ class Cluster(Resource):
         job_id = jobId
         (user, token) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+
+        if cluster['status'] != 'running':
+            raise RestException('Cluster is not running', code=400)
+
         cluster = self._clean(cluster)
 
         base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
