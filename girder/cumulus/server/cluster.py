@@ -140,7 +140,6 @@ class Cluster(Resource):
     def start(self, id, params):
         json_body = None
 
-        print cherrypy.request.body.read
         if cherrypy.request.body:
             body = cherrypy.request.body.read()
             if body:
@@ -150,6 +149,10 @@ class Cluster(Resource):
         log_write_url = '%s/clusters/%s/log' % (base_url, id)
         (user, token) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+
+        if cluster['status'] == 'running':
+            raise RestException('Cluster already running.', code=400)
+
         cluster = self._clean(cluster)
 
         on_start_submit = None
