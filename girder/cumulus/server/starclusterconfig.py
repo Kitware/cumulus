@@ -7,6 +7,7 @@ from girder.api.describe import Description
 from ConfigParser import ConfigParser
 from girder.api.docs import addModel
 from girder.constants import AccessType
+from girder.api.rest import RestException
 from . import base
 import cumulus
 
@@ -189,7 +190,10 @@ class StarClusterConfig(base.BaseResource):
         if 'format' in params:
             format = params['format']
 
-        config = self._model.get(user, id)
+        config = self._model.load(id, user=user, level=AccessType.READ)
+
+        if not config:
+            raise RestException('Config not found', code=404)
 
         if format == 'json':
             return config['config']
@@ -230,7 +234,9 @@ class StarClusterConfig(base.BaseResource):
     @access.user
     def delete(self, id, params):
         user = self.getCurrentUser()
-        self._model.delete(user, id)
+        config = self.load(id, user=user, level=AccessType.ADMIN)
+
+        self._modle.remove(doc)
 
     delete.description = (Description(
             'Delete a starcluster configuration'

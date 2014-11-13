@@ -41,6 +41,10 @@ class Cluster(Resource):
     @access.user
     def handle_log_record(self, id, params):
         user = self.getCurrentUser()
+
+        if not self._model.load(id, user=user, level=AccessType.ADMIN):
+            raise RestException('Cluster not found.', code=404)
+
         return self._model.add_log_record(user, id, json.load(cherrypy.request.body))
 
     def _find_section(self, name_to_find, sections):
@@ -150,6 +154,10 @@ class Cluster(Resource):
         (user, token) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
 
+        if not cluster:
+            raise RestException('Cluster not found.', code=404)
+
+
         if cluster['status'] == 'running':
             raise RestException('Cluster already running.', code=400)
 
@@ -203,7 +211,15 @@ class Cluster(Resource):
         if 'status' in body:
             status = body['status']
 
-        cluster = self._model.update_cluster(user, id, status)
+        cluster = self._model.load(id, user=user, level=AccessType.WRITE)
+
+        if not cluster:
+            raise RestException('Cluster not found.', code=404)
+
+        if status:
+            cluster['status'] = status
+
+        cluster = self._model.save(cluster)
 
         # Don't return the access object
         del cluster['access']
@@ -233,9 +249,12 @@ class Cluster(Resource):
     @access.user
     def status(self, id, params):
         user = self.getCurrentUser()
-        status = self._model.status(user, id)
+        cluster = self._model.load(id, user=user, level=AccessType.READ)
 
-        return {'status': status}
+        if not cluster:
+            raise RestException('Cluster not found.', code=404)
+
+        return {'status': cluster['status']}
 
     status.description = (Description(
         'Get the clusters current state'
@@ -251,6 +270,9 @@ class Cluster(Resource):
 
         (user, token) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+
+        if not cluster:
+            raise RestException('Cluster not found.', code=404)
 
         if cluster['status'] == 'terminated' or cluster['status'] == 'terminating':
             return
@@ -273,6 +295,9 @@ class Cluster(Resource):
         if 'offset' in params:
             offset = int(params['offset'])
 
+        if not self._model.load(id, user=user, level=AccessType.READ):
+            raise RestException('Cluster not found.', code=404)
+
         log_records = self._model.log_records(user, id, offset)
 
         return {'log': log_records}
@@ -292,6 +317,9 @@ class Cluster(Resource):
         job_id = jobId
         (user, token) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+
+        if not cluster:
+            raise RestException('Cluster not found.', code=404)
 
         if cluster['status'] != 'running':
             raise RestException('Cluster is not running', code=400)
@@ -324,6 +352,10 @@ class Cluster(Resource):
     def get(self, id, params):
         user = self.getCurrentUser()
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+
+        if not cluster:
+            raise RestException('Cluster not found.', code=404)
+
         cluster = self._clean(cluster)
 
         return cluster
@@ -338,6 +370,10 @@ class Cluster(Resource):
     @access.user
     def delete(self, id, params):
         user = self.getCurrentUser()
+
+        if not self._model.load(id, user=user, level=AccessType.ADMIN):
+            raise RestException('Cluster not found.', code=404)
+
         self._model.delete(user, id)
 
     delete.description = (Description(

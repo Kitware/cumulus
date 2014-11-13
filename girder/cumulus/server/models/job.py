@@ -51,18 +51,10 @@ class Job(BaseModel):
 
     def add_log_record(self, user, _id, record):
         # Load first to force access check
-        print type(id)
         self.load(_id, user=user, level=AccessType.WRITE)
-        print 'ID: |%s|'%  id
         self.update({'_id': ObjectId(_id)}, {'$push': {'log': record}})
 
     def log_records(self, user, id, offset=0):
         job = self.load(id, user=user, level=AccessType.READ)
 
         return job['log'][offset:]
-
-    def delete(self, user, id):
-
-        job = self.load(id, user=user, level=AccessType.ADMIN)
-
-        return self.remove({'_id': ObjectId(id)})

@@ -5,6 +5,7 @@ from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
+from girder.api.rest import RestException
 
 class Job(Resource):
     def __init__(self):
@@ -133,13 +134,17 @@ class Job(Resource):
         status = None
         sge_id = None
 
+        job = self._model.load(id, user=user, level=AccessType.WRITE)
+        if not job:
+            raise RestException('Job not found.', code=404)
+
         if 'status' in body:
-            status = body['status']
+            job['status'] = body['status']
 
         if 'sgeId' in body:
-            sge_id = body['sgeId']
+            job['sgeId'] = body['sgeId']
 
-        job = self._model.update_job(user, id, status, sge_id)
+        job = self._model.save(job)
 
         # Don't return the access object
         del job['access']
@@ -181,7 +186,12 @@ class Job(Resource):
     def status(self, id, params):
         user = self.getCurrentUser()
 
-        return {'status': self._model.status(user, id)}
+        job = self._model.load(id, user=user, level=AccessType.WRITE)
+
+        if not job:
+            raise RestException('Job not found.', code=404)
+
+        return {'status': job['status']}
 
     status.description = (Description(
             'Get the status of a job'
@@ -194,7 +204,19 @@ class Job(Resource):
     @access.user
     def add_log_record(self, id, params):
         user = self.getCurrentUser()
-        return self._model.add_log_record(user, id, json.load(cherrypy.request.body))
+
+        job = self._model.load(id, user=user, level=AccessType.WRITE)
+
+        if not job:
+            raise RestException('Job not found.', code=404)
+
+        body = cherrypy.request.body.read()
+
+        if not body:
+            raise RestException('Log entry must be provided', code=400)
+
+        job['log'].append(json.loads(body))
+        self._model.save(job)
 
     add_log_record.description = None
 
@@ -205,9 +227,12 @@ class Job(Resource):
         if 'offset' in params:
             offset = int(params['offset'])
 
-        log_records = self._model.log_records(user, id, offset)
+        job = self._model.load(id, user=user, level=AccessType.READ)
 
-        return {'log': log_records}
+        if not job:
+            raise RestException('Job not found.', code=404)
+
+        return {'log': job['log'][offset:]}
 
     log.description = (Description(
             'Get log entries for cluster'
@@ -222,7 +247,11 @@ class Job(Resource):
     @access.user
     def get(self, id, params):
         user = self.getCurrentUser()
-        job = self._model.load(id, user=user, level=AccessType.ADMIN)
+        job = self._model.load(id, user=user, level=AccessType.READ)
+
+        if not job:
+            raise RestException('Job not found.', code=404)
+
         job = self._clean(job)
 
         return job
@@ -237,7 +266,13 @@ class Job(Resource):
     @access.user
     def delete(self, id, params):
         user = self.getCurrentUser()
-        self._model.delete(user, id)
+
+        job = self._model.load(id, user=user, level=AccessType.ADMIN)
+
+        if not job:
+            raise RestException('Job not found.', code=404)
+
+        self._model.remove(job)
 
     delete.description = (Description(
             'Delete a job'

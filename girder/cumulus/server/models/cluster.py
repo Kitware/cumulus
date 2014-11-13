@@ -76,10 +76,6 @@ class Cluster(BaseModel):
 
         return self.save(cluster)
 
-    def status(self, user, id):
-        cluster = self.load(id, user=user, level=AccessType.READ)
-        return cluster['status']
-
     def log_records(self, user, id, offset=0):
         # TODO Need to figure out perms a remove this force
         cluster = self.load(id, user=user, level=AccessType.READ)

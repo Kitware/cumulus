@@ -23,12 +23,5 @@ class Starclusterconfig(BaseModel):
 
         return doc
 
-    def get(self, user, id):
-         return self.load(id, user=user, level=AccessType.READ)
-
-    def delete(self, user, id):
-        doc = self.load(id, user=user, level=AccessType.ADMIN)
-
-        return self.remove(doc)
 
 
