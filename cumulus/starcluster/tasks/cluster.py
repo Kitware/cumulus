@@ -88,12 +88,14 @@ def terminate_cluster(cluster, log_write_url=None):
         config.load()
         cm = config.get_cluster_manager()
 
+        headers = {'Girder-Token':  girder_token()}
+        r = requests.patch(status_url, headers=headers, json={'status': 'terminating'})
+        _check_status(r)
 
         with logstdout():
             cm.terminate_cluster(name, force=True)
 
         # Now update the status of the cluster
-        headers = {'Girder-Token':  girder_token()}
         r = requests.patch(status_url, headers=headers, json={'status': 'terminated'})
         _check_status(r)
     except starcluster.exception.ClusterDoesNotExist:

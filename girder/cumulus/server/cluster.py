@@ -251,6 +251,10 @@ class Cluster(Resource):
 
         (user, token) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+
+        if cluster['status'] == 'terminated' or cluster['status'] == 'terminating':
+            return
+
         cluster = self._clean(cluster)
 
         cumulus.starcluster.tasks.cluster.terminate_cluster.delay(cluster, log_write_url=log_write_url)
