@@ -1,6 +1,7 @@
 from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWriteHandler, logstdout, StarClusterLogFilter
 import cumulus.starcluster.logging
 from cumulus.starcluster.tasks.celery import app
+from cumulus import config
 import cumulus.girderclient
 import starcluster.config
 import starcluster.logger
@@ -39,6 +40,6 @@ def _log_exception(ex):
 
 def _check_status(request):
     if request.status_code != 200:
-        print sys.stderr, request.json()
+        print >> sys.stderr, request.content
         request.raise_for_status()
 

@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from cumulus.common import girder_token
 import logging
 import sys
 import contextlib
@@ -38,7 +39,7 @@ def capture(func):
     def captureDecorator(self, *args, **kwargs):
         logger = starcluster.logger.get_starcluster_logger()
         logger.setLevel(logging.INFO)
-        handler = StarClusterLogHandler(kwargs['girder_token'],
+        handler = StarClusterLogHandler(girder_token(),
                                         kwargs['log_write_url'], logging.DEBUG)
         logger.addHandler(handler)
         call_id = uuid.uuid4()

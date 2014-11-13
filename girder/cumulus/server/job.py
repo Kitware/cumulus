@@ -236,7 +236,8 @@ class Job(Resource):
 
     @access.user
     def delete(self, id, params):
-        self._model.delete(id)
+        user = self.getCurrentUser()
+        self._model.delete(user, id)
 
     delete.description = (Description(
             'Delete a job'
