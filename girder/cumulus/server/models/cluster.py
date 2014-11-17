@@ -7,9 +7,11 @@ from .base import BaseModel
 
 class Cluster(BaseModel):
 
+    def __init__(self):
+        super(Cluster, self).__init__()
+
     def initialize(self):
         self.name = 'clusters'
-        super(Cluster, self).initialize()
 
     def validate(self, doc):
 
@@ -54,7 +56,7 @@ class Cluster(BaseModel):
 
         self.setUserAccess(cluster, user=user, level=AccessType.ADMIN)
         group = {
-            '_id': ObjectId(self._group_id)
+            '_id': ObjectId(self.get_group_id())
         }
         doc  = self.setGroupAccess(cluster, group, level=AccessType.ADMIN)
 

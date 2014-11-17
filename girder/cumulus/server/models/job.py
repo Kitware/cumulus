@@ -7,9 +7,11 @@ from .base import BaseModel
 
 class Job(BaseModel):
 
+    def __init__(self):
+        super(Job, self).__init__()
+
     def initialize(self):
         self.name = 'jobs'
-        super(Job, self).initialize()
 
     def validate(self, doc):
         if not doc['name']:
@@ -24,7 +26,7 @@ class Job(BaseModel):
 
         self.setUserAccess(job, user=user, level=AccessType.ADMIN)
         group = {
-            '_id': ObjectId(self._group_id)
+            '_id': ObjectId(self.get_group_id())
         }
         doc  = self.setGroupAccess(job, group, level=AccessType.ADMIN)
 

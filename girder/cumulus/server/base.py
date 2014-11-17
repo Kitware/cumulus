@@ -14,5 +14,5 @@ class BaseResource(Resource):
 
     def check_group_membership(self, user, group):
         group_id = self._get_group_id(group)
-        if ObjectId(group_id) not in user['groups']:
-            raise RestException('The user is not in the required group.', code=401)
+        if 'groups' not in user or ObjectId(group_id) not in user['groups']:
+            raise RestException('The user is not in the required group.', code=403)
