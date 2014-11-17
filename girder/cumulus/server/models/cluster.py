@@ -34,16 +34,14 @@ class Cluster(BaseModel):
         config = config['config']
 
         found = False
-        for template in config['cluster']:
-            name,_ = template.iteritems().next()
 
-            print '$' +  name + '$'
-            print '$' +  doc['template'] + '$'
-            if doc['template'] == name:
-                found = True
-                break
+        if 'cluster' in config:
+            for template in config['cluster']:
+                name,_ = template.iteritems().next()
 
-        print found
+                if doc['template'] == name:
+                    found = True
+                    break
 
         if not found:
             raise ValidationException('A cluster template \'%s\' not found in configuration.' % doc['template'], 'template')
