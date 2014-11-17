@@ -8,6 +8,7 @@ import io
 import zipfile
 import tempfile
 import shutil
+import os
 
 max_chunk_size = 1024 * 1024 * 64
 
@@ -34,11 +35,8 @@ class DirectoryUploader(GirderBase):
         self._upload(self._item_id, self._dir)
 
     def _upload_file(self, name, path, parent_id):
-        # TODO will need to stream for large files ...
-        with open(path, 'rb') as fp:
-            data = fp.read()
+        datalen = os.path.getsize(path)
 
-        datalen = len(data)
         params = {
             'parentType': 'item',
             'parentId': parent_id,
@@ -57,27 +55,29 @@ class DirectoryUploader(GirderBase):
 
         uploaded = 0
 
-        while (uploaded != datalen):
-            chunk_size = datalen - uploaded
-            if chunk_size > max_chunk_size:
-                chunk_size = max_chunk_size
+        with open(path, 'rb') as fp:
+            while (uploaded != datalen):
 
-            part = data[uploaded:uploaded+chunk_size]
+                chunk_size = datalen - uploaded
+                if chunk_size > max_chunk_size:
+                    chunk_size = max_chunk_size
 
-            m = MultipartEncoder(
-              fields=[('uploadId',  upload_id),
-                      ('offset', str(uploaded)),
-                      ('chunk', (name, part, 'application/octet-stream'))]
+                part = fp.read(chunk_size)
 
-            )
+                m = MultipartEncoder(
+                  fields=[('uploadId',  upload_id),
+                          ('offset', str(uploaded)),
+                          ('chunk', (name, part, 'application/octet-stream'))]
 
-            self._headers['Content-Type'] = m.content_type
+                )
 
-            r = requests.post('%s/file/chunk' % self._base_url, params=params,
-                                     data=m, headers=self._headers)
-            self._check_status(r)
+                self._headers['Content-Type'] = m.content_type
 
-            uploaded += chunk_size
+                r = requests.post('%s/file/chunk' % self._base_url, params=params,
+                                         data=m, headers=self._headers)
+                self._check_status(r)
+
+                uploaded += chunk_size
 
     def _upload(self, parent_id, path):
         for root,_ , file_list in os.walk(path):
