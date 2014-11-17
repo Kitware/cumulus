@@ -112,13 +112,13 @@ class JobTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
 
         self.assertStatus(r, 201)
-        config_id = r.json['_id']
+        job_id = r.json['_id']
         r = self.request('/jobs/%s' %
-                         str(config_id), method='GET', user=self._cumulus)
+                         str(job_id), method='GET', user=self._cumulus)
         self.assertStatusOk(r)
         expected_job = {u'status': u'created', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'output': {
             u'itemId': u'546a1844ff34c70456111185'}, u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}],
-            '_id': str(config_id)}
+            '_id': str(job_id)}
         self.assertEquals(r.json, expected_job)
 
     def test_update(self):
@@ -157,15 +157,15 @@ class JobTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
 
         self.assertStatus(r, 201)
-        config_id = r.json['_id']
+        job_id = r.json['_id']
 
-        r = self.request('/jobs/%s' % str(config_id), method='PATCH',
+        r = self.request('/jobs/%s' % str(job_id), method='PATCH',
                          type='application/json', body=json.dumps(status_body),
                          user=self._cumulus)
         self.assertStatusOk(r)
         expected_job = {u'status': u'testing', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'output': {
             u'itemId': u'546a1844ff34c70456111185'}, u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}],
-            '_id': str(config_id)}
+            '_id': str(job_id)}
         self.assertEquals(r.json, expected_job)
 
     def test_log(self):
@@ -193,7 +193,7 @@ class JobTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
 
         self.assertStatus(r, 201)
-        config_id = r.json['_id']
+        job_id = r.json['_id']
 
         log_entry = {
             'msg': 'Some message'
@@ -203,26 +203,26 @@ class JobTestCase(base.TestCase):
                          user=self._user)
         self.assertStatus(r, 404)
 
-        r = self.request('/jobs/%s/log' % str(config_id), method='POST',
+        r = self.request('/jobs/%s/log' % str(job_id), method='POST',
                          type='application/json', body=json.dumps(log_entry), user=self._user)
         self.assertStatusOk(r)
 
-        r = self.request('/jobs/%s/log' % str(config_id), method='GET',
+        r = self.request('/jobs/%s/log' % str(job_id), method='GET',
                          user=self._user)
         self.assertStatusOk(r)
         expected_log = {u'log': [{u'msg': u'Some message'}]}
         self.assertEquals(r.json, expected_log)
 
-        r = self.request('/jobs/%s/log' % str(config_id), method='POST',
+        r = self.request('/jobs/%s/log' % str(job_id), method='POST',
                          type='application/json', body=json.dumps(log_entry), user=self._user)
         self.assertStatusOk(r)
 
-        r = self.request('/jobs/%s/log' % str(config_id), method='GET',
+        r = self.request('/jobs/%s/log' % str(job_id), method='GET',
                          user=self._user)
         self.assertStatusOk(r)
         self.assertEquals(len(r.json['log']), 2)
 
-        r = self.request('/jobs/%s/log' % str(config_id), method='GET',
+        r = self.request('/jobs/%s/log' % str(job_id), method='GET',
                          params={'offset': 1}, user=self._user)
         self.assertStatusOk(r)
         self.assertEquals(len(r.json['log']), 1)
@@ -252,10 +252,10 @@ class JobTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
 
         self.assertStatus(r, 201)
-        config_id = r.json['_id']
+        job_id = r.json['_id']
 
         r = self.request('/jobs/%s/status' %
-                         str(config_id), method='GET', user=self._user)
+                         str(job_id), method='GET', user=self._user)
         self.assertStatusOk(r)
         expected_status = {u'status': u'created'}
         self.assertEquals(r.json, expected_status)
@@ -285,12 +285,12 @@ class JobTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
 
         self.assertStatus(r, 201)
-        config_id = r.json['_id']
+        job_id = r.json['_id']
 
         r = self.request('/jobs/%s' %
-                         str(config_id), method='DELETE', user=self._cumulus)
+                         str(job_id), method='DELETE', user=self._cumulus)
         self.assertStatusOk(r)
 
         r = self.request('/jobs/%s' %
-                         str(config_id), method='GET', user=self._cumulus)
+                         str(job_id), method='GET', user=self._cumulus)
         self.assertStatus(r, 404)
