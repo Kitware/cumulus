@@ -1,4 +1,4 @@
-StarCluster==0.95.5
+git+https://github.com/cjh1/StarCluster.git@mpich2-slots_per_host#egg=StarCluster
 boto==2.32.0
 celery==3.1.16
 requests==2.4.3
