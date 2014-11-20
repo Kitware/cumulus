@@ -21,7 +21,8 @@ import inspect
 import time
 import traceback
 from celery import signature
-
+import StringIO
+from jinja2 import Template
 
 @app.task
 @cumulus.starcluster.logging.capture
@@ -119,9 +120,15 @@ def submit_job(cluster, job, log_write_url=None, config_url=None):
         script_name = job_name = job['name']
         script_filepath = os.path.join(tempfile.gettempdir(), script_name)
 
+        script_template = StringIO.StringIO();
+        for command in job['commands']:
+            script_template.write('%s\n' % command)
+
+        script = Template(script_template.getvalue()).render(cluster=cluster,
+                     job=job, base_url=cumulus.config.girder.baseUrl)
+
         with open(script_filepath, 'w') as fp:
-            for command in job['commands']:
-                fp.write('%s\n' % command)
+                fp.write(script)
 
         # TODO should we log this to the cluster resource or a separte job log?
         with logstdout():
