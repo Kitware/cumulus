@@ -33,7 +33,17 @@ class Job(Resource):
         user = self.getCurrentUser()
 
         body = json.loads(cherrypy.request.body.read())
-        commands = body['commands']
+
+        if 'commands' not in body and 'scriptId' not in body:
+            raise RestException('command or scriptId must be provided', code=400)
+
+        if 'scriptId' in body:
+            script = self.model('script', 'cumulus').load(body['scriptId'], user=user)
+            if not script:
+                raise RestException('Script not found', 400)
+
+            del body['scriptId']
+            body['commands'] = script['commands']
 
         job = self._model.create(user, body)
 
@@ -80,7 +90,7 @@ class Job(Resource):
 
     addModel('JobParameters', {
         'id':'JobParameters',
-        'required': ['commands', 'name', 'outputCollectionId'],
+        'required': ['name', 'outputCollectionId'],
         'properties':{
             'commands': {
                 'type': 'array',
@@ -88,6 +98,10 @@ class Job(Resource):
                 'items': {
                     'type': 'string'
                 }
+            },
+            'scriptId': {
+                'pattern': '^[0-9a-fA-F]{24}$',
+                'type': 'string'
             },
             'name': {
                 'type': 'string',
