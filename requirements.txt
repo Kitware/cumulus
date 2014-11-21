@@ -5,3 +5,4 @@ requests==2.4.3
 requests-toolbelt==0.3.0
 jsonschema==2.4.0
 easydict==1.5
+lockfile==0.10.2
