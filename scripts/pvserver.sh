@@ -6,7 +6,7 @@
 ###   run.sh
 ###
 #$ -S /bin/bash
-#$ -pe orte {{ number_of_slots }}
+#$ -pe orte {{ number_of_slots-1 }}
 
 # Set up cluster-specific variables
 PARAVIEW_DIR="/opt/paraview/install"
