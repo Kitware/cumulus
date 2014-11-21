@@ -1,11 +1,14 @@
 import cherrypy
 import json
+import re
 from girder.api.rest import Resource
 from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException
+
+import cumulus.starcluster.tasks.job
 
 class Job(Resource):
     def __init__(self):
@@ -132,7 +135,40 @@ class Job(Resource):
 
     @access.user
     def terminate(self, id, params):
-        pass
+        (user, token) = self.getCurrentUser(returnToken=True)
+        job = self._model.load(id, user=user, level=AccessType.ADMIN)
+
+        if not job:
+            raise RestException('Job not found.', code=404)
+
+        cluster = self.model('cluster', 'cumulus').load(job['clusterId'],
+                            user=user, level=AccessType.ADMIN)
+
+        # Clean up cluster ( this should be moving into a utility function )
+        del cluster['access']
+        del cluster['log']
+        cluster['_id'] = str(cluster['_id'])
+        cluster['configId'] = str(cluster['configId'])
+
+        base_url = re.match('(.*)/jobs.*', cherrypy.url()).group(1)
+        config_url = '%s/starcluster-configs/%s?format=ini' % (
+            base_url, cluster['configId'])
+
+        job = self._model.load(id, user=user, level=AccessType.ADMIN)
+        job['status'] = 'terminating'
+
+        self._model.save(job)
+
+        log_url = '%s/jobs/%s/log' % (base_url, id)
+
+        # Clean up job
+        job = self._clean(job)
+
+        cumulus.starcluster.tasks.job.terminate_job.delay(cluster, job,
+                                                    log_write_url=log_url,
+                                                    config_url=config_url)
+
+        return job
 
     terminate.description = (Description(
             'Terminate a job'
