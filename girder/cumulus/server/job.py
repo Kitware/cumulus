@@ -1,6 +1,7 @@
 import cherrypy
 import json
 import re
+import requests
 from girder.api.rest import Resource
 from girder.api import access
 from girder.api.describe import Description
@@ -9,6 +10,7 @@ from girder.api.docs import addModel
 from girder.api.rest import RestException
 
 import cumulus.starcluster.tasks.job
+
 
 class Job(Resource):
     def __init__(self):
@@ -167,6 +169,12 @@ class Job(Resource):
         cumulus.starcluster.tasks.job.terminate_job.delay(cluster, job,
                                                     log_write_url=log_url,
                                                     config_url=config_url)
+
+        # This could be a local call, but I'm not sure how todo this in Girder
+        proxy_delete_url = '%s/proxy/%s/%s' % (base_url, cluster['_id'], id)
+        r = requests.delete(proxy_delete_url,
+                            headers={'Girder-Token': str(token['_id'])})
+        r.raise_for_status()
 
         return job
 
