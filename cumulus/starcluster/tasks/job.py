@@ -70,7 +70,7 @@ def download_job_input(cluster, job, log_write_url=None, config_url=None):
             master.ssh.put(download_script.name)
 
         download_cmd = './%s' % script_name
-        master.ssh.chmod(700, download_cmd)
+        master.ssh.execute('chmod 700 %s' % download_cmd)
         output = master.ssh.execute(download_cmd)
 
         # Remove download script
@@ -344,7 +344,7 @@ def upload_job_output(cluster, job, log_write_url=None, config_url=None, job_dir
             master.ssh.put(upload_script.name)
 
         upload_cmd = './%s' % script_name
-        print >> sys.stderr, master.ssh.chmod(700, upload_cmd)
+        master.ssh.execute('chmod 700 %s' % upload_cmd)
         output = master.ssh.execute(upload_cmd)
 
         # Remove upload script
