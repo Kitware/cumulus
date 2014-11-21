@@ -42,6 +42,7 @@ def download_job_input(cluster, job, log_write_url=None, config_url=None):
         cm = config.get_cluster_manager()
         sc = cm.get_cluster(name)
         master = sc.master_node
+        master.user = sc.cluster_user
 
         # First put girder client on master
         path = inspect.getsourcefile(cumulus.girderclient)
@@ -129,6 +130,7 @@ def submit_job(cluster, job, log_write_url=None, config_url=None):
             cm = config.get_cluster_manager()
             sc = cm.get_cluster(name)
             master = sc.master_node
+            master.user = sc.cluster_user
 
             # First get number of slots available
             output = master.ssh.execute('qconf -sp orte')
@@ -240,6 +242,7 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None):
         cm = config.get_cluster_manager()
         sc = cm.get_cluster(name)
         master = sc.master_node
+        master.user = sc.cluster_user
 
         # TODO Work out how to pass a job id to qstat
         output = master.ssh.execute('qstat')
@@ -307,6 +310,7 @@ def upload_job_output(cluster, job, log_write_url=None, config_url=None, job_dir
         cm = config.get_cluster_manager()
         sc = cm.get_cluster(name)
         master = sc.master_node
+        master.user = sc.cluster_user
 
         # First put girder client on master
         path = inspect.getsourcefile(cumulus.girderclient)
@@ -379,6 +383,7 @@ def monitor_process(task, name, job, pid, nohup_out, log_write_url=None, config_
         cm = config.get_cluster_manager()
         sc = cm.get_cluster(name)
         master = sc.master_node
+        master.user = sc.cluster_user
 
         # See if the process is still running
         output = master.ssh.execute('ps %s | grep %s' % (pid, pid),
