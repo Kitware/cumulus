@@ -222,6 +222,9 @@ running_state = ['r', 'd', 'e']
 # Queued states
 queued_state = ['qw', 'q', 'w', 's', 'h', 't']
 
+# Terminating
+terminating_state = ['dr']
+
 @app.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
 def monitor_job(task, cluster, job, log_write_url=None, config_url=None):
@@ -232,7 +235,8 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None):
     job_dir = job_id
     sge_id = job['sgeId']
     job_name = job['name']
-    status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
+    status_update_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
+    status_url = '%s/jobs/%s/status' % (cumulus.config.girder.baseUrl, job_id)
     name = cluster['name']
 
     try:
@@ -255,14 +259,26 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None):
             if m and m.group(1) == sge_id:
                 state = m.group(2)
 
-        # If not in queue that status is complete
-        status = 'complete'
+        # First get the current status
+        r = requests.get(status_url, headers=headers)
+        _check_status(r)
+
+        current_status = r.json()['status']
+
+        # If not in queue and we are terminating then move to terminated
+        if current_status == 'terminating':
+            status = 'terminated'
+        # Otherwise we are complete
+        else:
+            status = 'complete'
 
         if state:
             if state in running_state:
                 status = 'running'
             elif state in queued_state:
                 status = 'queued'
+            elif state in terminating:
+                status = 'terminating'
             else:
                 raise Exception('Unrecognized SGE state')
 
@@ -270,21 +286,22 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None):
             # N.B. throw=False to prevent Retry exception being raised
             task.retry(throw=False, countdown=5)
         else:
-            # Fire off task to upload the output
-            log.info('Jobs "%s" complete' % job_name)
-            upload_job_output.delay(cluster, job, log_write_url=log_write_url,
-                                    config_url=config_url,
-                                    job_dir=job_dir)
+            if status == 'complete':
+                # Fire off task to upload the output
+                log.info('Jobs "%s" complete' % job_name)
+                upload_job_output.delay(cluster, job, log_write_url=log_write_url,
+                                        config_url=config_url,
+                                        job_dir=job_dir)
 
-        r = requests.patch(status_url, headers=headers, json={'status': status})
+        r = requests.patch(status_update_url, headers=headers, json={'status': status})
         _check_status(r)
     except starcluster.exception.RemoteCommandFailed as ex:
-        r = requests.patch(status_url, headers=headers, json={'status': 'error'})
+        r = requests.patch(status_update_url, headers=headers, json={'status': 'error'})
         _check_status(r)
         _log_exception(ex)
     except Exception as ex:
         print  >> sys.stderr,  ex
-        r = requests.patch(status_url, headers=headers, json={'status': 'error'})
+        r = requests.patch(status_update_url, headers=headers, json={'status': 'error'})
         _check_status(r)
         _log_exception(ex)
         raise
@@ -332,7 +349,7 @@ def upload_job_output(cluster, job, log_write_url=None, config_url=None, job_dir
             master.ssh.put(upload_script.name)
 
         upload_cmd = './%s' % script_name
-        master.ssh.chmod(700, upload_cmd)
+        print >> sys.stderr, master.ssh.chmod(700, upload_cmd)
         output = master.ssh.execute(upload_cmd)
 
         # Remove upload script
@@ -426,4 +443,53 @@ def monitor_process(task, name, job, pid, nohup_out, log_write_url=None, config_
     finally:
         if config_filepath and os.path.exists(config_filepath):
             os.remove(config_filepath)
+
+@app.task
+@cumulus.starcluster.logging.capture
+def terminate_job(cluster, job, log_write_url=None, config_url=None):
+    log = starcluster.logger.get_starcluster_logger()
+    config_filepath = None
+    script_filepath = None
+    headers = {'Girder-Token':  girder_token()}
+    job_id = job['_id']
+    job_dir = job_id
+    status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
+    name = cluster['name']
+
+    print >> sys.stderr, name
+
+    try:
+        config_filepath = _write_config_file(girder_token(), config_url)
+        config = starcluster.config.StarClusterConfig(config_filepath)
+
+        with logstdout():
+            config.load()
+            cm = config.get_cluster_manager()
+            sc = cm.get_cluster(name)
+            master = sc.master_node
+            master.user = sc.cluster_user
+
+            # First get number of slots available
+            output = master.ssh.execute('qdel %s' % job['sgeId'])
+            print output
+
+    except starcluster.exception.RemoteCommandFailed as ex:
+        r = requests.patch(status_url, headers=headers, json={'status': 'error'})
+        _check_status(r)
+        _log_exception(ex)
+    except starcluster.exception.ClusterDoesNotExist as ex:
+        r = requests.patch(status_url, headers=headers, json={'status': 'error'})
+        _check_status(r)
+        _log_exception(ex)
+    except Exception as ex:
+        r = requests.patch(status_url, headers=headers, json={'status': 'error'})
+        _check_status(r)
+        _log_exception(ex)
+        raise
+    finally:
+        if config_filepath and os.path.exists(config_filepath):
+            os.remove(config_filepath)
+        if script_filepath and os.path.exists(script_filepath):
+            os.remove(script_filepath)
+
 

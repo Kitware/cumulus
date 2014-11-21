@@ -330,8 +330,14 @@ class Cluster(Resource):
         config_url = '%s/starcluster-configs/%s?format=ini' % (
             base_url, cluster['configId'])
 
-        job = self.model('job', 'cumulus').load(
+        job_model = self.model('job', 'cumulus')
+        job = job_model.load(
             job_id, user=user, level=AccessType.ADMIN)
+
+        # Set the clusterId on the job for termination
+        job['clusterId'] = id
+        job_model.save(job)
+
         log_url = '%s/jobs/%s/log' % (base_url, job_id)
         job['_id'] = str(job['_id'])
         del job['access']
