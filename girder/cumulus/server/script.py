@@ -11,7 +11,7 @@ from . import base
 class Script(base.BaseResource):
 
     def __init__(self):
-        self.resourceName = 'script'
+        self.resourceName = 'scripts'
         self.route('POST', (), self.create)
         self.route('GET', (':id',), self.get)
         self.route('PATCH', (':id','import'), self.import_script)
