@@ -124,23 +124,13 @@ def submit_job(cluster, job, log_write_url=None, config_url=None):
         for command in job['commands']:
             script_template.write('%s\n' % command)
 
-        script = Template(script_template.getvalue()).render(cluster=cluster,
-                     job=job, base_url=cumulus.config.girder.baseUrl)
-
-        with open(script_filepath, 'w') as fp:
-                fp.write(script)
-
-        # TODO should we log this to the cluster resource or a separte job log?
         with logstdout():
             config.load()
             cm = config.get_cluster_manager()
             sc = cm.get_cluster(name)
             master = sc.master_node
 
-            master.ssh.mkdir(job_id, ignore_failure=True)
-            # put the script to master
-            master.ssh.put(script_filepath, job_id)
-            # Now submit the job
+            # First get number of slots available
             output = master.ssh.execute('qconf -sp orte')
             slots = -1
             for line in output:
@@ -152,10 +142,22 @@ def submit_job(cluster, job, log_write_url=None, config_url=None):
             if slots < 0:
                 raise Exception('Unable to retrieve number of slots')
 
-            cmd = 'cd %s && qsub -cwd -pe orte %s ./%s' \
-                        % (job_dir, slots, script_name)
+            # Now we can template submission script
+            script = Template(script_template.getvalue()).render(cluster=cluster,
+                     job=job, base_url=cumulus.config.girder.baseUrl, number_of_slots=slots)
 
-            log.info('Submitting "%s" to run on %s nodes' % (script_name, slots))
+            with open(script_filepath, 'w') as fp:
+                fp.write('%s\n' % script)
+
+            master.ssh.mkdir(job_id, ignore_failure=True)
+            # put the script to master
+            master.ssh.put(script_filepath, job_id)
+            # Now submit the job
+
+            log.info('We have %s slots available' % slots)
+
+            cmd = 'cd %s && qsub -cwd ./%s' \
+                        % (job_dir, script_name)
 
             output = master.ssh.execute(cmd)
 
