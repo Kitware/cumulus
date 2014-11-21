@@ -222,9 +222,6 @@ running_state = ['r', 'd', 'e']
 # Queued states
 queued_state = ['qw', 'q', 'w', 's', 'h', 't']
 
-# Terminating
-terminating_state = ['dr']
-
 @app.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
 def monitor_job(task, cluster, job, log_write_url=None, config_url=None):
@@ -272,13 +269,11 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None):
         else:
             status = 'complete'
 
-        if state:
+        if state and current_status != 'terminating':
             if state in running_state:
                 status = 'running'
             elif state in queued_state:
                 status = 'queued'
-            elif state in terminating:
-                status = 'terminating'
             else:
                 raise Exception('Unrecognized SGE state')
 
