@@ -146,7 +146,7 @@ def submit_job(cluster, job, log_write_url=None, config_url=None):
 
             # Now we can template submission script
             script = Template(script_template.getvalue()).render(cluster=cluster,
-                     job=job, base_url=cumulus.config.girder.baseUrl, number_of_slots=slots)
+                     job=job, base_url=cumulus.config.girder.baseUrl, number_of_slots=int(slots))
 
             with open(script_filepath, 'w') as fp:
                 fp.write('%s\n' % script)
