@@ -19,4 +19,4 @@ MPIPROG="mpiexec"
 PV_SERVER="${PARAVIEW_DIR}/bin/pvserver"
 
 # Now run pvserver and tell it to reverse connect
-${MPIPROG} -n ${NB_PROCESSES} ${PV_SERVER} -rc --server-port=${RC_PORT}
+${MPIPROG} -n  {{ number_of_slots-1 }} ${PV_SERVER} -rc --server-port=${RC_PORT}
