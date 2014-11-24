@@ -50,6 +50,14 @@ class Job(Resource):
             del body['scriptId']
             body['commands'] = script['commands']
 
+        if 'onTerminate' in body:
+            if not isinstance(body['onTerminate'], list):
+                script = self.model('script', 'cumulus').load(body['onTerminate'], user=user)
+                if not script:
+                    raise RestException('onTerminate script not found', 400)
+
+                body['onTerminate'] = script['commands']
+
         job = self._model.create(user, body)
 
         cherrypy.response.status = 201
