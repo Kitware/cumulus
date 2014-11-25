@@ -24,6 +24,19 @@ from celery import signature
 import StringIO
 from jinja2 import Template
 
+def _put_script(ssh, script_commands):
+    with tempfile.NamedTemporaryFile() as script:
+        script_name = os.path.basename(script.name)
+        script.write(script_commands)
+        script.write('echo $!\n')
+        script.flush()
+        ssh.put(script.name)
+
+        cmd = './%s' % script_name
+        ssh.execute('chmod 700 %s' % cmd)
+
+    return cmd
+
 @app.task
 @cumulus.starcluster.logging.capture
 def download_job_input(cluster, job, log_write_url=None, config_url=None):
@@ -62,15 +75,7 @@ def download_job_input(cluster, job, log_write_url=None, config_url=None):
         download_output = '%s.download.out' % job_id
         download_cmd = 'nohup %s  &> %s  &\n' % (download_cmd, download_output)
 
-        with tempfile.NamedTemporaryFile() as download_script:
-            script_name = os.path.basename(download_script.name)
-            download_script.write(download_cmd)
-            download_script.write('echo $!\n')
-            download_script.flush()
-            master.ssh.put(download_script.name)
-
-        download_cmd = './%s' % script_name
-        master.ssh.execute('chmod 700 %s' % download_cmd)
+        download_cmd = _put_script(master.ssh, download_cmd)
         output = master.ssh.execute(download_cmd)
 
         # Remove download script
@@ -336,15 +341,7 @@ def upload_job_output(cluster, job, log_write_url=None, config_url=None, job_dir
         upload_output = '%s.upload.out' % job_id
         upload_cmd = 'nohup %s  &> %s  &\n' % (upload_cmd, upload_output)
 
-        with tempfile.NamedTemporaryFile() as upload_script:
-            script_name = os.path.basename(upload_script.name)
-            upload_script.write(upload_cmd)
-            upload_script.write('echo $!\n')
-            upload_script.flush()
-            master.ssh.put(upload_script.name)
-
-        upload_cmd = './%s' % script_name
-        master.ssh.execute('chmod 700 %s' % upload_cmd)
+        upload_cmd = _put_script(master.ssh, upload_cmd)
         output = master.ssh.execute(upload_cmd)
 
         # Remove upload script
@@ -380,7 +377,7 @@ def upload_job_output(cluster, job, log_write_url=None, config_url=None, job_dir
 @app.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
 def monitor_process(task, name, job, pid, nohup_out, log_write_url=None, config_url=None,
-                    on_complete=None):
+                    on_complete=None, output_message='Job download/upload error: %s'):
     log = starcluster.logger.get_starcluster_logger()
     config_filepath = None
     headers = {'Girder-Token':  girder_token()}
@@ -412,7 +409,7 @@ def monitor_process(task, name, job, pid, nohup_out, log_write_url=None, config_
                 with open(nohup_out, 'r') as fp:
                     output = fp.read()
                     if output:
-                        log.error('Job download/upload error: %s' % output)
+                        log.error(output_message % output)
                         # If we have output then set the error state on the
                         # job and return
                         r = requests.patch(status_url, headers=headers, json={'status': 'error'})
@@ -467,6 +464,32 @@ def terminate_job(cluster, job, log_write_url=None, config_url=None):
             # First get number of slots available
             output = master.ssh.execute('qdel %s' % job['sgeId'])
             print output
+
+            if 'onTerminate' in job:
+                commands = '\n'.join(job['onTerminate']['commands']) + '\n'
+                commands = Template(commands).render(cluster=cluster,
+                     job=job, base_url=cumulus.config.girder.baseUrl)
+
+                on_terminate = _put_script(master.ssh, commands+'\n')
+
+                terminate_output = '%s.terminate.out' % job_id
+                terminate_cmd = 'nohup %s  &> %s  &\n' % (on_terminate, terminate_output)
+                terminate_cmd = _put_script(master.ssh, terminate_cmd)
+                output = master.ssh.execute(terminate_cmd)
+
+                master.ssh.unlink(on_terminate)
+                master.ssh.unlink(terminate_cmd)
+
+                if len(output) != 1:
+                    raise Exception('PID not returned by execute command')
+
+                try:
+                    pid = int(output[0])
+                except ValueError:
+                    raise Exception('Unable to extract PID from: %s' % output)
+
+                monitor_process.delay(name, job, pid, terminate_output, log_write_url=log_write_url,
+                                config_url=config_url, output_message='onTerminate error: %s')
 
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers, json={'status': 'error'})

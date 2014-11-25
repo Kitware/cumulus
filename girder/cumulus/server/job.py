@@ -50,6 +50,14 @@ class Job(Resource):
             del body['scriptId']
             body['commands'] = script['commands']
 
+        if 'onTerminate' in body and 'scriptId' in body['onTerminate']:
+            script = self.model('script', 'cumulus').load(body['onTerminate']['scriptId'], user=user)
+            if not script:
+                raise RestException('onTerminate script not found', 400)
+
+            del body['onTerminate']['scriptId']
+            body['onTerminate']['commands'] = script['commands']
+
         job = self._model.create(user, body)
 
         cherrypy.response.status = 201
@@ -169,12 +177,6 @@ class Job(Resource):
         cumulus.starcluster.tasks.job.terminate_job.delay(cluster, job,
                                                     log_write_url=log_url,
                                                     config_url=config_url)
-
-        # This could be a local call, but I'm not sure how todo this in Girder
-        proxy_delete_url = '%s/proxy/%s/%s' % (base_url, cluster['_id'], id)
-        r = requests.delete(proxy_delete_url,
-                            headers={'Girder-Token': str(token['_id'])})
-        r.raise_for_status()
 
         return job
 
