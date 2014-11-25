@@ -23,7 +23,7 @@ IPADDRESS=`curl -s http://169.254.169.254/latest/meta-data/local-ipv4`
 
 # Create proxy entry
 BODY='{"host": "'$IPADDRESS'", "clusterId": "{{ cluster._id }}", "port": 8080, "jobId": "{{ job._id }}"}'
-curl --silent --show-error -o -X POST -d "$BODY"  --header "Content-Type: application/json" {{ base_url }}/proxy
+curl --silent --show-error -o /dev/null -X POST -d "$BODY"  --header "Content-Type: application/json" {{ base_url }}/proxy
 
 export LD_LIBRARY_PATH=$PARAVIEW_DIR/lib/paraview-4.2
 
@@ -31,4 +31,4 @@ export LD_LIBRARY_PATH=$PARAVIEW_DIR/lib/paraview-4.2
 ${PV_PYTHON} ${VISUALIZER} --host $IPADDRESS --port 8080 --proxies ${PROXIES} ${REVERSE}
 
 # Remove proxy entry
-curl --silent --show-error -o -X DELETE {{ base_url }}/proxy/{{ cluster._id }}/{{ job._id }}
+curl --silent --show-error -o /dev/null -X DELETE {{ base_url }}/proxy/{{ cluster._id }}/{{ job._id }}
