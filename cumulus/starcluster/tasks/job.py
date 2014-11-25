@@ -466,7 +466,7 @@ def terminate_job(cluster, job, log_write_url=None, config_url=None):
             print output
 
             if 'onTerminate' in job:
-                commands = '\n'.join(job['onTerminate']) + '\n'
+                commands = '\n'.join(job['onTerminate']['commands']) + '\n'
                 commands = Template(commands).render(cluster=cluster,
                      job=job, base_url=cumulus.config.girder.baseUrl)
 
