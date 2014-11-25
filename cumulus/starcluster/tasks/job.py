@@ -470,7 +470,7 @@ def terminate_job(cluster, job, log_write_url=None, config_url=None):
                 commands = Template(commands).render(cluster=cluster,
                      job=job, base_url=cumulus.config.girder.baseUrl)
 
-                on_terminate = _put_script(master.ssh, commands)
+                on_terminate = _put_script(master.ssh, commands+'\n')
 
                 terminate_output = '%s.terminate.out' % job_id
                 terminate_cmd = 'nohup %s  &> %s  &\n' % (on_terminate, terminate_output)
