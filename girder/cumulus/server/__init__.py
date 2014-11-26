@@ -1,7 +1,5 @@
 import sys
 
-print >> sys.stderr,  "LOADING >>>>"
-
 from .cluster import Cluster
 from .starclusterconfig import StarClusterConfig
 from .job import Job

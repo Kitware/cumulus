@@ -4,7 +4,6 @@ from cumulus.starcluster.tasks.common import _write_config_file, _check_status, 
 from cumulus.starcluster.tasks.job import submit
 from cumulus.starcluster.tasks.celery import app
 import cumulus
-from cumulus.common import girder_token
 import cumulus.girderclient
 import starcluster.config
 import starcluster.logger
@@ -24,7 +23,7 @@ import traceback
 
 @app.task
 @cumulus.starcluster.logging.capture
-def start_cluster(cluster, log_write_url=None, on_start_submit=None):
+def start_cluster(cluster, log_write_url=None, on_start_submit=None, girder_token=None):
     config_filepath = None
     name = cluster['name']
     template = cluster['template']
@@ -36,8 +35,8 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None):
 
     try:
 
-        config_filepath = _write_config_file(girder_token(), config_url)
-        headers = {'Girder-Token':  girder_token()}
+        config_filepath = _write_config_file(girder_token, config_url)
+        headers = {'Girder-Token':  girder_token}
         r = requests.patch(status_url, headers=headers, json={'status': 'initializing'})
         _check_status(r)
 
@@ -65,14 +64,14 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None):
             job = r.json()
             log_url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl, on_start_submit)
 
-            submit(cluster, job, log_url, config_url)
+            submit(girder_token, cluster, job, log_url, config_url)
     finally:
         if config_filepath and os.path.exists(config_filepath):
             os.remove(config_filepath)
 
 @app.task
 @cumulus.starcluster.logging.capture
-def terminate_cluster(cluster, log_write_url=None):
+def terminate_cluster(cluster, log_write_url=None, girder_token=None):
     name = cluster['name']
     cluster_id = cluster['_id']
     config_id = cluster['configId']
@@ -83,12 +82,12 @@ def terminate_cluster(cluster, log_write_url=None):
 
     config_filepath = None
     try:
-        config_filepath = _write_config_file(girder_token(), config_url)
+        config_filepath = _write_config_file(girder_token, config_url)
         config = starcluster.config.StarClusterConfig(config_filepath)
         config.load()
         cm = config.get_cluster_manager()
 
-        headers = {'Girder-Token':  girder_token()}
+        headers = {'Girder-Token':  girder_token}
         r = requests.patch(status_url, headers=headers, json={'status': 'terminating'})
         _check_status(r)
 
