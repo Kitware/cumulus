@@ -1,0 +1,5 @@
+{
+"name": "Moab mesh plugin",
+"description": "Exposes REST api to extract surface mesh using moab",
+"dependencies": []
+}
