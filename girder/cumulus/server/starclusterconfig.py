@@ -8,10 +8,10 @@ from ConfigParser import ConfigParser
 from girder.api.docs import addModel
 from girder.constants import AccessType
 from girder.api.rest import RestException
-from . import base
+from .base import BaseResource
 import cumulus
 
-class StarClusterConfig(base.BaseResource):
+class StarClusterConfig(BaseResource):
 
     def __init__(self):
         self.resourceName = 'starcluster-configs'

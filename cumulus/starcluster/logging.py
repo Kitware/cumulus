@@ -39,7 +39,7 @@ def capture(func):
     def captureDecorator(self, *args, **kwargs):
         logger = starcluster.logger.get_starcluster_logger()
         logger.setLevel(logging.INFO)
-        handler = StarClusterLogHandler(girder_token(),
+        handler = StarClusterLogHandler(kwargs['girder_token'],
                                         kwargs['log_write_url'], logging.DEBUG)
         logger.addHandler(handler)
         call_id = uuid.uuid4()

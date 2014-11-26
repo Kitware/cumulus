@@ -6,9 +6,9 @@ from girder.api.describe import Description
 from girder.api.docs import addModel
 from girder.constants import AccessType
 from girder.api.rest import RestException
-from . import base
+from .base import BaseResource
 
-class Script(base.BaseResource):
+class Script(BaseResource):
 
     def __init__(self):
         self.resourceName = 'scripts'

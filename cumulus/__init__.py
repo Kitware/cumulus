@@ -10,7 +10,7 @@ config_schema = {
     "properties" : {
         "girder" : {
             "type" : "object",
-            "required": ["baseUrl", "user", "password", "group"],
+            "required": ["baseUrl", "user", "group"],
             'properties': {
                 "baseUrl": {
                     "type": "string",
@@ -21,13 +21,9 @@ config_schema = {
                 },
                 "group": {
                     "type": "string"
-                },
-                "password": {
-                    "type": "string"
                 }
             }
         },
-
     }
 }
 

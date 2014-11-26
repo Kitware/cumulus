@@ -8,11 +8,12 @@ from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException
+from .base import BaseResource
 
 import cumulus.starcluster.tasks.job
 
 
-class Job(Resource):
+class Job(BaseResource):
     def __init__(self):
         self.resourceName = 'jobs'
         self.route('POST', (), self.create)
@@ -174,9 +175,11 @@ class Job(Resource):
         # Clean up job
         job = self._clean(job)
 
+        girder_token = self.get_task_token()['_id']
         cumulus.starcluster.tasks.job.terminate_job.delay(cluster, job,
                                                     log_write_url=log_url,
-                                                    config_url=config_url)
+                                                    config_url=config_url,
+                                                    girder_token=girder_token)
 
         return job
 

@@ -8,11 +8,12 @@ from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException
+from .base import BaseResource
 
 import cumulus.starcluster.tasks.job
 import cumulus.starcluster.tasks.cluster
 
-class Cluster(Resource):
+class Cluster(BaseResource):
 
     def __init__(self):
         self.resourceName = 'clusters'
@@ -167,8 +168,9 @@ class Cluster(Resource):
         if json_body and 'onStart' in json_body and 'submitJob' in json_body['onStart']:
             on_start_submit = json_body['onStart']['submitJob']
 
+        girder_token = self.get_task_token()['_id']
         cumulus.starcluster.tasks.cluster.start_cluster.delay(cluster, log_write_url=log_write_url,
-                            on_start_submit=on_start_submit)
+                            on_start_submit=on_start_submit, girder_token=girder_token)
 
     addModel('ClusterOnStartParms', {
         'id': 'ClusterOnStartParms',
@@ -278,8 +280,9 @@ class Cluster(Resource):
             return
 
         cluster = self._clean(cluster)
-
-        cumulus.starcluster.tasks.cluster.terminate_cluster.delay(cluster, log_write_url=log_write_url)
+        girder_token = self.get_task_token()['_id']
+        cumulus.starcluster.tasks.cluster.terminate_cluster.delay(cluster, log_write_url=log_write_url,
+                                                                  girder_token=girder_token)
 
     terminate.description = (Description(
         'Terminate a cluster'
@@ -342,7 +345,8 @@ class Cluster(Resource):
         job['_id'] = str(job['_id'])
         del job['access']
 
-        cumulus.starcluster.tasks.job.submit(cluster, job, log_url, config_url)
+        girder_token = self.get_task_token()['_id']
+        cumulus.starcluster.tasks.job.submit(girder_token, cluster, job, log_url, config_url)
 
     submit_job.description = (Description(
         'Submit a job to the cluster'
