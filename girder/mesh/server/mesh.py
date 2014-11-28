@@ -86,4 +86,7 @@ class Mesh(Resource):
             paramType='path', required=True)
         .param(
             'body',
-            'The extract parameters.', dataType='ExtractMeshParams', paramType='body', required=True))
+            'The extract parameters.', dataType='ExtractMeshParams', paramType='body', required=True)
+        .notes('If an error occurs during processing a file containing error information ' \
+               'be upload instead of the surface mess. The file will name will be of the ' \
+               'form <output.name>.error'))
