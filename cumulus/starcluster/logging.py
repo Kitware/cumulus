@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-from cumulus.common import girder_token
 import logging
 import sys
 import contextlib
