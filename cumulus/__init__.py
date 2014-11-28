@@ -24,6 +24,15 @@ config_schema = {
                 }
             }
         },
+        "moadReader" : {
+            "type" : "object",
+            "required": ["pluginPath"],
+            'properties': {
+                "pluginPath": {
+                    "type": "string"
+                }
+            }
+        }
     }
 }
 
