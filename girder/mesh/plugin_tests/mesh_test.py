@@ -2,6 +2,7 @@ from tests import base
 import json
 import os
 import mock
+import re
 
 
 def setUpModule():
@@ -17,6 +18,7 @@ class MeshTestCase(base.TestCase):
 
     def normalize(self, data):
         str_data = json.dumps(data, default=str)
+        str_data = re.sub(r'[\w]{64}', 'token', str_data)
 
         return json.loads(str_data)
 
@@ -63,7 +65,8 @@ class MeshTestCase(base.TestCase):
         params = {
             'name': 'test'
         }
-        r = self.request('/collection', method='POST', params=params, user=self._cumulus)
+        r = self.request(
+            '/collection', method='POST', params=params, user=self._cumulus)
         self.assertStatusOk(r)
 
         collection_id = r.json['_id']
@@ -73,17 +76,19 @@ class MeshTestCase(base.TestCase):
             'parentId': collection_id,
             'name': 'test'
         }
-        r = self.request('/folder', method='POST', params=params, user=self._cumulus)
+        r = self.request(
+            '/folder', method='POST', params=params, user=self._cumulus)
         self.assertStatusOk(r)
 
         folder_id = r.json['_id']
 
         params = {
-           'folderId': folder_id,
-           'name': 'mesh'
+            'folderId': folder_id,
+            'name': 'mesh'
 
         }
-        r = self.request('/item', method='POST', params=params, user=self._cumulus)
+        r = self.request(
+            '/item', method='POST', params=params, user=self._cumulus)
         self.assertStatusOk(r)
 
         self.item_id = r.json['_id']
@@ -91,12 +96,13 @@ class MeshTestCase(base.TestCase):
         data = os.urandom(2048)
 
         params = {
-           'parentType': 'item',
-           'parentId': self.item_id,
-           'name': 'mesh.in',
-           'size': len(data)
+            'parentType': 'item',
+            'parentId': self.item_id,
+            'name': 'mesh.in',
+            'size': len(data)
         }
-        r = self.request('/file', method='POST', params=params, user=self._cumulus)
+        r = self.request(
+            '/file', method='POST', params=params, user=self._cumulus)
         self.assertStatusOk(r)
 
         print r.json
@@ -111,9 +117,8 @@ class MeshTestCase(base.TestCase):
 
         self.file_id = r.json['_id']
 
-
-    @mock.patch('cumulus.moab.tasks.mesh.extract.delay')
-    def test_extract_surface(self, extract_delay):
+    @mock.patch('cumulus.starcluster.tasks.celery.app.send_task')
+    def test_extract_surface(self, send_task):
         body = {
         }
 
@@ -139,8 +144,9 @@ class MeshTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._cumulus)
         self.assertStatusOk(r)
 
-        expected_calls = [[[self.file_id, {u'itemId': self.item_id, u'name': u'mesh.in'}], {}]]
-        self.assertCalls(extract_delay.call_args_list, expected_calls)
+        expected_calls = [[[u'cumulus.moab.tasks.mesh.extract'], {u'args': [
+            u'token', self.file_id, {u'itemId': self.item_id, u'name': u'mesh.in'}]}]]
+        self.assertCalls(send_task.call_args_list, expected_calls)
 
         bogus_id = '54789ef6ff34c72d45f1ed11'
         json_body = json.dumps(body)
@@ -154,7 +160,3 @@ class MeshTestCase(base.TestCase):
         r = self.request(url, method='PUT',
                          type='application/json', body=json_body, user=self._cumulus)
         self.assertStatus(r, 400)
-
-
-
-
