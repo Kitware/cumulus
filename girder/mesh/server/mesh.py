@@ -6,8 +6,8 @@ from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException
-
-import cumulus.moab.tasks.mesh
+import cumulus
+from cumulus.starcluster.tasks.celery import app
 
 class Mesh(Resource):
     def __init__(self):
@@ -50,8 +50,7 @@ class Mesh(Resource):
             raise RestException('Unable to load item: %s' % item_id, code=400)
 
         girder_token = self.get_task_token()['_id']
-        cumulus.moab.tasks.mesh.extract.delay(girder_token, mesh_file_id, body['output'])
-
+        app.send_task('cumulus.moab.tasks.mesh.extract', args=(girder_token, mesh_file_id, body['output']))
 
     addModel('MeshOutput', {
         'id':'MeshOutput',
