@@ -127,7 +127,9 @@ class JobTestCase(base.TestCase):
             'onComplete': {
                 'cluster': 'terminate'
             },
-            'onTerminate': script_id,
+            'onTerminate': {
+                'scriptId': script_id
+            },
             'input': [
                 {
                     'itemId': '546a1844ff34c70456111185',
@@ -153,7 +155,7 @@ class JobTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._cumulus)
 
         self.assertStatus(r, 201)
-        expected_job = {u'status': u'created', u'commands': [u'echo "test"'], u'name': u'test', u'onComplete': {u'cluster': u'terminate'},  u'onTerminate': [u'echo "test"'], u'output': {
+        expected_job = {u'status': u'created', u'commands': [u'echo "test"'], u'name': u'test', u'onComplete': {u'cluster': u'terminate'},  u'onTerminate': {'commands': [u'echo "test"']}, u'output': {
             u'itemId': u'546a1844ff34c70456111185'}, u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}]}
         del r.json['_id']
         self.assertEquals(r.json, expected_job)
