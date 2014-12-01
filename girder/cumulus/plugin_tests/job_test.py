@@ -184,6 +184,32 @@ class JobTestCase(base.TestCase):
         # Bogus script id
         self.assertStatus(r, 400)
 
+    def test_create_job_name_check(self):
+        body = {
+            'onComplete': {
+                'cluster': 'terminate'
+            },
+            'input': [
+                {
+                    'itemId': '546a1844ff34c70456111185',
+                    'path': 'test'
+                }
+            ],
+            'commands': ['echo "test"'],
+            'name': 'test',
+            'output': {
+                'itemId': '546a1844ff34c70456111185'
+            }
+        }
+
+        json_body = json.dumps(body)
+        r = self.request('/jobs', method='POST',
+                         type='application/json', body=json_body, user=self._cumulus)
+
+        # input path and name can't be that same
+        self.assertStatus(r, 400)
+        print r.json
+
     def test_get(self):
         r = self.request(
             '/jobs/546a1844ff34c70456111185', method='GET', user=self._cumulus)

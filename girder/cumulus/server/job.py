@@ -59,6 +59,14 @@ class Job(BaseResource):
             del body['onTerminate']['scriptId']
             body['onTerminate']['commands'] = script['commands']
 
+        if 'input' in body:
+            if not isinstance(body['input'], list):
+                raise RestException('input must be a list', 400)
+
+            for i in body['input']:
+                if i['path'] == body['name']:
+                    raise RestException('input can\'t be the same as job name', 400)
+
         job = self._model.create(user, body)
 
         cherrypy.response.status = 201
