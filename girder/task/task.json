@@ -1,0 +1,79 @@
+{
+    "definitions": {
+        "httpParams": {
+            "properties": {
+                "url": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string",
+                    "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
+                },
+                "body": {
+                    "type": "object"
+                }
+            },
+            "required": ["url", "method"]
+        },
+        "statusParams": {
+            "properties": {
+                "url": {
+                    "type": "string"
+                },
+                "selector": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "failure": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "timeout": {
+                    "type": "integer"
+                }
+            },
+            "required": ["url", "selector", "success"]
+        },
+        "step": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": ["http", "status"]
+                },
+                "params": {
+                    "oneOf": [
+                              { "$ref": "#/definitions/httpParams" },
+                              { "$ref": "#/definitions/statusParams" }
+                              ]
+                }
+            },
+            "required": ["name", "type", "params"]
+        }
+    },
+
+    "type": "object",
+
+    "properties": {
+        "name": {
+            "type": "string"
+        },
+        "steps": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/step"
+            }
+        }
+    },
+    "required": ["name", "steps"]
+}
