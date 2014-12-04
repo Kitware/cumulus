@@ -49,7 +49,7 @@
                        "method": "POST",
                        "body": {
                           "name": "myjob",
-                          "scriptId": "{{script.id}}",
+                          "scriptId": "{{defaults.pvw.script.id}}",
                           "output": {
                             "itemId": "{{output.item.id}}"
                           },
