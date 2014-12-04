@@ -12,11 +12,11 @@
                       "body": {
                           "config": [
                                      {
-                                         "_id": "{{config.id}}"
+                                         "_id": "{{defaults.config.id}}"
                                      }
                                      ],
                           "name": "test_cluster",
-                          "template": "default_cluster"
+                          "template": "pvw_cluster"
                       }
                   }
               },
