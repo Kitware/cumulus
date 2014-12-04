@@ -25,10 +25,10 @@ class Task(BaseResource):
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('task', 'task')
 
-    def _clean(self, config):
-        del config['access']
+    def _clean(self, task):
+        del task['access']
 
-        return config
+        return task
 
     @access.user
     def create(self, params):
@@ -72,7 +72,7 @@ class Task(BaseResource):
         spec = reduce(lambda x, y: x + y, self.model('file').download(file, headers=False)())
         spec = json.loads(spec)
 
-        runner.run(self.get_task_token(), spec, variables)
+        runner.run(self.get_task_token()['_id'], self._clean(task), spec, variables)
 
     run.description = (Description(
             'Start the task running'

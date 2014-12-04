@@ -1,7 +1,10 @@
 from tests import base
 import json
 import httmock
+import mock
+import re
 from jsonschema import validate
+
 
 def setUpModule():
     base.enabledPlugins.append('task')
@@ -11,7 +14,22 @@ def setUpModule():
 def tearDownModule():
     base.stopServer()
 
+
 class TaskTestCase(base.TestCase):
+
+    def _normalize(self, data):
+        str_data = json.dumps(data, default=str)
+        str_data = re.sub(r'[\w]{64}', 'token', str_data)
+        str_data = re.sub(r'[\w]{24}', 'id', str_data)
+
+        return json.loads(str_data)
+
+    def assertCalls(self, actual, expected, msg=None):
+        calls = []
+        for (args, kwargs) in self._normalize(actual):
+            calls.append((args, kwargs))
+
+        self.assertListEqual(self._normalize(calls), expected, msg)
 
     def _create_spec(self, path):
         with open(path) as fp:
@@ -68,8 +86,10 @@ class TaskTestCase(base.TestCase):
             else:
                 self.privateFolder = folder
 
-        self._simpleSpecId = self._create_spec('plugins/task/plugin_tests/fixtures/simple.json')
-        self._complexSpecId = self._create_spec('plugins/task/plugin_tests/fixtures/complex.json')
+        self._simpleSpecId = self._create_spec(
+            'plugins/task/plugin_tests/fixtures/simple.json')
+        self._complexSpecId = self._create_spec(
+            'plugins/task/plugin_tests/fixtures/complex.json')
         self._mesh_called = False
         self._cluster_created = False
         self._cluster_started = False
@@ -124,14 +144,15 @@ class TaskTestCase(base.TestCase):
 
         def _mesh_mock(url, request):
             headers = {
-            'content-length': 0
+                'content-length': 0
             }
 
             self.assertEquals(url.path.split('/')[4], mesh_id)
             self._mesh_called = True
             return httmock.response(200, None, headers, request=request)
 
-        mesh_mock = httmock.urlmatch(path=r'^/api/v1/meshes/.*/extract/surface$')(_mesh_mock)
+        mesh_mock = httmock.urlmatch(
+            path=r'^/api/v1/meshes/.*/extract/surface$')(_mesh_mock)
 
         with httmock.HTTMock(mesh_mock):
             r = self.request(url, method='PUT',
@@ -139,8 +160,8 @@ class TaskTestCase(base.TestCase):
         self.assertStatusOk(r)
         self.assertTrue(self._mesh_called)
 
-
-    def test_run_complex(self):
+    @mock.patch('cumulus.task.runner.app.send_task')
+    def test_run_complex(self, monitor_status):
         body = {
             'taskSpecId': self._complexSpecId,
         }
@@ -174,33 +195,36 @@ class TaskTestCase(base.TestCase):
         body = json.dumps(body)
         url = '/tasks/%s/run' % str(task_id)
 
-        cluster_id  = 'cluster_id'
+        cluster_id = 'cluster_id'
+
         def _create_cluster(url, request):
             content = {
                 "_id": cluster_id
             }
             content = json.dumps(content)
             headers = {
-            'content-length': len(content),
-            'content-type': 'application/json'
+                'content-length': len(content),
+                'content-type': 'application/json'
             }
 
             self._cluster_created = True
             return httmock.response(200, content, headers, request=request)
 
-        create_cluster = httmock.urlmatch(path=r'^/api/v1/clusters$', method='POST')(_create_cluster)
+        create_cluster = httmock.urlmatch(
+            path=r'^/api/v1/clusters$', method='POST')(_create_cluster)
 
         def _start_cluster(url, request):
 
             headers = {
-            'content-length': 0,
-            'content-type': 'application/json'
+                'content-length': 0,
+                'content-type': 'application/json'
             }
 
             self._cluster_started = True
             return httmock.response(200, None, headers, request=request)
 
-        start_cluster = httmock.urlmatch(path=r'^/api/v1/clusters/%s/start$' % cluster_id, method='PUT')(_start_cluster)
+        start_cluster = httmock.urlmatch(
+            path=r'^/api/v1/clusters/%s/start$' % cluster_id, method='PUT')(_start_cluster)
 
         def _create_job(url, request):
             content = {
@@ -208,27 +232,28 @@ class TaskTestCase(base.TestCase):
             }
             content = json.dumps(content)
             headers = {
-            'content-length': len(content),
-            'content-type': 'application/json'
+                'content-length': len(content),
+                'content-type': 'application/json'
             }
 
             self._job_submitted = True
             return httmock.response(200, content, headers, request=request)
 
-        create_job = httmock.urlmatch(path=r'^/api/v1/jobs$' , method='POST')(_create_job)
+        create_job = httmock.urlmatch(
+            path=r'^/api/v1/jobs$', method='POST')(_create_job)
 
         def _submit_job(url, request):
 
             headers = {
-            'content-length': 0,
-            'content-type': 'application/json'
+                'content-length': 0,
+                'content-type': 'application/json'
             }
 
             self._job_submitted = True
             return httmock.response(200, None, headers, request=request)
 
-        submit_job = httmock.urlmatch(path=r'^/api/v1/clusters/%s/submit/job/%s$' % (cluster_id, job_id), method='PUT')(_submit_job)
-
+        submit_job = httmock.urlmatch(
+            path=r'^/api/v1/clusters/%s/submit/job/%s$' % (cluster_id, job_id), method='PUT')(_submit_job)
 
         with httmock.HTTMock(create_cluster, start_cluster, create_job, submit_job):
             r = self.request(url, method='PUT',
@@ -237,3 +262,8 @@ class TaskTestCase(base.TestCase):
         self.assertTrue(self._cluster_created)
         self.assertTrue(self._cluster_started)
         self.assertTrue(self._job_submitted)
+
+        expected_calls = [[[u'cumulus.task.status.monitor_status'], {u'args': [u'token', {u'_id': u'id', u'taskSpecId': u'id'}, {u'steps': [{u'type': u'http', u'params': {u'url': u'/clusters', u'output': u'cluster', u'body': {u'config': [{u'_id': u'{{config.id}}'}], u'name': u'test_cluster', u'template': u'default_cluster'}, u'method': u'POST'}, u'name': u'createcluster'}, {u'body': {}, u'type': u'http', u'params': {u'url': u'/clusters/{{cluster._id}}/start', u'method': u'PUT'}, u'name': u'start cluster'}, {u'type': u'status', u'params': {u'url': u'/clusters/{{cluster._id}}/status', u'failure': [u'error'], u'success': [u'running'], u'selector': u'status'}, u'name': u'Wait for cluster'}, {u'type': u'http', u'params': {u'url': u'/jobs', u'body': {u'output': {u'itemId': u'{{output.item.id}}'}, u'scriptId': u'script_id', u'name': u'myjob', u'input': [{u'itemId': u'{{input.item.id}}', u'path': u'{{input.path}}'}]}, u'method': u'POST', u'output': u'job'}, u'name': u'create job'}, {u'type': u'http', u'params': {u'url': u'/clusters/{{cluster._id}}/submit/job/{{job._id}}', u'method': u'PUT'}, u'name': u'submit job'}, {u'type': u'status', u'params': {u'url': u'/clusters/{{cluster._id}}/status', u'failure': [u'error'], u'success': [u'complete', u'terminated'], u'selector': u'status'}, u'name': u'Wait for job to complete'}], u'name': u'Run cluster job'}, 2, {u'cluster': {u'_id': u'cluster_id'}, u'job': {u'_id': u'asdklasjdlf;kasjdklf'}, u'config': {u'id': u'asdklasjdlf;kasjdklf'}, u'input': {u'item': {u'id': u'item_id'}}, u'output': {u'item': {u'id': u'item_id'}}}]}], [
+            [u'cumulus.task.status.monitor_status'], {u'args': [u'token', {u'_id': u'id', u'taskSpecId': u'id'}, {u'steps': [{u'type': u'http', u'params': {u'url': u'/clusters', u'output': u'cluster', u'body': {u'config': [{u'_id': u'{{config.id}}'}], u'name': u'test_cluster', u'template': u'default_cluster'}, u'method': u'POST'}, u'name': u'createcluster'}, {u'body': {}, u'type': u'http', u'params': {u'url': u'/clusters/{{cluster._id}}/start', u'method': u'PUT'}, u'name': u'start cluster'}, {u'type': u'status', u'params': {u'url': u'/clusters/{{cluster._id}}/status', u'failure': [u'error'], u'success': [u'running'], u'selector': u'status'}, u'name': u'Wait for cluster'}, {u'type': u'http', u'params': {u'url': u'/jobs', u'body': {u'output': {u'itemId': u'{{output.item.id}}'}, u'scriptId': u'script_id', u'name': u'myjob', u'input': [{u'itemId': u'{{input.item.id}}', u'path': u'{{input.path}}'}]}, u'method': u'POST', u'output': u'job'}, u'name': u'create job'}, {u'type': u'http', u'params': {u'url': u'/clusters/{{cluster._id}}/submit/job/{{job._id}}', u'method': u'PUT'}, u'name': u'submit job'}, {u'type': u'status', u'params': {u'url': u'/clusters/{{cluster._id}}/status', u'failure': [u'error'], u'success': [u'complete', u'terminated'], u'selector': u'status'}, u'name': u'Wait for job to complete'}], u'name': u'Run cluster job'}, 5, {u'cluster': {u'_id': u'cluster_id'}, u'job': {u'_id': u'asdklasjdlf;kasjdklf'}, u'config': {u'id': u'asdklasjdlf;kasjdklf'}, u'input': {u'item': {u'id': u'item_id'}}, u'output': {u'item': {u'id': u'item_id'}}}]}]]
+
+        self.assertCalls(monitor_status.call_args_list, expected_calls)
