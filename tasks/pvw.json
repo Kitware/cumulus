@@ -67,7 +67,7 @@
                   "name": "submit pvserver job",
                   "type": "http",
                   "params": {
-                       "url": "/clusters/{{cluster._id}}/submit/job/{{pvserver_job._id}}",
+                       "url": "/clusters/{{cluster._id}}/job/{{pvserver_job._id}}submit",
                         "method": "PUT"
                   }
               },
@@ -108,7 +108,7 @@
                   "name": "submit pvw job",
                   "type": "http",
                   "params": {
-                       "url": "/jobs/{{cluster._id}}/submit/job/{{pvw_job._id}}",
+                       "url": "/cluster/{{cluster._id}}/job/{{pvw_job._id}}/submit",
                         "method": "PUT"
                   }
               },
