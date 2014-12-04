@@ -81,7 +81,7 @@
                       "success": ["running"],
                       "failure": ["error", "terminated"]
                   }
-              }
+              },
               {
                   "name": "create pvw job",
                   "type": "http",
