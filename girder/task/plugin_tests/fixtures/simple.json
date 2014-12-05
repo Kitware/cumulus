@@ -1,0 +1,20 @@
+{
+    "name": "moab",
+
+    "steps": [
+              {
+                  "name": "Run meshing job",
+                  "type": "http",
+                  "params": {
+                      "url": "/meshes/{{mesh.id}}/extract/surface",
+                      "method": "POST",
+                      "body": {
+                          "output": {
+                              "itemId": "{{output.itemId}}",
+                              "name": "{{output.name}}"
+                          }
+                      }
+                  }
+              }
+              ]
+}

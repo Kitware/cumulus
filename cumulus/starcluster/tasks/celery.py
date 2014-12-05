@@ -4,7 +4,8 @@ from celery import Celery
 _includes = (
     'cumulus.starcluster.tasks.cluster',
     'cumulus.starcluster.tasks.job',
-    'cumulus.moab.tasks.mesh'
+    'cumulus.moab.tasks.mesh',
+    'cumulus.task.status'
 )
 app = Celery('starcluster',  backend='amqp', broker='amqp://guest:guest@localhost:5672/',
              include=_includes)
