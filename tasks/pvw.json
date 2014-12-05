@@ -55,6 +55,10 @@
                             {
                               "itemId": "{{defaults.pvw.proxyItem}}",
                               "path": "config"
+                            },
+                            {
+                              "itemId": "{{input.item.id}}",
+                              "path": "{{input.path}}"
                             }
                           ]
                         },
@@ -92,13 +96,7 @@
                           "scriptId": "{{defaults.pvserver.script.id}}",
                           "output": {
                             "itemId": "{{output.item.id}}"
-                          },
-                          "input": [
-                            {
-                              "itemId": "{{input.item.id}}",
-                              "path": "{{input.path}}"
-                            }
-                          ]
+                          }
                         },
                         "output": "pvserver_job"
                   }
