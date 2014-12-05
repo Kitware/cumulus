@@ -42,6 +42,47 @@
                   }
               },
               {
+                  "name": "create pvw job",
+                  "type": "http",
+                  "params": {
+                       "url": "/jobs",
+                       "method": "POST",
+                       "body": {
+                          "name": "myjob",
+                          "scriptId": "{{defaults.pvw.script.id}}",
+                          "output": {
+                            "itemId": "{{output.item.id}}"
+                          },
+                          "input": [
+                            {
+                              "itemId": "{{defaults.pvw.proxyItem}}",
+                              "path": "config"
+                            }
+                          ]
+                        },
+                        "output": "pvw_job"
+                  }
+              },
+              {
+                  "name": "submit pvw job",
+                  "type": "http",
+                  "params": {
+                       "url": "/clusters/{{cluster._id}}/job/{{pvw_job._id}}/submit",
+                        "method": "PUT"
+                  }
+              },
+              {
+                  "name": "Wait for job to be running",
+                  "type": "status",
+                  "params": {
+                      "url": "/jobs/{{pvw_job._id}}/status",
+                      "selector": "status",
+
+                      "success": ["running"],
+                      "failure": ["error", "terminated"]
+                  }
+              },
+              {
                   "name": "create pvserver job",
                   "type": "http",
                   "params": {
@@ -67,7 +108,7 @@
                   "name": "submit pvserver job",
                   "type": "http",
                   "params": {
-                       "url": "/clusters/{{cluster._id}}/job/{{pvserver_job._id}}submit",
+                       "url": "/clusters/{{cluster._id}}/job/{{pvserver_job._id}}/submit",
                         "method": "PUT"
                   }
               },
@@ -76,47 +117,6 @@
                   "type": "status",
                   "params": {
                       "url": "/jobs/{{pvserver_job._id}}/status",
-                      "selector": "status",
-
-                      "success": ["running"],
-                      "failure": ["error", "terminated"]
-                  }
-              },
-              {
-                  "name": "create pvw job",
-                  "type": "http",
-                  "params": {
-                       "url": "/jobs",
-                       "method": "POST",
-                       "body": {
-                          "name": "myjob",
-                          "scriptId": "{{defaults.pvw.script.id}}",
-                          "output": {
-                            "itemId": "{{output.item.id}}"
-                          },
-                          "input": [
-                            {
-                              "itemId": "{{input.item.id}}",
-                              "path": "{{input.path}}"
-                            }
-                          ]
-                        },
-                        "output": "pvw_job"
-                  }
-              },
-              {
-                  "name": "submit pvw job",
-                  "type": "http",
-                  "params": {
-                       "url": "/cluster/{{cluster._id}}/job/{{pvw_job._id}}/submit",
-                        "method": "PUT"
-                  }
-              },
-              {
-                  "name": "Wait for job to complete",
-                  "type": "status",
-                  "params": {
-                      "url": "/jobs/{{pvw_job._id}}/status",
                       "selector": "status",
 
                       "success": ["running"],
