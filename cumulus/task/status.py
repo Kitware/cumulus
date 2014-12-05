@@ -16,7 +16,7 @@ sleep_interval = 5
 
 def _update_status(headers, task, status):
     task['status'] = status
-    url = '%s/task/%s' % (cumulus.config.girder.baseUrl, task['_id'])
+    url = '%s/tasks/%s' % (cumulus.config.girder.baseUrl, task['_id'])
     r = requests.patch(url, headers=headers, json=task)
     _check_status(r)
 
