@@ -27,7 +27,9 @@
                       "url": "/clusters/{{cluster._id}}/start",
                       "method": "PUT"
                   },
-                  "log": "/cluster/{{cluster._id}}/log"
+                  "log": "/cluster/{{cluster._id}}/log",
+                  "terminate": "/clusters/{{cluster._id}}/terminate",
+                  "delete": "/clusters/{{cluster._id}}"
               },
               {
                   "name": "Wait for cluster",
@@ -72,7 +74,9 @@
                        "url": "/clusters/{{cluster._id}}/job/{{pvw_job._id}}/submit",
                         "method": "PUT"
                   },
-                  "log": "/jobs/{{pvw_job._id}}/log"
+                  "log": "/jobs/{{pvw_job._id}}/log",
+                  "terminate": "/jobs/{{pvw_job._id}}/terminate",
+                  "delete": "/jobs/{{pvw_job._id}}"
               },
               {
                   "name": "Wait for job to be running",
@@ -108,7 +112,9 @@
                        "url": "/clusters/{{cluster._id}}/job/{{pvserver_job._id}}/submit",
                         "method": "PUT"
                   },
-                  "log": "/jobs/{{pvserver_job._id}}/log"
+                  "log": "/jobs/{{pvserver_job._id}}/log",
+                  "terminate": "/jobs/{{pvserver_job._id}}/terminate",
+                  "delete": "/jobs/{{pvserver_job._id}}"
               },
               {
                   "name": "Wait for job to be running",

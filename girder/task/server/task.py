@@ -25,7 +25,8 @@ class Task(BaseResource):
         self.route('GET', (':id','status'), self.status)
         self.route('GET', (':id',), self.get)
         self.route('POST', (':id','log'), self.log)
-        #self.route('DELETE', (':id',), self.delete)
+        self.route('PUT', (':id','terminate'), self.terminate)
+        self.route('DELETE', (':id',), self.delete)
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('task', 'task')
 
@@ -33,6 +34,11 @@ class Task(BaseResource):
         del task['access']
 
         return task
+
+    def _check_status(self, request):
+        if request.status_code != 200:
+            print >> sys.stderr, request.content
+            request.raise_for_status()
 
     @access.user
     def create(self, params):
@@ -75,6 +81,8 @@ class Task(BaseResource):
         task['status'] = 'running'
         task['output'] = {}
         task['log'] = []
+        task['onTerminate'] = []
+        task['onDelete'] = []
         self._model.save(task)
 
         file = self.model('file').load(task['taskSpecId'])
@@ -115,6 +123,15 @@ class Task(BaseResource):
 
         if 'output' in updates:
             task['output'] = updates['output']
+
+        if 'onTerminate' in updates:
+            for url in updates['onTerminate']:
+                task['onTerminate'].insert(0, url)
+
+        if 'onDelete' in updates:
+            for url in updates['onDelete']:
+                task['onDelete'].insert(0, url)
+
 
         self._model.save(task)
 
@@ -187,3 +204,69 @@ class Task(BaseResource):
         self._model.save(task)
 
     log.description = None
+
+    @access.user
+    def terminate(self, id, params):
+        user = self.getCurrentUser()
+
+        task = self._model.load(id, user=user, level=AccessType.WRITE)
+
+        if not task:
+            raise RestException('Task not found.', code=404)
+
+        try:
+            if 'onTerminate' in task:
+                headers = {
+                    'Girder-Token': self.get_task_token()['_id']
+                }
+
+                for terminate_url in task['onTerminate']:
+                    r = requests.put(terminate_url, headers=headers)
+                    self._check_status(r)
+            task['state'] = 'terminated'
+        except:
+            task['state'] = 'failure'
+            raise
+        finally:
+            self._model.save(task)
+
+
+    terminate.description = (Description(
+            'Terminate the task '
+        )
+        .param(
+            'id',
+            'The id of task',
+            required=True, paramType='path'))
+
+    @access.user
+    def delete(self, id, params):
+        user = self.getCurrentUser()
+
+        task = self._model.load(id, user=user, level=AccessType.WRITE)
+
+        if not task:
+            raise RestException('Task not found.', code=404)
+
+        try:
+            if 'onDelete' in task:
+                headers = {
+                    'Girder-Token': self.get_task_token()['_id']
+                }
+
+                for delete_url in task['onDelete']:
+                    r = requests.delete(delete_url, headers=headers)
+                    self._check_status(r)
+
+            self._model.remove(task)
+        except:
+            task['state'] = 'failure'
+            raise
+
+    delete.description = (Description(
+            'Delete the task '
+        )
+        .param(
+            'id',
+            'The id of task',
+            required=True, paramType='path'))
