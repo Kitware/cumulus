@@ -27,9 +27,7 @@
                       "url": "/clusters/{{cluster._id}}/start",
                       "method": "PUT"
                   },
-                  "body": {
-
-                  }
+                  "log": "/cluster/{{cluster._id}}/log"
               },
               {
                   "name": "Wait for cluster",
@@ -69,7 +67,8 @@
                   "params": {
                        "url": "/clusters/{{cluster._id}}/job/{{pvw_job._id}}/submit",
                         "method": "PUT"
-                  }
+                  },
+                  "log": "/jobs/{{pvw_job._id}}/log"
               },
               {
                   "name": "Wait for job to be running",
@@ -110,7 +109,8 @@
                   "params": {
                        "url": "/clusters/{{cluster._id}}/job/{{pvserver_job._id}}/submit",
                         "method": "PUT"
-                  }
+                  },
+                  "log": "/jobs/{{pvserver_job._id}}/log"
               },
               {
                   "name": "Wait for job to be running",

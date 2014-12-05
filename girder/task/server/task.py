@@ -24,6 +24,7 @@ class Task(BaseResource):
         self.route('PATCH', (':id',), self.update)
         self.route('GET', (':id','status'), self.status)
         self.route('GET', (':id',), self.get)
+        self.route('POST', (':id','log'), self.log)
         #self.route('DELETE', (':id',), self.delete)
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('task', 'task')
@@ -38,6 +39,7 @@ class Task(BaseResource):
         user = self.getCurrentUser()
 
         task = json.load(cherrypy.request.body)
+        task['status'] = 'created'
         task = self._model.create(user, task)
 
         cherrypy.response.status = 201
@@ -70,6 +72,10 @@ class Task(BaseResource):
         variables = json.load(cherrypy.request.body)
 
         task = self._model.load(id, user=user)
+        task['status'] = 'running'
+        task['output'] = {}
+        task['log'] = []
+        self._model.save(task)
 
         file = self.model('file').load(task['taskSpecId'])
         spec = reduce(lambda x, y: x + y, self.model('file').download(file, headers=False)())
@@ -93,9 +99,16 @@ class Task(BaseResource):
     def update(self, id, params):
         user = self.getCurrentUser()
 
-        updates = json.load(cherrypy.request.body)
+        body = cherrypy.request.body.read()
 
-        task = self._model.load(id, user=user)
+        if not body:
+            raise RestException('A body must be provided', code=400)
+
+        updates = json.loads(body)
+
+        task = self._model.load(id, user=user, level=AccessType.WRITE)
+        if not task:
+            raise RestException('Task not found.', code=404)
 
         if 'status' in updates:
             task['status'] = updates['status']
@@ -123,7 +136,9 @@ class Task(BaseResource):
     def status(self, id, params):
         user = self.getCurrentUser()
 
-        task = self._model.load(id, user=user)
+        task = self._model.load(id, user=user, level=AccessType.READ)
+        if not task:
+            raise RestException('Task not found.', code=404)
 
         return {'status': task['status']}
 
@@ -139,7 +154,10 @@ class Task(BaseResource):
     def get(self, id, params):
         user = self.getCurrentUser()
 
-        task = self._model.load(id, user=user)
+        task = self._model.load(id, user=user, level=AccessType.READ)
+
+        if not task:
+            raise RestException('Task not found.', code=404)
 
         return self._clean(task)
 
@@ -150,3 +168,22 @@ class Task(BaseResource):
             'id',
             'The id of task',
             required=True, paramType='path'))
+
+    @access.user
+    def log(self, id, params):
+        user = self.getCurrentUser()
+
+        task = self._model.load(id, user=user, level=AccessType.WRITE)
+
+        if not task:
+            raise RestException('Task not found.', code=404)
+
+        body = cherrypy.request.body.read()
+
+        if not body:
+            raise RestException('Log entry must be provided', code=400)
+
+        task['log'].append(json.loads(body))
+        self._model.save(task)
+
+    log.description = None
