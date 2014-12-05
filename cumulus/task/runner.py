@@ -46,7 +46,7 @@ def _run_status(token, task, spec, step, variables):
     app.send_task('cumulus.task.status.monitor_status', args=(token, task, spec, step, variables))
 
 def run(token, task, spec, variables, start_step=0):
-
+    headers = {'Girder-Token': token}
     steps = spec['steps']
     for s in range(start_step, len(steps)):
         step = _template_dict(steps[s], variables)
@@ -55,5 +55,16 @@ def run(token, task, spec, variables, start_step=0):
         elif step['type'] == 'status':
             spec['steps'][s] = step
             _run_status(token, task, spec, s, variables)
-            break
+            return
+
+    # Task is now complete, save the variable into the output property and set
+    # status
+    url = '%s/tasks/%s' % (cumulus.config.girder.baseUrl, task['_id'])
+    update = {
+        'output': variables,
+        'status': 'complete'
+    }
+    r = requests.patch(url, headers=headers, json=update)
+    _check_status(r)
+
 

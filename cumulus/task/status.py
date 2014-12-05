@@ -33,10 +33,6 @@ def monitor_status(celery_task, token, task, spec, step, variables):
             max_retries = timeout % sleep_interval
             celery_task.max_retries = max_retries
 
-        next_step = step + 1
-        if  next_step >= len(steps):
-            next_step = None
-
         url = '%s/%s' % (cumulus.config.girder.baseUrl, params['url'])
         status = requests.get(url, headers=headers)
         _check_status(status)
@@ -50,10 +46,7 @@ def monitor_status(celery_task, token, task, spec, step, variables):
                 raise Exception('Unable to extract status from \'%s\' using \'%s\'' % (status, selector))
 
         if status in params['success']:
-            if next_step:
-                runner.run(token, task, spec, variables, next_step)
-            else:
-                _update_status(headers, task, 'complete')
+            runner.run(token, task, spec, variables, step + 1)
         elif status in params['failure']:
             _update_status(headers, task, 'failure')
         else:
