@@ -22,6 +22,7 @@ class Task(BaseResource):
         self.route('POST', (), self.create)
         self.route('PUT', (':id', 'run'), self.run)
         self.route('PATCH', (':id',), self.update)
+        self.route('GET', (':id','status'), self.status)
         #self.route('DELETE', (':id',), self.delete)
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('task', 'task')
@@ -113,3 +114,19 @@ class Task(BaseResource):
             'updates',
             'The properties to update',
             required=False, paramType='body'))
+
+    @access.user
+    def status(self, id, params):
+        user = self.getCurrentUser()
+
+        task = self._model.load(id, user=user)
+
+        return {'status': task['status']}
+
+    status.description = (Description(
+            'Get the task status'
+        )
+        .param(
+            'id',
+            'The id of task',
+            required=True, paramType='path'))
