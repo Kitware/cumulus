@@ -11,6 +11,9 @@ class Task(AccessControlledModel):
     def initialize(self):
         self.name = 'tasks'
 
+    def validate(self, doc):
+        return doc
+
     def create(self, user, task):
 
         doc  = self.setUserAccess(task, user, level=AccessType.ADMIN, save=True)
