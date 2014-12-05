@@ -94,6 +94,14 @@ class JobInputDownloader(GirderBase):
         self._dest = dest
         super(JobInputDownloader, self).__init__(girder_token)
 
+    def _mkdir(self, path):
+        try:
+            os.makedirs(path)
+        except OSError as exc:
+            if exc.errno == errno.EEXIST and os.path.isdir(path):
+                pass
+            else: raise
+
     def _download_item(self, item_id, target_path):
 
         item_files_url = '%s/item/%s/files' % (self._base_url, item_id)
@@ -107,7 +115,8 @@ class JobInputDownloader(GirderBase):
             r = requests.get(item_url, headers=self._headers)
             self._check_status(r)
             dest_path = os.path.join(self._dest, target_path, files[0]['name'])
-            os.makedirs(os.path.dirname(dest_path))
+
+            self._mkdir(os.path.dirname(dest_path))
             with open(dest_path, 'w') as fp:
                 fp.write(r.content)
         elif len(files) > 1:
