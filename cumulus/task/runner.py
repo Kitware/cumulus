@@ -22,8 +22,13 @@ def _template_dict(d, variables):
 def _run_http(token, variables, params):
     headers = {'Girder-Token': token}
     url = '%s%s' % (cumulus.config.girder.baseUrl, params['url'])
-    print url
-    r = requests.request(params['method'], url, headers=headers)
+
+    body = None
+
+    if 'body' in params:
+        body = params['body']
+
+    r = requests.request(params['method'], url, json=body, headers=headers)
     _check_status(r)
 
     if 'output' in params:
@@ -40,13 +45,15 @@ def _run_status(token, task, spec, step, variables):
 
     app.send_task('cumulus.task.status.monitor_status', args=(token, task, spec, step, variables))
 
-def run(token, task, spec, variables, step=0):
+def run(token, task, spec, variables, start_step=0):
 
     steps = spec['steps']
-    for s in range(step, len(steps)):
+    for s in range(start_step, len(steps)):
         step = _template_dict(steps[s], variables)
         if step['type'] == 'http':
             _run_http(token, variables, step['params'])
         elif step['type'] == 'status':
+            spec['steps'][s] = step
             _run_status(token, task, spec, s, variables)
+            break
 
