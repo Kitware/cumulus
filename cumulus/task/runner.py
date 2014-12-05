@@ -52,8 +52,17 @@ def _run_status(token, task, spec, step, variables):
 
     app.send_task('cumulus.task.status.monitor_status', args=(token, task, spec, step, variables))
 
+def _log_http_error(token, task, err):
+    entry = {
+            'statusCode': err.response.status_code,
+            'content': err.response.content,
+            'stack': traceback.format_exc()
+        }
+    _add_log_entry(token, task, entry)
+
 def run(token, task, spec, variables, start_step=0):
     headers = {'Girder-Token': token}
+    update = {}
     try:
         steps = spec['steps']
         for s in range(start_step, len(steps)):
@@ -64,22 +73,38 @@ def run(token, task, spec, variables, start_step=0):
                 spec['steps'][s] = step
                 _run_status(token, task, spec, s, variables)
                 return
+            print step
+            if 'terminate' in step:
+                url = '%s%s' % (cumulus.config.girder.baseUrl, step['terminate'])
+                if 'onTerminate' in update:
+                    update['onTerminate'].append(url)
+                else:
+                    update['onTerminate'] = [url]
+
+            if 'delete' in step:
+                url = '%s%s' % (cumulus.config.girder.baseUrl, step['delete'])
+                if 'onDelete' in update:
+                    update['onDelete'].append(url)
+                else:
+                    update['onDelete'] = [url]
+
+
 
         # Task is now complete, save the variable into the output property and set
         # status
-        url = '%s/tasks/%s' % (cumulus.config.girder.baseUrl, task['_id'])
-        update = {
-            'output': variables,
-            'status': 'complete'
-        }
-        r = requests.patch(url, headers=headers, json=update)
-        _check_status(r)
+        update['output'] = variables
+        update['status'] = 'complete'
+
     except requests.HTTPError as e:
-        entry = {
-            'statusCode': e.response.status_code,
-            'content': e.response.content,
-            'stack': traceback.format_exc()
-        }
-        _add_log_entry(token, task, entry)
+        _log_http_error(token, task, e)
+    finally:
+        # Update the state of the task if necessary
+        try:
+            if update:
+                url = '%s/tasks/%s' % (cumulus.config.girder.baseUrl, task['_id'])
+                r = requests.patch(url, headers=headers, json=update)
+                _check_status(r)
+        except requests.HTTPError as e:
+            _log_http_error(token, task, e)
 
 

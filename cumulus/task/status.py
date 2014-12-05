@@ -15,9 +15,11 @@ from celery.exceptions import MaxRetriesExceededError
 sleep_interval = 5
 
 def _update_status(headers, task, status):
-    task['status'] = status
+    update = {
+        'status': status
+    }
     url = '%s/tasks/%s' % (cumulus.config.girder.baseUrl, task['_id'])
-    r = requests.patch(url, headers=headers, json=task)
+    r = requests.patch(url, headers=headers, json=update)
     _check_status(r)
 
 @app.task(bind=True, max_retries=None)
