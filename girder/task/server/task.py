@@ -21,6 +21,7 @@ class Task(BaseResource):
         self.resourceName = 'tasks'
         self.route('POST', (), self.create)
         self.route('PUT', (':id', 'run'), self.run)
+        self.route('PATCH', (':id',), self.update)
         #self.route('DELETE', (':id',), self.delete)
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('task', 'task')
@@ -84,4 +85,31 @@ class Task(BaseResource):
         .param(
             'variables',
             'The variable to render the task spec with',
+            required=False, paramType='body'))
+
+    @access.user
+    def update(self, id, params):
+        user = self.getCurrentUser()
+
+        updates = json.load(cherrypy.request.body)
+
+        task = self._model.load(id, user=user)
+
+        if 'status' in updates:
+            task['status'] = updates['status']
+
+        self._model.save(task)
+
+        return self._clean(task)
+
+    update.description = (Description(
+            'Update the task'
+        )
+        .param(
+            'id',
+            'The id of task',
+            required=True, paramType='path')
+        .param(
+            'updates',
+            'The properties to update',
             required=False, paramType='body'))
