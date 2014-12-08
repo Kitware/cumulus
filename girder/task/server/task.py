@@ -17,6 +17,8 @@ from cumulus.task import runner
 
 class Task(BaseResource):
 
+    DOLLAR_REF = '#dollar-ref#'
+
     def __init__(self):
         self.resourceName = 'tasks'
         self.route('POST', (), self.create)
@@ -176,9 +178,9 @@ class Task(BaseResource):
         if 'log' in task:
             log = task['log']
             for e in log:
-                if '\$ref' in e:
-                    e['$ref'] = e['\$ref']
-                    del e['\$ref']
+                if Task.DOLLAR_REF in e:
+                    e['$ref'] = e[Task.DOLLAR_REF]
+                    del e[Task.DOLLAR_REF]
 
         if not task:
             raise RestException('Task not found.', code=404)
@@ -203,7 +205,7 @@ class Task(BaseResource):
             raise RestException('Task not found.', code=404)
 
         body = cherrypy.request.body.read()
-        body.replace('$ref', '\$ref')
+        body = body.replace('$ref', Task.DOLLAR_REF)
 
         if not body:
             raise RestException('Log entry must be provided', code=400)
