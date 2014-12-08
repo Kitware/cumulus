@@ -53,9 +53,9 @@
                               { "$ref": "#/definitions/statusParams" }
                               ]
                 },
-                'log': { "$ref": "#/definitions/url" },
-                'terminate': { "$ref": "#/definitions/url" },
-                'delete': { "$ref": "#/definitions/url" }
+                "log": { "$ref": "#/definitions/url" },
+                "terminate": { "$ref": "#/definitions/url" },
+                "delete": { "$ref": "#/definitions/url" }
             },
             "required": ["name", "type", "params"]
         },
