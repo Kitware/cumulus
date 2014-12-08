@@ -173,6 +173,13 @@ class Task(BaseResource):
 
         task = self._model.load(id, user=user, level=AccessType.READ)
 
+        if 'log' in task:
+            log = task['log']
+            for e in log:
+                if '\$ref' in e:
+                    e['$ref'] = e['\$ref']
+                    del e['\$ref']
+
         if not task:
             raise RestException('Task not found.', code=404)
 
@@ -196,6 +203,7 @@ class Task(BaseResource):
             raise RestException('Task not found.', code=404)
 
         body = cherrypy.request.body.read()
+        body.replace('$ref', '\$ref')
 
         if not body:
             raise RestException('Log entry must be provided', code=400)

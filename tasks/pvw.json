@@ -60,7 +60,7 @@
                             },
                             {
                               "itemId": "{{input.item.id}}",
-                              "path": "{{input.path}}"
+                              "path": "data"
                             }
                           ]
                         },
