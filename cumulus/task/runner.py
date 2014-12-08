@@ -42,7 +42,7 @@ def _run_http(token, task, variables, step):
 
     if 'log' in step:
         entry = {
-            '\$ref': '%s%s' % (cumulus.config.girder.baseUrl, step['log'])
+            '$ref': '%s%s' % (cumulus.config.girder.baseUrl, step['log'])
         }
         _add_log_entry(token, task, entry)
 

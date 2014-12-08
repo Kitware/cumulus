@@ -2,9 +2,7 @@
     "definitions": {
         "httpParams": {
             "properties": {
-                "url": {
-                    "type": "string"
-                },
+                "url": { "$ref": "#/definitions/url" },
                 "method": {
                     "type": "string",
                     "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
@@ -17,9 +15,7 @@
         },
         "statusParams": {
             "properties": {
-                "url": {
-                    "type": "string"
-                },
+                "url": { "$ref": "#/definitions/url" },
                 "selector": {
                     "type": "string"
                 },
@@ -56,9 +52,16 @@
                               { "$ref": "#/definitions/httpParams" },
                               { "$ref": "#/definitions/statusParams" }
                               ]
-                }
+                },
+                "log": { "$ref": "#/definitions/url" },
+                "terminate": { "$ref": "#/definitions/url" },
+                "delete": { "$ref": "#/definitions/url" }
             },
             "required": ["name", "type", "params"]
+        },
+        "url": {
+            "type": "string",
+            "pattern": "^/.*$"
         }
     },
 
