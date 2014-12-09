@@ -2,7 +2,7 @@ from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWr
 import cumulus.starcluster.logging
 from cumulus.starcluster.tasks.common import _write_config_file, _check_status, _log_exception
 from cumulus.starcluster.tasks.job import submit
-from cumulus.starcluster.tasks.celery import app
+from cumulus.starcluster.tasks.celery import command
 import cumulus
 import cumulus.girderclient
 import starcluster.config
@@ -21,7 +21,7 @@ import time
 import traceback
 
 
-@app.task
+@command.task
 @cumulus.starcluster.logging.capture
 def start_cluster(cluster, log_write_url=None, on_start_submit=None, girder_token=None):
     config_filepath = None
@@ -69,7 +69,7 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None, girder_toke
         if config_filepath and os.path.exists(config_filepath):
             os.remove(config_filepath)
 
-@app.task
+@command.task
 @cumulus.starcluster.logging.capture
 def terminate_cluster(cluster, log_write_url=None, girder_token=None):
     name = cluster['name']

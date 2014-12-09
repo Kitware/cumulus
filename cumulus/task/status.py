@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWriteHandler, logstdout, StarClusterLogFilter
 import cumulus.starcluster.logging
-from cumulus.starcluster.tasks.celery import app
+from cumulus.starcluster.tasks.celery import monitor
 from cumulus.starcluster.tasks.common import _check_status
 import cumulus
 import requests
@@ -14,6 +14,17 @@ from celery.exceptions import MaxRetriesExceededError
 
 sleep_interval = 5
 
+def _add_log_entry(token, task, entry):
+    headers = {'Girder-Token': token}
+    url = '%s/tasks/%s/log' % (cumulus.config.girder.baseUrl, task['_id'])
+    r = requests.post(url, headers=headers, json=entry)
+    _check_status(r)
+
+def _check_status(request):
+    if request.status_code != 200:
+        print >> sys.stderr, request.content
+        request.raise_for_status()
+
 def _update_status(headers, task, status):
     update = {
         'status': status
@@ -22,10 +33,10 @@ def _update_status(headers, task, status):
     r = requests.patch(url, headers=headers, json=update)
     _check_status(r)
 
-@app.task(bind=True, max_retries=None)
+@monitor.task(bind=True, max_retries=None)
 def monitor_status(celery_task, token, task, spec, step, variables):
     headers = {'Girder-Token':  token}
-
+    max_retries = None
     try:
         steps = spec['steps']
         status_step = steps[step]
@@ -33,7 +44,6 @@ def monitor_status(celery_task, token, task, spec, step, variables):
         if 'timeout' in params:
             timeout = int(params['timeout'])
             max_retries = timeout % sleep_interval
-            celery_task.max_retries = max_retries
 
         url = '%s/%s' % (cumulus.config.girder.baseUrl, params['url'])
         status = requests.get(url, headers=headers)
@@ -52,10 +62,15 @@ def monitor_status(celery_task, token, task, spec, step, variables):
         elif status in params['failure']:
             _update_status(headers, task, 'failure')
         else:
-            celery_task.retry(throw=False, countdown=sleep_interval)
+            celery_task.retry(throw=False, countdown=sleep_interval, max_retries=max_retries)
 
     except MaxRetriesExceededError:
         _update_status(headers, task, 'timeout')
-    except:
+    except BaseException as ex:
         # Update task log
+        entry = {
+            'msg': ex.message,
+            'stack': traceback.format_exc()
+        }
+        _add_log_entry(token, task, entry)
         traceback.print_exc()

@@ -3,7 +3,7 @@ import cumulus
 from jinja2 import Template
 import requests
 import sys
-from cumulus.starcluster.tasks.celery import app
+from cumulus.starcluster.tasks.celery import monitor
 import traceback
 
 def _add_log_entry(token, task, entry):
@@ -50,7 +50,7 @@ def _run_status(token, task, spec, step, variables):
     # Fire of task to monitor the status
     task['_id'] = str(task['_id'])
 
-    app.send_task('cumulus.task.status.monitor_status', args=(token, task, spec, step, variables))
+    monitor.send_task('cumulus.task.status.monitor_status', args=(token, task, spec, step, variables))
 
 def _log_http_error(token, task, err):
     entry = {
@@ -97,6 +97,7 @@ def run(token, task, spec, variables, start_step=0):
 
     except requests.HTTPError as e:
         _log_http_error(token, task, e)
+        raise
     finally:
         # Update the state of the task if necessary
         try:

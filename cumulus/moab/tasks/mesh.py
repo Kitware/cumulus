@@ -1,4 +1,4 @@
-from cumulus.starcluster.tasks.celery import app
+from cumulus.starcluster.tasks.celery import command
 from cumulus.starcluster.tasks.common import _check_status
 import cumulus
 import tempfile
@@ -66,7 +66,7 @@ def _upload_file(token, base_url, parent_id, name, data, size):
 
         uploaded += chunk_size
 
-@app.task
+@command.task
 def extract(girder_token, mesh_file_id, output):
     try:
         headers = {'Girder-Token': girder_token}
