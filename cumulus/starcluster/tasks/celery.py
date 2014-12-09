@@ -9,7 +9,7 @@ _includes = (
 )
 
 # Route short tasks to their own queue
-routes = {
+_routes = {
     'cumulus.starcluster.tasks.job.monitor_job': {
         'queue': 'monitor'
     },
@@ -26,7 +26,7 @@ command = Celery('command',  backend='amqp', broker='amqp://guest:guest@localhos
 
 command.config_from_object('cumulus.starcluster.tasks.commandconfig')
 command.conf.update(
-    CELERY_ROUTES=routes
+    CELERY_ROUTES=_routes
 )
 
 monitor = Celery('monitor',  backend='amqp', broker='amqp://guest:guest@localhost:5672/',
@@ -34,5 +34,5 @@ monitor = Celery('monitor',  backend='amqp', broker='amqp://guest:guest@localhos
 
 monitor.config_from_object('cumulus.starcluster.tasks.monitorconfig')
 monitor.conf.update(
-    CELERY_ROUTES=routes
+    CELERY_ROUTES=_routes
 )
