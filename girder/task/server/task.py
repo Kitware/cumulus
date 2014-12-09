@@ -175,15 +175,15 @@ class Task(BaseResource):
 
         task = self._model.load(id, user=user, level=AccessType.READ)
 
+        if not task:
+            raise RestException('Task not found.', code=404)
+
         if 'log' in task:
             log = task['log']
             for e in log:
                 if Task.DOLLAR_REF in e:
                     e['$ref'] = e[Task.DOLLAR_REF]
                     del e[Task.DOLLAR_REF]
-
-        if not task:
-            raise RestException('Task not found.', code=404)
 
         return self._clean(task)
 
@@ -230,13 +230,32 @@ class Task(BaseResource):
                     'Girder-Token': self.get_task_token()['_id']
                 }
 
+                success = True
                 for terminate_url in task['onTerminate']:
-                    r = requests.put(terminate_url, headers=headers)
-                    self._check_status(r)
-            task['state'] = 'terminated'
-        except:
-            task['state'] = 'failure'
-            raise
+                    try:
+                        r = requests.put(terminate_url, headers=headers)
+                        self._check_status(r)
+                    except requests.HTTPError as ex:
+                        entry = {
+                            'statusCode': ex.response.status_code,
+                            'content': ex.response.content,
+                            'stack': traceback.format_exc()
+                        }
+                        task['log'].append(entry)
+                        success = False
+                    except Exception as ex:
+                        entry = {
+                            'msg': ex.message,
+                            'stack': traceback.format_exc()
+                        }
+                        task['log'].append(entry)
+                        success = False
+
+            if success:
+                task['state'] = 'terminated'
+            else:
+                task['state'] = 'failure'
+                raise RestException('Task termination failed.', code=500)
         finally:
             self._model.save(task)
 

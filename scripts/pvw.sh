@@ -30,7 +30,7 @@ curl --silent --show-error -o /dev/null -X POST -d "$BODY"  --header "Content-Ty
 export LD_LIBRARY_PATH=$PARAVIEW_DIR/lib/paraview-4.2
 
 # First run pvpython with the reverse connect port
-${PV_PYTHON} ${VISUALIZER} --host $IPADDRESS --port 8080 --proxies ${PROXIES} ${REVERSE} --data-dir ${DATA}
+${PV_PYTHON} ${VISUALIZER} --timeout 999999 --host $IPADDRESS --port 8080 --proxies ${PROXIES} ${REVERSE} --data-dir ${DATA}
 
 # Remove proxy entry
 curl --silent --show-error -o /dev/null -X DELETE {{ base_url }}/proxy/{{ cluster._id }}/{{ job._id }}
