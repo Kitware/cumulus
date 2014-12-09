@@ -91,7 +91,11 @@ class Task(BaseResource):
         spec = reduce(lambda x, y: x + y, self.model('file').download(file, headers=False)())
         spec = json.loads(spec)
 
-        runner.run(self.get_task_token()['_id'], self._clean(task), spec, variables)
+
+        try:
+            runner.run(self.get_task_token()['_id'], self._clean(task), spec, variables)
+        except requests.HTTPError as err:
+            raise RestException(err.response.content, err.response.status_code)
 
     run.description = (Description(
             'Start the task running'

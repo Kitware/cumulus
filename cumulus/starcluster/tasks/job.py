@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWriteHandler, logstdout, StarClusterLogFilter
 import cumulus.starcluster.logging
 from cumulus.starcluster.tasks.common import _write_config_file, _check_status, _log_exception
-from cumulus.starcluster.tasks.celery import app
+from cumulus.starcluster.tasks.celery import command, monitor
 import cumulus
 import cumulus.girderclient
 import starcluster.config
@@ -36,7 +36,7 @@ def _put_script(ssh, script_commands):
 
     return cmd
 
-@app.task
+@command.task
 @cumulus.starcluster.logging.capture
 def download_job_input(cluster, job, log_write_url=None, config_url=None, girder_token=None):
     log = starcluster.logger.get_starcluster_logger()
@@ -103,7 +103,7 @@ def download_job_input(cluster, job, log_write_url=None, config_url=None, girder
         if config_filepath and os.path.exists(config_filepath):
             os.remove(config_filepath)
 
-@app.task
+@command.task
 @cumulus.starcluster.logging.capture
 def submit_job(cluster, job, log_write_url=None, config_url=None, girder_token=None):
     log = starcluster.logger.get_starcluster_logger()
@@ -227,7 +227,7 @@ running_state = ['r', 'd', 'e']
 # Queued states
 queued_state = ['qw', 'q', 'w', 's', 'h', 't']
 
-@app.task(bind=True, max_retries=None)
+@monitor.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
 def monitor_job(task, cluster, job, log_write_url=None, config_url=None, girder_token=None):
     log = starcluster.logger.get_starcluster_logger()
@@ -309,7 +309,7 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None, girder_
         if config_filepath and os.path.exists(config_filepath):
             os.remove(config_filepath)
 
-@app.task
+@command.task
 @cumulus.starcluster.logging.capture
 def upload_job_output(cluster, job, log_write_url=None, config_url=None, job_dir=None, girder_token=None):
     log = starcluster.logger.get_starcluster_logger()
@@ -375,7 +375,7 @@ def upload_job_output(cluster, job, log_write_url=None, config_url=None, job_dir
         if config_filepath and os.path.exists(config_filepath):
             os.remove(config_filepath)
 
-@app.task(bind=True, max_retries=None)
+@monitor.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
 def monitor_process(task, name, job, pid, nohup_out, log_write_url=None, config_url=None,
                     on_complete=None, output_message='Job download/upload error: %s',
@@ -438,7 +438,7 @@ def monitor_process(task, name, job, pid, nohup_out, log_write_url=None, config_
         if config_filepath and os.path.exists(config_filepath):
             os.remove(config_filepath)
 
-@app.task
+@command.task
 @cumulus.starcluster.logging.capture
 def terminate_job(cluster, job, log_write_url=None, config_url=None, girder_token=None):
     log = starcluster.logger.get_starcluster_logger()

@@ -21,15 +21,18 @@ routes = {
     }
 }
 
-app = Celery('starcluster',  backend='amqp', broker='amqp://guest:guest@localhost:5672/',
+command = Celery('command',  backend='amqp', broker='amqp://guest:guest@localhost:5672/',
              include=_includes)
 
-app.conf.update(
-    CELERY_TASK_SERIALIZER='json',
-    CELERY_ACCEPT_CONTENT=('json',),
-    CELERY_RESULT_SERIALIZER = 'json',
-    CELERY_ACKS_LATE=True,
-    CELERYD_PREFETCH_MULTIPLIER=1,
+command.config_from_object('cumulus.starcluster.tasks.commandconfig')
+command.conf.update(
     CELERY_ROUTES=routes
 )
 
+monitor = Celery('monitor',  backend='amqp', broker='amqp://guest:guest@localhost:5672/',
+             include=_includes)
+
+monitor.config_from_object('cumulus.starcluster.tasks.monitorconfig')
+monitor.conf.update(
+    CELERY_ROUTES=routes
+)
