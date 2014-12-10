@@ -4,6 +4,8 @@ import httmock
 import mock
 import re
 from jsonschema import validate
+from cumulus.task import spec
+from cumulus.task import runner
 
 
 def setUpModule():
@@ -96,16 +98,13 @@ class TaskTestCase(base.TestCase):
         self._job_submitted = False
 
     def test_schema(self):
-        with open('plugins/task/task.json', 'r') as fp:
-            schema = json.load(fp)
-
         with open('plugins/task/plugin_tests/fixtures/simple.json', 'r') as fp:
             test = json.load(fp)
-            validate(test, schema)
+            spec.validate(test)
 
         with open('plugins/task/plugin_tests/fixtures/complex.json', 'r') as fp:
             test = json.load(fp)
-            validate(test, schema)
+            spec.validate(test)
 
     def test_create(self):
         body = {
@@ -160,8 +159,15 @@ class TaskTestCase(base.TestCase):
         self.assertStatusOk(r)
         self.assertTrue(self._mesh_called)
 
-    @mock.patch('cumulus.task.runner.app.send_task')
+    @mock.patch('cumulus.task.runner.monitor.send_task')
     def test_run_complex(self, monitor_status):
+
+        def _next(*args, **kwargs):
+            args = kwargs['args']
+            runner.run(args[0], args[1], args[2], args[4], args[3] + 1)
+
+        monitor_status.side_effect = _next
+
         body = {
             'taskSpecId': self._complexSpecId,
         }
@@ -253,9 +259,15 @@ class TaskTestCase(base.TestCase):
             return httmock.response(200, None, headers, request=request)
 
         submit_job = httmock.urlmatch(
-            path=r'^/api/v1/clusters/%s/submit/job/%s$' % (cluster_id, job_id), method='PUT')(_submit_job)
+            path=r'^/api/v1/clusters/%s/job/%s/submit$' % (cluster_id, job_id), method='PUT')(_submit_job)
 
-        with httmock.HTTMock(create_cluster, start_cluster, create_job, submit_job):
+        def _update_task(url, request):
+            pass
+
+        update_task = httmock.urlmatch(
+            path=r'^/api/v1/tasks/%s$' % (task_id), method='PATCH')(_submit_job)
+
+        with httmock.HTTMock(create_cluster, start_cluster, create_job, submit_job, update_task):
             r = self.request(url, method='PUT',
                              type='application/json', body=body, user=self._user)
         self.assertStatusOk(r)
@@ -263,7 +275,7 @@ class TaskTestCase(base.TestCase):
         self.assertTrue(self._cluster_started)
         self.assertTrue(self._job_submitted)
 
-        expected_calls = [[[u'cumulus.task.status.monitor_status'], {u'args': [u'token', {u'_id': u'id', u'taskSpecId': u'id'}, {u'steps': [{u'type': u'http', u'params': {u'url': u'/clusters', u'output': u'cluster', u'body': {u'config': [{u'_id': u'{{config.id}}'}], u'name': u'test_cluster', u'template': u'default_cluster'}, u'method': u'POST'}, u'name': u'createcluster'}, {u'body': {}, u'type': u'http', u'params': {u'url': u'/clusters/{{cluster._id}}/start', u'method': u'PUT'}, u'name': u'start cluster'}, {u'type': u'status', u'params': {u'url': u'/clusters/{{cluster._id}}/status', u'failure': [u'error'], u'success': [u'running'], u'selector': u'status'}, u'name': u'Wait for cluster'}, {u'type': u'http', u'params': {u'url': u'/jobs', u'body': {u'output': {u'itemId': u'{{output.item.id}}'}, u'scriptId': u'script_id', u'name': u'myjob', u'input': [{u'itemId': u'{{input.item.id}}', u'path': u'{{input.path}}'}]}, u'method': u'POST', u'output': u'job'}, u'name': u'create job'}, {u'type': u'http', u'params': {u'url': u'/clusters/{{cluster._id}}/submit/job/{{job._id}}', u'method': u'PUT'}, u'name': u'submit job'}, {u'type': u'status', u'params': {u'url': u'/clusters/{{cluster._id}}/status', u'failure': [u'error'], u'success': [u'complete', u'terminated'], u'selector': u'status'}, u'name': u'Wait for job to complete'}], u'name': u'Run cluster job'}, 2, {u'cluster': {u'_id': u'cluster_id'}, u'job': {u'_id': u'asdklasjdlf;kasjdklf'}, u'config': {u'id': u'asdklasjdlf;kasjdklf'}, u'input': {u'item': {u'id': u'item_id'}}, u'output': {u'item': {u'id': u'item_id'}}}]}], [
-            [u'cumulus.task.status.monitor_status'], {u'args': [u'token', {u'_id': u'id', u'taskSpecId': u'id'}, {u'steps': [{u'type': u'http', u'params': {u'url': u'/clusters', u'output': u'cluster', u'body': {u'config': [{u'_id': u'{{config.id}}'}], u'name': u'test_cluster', u'template': u'default_cluster'}, u'method': u'POST'}, u'name': u'createcluster'}, {u'body': {}, u'type': u'http', u'params': {u'url': u'/clusters/{{cluster._id}}/start', u'method': u'PUT'}, u'name': u'start cluster'}, {u'type': u'status', u'params': {u'url': u'/clusters/{{cluster._id}}/status', u'failure': [u'error'], u'success': [u'running'], u'selector': u'status'}, u'name': u'Wait for cluster'}, {u'type': u'http', u'params': {u'url': u'/jobs', u'body': {u'output': {u'itemId': u'{{output.item.id}}'}, u'scriptId': u'script_id', u'name': u'myjob', u'input': [{u'itemId': u'{{input.item.id}}', u'path': u'{{input.path}}'}]}, u'method': u'POST', u'output': u'job'}, u'name': u'create job'}, {u'type': u'http', u'params': {u'url': u'/clusters/{{cluster._id}}/submit/job/{{job._id}}', u'method': u'PUT'}, u'name': u'submit job'}, {u'type': u'status', u'params': {u'url': u'/clusters/{{cluster._id}}/status', u'failure': [u'error'], u'success': [u'complete', u'terminated'], u'selector': u'status'}, u'name': u'Wait for job to complete'}], u'name': u'Run cluster job'}, 5, {u'cluster': {u'_id': u'cluster_id'}, u'job': {u'_id': u'asdklasjdlf;kasjdklf'}, u'config': {u'id': u'asdklasjdlf;kasjdklf'}, u'input': {u'item': {u'id': u'item_id'}}, u'output': {u'item': {u'id': u'item_id'}}}]}]]
+        expected_calls = [[[u'cumulus.task.status.monitor_status'], {u'args': [u'token', {u'status': u'running', u'onDelete': [], u'_id': u'id', u'log': [], u'taskSpecId': u'id', u'output': {}, u'onTerminate': []}, {u'steps': [{u'type': u'http', u'params': {u'url': u'/clusters', u'output': u'cluster', u'body': {u'config': [{u'_id': u'{{config.id}}'}], u'name': u'test_cluster', u'template': u'default_cluster'}, u'method': u'POST'}, u'name': u'createcluster'}, {u'body': {}, u'type': u'http', u'params': {u'url': u'/clusters/{{cluster._id}}/start', u'method': u'PUT'}, u'name': u'start cluster'}, {u'params': {u'url': u'/clusters/cluster_id/status', u'failure': [u'error'], u'success': [u'running'], u'selector': u'status'}, u'type': u'status', u'name': u'Wait for cluster'}, {u'type': u'http', u'params': {u'url': u'/jobs', u'body': {u'output': {u'itemId': u'{{output.item.id}}'}, u'scriptId': u'script_id', u'name': u'myjob', u'input': [{u'itemId': u'{{input.item.id}}', u'path': u'{{input.path}}'}]}, u'method': u'POST', u'output': u'job'}, u'name': u'create job'}, {u'type': u'http', u'params': {u'url': u'/clusters/{{cluster._id}}/job/{{job._id}}/submit', u'method': u'PUT'}, u'name': u'submit job'}, {u'params': {u'url': u'/clusters/cluster_id/status', u'failure': [u'error'], u'success': [u'complete', u'terminated'], u'selector': u'status'}, u'type': u'status', u'name': u'Wait for job to complete'}], u'name': u'Run cluster job'}, 2, {u'cluster': {u'_id': u'cluster_id'}, u'job': {u'_id': u'asdklasjdlf;kasjdklf'}, u'config': {u'id': u'asdklasjdlf;kasjdklf'}, u'input': {u'item': {u'id': u'item_id'}}, u'output': {u'item': {u'id': u'item_id'}}}]}], [
+            [u'cumulus.task.status.monitor_status'], {u'args': [u'token', {u'status': u'running', u'onDelete': [], u'_id': u'id', u'log': [], u'taskSpecId': u'id', u'output': {}, u'onTerminate': []}, {u'steps': [{u'type': u'http', u'params': {u'url': u'/clusters', u'output': u'cluster', u'body': {u'config': [{u'_id': u'{{config.id}}'}], u'name': u'test_cluster', u'template': u'default_cluster'}, u'method': u'POST'}, u'name': u'createcluster'}, {u'body': {}, u'type': u'http', u'params': {u'url': u'/clusters/{{cluster._id}}/start', u'method': u'PUT'}, u'name': u'start cluster'}, {u'params': {u'url': u'/clusters/cluster_id/status', u'failure': [u'error'], u'success': [u'running'], u'selector': u'status'}, u'type': u'status', u'name': u'Wait for cluster'}, {u'type': u'http', u'params': {u'url': u'/jobs', u'body': {u'output': {u'itemId': u'{{output.item.id}}'}, u'scriptId': u'script_id', u'name': u'myjob', u'input': [{u'itemId': u'{{input.item.id}}', u'path': u'{{input.path}}'}]}, u'method': u'POST', u'output': u'job'}, u'name': u'create job'}, {u'type': u'http', u'params': {u'url': u'/clusters/{{cluster._id}}/job/{{job._id}}/submit', u'method': u'PUT'}, u'name': u'submit job'}, {u'params': {u'url': u'/clusters/cluster_id/status', u'failure': [u'error'], u'success': [u'complete', u'terminated'], u'selector': u'status'}, u'type': u'status', u'name': u'Wait for job to complete'}], u'name': u'Run cluster job'}, 5, {u'cluster': {u'_id': u'cluster_id'}, u'job': {u'_id': u'asdklasjdlf;kasjdklf'}, u'config': {u'id': u'asdklasjdlf;kasjdklf'}, u'input': {u'item': {u'id': u'item_id'}}, u'output': {u'item': {u'id': u'item_id'}}}]}]]
 
         self.assertCalls(monitor_status.call_args_list, expected_calls)

@@ -47,6 +47,13 @@ class Task(BaseResource):
         user = self.getCurrentUser()
 
         task = json.load(cherrypy.request.body)
+
+        if 'taskSpecId' not in task:
+            raise RestException('taskSpecId is required', code=400)
+
+        if not self.model('file').load(task['taskSpecId']):
+            raise RestException('Task specification %s doesn\'t exist' % task['taskSpecId'], code=400)
+
         task['status'] = 'created'
         task = self._model.create(user, task)
 

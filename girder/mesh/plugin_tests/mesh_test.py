@@ -117,7 +117,7 @@ class MeshTestCase(base.TestCase):
 
         self.file_id = r.json['_id']
 
-    @mock.patch('cumulus.starcluster.tasks.celery.app.send_task')
+    @mock.patch('cumulus.starcluster.tasks.celery.command.send_task')
     def test_extract_surface(self, send_task):
         body = {
         }

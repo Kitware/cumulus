@@ -67,7 +67,7 @@
                   "name": "submit job",
                   "type": "http",
                   "params": {
-                       "url": "/clusters/{{cluster._id}}/submit/job/{{job._id}}",
+                       "url": "/clusters/{{cluster._id}}/job/{{job._id}}/submit",
                         "method": "PUT"
                   }
               },
