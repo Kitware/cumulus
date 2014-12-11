@@ -17,7 +17,7 @@ VISUALIZER="${PARAVIEW_DIR}/${APPS_DIR}/pv_web_visualizer.py"
 RC_PORT="54321"
 REVERSE="--reverse-connect-port ${RC_PORT}"
 PROXIES="config/defaultProxies.json"
-DATA="data/"
+DATA="$HOME/{{ job._id }}/data/"
 
 
 # Get the private ip of this host
