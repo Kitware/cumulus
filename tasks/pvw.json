@@ -12,6 +12,27 @@
                       "body": {
                           "config": [
                                      {
+{% if cluster %}
+                                        "cluster": [
+                                            {
+{% set overrides = {} %}
+{% if cluster.size %}
+  {#- Abuse if statement todo append! #}
+  {%- if overrides.update({'cluster_size': cluster.size}) %}{% endif %}
+{% endif %}
+{% if cluster.type %}
+  {#- Abuse if statement todo append! #}
+  {%- if overrides.update({'master_instance_type': cluster.type}) %}{% endif %}
+{% endif %}
+{% if cluster.type %}
+  {#- Abuse if statement todo append! #}
+  {%- if overrides.update({'node_instance_type': cluster.type}) %}{% endif %}
+{% endif %}
+                                                "pvw_cluster": {{ overrides | dumps }}                                            }
+                                        ]
+{% endif %}
+                                     },
+                                     {
                                          "_id": "{{defaults.config.id}}"
                                      }
                                      ],

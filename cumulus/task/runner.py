@@ -1,10 +1,11 @@
 import json
 import cumulus
-from jinja2 import Template
+from jinja2 import Environment
 import requests
 import sys
 from cumulus.starcluster.tasks.celery import monitor
 import traceback
+from json import dumps
 
 def _add_log_entry(token, task, entry):
     headers = {'Girder-Token': token}
@@ -18,9 +19,10 @@ def _check_status(request):
         request.raise_for_status()
 
 def _template_dict(d, variables):
-
+    env = Environment()
+    env.filters['dumps'] = dumps
     json_str = json.dumps(d)
-    json_str = Template(json_str).render(**variables)
+    json_str = env.from_string(json_str).render(**variables)
 
     return json.loads(json_str)
 
@@ -73,7 +75,6 @@ def run(token, task, spec, variables, start_step=0):
                 spec['steps'][s] = step
                 _run_status(token, task, spec, s, variables)
                 return
-            print step
             if 'terminate' in step:
                 url = '%s%s' % (cumulus.config.girder.baseUrl, step['terminate'])
                 if 'onTerminate' in update:
