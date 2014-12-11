@@ -263,9 +263,9 @@ class Task(BaseResource):
                         success = False
 
             if success:
-                task['state'] = 'terminated'
+                task['status'] = 'terminated'
             else:
-                task['state'] = 'failure'
+                task['status'] = 'failure'
                 raise RestException('Task termination failed.', code=500)
         finally:
             self._model.save(task)
