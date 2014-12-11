@@ -92,6 +92,7 @@ class Task(BaseResource):
         task['log'] = []
         task['onTerminate'] = []
         task['onDelete'] = []
+        self._model.save(task)
 
         try:
             file = self.model('file').load(task['taskSpecId'])
@@ -100,9 +101,8 @@ class Task(BaseResource):
             runner.run(self.get_task_token()['_id'], self._clean(task), spec, variables)
         except requests.HTTPError as err:
             task['status'] = 'failure'
-            raise RestException(err.response.content, err.response.status_code)
-        finally:
             self._model.save(task)
+            raise RestException(err.response.content, err.response.status_code)
 
     run.description = (Description(
             'Start the task running'
