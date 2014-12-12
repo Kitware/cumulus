@@ -17,6 +17,7 @@ RC_PORT="54321"
 # Run in MPI mode
 MPIPROG="mpiexec"
 PV_SERVER="${PARAVIEW_DIR}/bin/pvserver"
+# Wait for pvpython
 while ! nc -z master ${RC_PORT}; do sleep 1; done
 # Now run pvserver and tell it to reverse connect
 ${MPIPROG} -n  {{ number_of_slots-1 }} ${PV_SERVER} --client-host=master -rc --server-port=${RC_PORT}
