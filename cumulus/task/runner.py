@@ -5,7 +5,7 @@ import requests
 import sys
 from cumulus.starcluster.tasks.celery import monitor
 import traceback
-from json import dumps
+
 
 def _add_log_entry(token, task, entry):
     headers = {'Girder-Token': token}
@@ -13,18 +13,20 @@ def _add_log_entry(token, task, entry):
     r = requests.post(url, headers=headers, json=entry)
     _check_status(r)
 
+
 def _check_status(request):
     if request.status_code != 200:
         print >> sys.stderr, request.content
         request.raise_for_status()
 
+
 def _template_dict(d, variables):
     env = Environment()
-    env.filters['dumps'] = dumps
     json_str = json.dumps(d)
     json_str = env.from_string(json_str).render(**variables)
 
     return json.loads(json_str)
+
 
 def _run_http(token, task, variables, step):
     params = step['params']
@@ -48,19 +50,23 @@ def _run_http(token, task, variables, step):
         }
         _add_log_entry(token, task, entry)
 
+
 def _run_status(token, task, spec, step, variables):
     # Fire of task to monitor the status
     task['_id'] = str(task['_id'])
 
-    monitor.send_task('cumulus.task.status.monitor_status', args=(token, task, spec, step, variables))
+    monitor.send_task('cumulus.task.status.monitor_status', args=(
+        token, task, spec, step, variables))
+
 
 def _log_http_error(token, task, err):
     entry = {
-            'statusCode': err.response.status_code,
-            'content': err.response.content,
-            'stack': traceback.format_exc()
-        }
+        'statusCode': err.response.status_code,
+        'content': err.response.content,
+        'stack': traceback.format_exc()
+    }
     _add_log_entry(token, task, entry)
+
 
 def run(token, task, spec, variables, start_step=0):
     headers = {'Girder-Token': token}
@@ -76,7 +82,8 @@ def run(token, task, spec, variables, start_step=0):
                 _run_status(token, task, spec, s, variables)
                 return
             if 'terminate' in step:
-                url = '%s%s' % (cumulus.config.girder.baseUrl, step['terminate'])
+                url = '%s%s' % (
+                    cumulus.config.girder.baseUrl, step['terminate'])
                 if 'onTerminate' in update:
                     update['onTerminate'].append(url)
                 else:
@@ -88,8 +95,6 @@ def run(token, task, spec, variables, start_step=0):
                     update['onDelete'].append(url)
                 else:
                     update['onDelete'] = [url]
-
-
 
         # Task is now complete, save the variable into the output property and set
         # status
@@ -103,10 +108,9 @@ def run(token, task, spec, variables, start_step=0):
         # Update the state of the task if necessary
         try:
             if update:
-                url = '%s/tasks/%s' % (cumulus.config.girder.baseUrl, task['_id'])
+                url = '%s/tasks/%s' % (cumulus.config.girder.baseUrl,
+                                       task['_id'])
                 r = requests.patch(url, headers=headers, json=update)
                 _check_status(r)
         except requests.HTTPError as e:
             _log_http_error(token, task, e)
-
-
