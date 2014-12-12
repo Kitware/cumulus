@@ -140,12 +140,12 @@ def submit_job(cluster, job, log_write_url=None, config_url=None, girder_token=N
             output = master.ssh.execute('qconf -sp orte')
             slots = -1
             for line in output:
-                m = re.match('slots[\s]+(\d)', line)
+                m = re.match('slots[\s]+(\d+)', line)
                 if m:
                     slots = m.group(1)
                     break
 
-            if slots < 0:
+            if slots < 1:
                 raise Exception('Unable to retrieve number of slots')
 
             # Now we can template submission script
