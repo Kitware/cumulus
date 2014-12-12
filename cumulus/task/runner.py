@@ -20,13 +20,23 @@ def _check_status(request):
         request.raise_for_status()
 
 
+def _remove_empty(d):
+    if type(d) is dict:
+        return dict((k, _remove_empty(v)) for k, v in d.iteritems() if v and _remove_empty(v))
+    elif type(d) is list:
+        return [_remove_empty(v) for v in d if v and _remove_empty(v)]
+    else:
+        return d
+
 def _template_dict(d, variables):
     env = Environment()
     json_str = json.dumps(d)
     json_str = env.from_string(json_str).render(**variables)
 
-    return json.loads(json_str)
+    d = json.loads(json_str)
+    d = _remove_empty(d)
 
+    return d
 
 def _run_http(token, task, variables, step):
     params = step['params']
