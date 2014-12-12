@@ -463,9 +463,11 @@ def terminate_job(cluster, job, log_write_url=None, config_url=None, girder_toke
             master = sc.master_node
             master.user = sc.cluster_user
 
+            if 'sgeId' not in job:
+                raise Exception('Job doesn\'t have a sge id')
+
             # First get number of slots available
             output = master.ssh.execute('qdel %s' % job['sgeId'])
-            print output
 
             if 'onTerminate' in job:
                 commands = '\n'.join(job['onTerminate']['commands']) + '\n'
