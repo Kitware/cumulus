@@ -31,7 +31,7 @@ def _remove_empty(d):
 def _template_dict(d, variables):
     env = Environment()
     json_str = json.dumps(d)
-    json_str = env.from_string(json_str).render(**variables)
+    json_str = env.from_string(json_str).render(amis=cumulus.config.amis, **variables)
 
     d = json.loads(json_str)
     d = _remove_empty(d)
