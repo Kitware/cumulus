@@ -28,6 +28,7 @@ BODY='{"host": "'$IPADDRESS'", "clusterId": "{{ cluster._id }}", "port": 8080, "
 curl --silent --show-error -o /dev/null -X POST -d "$BODY"  --header "Content-Type: application/json" {{ base_url }}/proxy
 
 export LD_LIBRARY_PATH=$PARAVIEW_DIR/lib/paraview-4.2
+export DISPLAY=:0
 
 # First run pvpython with the reverse connect port
 ${PV_PYTHON} ${VISUALIZER} --timeout 999999 --host $IPADDRESS --port 8080 --proxies ${PROXIES} ${REVERSE} --data-dir ${DATA}
