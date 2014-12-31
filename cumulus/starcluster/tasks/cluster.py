@@ -96,7 +96,11 @@ def terminate_cluster(cluster, log_write_url=None, girder_token=None):
 
         # Now update the status of the cluster
         r = requests.patch(status_url, headers=headers, json={'status': 'terminated'})
-        _check_status(r)
+        # During terminate of a task the user may delete the cluster before its
+        # terminated, so for now just ignore 404's when updated the status.
+        if r.status_code != 404:
+            _check_status(r)
+
     except starcluster.exception.ClusterDoesNotExist:
         r = requests.patch(status_url, headers=headers, json={'status': 'terminated'})
         _check_status(r)
