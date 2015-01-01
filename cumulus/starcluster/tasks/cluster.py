@@ -44,8 +44,8 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None, girder_toke
 
         config.load()
         sc = config.get_cluster_template(template, name)
-
         result = sc.is_valid()
+        sc.refresh_interval = 5
 
         with logstdout():
             sc.start()
