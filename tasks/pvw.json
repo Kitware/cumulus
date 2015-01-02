@@ -53,6 +53,7 @@
               {
                   "name": "Wait for cluster",
                   "type": "status",
+                  "timeout": 600,
                   "params": {
                       "url": "/clusters/{{cluster._id}}/status",
                       "selector": "status",
@@ -69,9 +70,10 @@
                        "body": {
                           "name": "myjob",
                           "scriptId": "{{defaults.pvw.script.id}}",
-                          "output": {
-                            "itemId": "{{output.item.id}}"
-                          },
+                          "output": [{
+                            "itemId": "{{output.item.id}}",
+                            "path": "."
+                          }],
                           "input": [
                             {
                               "itemId": "{{defaults.pvw.proxyItem}}",
@@ -100,6 +102,7 @@
               {
                   "name": "Wait for job to be running",
                   "type": "status",
+                  "timeout": 300,
                   "params": {
                       "url": "/jobs/{{pvw_job._id}}/status",
                       "selector": "status",
@@ -117,9 +120,10 @@
                        "body": {
                           "name": "myjob",
                           "scriptId": "{{defaults.pvserver.script.id}}",
-                          "output": {
-                            "itemId": "{{output.item.id}}"
-                          }
+                          "output": [{
+                            "itemId": "{{output.item.id}}",
+                            "path": "."
+                          }]
                         },
                         "output": "pvserver_job"
                   }
@@ -138,6 +142,7 @@
               {
                   "name": "Wait for job to be running",
                   "type": "status",
+                  "timeout": 300,
                   "params": {
                       "url": "/jobs/{{pvserver_job._id}}/status",
                       "selector": "status",

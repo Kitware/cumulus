@@ -24,15 +24,25 @@ class GirderBase(object):
             request.raise_for_status()
 
 class DirectoryUploader(GirderBase):
-    def __init__(self, girder_token, base_url, item_id, dir):
+    def __init__(self, girder_token, base_url, job_id):
         self._dir = dir
         self._base_url = base_url
-        self._item_id = item_id
+        self._job_id = job_id
         super(DirectoryUploader, self).__init__(girder_token)
 
     def run(self):
+        job_url = '%s/jobs/%s' % ( self._base_url, self._job_id)
 
-        self._upload(self._item_id, self._dir)
+        r = requests.get(job_url, headers=self._headers)
+        self._check_status(r)
+
+        job = r.json()
+
+        for i in job['output']:
+            item_id = i['itemId']
+            path_spec = i['path']
+
+            self._upload(item_id, path_spec)
 
     def _upload_file(self, name, path, parent_id):
         datalen = os.path.getsize(path)
@@ -79,12 +89,19 @@ class DirectoryUploader(GirderBase):
 
                 uploaded += chunk_size
 
-    def _upload(self, parent_id, path):
-        for root,_ , file_list in os.walk(path):
-            for filename in file_list:
-                file_path = os.path.join(root, filename)
-                name = os.path.relpath(file_path, path)
-                self._upload_file(name, os.path.join(root, filename), parent_id)
+    def _upload(self, parent_id, path, pattern=None):
+        if os.path.isdir(path):
+            for root,_ , file_list in os.walk(path):
+                for filename in file_list:
+                    file_path = os.path.join(root, filename)
+
+                    name = file_path
+                    if not path.startswith('/'):
+                        name = os.path.relpath(file_path, os.getcwd())
+
+                    self._upload_file(name, file_path, parent_id)
+        else:
+            self._upload_file(path, path, parent_id)
 
 class JobInputDownloader(GirderBase):
     def __init__(self, girder_token, base_url, job_id, dest):
@@ -170,9 +187,8 @@ def main():
     subparsers = parser.add_subparsers(title="actions", dest='action')
 
     # Upload
-    upload_parser = subparsers.add_parser('upload', help='Upload directory to girder')
-    upload_parser.add_argument('--dir', help='Directory to upload', required=True)
-    upload_parser.add_argument('--item', help='The item to upload files to', required=True)
+    upload_parser = subparsers.add_parser('upload', help='Upload paths to girder items')
+    upload_parser.add_argument('--job', help='The job to upload output for', required=True)
 
     # Download
     download_parser = subparsers.add_parser('download', help='Download file from a Girder item')
@@ -182,7 +198,7 @@ def main():
     config = parser.parse_args()
 
     if config.action == 'upload':
-        DirectoryUploader(config.token, config.url, config.item, config.dir).run()
+        DirectoryUploader(config.token, config.url, config.job).run()
     elif config.action == 'download':
         JobInputDownloader(config.token, config.url, config.job, config.dir).run()
 

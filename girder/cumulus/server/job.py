@@ -67,6 +67,10 @@ class Job(BaseResource):
                 if i['path'] == body['name']:
                     raise RestException('input can\'t be the same as job name', 400)
 
+        if 'output' in body:
+            if not isinstance(body['output'], list):
+                raise RestException('output must be a list', 400)
+
         job = self._model.create(user, body)
 
         cherrypy.response.status = 201
@@ -105,6 +109,10 @@ class Job(BaseResource):
             'itemId': {
                 'type': 'string',
                 'description': 'The item id'
+            },
+            'path': {
+                'type': 'string',
+                'description': 'The path to upload, may include * wildcard'
             }
         }
     })
@@ -131,13 +139,17 @@ class Job(BaseResource):
             },
             'input': {
                 'type': 'array',
-                'description': 'The commands to run.',
+                'description': 'Input to the job.',
                 'items': {
                     '$ref': 'InputItem'
                 }
             },
             'output': {
-                '$ref': 'OutputItem'
+                'type': 'array',
+                'description': 'The output to upload.',
+                'items': {
+                    '$ref': 'OutputItem'
+                }
             },
             'onComplete': {
                 '$ref': 'JobOnCompleteParams'
