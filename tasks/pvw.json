@@ -52,7 +52,8 @@
               },
               {
                   "name": "Wait for cluster",
-                  "type": "status",
+                  "timeout": 600,
+
                   "params": {
                       "url": "/clusters/{{cluster._id}}/status",
                       "selector": "status",
@@ -99,7 +100,7 @@
               },
               {
                   "name": "Wait for job to be running",
-                  "type": "status",
+                  "timeout": 300,
                   "params": {
                       "url": "/jobs/{{pvw_job._id}}/status",
                       "selector": "status",
@@ -138,6 +139,7 @@
               {
                   "name": "Wait for job to be running",
                   "type": "status",
+                  "timeout": 300,
                   "params": {
                       "url": "/jobs/{{pvserver_job._id}}/status",
                       "selector": "status",
