@@ -335,8 +335,8 @@ def upload_job_output(cluster, job, log_write_url=None, config_url=None, job_dir
 
         log.info('Uploading output for "%s"' % job_name)
 
-        upload_cmd = 'python girderclient.py --token %s --url "%s" upload --dir %s  --item %s' \
-                        % (girder_token, cumulus.config.girder.baseUrl, job_dir, job['output']['itemId'])
+        upload_cmd = 'python girderclient.py --token %s --url "%s" upload --job %s' \
+                        % (girder_token, cumulus.config.girder.baseUrl, job['_id'])
 
         upload_output = '%s.upload.out' % job_id
         upload_cmd = 'nohup %s  &> %s  &\n' % (upload_cmd, upload_output)
