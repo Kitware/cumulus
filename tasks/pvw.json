@@ -70,9 +70,10 @@
                        "body": {
                           "name": "myjob",
                           "scriptId": "{{defaults.pvw.script.id}}",
-                          "output": {
-                            "itemId": "{{output.item.id}}"
-                          },
+                          "output": [{
+                            "itemId": "{{output.item.id}}",
+                            "path": "."
+                          }],
                           "input": [
                             {
                               "itemId": "{{defaults.pvw.proxyItem}}",
@@ -118,9 +119,10 @@
                        "body": {
                           "name": "myjob",
                           "scriptId": "{{defaults.pvserver.script.id}}",
-                          "output": {
-                            "itemId": "{{output.item.id}}"
-                          }
+                          "output": [{
+                            "itemId": "{{output.item.id}}",
+                            "path": "."
+                          }]
                         },
                         "output": "pvserver_job"
                   }
