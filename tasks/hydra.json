@@ -109,7 +109,7 @@
               },
               {
                   "name": "Terminate the cluster",
-                  "type": "status",
+                  "type": "http",
                   "params": {
                       "url": "/clusters/{{cluster._id}}/terminate",
                       "method": "PUT"
