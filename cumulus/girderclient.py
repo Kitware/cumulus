@@ -9,6 +9,7 @@ import zipfile
 import tempfile
 import shutil
 import os
+import errno
 
 max_chunk_size = 1024 * 1024 * 64
 
