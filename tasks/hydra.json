@@ -89,7 +89,12 @@
                   "type": "http",
                   "params": {
                        "url": "/clusters/{{cluster._id}}/job/{{hydra_job._id}}/submit",
-                        "method": "PUT"
+                        "method": "PUT",
+                        "body": {
+                            "mesh": {
+                                "name":  "{{mesh.name}}"
+                            }
+                        }
                   },
                   "log": "/jobs/{{hydra_job._id}}/log",
                   "terminate": "/jobs/{{hydra_job._id}}/terminate",

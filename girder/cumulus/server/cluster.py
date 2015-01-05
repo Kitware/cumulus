@@ -339,6 +339,12 @@ class Cluster(BaseResource):
 
         # Set the clusterId on the job for termination
         job['clusterId'] = id
+
+        # Add any job parameters to used when templating job script
+        body = cherrypy.request.body.read()
+        if body:
+            job['params'] = json.loads(body)
+
         job_model.save(job)
 
         log_url = '%s/jobs/%s/log' % (base_url, job_id)
