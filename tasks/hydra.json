@@ -93,7 +93,7 @@
                   },
                   "log": "/jobs/{{hydra_job._id}}/log",
                   "terminate": "/jobs/{{hydra_job._id}}/terminate",
-                  "delete": "/jobs/{{pvw_job._id}}"
+                  "delete": "/jobs/{{hydra_job._id}}"
               },
               {
                   "name": "Wait for job to complete",
