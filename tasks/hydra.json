@@ -76,7 +76,11 @@
                           }],
                           "input": [
                             {
-                              "itemId": "{{input.item.id}}",
+                              "itemId": "{{input.data.item.id}}",
+                              "path": "input"
+                            },
+                            {
+                              "itemId": "{{input.config.item.id}}",
                               "path": "input"
                             }
                           ]
