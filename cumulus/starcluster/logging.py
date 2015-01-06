@@ -20,6 +20,7 @@ class StarClusterLogHandler(logging.Handler):
         json_str = json.dumps(record.__dict__, default=str)
         print >> sys.stderr,  json_str
         print >> sys.stderr,  self._url
+        r = None
         try:
             r = requests.post(self._url, headers=self._headers, data=json_str)
             print >> sys.stderr, self._url
