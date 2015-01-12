@@ -22,6 +22,7 @@ class Job(BaseResource):
         self.route('PUT', (':id', 'terminate'), self.terminate)
         self.route('POST', (':id', 'log'), self.add_log_record)
         self.route('GET', (':id', 'log'), self.log)
+        self.route('GET', (':id', 'output'), self.output)
         self.route('DELETE', (':id', ), self.delete)
         self.route('GET', (':id',), self.get)
 
@@ -321,7 +322,7 @@ class Job(BaseResource):
         return {'log': job['log'][offset:]}
 
     log.description = (Description(
-            'Get log entries for cluster'
+            'Get log entries for job'
         )
         .param(
             'id',
@@ -329,6 +330,51 @@ class Job(BaseResource):
         .param(
             'offset',
             'The offset to start getting entiries at.', required=False, paramType='query'))
+
+    @access.user
+    def output(self, id, params):
+        user = self.getCurrentUser()
+
+        if 'path' not in params:
+            raise RestException('path parameter is required.', code=400)
+
+        path = params['path']
+
+        offset = 0
+        if 'offset' in params:
+            offset = int(params['offset'])
+
+        job = self._model.load(id, user=user, level=AccessType.READ)
+
+        if not job:
+            raise RestException('Job not found.', code=404)
+
+        match = None
+        # Find the correct file path
+        for output in job['output']:
+            if output['path'] == path:
+                match = output
+
+        if not match:
+            raise RestException('Output path not found', code=404)
+
+        if 'content' not in match:
+            match['content'] = []
+
+        return {'content': match['content'][offset:]}
+
+    output.description = (Description(
+            'Get output entries for job'
+        )
+        .param(
+            'id',
+            'The job to get output entries for.', paramType='path')
+        .param(
+            'path',
+            'The path for the output file.', required=True, paramType='query')
+        .param(
+            'offset',
+            'The offset to start getting entries at.', required=False, paramType='query'))
 
     @access.user
     def get(self, id, params):
