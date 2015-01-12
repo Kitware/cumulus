@@ -227,6 +227,9 @@ class Job(BaseResource):
         if 'sgeId' in body:
             job['sgeId'] = body['sgeId']
 
+        if 'output' in body:
+            job['output'] = body['output']
+
         job = self._model.save(job)
 
         # Don't return the access object

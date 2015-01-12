@@ -40,10 +40,11 @@ class DirectoryUploader(GirderBase):
         job = r.json()
 
         for i in job['output']:
-            item_id = i['itemId']
-            path_spec = i['path']
 
-            self._upload(item_id, path_spec)
+            if 'itemId' in i and 'path' in i:
+                item_id = i['itemId']
+                path_spec = i['path']
+                self._upload(item_id, path_spec)
 
     def _upload_file(self, name, path, parent_id):
         datalen = os.path.getsize(path)

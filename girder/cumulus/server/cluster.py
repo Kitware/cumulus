@@ -357,12 +357,15 @@ class Cluster(BaseResource):
     submit_job.description = (Description(
         'Submit a job to the cluster'
     )
-        .param(
-            'id',
-            'The cluster to submit the job to.', required=True, paramType='path')
-        .param(
-            'jobId',
-            'The cluster to get log entries for.', required=True, paramType='path'))
+    .param(
+        'id',
+        'The cluster to submit the job to.', required=True, paramType='path')
+    .param(
+        'jobId',
+        'The cluster to get log entries for.', required=True, paramType='path')
+    .param(
+        'body',
+        'The properties to template on submit.', dataType='object', paramType='body'))
 
     @access.user
     def get(self, id, params):

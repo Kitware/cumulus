@@ -297,7 +297,28 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None, girder_
                                         config_url=config_url,
                                         job_dir=job_dir, girder_token=girder_token)
 
-        r = requests.patch(status_update_url, headers=headers, json={'status': status})
+        # Do we need to tail any output files
+        for output in job['output']:
+            if 'tail' in output and output['tail']:
+                path = output['path']
+                offset = 0
+                if 'content' in output:
+                    offset = len(output['content'])
+                else:
+                    output['content'] = []
+                tail_path = '%s/%s' % (job_id, path)
+                command = 'tail -n +%d %s' % (offset, tail_path)
+                try:
+                    # Only tail if file exists
+                    if master.ssh.isfile(tail_path):
+                        stdout = master.ssh.execute(command)
+                        output['content'] = output['content'] + stdout
+                    else:
+                        log.info('Skipping tail of %s as file doesn\'t currently exist' % tail_path)
+                except starcluster.exception.RemoteCommandFailed as ex:
+                    _log_exception(ex)
+
+        r = requests.patch(status_update_url, headers=headers, json={'status': status, 'output': job['output']})
         _check_status(r)
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_update_url, headers=headers, json={'status': 'error'})
