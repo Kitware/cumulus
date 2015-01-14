@@ -73,6 +73,10 @@
                           "output": [{
                             "itemId": "{{output.item.id}}",
                             "path": "."
+                          },
+                          {
+                             "path": "output/stat.txt",
+                             "tail": true
                           }],
                           "input": [
                             {
