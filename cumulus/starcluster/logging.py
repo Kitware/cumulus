@@ -8,6 +8,7 @@ import threading
 import starcluster.logger
 import functools
 import uuid
+import traceback
 
 class StarClusterLogHandler(logging.Handler):
     def __init__(self, token, url, level=logging.NOTSET):
@@ -19,12 +20,16 @@ class StarClusterLogHandler(logging.Handler):
         json_str = json.dumps(record.__dict__, default=str)
         print >> sys.stderr,  json_str
         print >> sys.stderr,  self._url
+        r = None
         try:
             r = requests.post(self._url, headers=self._headers, data=json_str)
             print >> sys.stderr, self._url
             r.raise_for_status()
         except:
-            print >> sys.stderr, 'Unable to POST log record: %s' % r.content
+            if r:
+                print >> sys.stderr, 'Unable to POST log record: %s' % r.content
+            else:
+                print >> sys.stderr, traceback.format_exc()
 
 @contextlib.contextmanager
 def logstdout():

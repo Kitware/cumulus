@@ -148,9 +148,13 @@ def submit_job(cluster, job, log_write_url=None, config_url=None, girder_token=N
             if slots < 1:
                 raise Exception('Unable to retrieve number of slots')
 
+            job_params = {}
+            if 'params' in job:
+                job_params = job['params']
+
             # Now we can template submission script
             script = Template(script_template.getvalue()).render(cluster=cluster,
-                     job=job, base_url=cumulus.config.girder.baseUrl, number_of_slots=int(slots))
+                     job=job, base_url=cumulus.config.girder.baseUrl, number_of_slots=int(slots), **job_params)
 
             with open(script_filepath, 'w') as fp:
                 fp.write('%s\n' % script)
