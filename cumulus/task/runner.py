@@ -5,6 +5,7 @@ import requests
 import sys
 from cumulus.starcluster.tasks.celery import monitor
 import traceback
+import datetime
 
 
 def _add_log_entry(token, task, entry):
@@ -110,6 +111,8 @@ def run(token, task, spec, variables, start_step=0):
         # status
         update['output'] = variables
         update['status'] = 'complete'
+        update['endTime'] =  datetime.datetime.now().isoformat()
+
 
     except requests.HTTPError as e:
         _log_http_error(token, task, e)

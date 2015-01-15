@@ -1,6 +1,7 @@
 import io
 import cherrypy
 import json
+import datetime
 from girder.api.rest import RestException
 from girder.api import access
 from girder.api.describe import Description
@@ -92,6 +93,8 @@ class Task(BaseResource):
         task['log'] = []
         task['onTerminate'] = []
         task['onDelete'] = []
+        task['startTime'] =  datetime.datetime.now().isoformat()
+
         self._model.save(task)
 
         try:
@@ -145,6 +148,8 @@ class Task(BaseResource):
             for url in updates['onDelete']:
                 task['onDelete'].insert(0, url)
 
+        if 'endTime' in updates:
+            task['endTime'] = updates['endTime']
 
         self._model.save(task)
 
