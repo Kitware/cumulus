@@ -1,5 +1,10 @@
 #!/bin/bash
 
+###
+#$ -S /bin/bash
+#$ -pe orte {{ number_of_slots }}
+###
+
 HYDRA_DIR="/opt/hydra"
 HYDRA="${HYDRA_DIR}/bin/hydra"
 MPIPROG="mpiexec"
