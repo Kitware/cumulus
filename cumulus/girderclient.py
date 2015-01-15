@@ -147,20 +147,22 @@ class JobInputDownloader(GirderBase):
 
             dest_path = os.path.join(self._dest, target_path)
 
-            if os.path.exists(dest_path):
-                raise Exception('Target destination already exists: %s' % dest_path)
-
             temp_dir = None
             try:
                 temp_dir = tempfile.mkdtemp()
                 files.extractall(temp_dir)
-                item_dirs = os.listdir(temp_dir)
+                item_dir = os.listdir(temp_dir)
 
-                if len(item_dirs) != 1:
-                    raise Exception('Expecting single item directory, got: %s' % len(item_dirs))
+                if len(item_dir) != 1:
+                    raise Exception('Expecting single item directory, got: %s' % len(item_dir))
 
-                items_files = os.path.join(temp_dir, item_dirs[0])
-                shutil.move(items_files, dest_path)
+                item_dir = os.path.join(temp_dir, item_dir[0])
+                for dir, subdirs, files in os.walk(item_dir):
+                    for f in files:
+                        src = os.path.join(item_dir, dir, f)
+                        dest = os.path.join(dest_path, dir.replace(item_dir, ''), f)
+                        self._mkdir(os.path.dirname(dest))
+                        shutil.copy(src, dest)
             finally:
                 if os.path.exists(temp_dir):
                     shutil.rmtree(temp_dir)
