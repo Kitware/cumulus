@@ -157,6 +157,9 @@ class JobInputDownloader(GirderBase):
                     raise Exception('Expecting single item directory, got: %s' % len(item_dir))
 
                 item_dir = os.path.join(temp_dir, item_dir[0])
+                if not item_dir.endswith('/'):
+                    item_dir += '/'
+
                 for dir, subdirs, files in os.walk(item_dir):
                     for f in files:
                         src = os.path.join(item_dir, dir, f)
