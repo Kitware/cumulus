@@ -91,6 +91,7 @@ def run(token, task, spec, variables, start_step=0):
             elif step['type'] == 'status':
                 spec['steps'][s] = step
                 _run_status(token, task, spec, s, variables)
+                update['output'] = variables
                 return
             if 'terminate' in step:
                 url = '%s%s' % (
