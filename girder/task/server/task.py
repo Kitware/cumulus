@@ -1,7 +1,7 @@
 import io
 import cherrypy
 import json
-import datetime
+import time
 from girder.api.rest import RestException
 from girder.api import access
 from girder.api.describe import Description
@@ -93,7 +93,7 @@ class Task(BaseResource):
         task['log'] = []
         task['onTerminate'] = []
         task['onDelete'] = []
-        task['startTime'] =  datetime.datetime.now().isoformat()
+        task['startTime'] = int(round(time.time() * 1000))
 
         self._model.save(task)
 
