@@ -101,7 +101,11 @@ class Task(BaseResource):
             file = self.model('file').load(task['taskSpecId'])
             spec = reduce(lambda x, y: x + y, self.model('file').download(file, headers=False)())
             spec = json.loads(spec)
-            runner.run(self.get_task_token()['_id'], self._clean(task), spec, variables)
+
+            # Create token for user runnig this task
+            token = self.model('token').createToken(user=user, days=7)
+
+            runner.run(token['_id'], self._clean(task), spec, variables)
         except requests.HTTPError as err:
             task['status'] = 'failure'
             self._model.save(task)
