@@ -15,6 +15,7 @@ class Script(BaseResource):
         self.route('POST', (), self.create)
         self.route('GET', (':id',), self.get)
         self.route('PATCH', (':id','import'), self.import_script)
+        self.route('PUT', (':id', 'access'), self.update_access)
         self.route('DELETE', (':id',), self.delete)
         self._model = self.model('script', 'cumulus')
 
@@ -123,3 +124,35 @@ class Script(BaseResource):
         .param(
             'id',
             'The script id.', paramType='path', required=True))
+
+    @access.user
+    def update_access(self, id, params):
+        user = self.getCurrentUser()
+
+        body = cherrypy.request.body.read()
+
+        if not body:
+            raise RestException('No message body provided', code=400)
+
+        body = json.loads(body)
+
+        script = self._model.load(id, user=user, level=AccessType.WRITE)
+        if not script:
+            raise RestException('Script not found.', code=404)
+
+        script = self._model.setAccessList(script, body, save=True)
+
+        return script
+
+    update_access.description = (Description(
+        'Update script access'
+    )
+    .param(
+        'id',
+        'The script to update',
+        required=True, paramType='path')
+    .param(
+        'body',
+        'The fields to update',
+        required=True, paramType='body')
+    .consumes('application/json'))
