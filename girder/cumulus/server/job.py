@@ -45,7 +45,7 @@ class Job(BaseResource):
             raise RestException('command or scriptId must be provided', code=400)
 
         if 'scriptId' in body:
-            script = self.model('script', 'cumulus').load(body['scriptId'], user=user)
+            script = self.model('script', 'cumulus').load(body['scriptId'], user=user, level=AccessType.READ)
             if not script:
                 raise RestException('Script not found', 400)
 
@@ -53,7 +53,7 @@ class Job(BaseResource):
             body['commands'] = script['commands']
 
         if 'onTerminate' in body and 'scriptId' in body['onTerminate']:
-            script = self.model('script', 'cumulus').load(body['onTerminate']['scriptId'], user=user)
+            script = self.model('script', 'cumulus').load(body['onTerminate']['scriptId'], user=user,  level=AccessType.READ)
             if not script:
                 raise RestException('onTerminate script not found', 400)
 
