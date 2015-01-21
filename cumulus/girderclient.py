@@ -100,10 +100,11 @@ class DirectoryUploader(GirderBase):
 
                 )
 
-                self._headers['Content-Type'] = m.content_type
+                headers = self._headers.copy()
+                headers['Content-Type'] = m.content_type
 
                 r = requests.post('%s/file/chunk' % self._base_url, params=params,
-                                         data=m, headers=self._headers)
+                                         data=m, headers=headers)
                 self._check_status(r)
 
                 uploaded += chunk_size
