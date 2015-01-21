@@ -34,7 +34,7 @@
                                          "_id": "{{defaults.config.id}}"
                                      }
                                      ],
-                          "name": "test_cluster",
+                          "name": "{{ cluster.name if cluster and cluster.name else 'pvw_cluster'}}",
                           "template": "pvw_cluster"
                       }
                   }

@@ -34,7 +34,7 @@
                                          "_id": "{{defaults.config.id}}"
                                      }
                                      ],
-                          "name": "hydra_cluster",
+                          "name": "{{ cluster.name if cluster and cluster.name else 'hydra_cluster'}}",
                           "template": "hydra_cluster"
                       }
                   }
