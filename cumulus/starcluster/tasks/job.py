@@ -186,6 +186,8 @@ def submit_job(cluster, job, log_write_url=None, config_url=None, girder_token=N
             _check_status(r)
             job = r.json()
 
+            job['queuedTime'] = time.time()
+
             # Now monitor the jobs progress
             monitor_job.s(cluster, job, config_url=config_url,
                           log_write_url=log_write_url,
@@ -278,9 +280,18 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None, girder_
         else:
             status = 'complete'
 
+        timings = {}
+
         if state and current_status != 'terminating':
             if state in running_state:
                 status = 'running'
+                if 'queuedTime' in job:
+                    queued_time = time.time() - job['queuedTime']
+                    timings = {
+                        'queued': int(round(queued_time * 1000))
+                    }
+                    del job['queuedTime']
+                    job['runningTime'] = time.time()
             elif state in queued_state:
                 status = 'queued'
             else:
@@ -291,6 +302,12 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None, girder_
             task.retry(throw=False, countdown=5)
         else:
             if status == 'complete':
+                if 'runningTime' in job:
+                    running_time = time.time() - job['runningTime']
+                    timings = {
+                        'running': int(round(running_time * 1000))
+                    }
+                    del job['runningTime']
                 # Fire off task to upload the output
                 log.info('Jobs "%s" complete' % job_name)
                 upload_job_output.delay(cluster, job, log_write_url=log_write_url,
@@ -318,7 +335,13 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None, girder_
                 except starcluster.exception.RemoteCommandFailed as ex:
                     _log_exception(ex)
 
-        r = requests.patch(status_update_url, headers=headers, json={'status': status, 'output': job['output']})
+        json = {
+            'status': status,
+            'output': job['output'],
+            'timings': timings
+        }
+
+        r = requests.patch(status_update_url, headers=headers, json=json)
         _check_status(r)
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_update_url, headers=headers, json={'status': 'error'})

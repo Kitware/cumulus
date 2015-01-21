@@ -10,6 +10,7 @@ import tempfile
 import shutil
 import os
 import errno
+import time
 
 max_chunk_size = 1024 * 1024 * 64
 
@@ -39,12 +40,28 @@ class DirectoryUploader(GirderBase):
 
         job = r.json()
 
+        start = time.time()
+
         for i in job['output']:
 
             if 'itemId' in i and 'path' in i:
                 item_id = i['itemId']
                 path_spec = i['path']
                 self._upload(item_id, path_spec)
+
+        end = time.time()
+
+        upload_time = end - start
+
+        updates = {
+            'timings': {
+                'upload': int(round(upload_time * 1000))
+            }
+        }
+
+        r = requests.patch(job_url, json=updates, headers=self._headers)
+        self._check_status(r)
+
 
     def _upload_file(self, name, path, parent_id):
         datalen = os.path.getsize(path)
@@ -178,11 +195,25 @@ class JobInputDownloader(GirderBase):
 
         job = r.json()
 
+        start = time.time()
+
         for i in job['input']:
             item_id = i['itemId']
             target_path = i['path']
             self._download_item(item_id, target_path)
 
+        end = time.time()
+
+        download_time = end - start
+
+        updates = {
+            'timings': {
+                'download': int(round(download_time * 1000))
+            }
+        }
+
+        r = requests.patch(job_url, json=updates, headers=self._headers)
+        self._check_status(r)
 
 def main():
     parser = argparse.ArgumentParser(description='Girder client for download/upload')

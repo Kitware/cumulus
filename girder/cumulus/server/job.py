@@ -231,6 +231,12 @@ class Job(BaseResource):
         if 'output' in body:
             job['output'] = body['output']
 
+        if 'timings' in body:
+            if 'timings' in job:
+                job['timings'].update(body['timings'])
+            else:
+                job['timings'] = body['timings']
+
         job = self._model.save(job)
 
         # Don't return the access object
