@@ -310,6 +310,8 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None, girder_
                     del job['runningTime']
                 # Fire off task to upload the output
                 log.info('Jobs "%s" complete' % job_name)
+                status = 'uploading'
+                job['status'] = status
                 upload_job_output.delay(cluster, job, log_write_url=log_write_url,
                                         config_url=config_url,
                                         job_dir=job_dir, girder_token=girder_token)
@@ -473,6 +475,12 @@ def monitor_process(task, name, job, pid, nohup_out, log_write_url=None, config_
             # Fire off the on_compete task if we have one
             if on_complete:
                 signature(on_complete).delay()
+
+            # If we where uploading move job into complete state
+            if job['status'] == 'uploading':
+                r = requests.patch(status_url, headers=headers, json={'status': 'complete'})
+                _check_status(r)
+
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers, json={'status': 'error'})
         _check_status(r)
