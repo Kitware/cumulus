@@ -47,11 +47,23 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None, girder_toke
         result = sc.is_valid()
         sc.refresh_interval = 5
 
+        start = time.time()
+
         with logstdout():
             sc.start()
 
+        end = time.time()
+
+        startup_time = end - start
+        updates = {
+            'timings': {
+                'startup': int(round(startup_time * 1000))
+            },
+            'status': 'running'
+        }
+
         # Now update the status of the cluster
-        r = requests.patch(status_url, headers=headers, json={'status': 'running'})
+        r = requests.patch(status_url, headers=headers, json=updates)
         _check_status(r)
 
         # Now if we have a job to submit do it!
@@ -91,11 +103,23 @@ def terminate_cluster(cluster, log_write_url=None, girder_token=None):
         r = requests.patch(status_url, headers=headers, json={'status': 'terminating'})
         _check_status(r)
 
+        start = time.time()
+
         with logstdout():
             cm.terminate_cluster(name, force=True)
 
+        end = time.time()
+        shutdown_time = end - start
+
+        updates = {
+            'timings': {
+                'shutdown': int(round(shutdown_time * 1000))
+            },
+            'status': 'terminated'
+        }
+
         # Now update the status of the cluster
-        r = requests.patch(status_url, headers=headers, json={'status': 'terminated'})
+        r = requests.patch(status_url, headers=headers, json=updates)
         # During terminate of a task the user may delete the cluster before its
         # terminated, so for now just ignore 404's when updated the status.
         if r.status_code != 404:

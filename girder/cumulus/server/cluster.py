@@ -210,16 +210,19 @@ class Cluster(BaseResource):
         body = json.loads(cherrypy.request.body.read())
         user = self.getCurrentUser()
 
-        if 'status' in body:
-            status = body['status']
-
         cluster = self._model.load(id, user=user, level=AccessType.WRITE)
 
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        if status:
-            cluster['status'] = status
+        if 'status' in body:
+            cluster['status'] = body['status']
+
+        if 'timings' in body:
+            if 'timings' in cluster:
+                cluster['timings'].update(body['timings'])
+            else:
+                cluster['timings'] = body['timings']
 
         cluster = self._model.save(cluster)
 

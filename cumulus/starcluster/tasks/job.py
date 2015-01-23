@@ -186,6 +186,8 @@ def submit_job(cluster, job, log_write_url=None, config_url=None, girder_token=N
             _check_status(r)
             job = r.json()
 
+            job['queuedTime'] = time.time()
+
             # Now monitor the jobs progress
             monitor_job.s(cluster, job, config_url=config_url,
                           log_write_url=log_write_url,
@@ -278,9 +280,18 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None, girder_
         else:
             status = 'complete'
 
+        timings = {}
+
         if state and current_status != 'terminating':
             if state in running_state:
                 status = 'running'
+                if 'queuedTime' in job:
+                    queued_time = time.time() - job['queuedTime']
+                    timings = {
+                        'queued': int(round(queued_time * 1000))
+                    }
+                    del job['queuedTime']
+                    job['runningTime'] = time.time()
             elif state in queued_state:
                 status = 'queued'
             else:
@@ -291,8 +302,16 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None, girder_
             task.retry(throw=False, countdown=5)
         else:
             if status == 'complete':
+                if 'runningTime' in job:
+                    running_time = time.time() - job['runningTime']
+                    timings = {
+                        'running': int(round(running_time * 1000))
+                    }
+                    del job['runningTime']
                 # Fire off task to upload the output
                 log.info('Jobs "%s" complete' % job_name)
+                status = 'uploading'
+                job['status'] = status
                 upload_job_output.delay(cluster, job, log_write_url=log_write_url,
                                         config_url=config_url,
                                         job_dir=job_dir, girder_token=girder_token)
@@ -318,7 +337,13 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None, girder_
                 except starcluster.exception.RemoteCommandFailed as ex:
                     _log_exception(ex)
 
-        r = requests.patch(status_update_url, headers=headers, json={'status': status, 'output': job['output']})
+        json = {
+            'status': status,
+            'output': job['output'],
+            'timings': timings
+        }
+
+        r = requests.patch(status_update_url, headers=headers, json=json)
         _check_status(r)
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_update_url, headers=headers, json={'status': 'error'})
@@ -450,6 +475,12 @@ def monitor_process(task, name, job, pid, nohup_out, log_write_url=None, config_
             # Fire off the on_compete task if we have one
             if on_complete:
                 signature(on_complete).delay()
+
+            # If we where uploading move job into complete state
+            if job['status'] == 'uploading':
+                r = requests.patch(status_url, headers=headers, json={'status': 'complete'})
+                _check_status(r)
+
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers, json={'status': 'error'})
         _check_status(r)
