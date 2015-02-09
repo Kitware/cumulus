@@ -18,7 +18,8 @@
                                                     "cluster_size": "{{ cluster.size if cluster and cluster.size}}",
                                                     "master_instance_type": "{{ cluster.type if cluster and cluster.type }}",
                                                     "node_instance_type": "{{ cluster.type if cluster and cluster.type }}",
-                                                    "node_image_id": "{{ amis.get('pvw-4.2-gpu') if cluster and cluster.gpu }}"
+                                                    "node_image_id": "{{ amis.get('pvw-4.2-gpu') if cluster and cluster.gpu }}",
+                                                    "master_image_id": "{{ amis.get('pvw-4.2-gpu-master') if cluster and cluster.gpu }}"
                                                 }
                                             }
                                         ],
