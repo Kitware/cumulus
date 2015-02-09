@@ -159,34 +159,39 @@ class JobInputDownloader(GirderBase):
         elif len(files) > 1:
             # Download the item in zip format
             item_url = '%s/item/%s/download' % (self._base_url, item_id)
-            r = requests.get(item_url, headers=self._headers)
+            r = requests.get(item_url, headers=self._headers, stream=True)
             self._check_status(r)
-            files = zipfile.ZipFile(io.BytesIO(r.content))
+            with tempfile.NamedTemporaryFile(suffix='.zip') as fp:
+                for chunk in r.iter_content(chunk_size=1024):
+                    if chunk:
+                        fp.write(chunk)
 
-            dest_path = os.path.join(self._dest, target_path)
+                fp.flush()
+                with zipfile.ZipFile(fp.name, 'r') as files:
+                    dest_path = os.path.join(self._dest, target_path)
 
-            temp_dir = None
-            try:
-                temp_dir = tempfile.mkdtemp()
-                files.extractall(temp_dir)
-                item_dir = os.listdir(temp_dir)
+                    temp_dir = None
+                    try:
+                        temp_dir = tempfile.mkdtemp()
+                        files.extractall(temp_dir)
+                        item_dir = os.listdir(temp_dir)
 
-                if len(item_dir) != 1:
-                    raise Exception('Expecting single item directory, got: %s' % len(item_dir))
+                        if len(item_dir) != 1:
+                            raise Exception('Expecting single item directory, got: %s' % len(item_dir))
 
-                item_dir = os.path.join(temp_dir, item_dir[0])
-                if not item_dir.endswith('/'):
-                    item_dir += '/'
+                        item_dir = os.path.join(temp_dir, item_dir[0])
+                        if not item_dir.endswith('/'):
+                            item_dir += '/'
 
-                for dir, subdirs, files in os.walk(item_dir):
-                    for f in files:
-                        src = os.path.join(item_dir, dir, f)
-                        dest = os.path.join(dest_path, dir.replace(item_dir, ''), f)
-                        self._mkdir(os.path.dirname(dest))
-                        shutil.copy(src, dest)
-            finally:
-                if os.path.exists(temp_dir):
-                    shutil.rmtree(temp_dir)
+                        for dir, subdirs, files in os.walk(item_dir):
+                            for f in files:
+                                src = os.path.join(item_dir, dir, f)
+                                dest = os.path.join(dest_path, dir.replace(item_dir, ''), f)
+                                self._mkdir(os.path.dirname(dest))
+                                shutil.copy(src, dest)
+                    finally:
+                        if os.path.exists(temp_dir):
+                            shutil.rmtree(temp_dir)
 
     def run(self):
         job_url = '%s/jobs/%s' % ( self._base_url, self._job_id)
