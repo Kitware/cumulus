@@ -256,22 +256,28 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None, girder_
         master = sc.master_node
         master.user = sc.cluster_user
 
-        # TODO Work out how to pass a job id to qstat
-        output = master.ssh.execute('qstat')
-
-        state = None
-
-        # Extract the state from the output
-        for line in output:
-            m = re.match('^\\s*(\\d+)\\s+\\S+\\s+\\S+\\s+\\S+\\s+(\\w+)', line)
-            if m and m.group(1) == sge_id:
-                state = m.group(2)
-
         # First get the current status
         r = requests.get(status_url, headers=headers)
         _check_status(r)
 
         current_status = r.json()['status']
+
+        try:
+            # TODO Work out how to pass a job id to qstat
+            output = master.ssh.execute('qstat')
+
+            state = None
+
+            # Extract the state from the output
+            for line in output:
+                m = re.match('^\\s*(\\d+)\\s+\\S+\\s+\\S+\\s+\\S+\\s+(\\w+)', line)
+                if m and m.group(1) == sge_id:
+                    state = m.group(2)
+        except starcluster.exception.SSHConnectionError as ex:
+            print  >> sys.stderr,  ex
+            # Try again
+            task.retry(throw=False, countdown=5)
+            return
 
         # If not in queue and we are terminating then move to terminated
         if current_status == 'terminating':
