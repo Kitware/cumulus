@@ -55,9 +55,9 @@ class JobTestCase(base.TestCase):
                 ''
             ],
             'name': '',
-            'output': {
+            'output': [{
                 'itemId': '546a1844ff34c70456111185'
-            }
+            }]
         }
 
         json_body = json.dumps(body)
@@ -75,12 +75,11 @@ class JobTestCase(base.TestCase):
         r = self.request('/jobs', method='POST',
                          type='application/json', body=json_body, user=self._user)
 
-        # Name can't be empty
         self.assertStatus(r, 201)
         del r.json['_id']
 
-        expected_job = {u'status': u'created', u'commands': [u''], u'name': u'testing', u'onComplete': {u'cluster': u'terminate'}, u'output': {
-            u'itemId': u'546a1844ff34c70456111185'}, u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}]}
+        expected_job = {u'status': u'created', u'commands': [u''], u'name': u'testing', u'onComplete': {u'cluster': u'terminate'}, u'output': [{
+            u'itemId': u'546a1844ff34c70456111185'}], u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}]}
         self.assertEqual(r.json, expected_job)
 
         body = {
@@ -138,9 +137,9 @@ class JobTestCase(base.TestCase):
             ],
             'scriptId': script_id,
             'name': 'test',
-            'output': {
+            'output': [{
                 'itemId': '546a1844ff34c70456111185'
-            }
+            }]
         }
 
         json_body = json.dumps(body)
@@ -155,8 +154,8 @@ class JobTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._cumulus)
 
         self.assertStatus(r, 201)
-        expected_job = {u'status': u'created', u'commands': [u'echo "test"'], u'name': u'test', u'onComplete': {u'cluster': u'terminate'},  u'onTerminate': {'commands': [u'echo "test"']}, u'output': {
-            u'itemId': u'546a1844ff34c70456111185'}, u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}]}
+        expected_job = {u'status': u'created', u'commands': [u'echo "test"'], u'name': u'test', u'onComplete': {u'cluster': u'terminate'},  u'onTerminate': {'commands': [u'echo "test"']}, u'output': [{
+            u'itemId': u'546a1844ff34c70456111185'}], u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}]}
         del r.json['_id']
         self.assertEquals(r.json, expected_job)
 
@@ -197,9 +196,9 @@ class JobTestCase(base.TestCase):
             ],
             'commands': ['echo "test"'],
             'name': 'test',
-            'output': {
+            'output': [{
                 'itemId': '546a1844ff34c70456111185'
-            }
+            }]
         }
 
         json_body = json.dumps(body)
@@ -229,9 +228,9 @@ class JobTestCase(base.TestCase):
                 ''
             ],
             'name': 'test',
-            'output': {
+            'output': [{
                 'itemId': '546a1844ff34c70456111185'
-            }
+            }]
         }
 
         json_body = json.dumps(body)
@@ -243,8 +242,8 @@ class JobTestCase(base.TestCase):
         r = self.request('/jobs/%s' %
                          str(job_id), method='GET', user=self._cumulus)
         self.assertStatusOk(r)
-        expected_job = {u'status': u'created', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'output': {
-            u'itemId': u'546a1844ff34c70456111185'}, u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}],
+        expected_job = {u'status': u'created', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'output': [{
+            u'itemId': u'546a1844ff34c70456111185'}], u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}],
             '_id': str(job_id)}
         self.assertEquals(r.json, expected_job)
 
@@ -274,9 +273,9 @@ class JobTestCase(base.TestCase):
                 ''
             ],
             'name': 'test',
-            'output': {
+            'output': [{
                 'itemId': '546a1844ff34c70456111185'
-            }
+            }]
         }
 
         json_body = json.dumps(body)
@@ -290,8 +289,8 @@ class JobTestCase(base.TestCase):
                          type='application/json', body=json.dumps(status_body),
                          user=self._cumulus)
         self.assertStatusOk(r)
-        expected_job = {u'status': u'testing', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'output': {
-            u'itemId': u'546a1844ff34c70456111185'}, u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}],
+        expected_job = {u'status': u'testing', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'output': [{
+            u'itemId': u'546a1844ff34c70456111185'}], u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}],
             '_id': str(job_id)}
         self.assertEquals(r.json, expected_job)
 
@@ -310,9 +309,9 @@ class JobTestCase(base.TestCase):
                 ''
             ],
             'name': 'test',
-            'output': {
+            'output': [{
                 'itemId': '546a1844ff34c70456111185'
-            }
+            }]
         }
 
         json_body = json.dumps(body)
@@ -369,9 +368,9 @@ class JobTestCase(base.TestCase):
                 ''
             ],
             'name': 'test',
-            'output': {
+            'output': [{
                 'itemId': '546a1844ff34c70456111185'
-            }
+            }]
         }
 
         json_body = json.dumps(body)
@@ -402,9 +401,9 @@ class JobTestCase(base.TestCase):
                 ''
             ],
             'name': 'test',
-            'output': {
+            'output': [{
                 'itemId': '546a1844ff34c70456111185'
-            }
+            }]
         }
 
         json_body = json.dumps(body)
