@@ -87,6 +87,10 @@ class Cluster(BaseResource):
 
         for c in config:
             if '_id' in c:
+
+                if not c['_id']:
+                    raise RestException('Invalid configuration id', 400)
+
                 c = config_model.load(c['_id'], force=True)
                 c = c['config']
 
