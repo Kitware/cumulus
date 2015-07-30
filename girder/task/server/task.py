@@ -1,20 +1,18 @@
-import io
 import cherrypy
 import json
 import time
+import traceback
+
 from girder.api.rest import RestException
 from girder.api import access
 from girder.api.describe import Description
-from ConfigParser import ConfigParser
 from girder.api.docs import addModel
 from girder.constants import AccessType
-from girder.api.rest import RestException
 from .base import BaseResource
-import cumulus
-from jinja2 import Template
 import requests
 import sys
 from cumulus.task import runner
+
 
 class Task(BaseResource):
 
@@ -25,10 +23,10 @@ class Task(BaseResource):
         self.route('POST', (), self.create)
         self.route('PUT', (':id', 'run'), self.run)
         self.route('PATCH', (':id',), self.update)
-        self.route('GET', (':id','status'), self.status)
+        self.route('GET', (':id', 'status'), self.status)
         self.route('GET', (':id',), self.get)
-        self.route('POST', (':id','log'), self.log)
-        self.route('PUT', (':id','terminate'), self.terminate)
+        self.route('POST', (':id', 'log'), self.log)
+        self.route('PUT', (':id', 'terminate'), self.terminate)
         self.route('DELETE', (':id',), self.delete)
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('task', 'task')
@@ -53,7 +51,8 @@ class Task(BaseResource):
             raise RestException('taskSpecId is required', code=400)
 
         if not self.model('file').load(task['taskSpecId'], user=user):
-            raise RestException('Task specification %s doesn\'t exist' % task['taskSpecId'], code=400)
+            raise RestException('Task specification %s doesn\'t exist'
+                                % task['taskSpecId'], code=400)
 
         task['status'] = 'created'
         task = self._model.create(user, task)
@@ -72,14 +71,12 @@ class Task(BaseResource):
         }
     })
 
-
-    create.description = (Description(
-        'Create task from a spec file id'
-    )
-    .param(
-        'body',
-        'The JSON parameters',
-        required=True, paramType='body', dataType='TaskIdParam'))
+    create.description = (
+        Description('Create task from a spec file id')
+        .param(
+            'body',
+            'The JSON parameters',
+            required=True, paramType='body', dataType='TaskIdParam'))
 
     @access.user
     def run(self, id, params):
@@ -99,7 +96,8 @@ class Task(BaseResource):
 
         try:
             file = self.model('file').load(task['taskSpecId'], user=user)
-            spec = reduce(lambda x, y: x + y, self.model('file').download(file, headers=False)())
+            spec = reduce(lambda x, y: x + y, self.model('file')
+                          .download(file, headers=False)())
             spec = json.loads(spec)
 
             # Create token for user runnig this task
@@ -111,9 +109,8 @@ class Task(BaseResource):
             self._model.save(task)
             raise RestException(err.response.content, err.response.status_code)
 
-    run.description = (Description(
-            'Start the task running'
-        )
+    run.description = (
+        Description('Start the task running')
         .param(
             'id',
             'The id of task',
@@ -159,9 +156,8 @@ class Task(BaseResource):
 
         return self._clean(task)
 
-    update.description = (Description(
-            'Update the task'
-        )
+    update.description = (
+        Description('Update the task')
         .param(
             'id',
             'The id of task',
@@ -181,9 +177,8 @@ class Task(BaseResource):
 
         return {'status': task['status']}
 
-    status.description = (Description(
-            'Get the task status'
-        )
+    status.description = (
+        Description('Get the task status')
         .param(
             'id',
             'The id of task',
@@ -207,9 +202,8 @@ class Task(BaseResource):
 
         return self._clean(task)
 
-    get.description = (Description(
-            'Get the task '
-        )
+    get.description = (
+        Description('Get the task ')
         .param(
             'id',
             'The id of task',
@@ -279,10 +273,8 @@ class Task(BaseResource):
         finally:
             self._model.save(task)
 
-
-    terminate.description = (Description(
-            'Terminate the task '
-        )
+    terminate.description = (
+        Description('Terminate the task ')
         .param(
             'id',
             'The id of task',
@@ -308,13 +300,12 @@ class Task(BaseResource):
                     self._check_status(r)
 
             self._model.remove(task)
-        except:
+        except Exception:
             task['state'] = 'failure'
             raise
 
-    delete.description = (Description(
-            'Delete the task '
-        )
+    delete.description = (
+        Description('Delete the task ')
         .param(
             'id',
             'The id of task',
