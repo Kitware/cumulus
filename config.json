@@ -8,6 +8,7 @@
      "moabReader": {
             "pluginPath": "/test"
 
-    }
+    },
+    "amis": []
 }
 
