@@ -1,6 +1,5 @@
 import cherrypy
 import json
-from girder.api.rest import RestException
 from girder.api import access
 from girder.api.describe import Description
 from girder.api.docs import addModel
@@ -8,13 +7,14 @@ from girder.constants import AccessType
 from girder.api.rest import RestException
 from .base import BaseResource
 
+
 class Script(BaseResource):
 
     def __init__(self):
         self.resourceName = 'scripts'
         self.route('POST', (), self.create)
         self.route('GET', (':id',), self.get)
-        self.route('PATCH', (':id','import'), self.import_script)
+        self.route('PATCH', (':id', 'import'), self.import_script)
         self.route('PUT', (':id', 'access'), self.update_access)
         self.route('DELETE', (':id',), self.delete)
         self._model = self.model('script', 'cumulus')
@@ -37,20 +37,19 @@ class Script(BaseResource):
         script['commands'] = lines
         self._model.save(script)
 
-        return self._clean(script);
+        return self._clean(script)
 
-    import_script.description = (Description(
-        'Import script'
-    )
-    .param(
-        'id',
-        'The script to upload lines to',
-        required=True, paramType='path')
-    .param(
-        'body',
-        'The contents of the script',
-        required=True, paramType='body')
-    .consumes('text/plain'))
+    import_script.description = (
+        Description('Import script')
+        .param(
+            'id',
+            'The script to upload lines to',
+            required=True, paramType='path')
+        .param(
+            'body',
+            'The contents of the script',
+            required=True, paramType='body')
+        .consumes('text/plain'))
 
     @access.user
     def create(self, params):
@@ -84,13 +83,12 @@ class Script(BaseResource):
         }
     })
 
-    create.description = (Description(
-        'Create script'
-    )
-    .param(
-        'body',
-        'The JSON contain script parameters',
-        required=True, paramType='body', dataType='Script'))
+    create.description = (
+        Description('Create script')
+        .param(
+            'body',
+            'The JSON contain script parameters',
+            required=True, paramType='body', dataType='Script'))
 
     @access.user
     def get(self, id, params):
@@ -103,9 +101,8 @@ class Script(BaseResource):
 
         return self._clean(script)
 
-    get.description = (Description(
-            'Get script'
-        )
+    get.description = (
+        Description('Get script')
         .param(
             'id',
             'The id of the script to get',
@@ -118,9 +115,8 @@ class Script(BaseResource):
 
         self._model.remove(script)
 
-    delete.description = (Description(
-            'Delete a script'
-        )
+    delete.description = (
+        Description('Delete a script')
         .param(
             'id',
             'The script id.', paramType='path', required=True))
@@ -144,15 +140,14 @@ class Script(BaseResource):
 
         return script
 
-    update_access.description = (Description(
-        'Update script access'
-    )
-    .param(
-        'id',
-        'The script to update',
-        required=True, paramType='path')
-    .param(
-        'body',
-        'The fields to update',
-        required=True, paramType='body')
-    .consumes('application/json'))
+    update_access.description = (
+        Description('Update script access')
+        .param(
+            'id',
+            'The script to update',
+            required=True, paramType='path')
+        .param(
+            'body',
+            'The fields to update',
+            required=True, paramType='body')
+        .consumes('application/json'))

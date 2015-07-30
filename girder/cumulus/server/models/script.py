@@ -1,10 +1,6 @@
-import cherrypy
-
-from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
-from bson.objectid import ObjectId
-import cumulus
 from .base import BaseModel
+
 
 class Script(BaseModel):
 
@@ -19,9 +15,7 @@ class Script(BaseModel):
 
     def create(self, user, script):
 
-        doc  = self.setUserAccess(script, user, level=AccessType.ADMIN, save=True)
+        doc = self.setUserAccess(script, user, level=AccessType.ADMIN,
+                                 save=True)
 
         return doc
-
-
-

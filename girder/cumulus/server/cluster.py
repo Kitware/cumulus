@@ -2,7 +2,6 @@ import cherrypy
 import json
 import re
 
-from girder.api.rest import Resource
 from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
@@ -10,8 +9,8 @@ from girder.api.docs import addModel
 from girder.api.rest import RestException
 from .base import BaseResource
 
-import cumulus.starcluster.tasks.job
-import cumulus.starcluster.tasks.cluster
+import cumulus.starcluster.tasks as tasks
+
 
 class Cluster(BaseResource):
 
@@ -46,7 +45,8 @@ class Cluster(BaseResource):
         if not self._model.load(id, user=user, level=AccessType.ADMIN):
             raise RestException('Cluster not found.', code=404)
 
-        return self._model.add_log_record(user, id, json.load(cherrypy.request.body))
+        return self._model.add_log_record(user, id,
+                                          json.load(cherrypy.request.body))
 
     def _find_section(self, name_to_find, sections):
         for section in sections:
@@ -61,7 +61,7 @@ class Cluster(BaseResource):
             (name, values) = section.iteritems().next()
             matching_section = self._find_section(name, sections2)
             if matching_section:
-                values = dict((k.lower(), v) for k,v in values.iteritems())
+                values = dict((k.lower(), v) for k, v in values.iteritems())
                 matching_section.update(values)
             else:
                 sections2.append(section)
@@ -74,7 +74,8 @@ class Cluster(BaseResource):
             else:
                 for (section_type, sections) in c.iteritems():
                     if section_type in merged_config:
-                        self._merge_sections(sections, merged_config[section_type])
+                        self._merge_sections(sections,
+                                             merged_config[section_type])
                     else:
                         merged_config[section_type] = sections
 
@@ -96,7 +97,9 @@ class Cluster(BaseResource):
 
             loaded_config.append(c)
 
-        config = config_model.create({'config': self._merge_configs(loaded_config)})
+        config = config_model.create({
+            'config': self._merge_configs(loaded_config)
+        })
 
         return config['_id']
 
@@ -130,9 +133,13 @@ class Cluster(BaseResource):
         "id": "ClusterParameters",
         "required": ["name", "template", "config"],
         "properties": {
-            "name": {"type": "string", "description": "The name to give the cluster."},
-            "template":  {"type": "string", "description": "The cluster template to use."},
-            "config": {"type": "array", "description": "List of configuration to use, either ids or inline config.",
+            "name": {"type": "string",
+                     "description": "The name to give the cluster."},
+            "template":  {"type": "string",
+                          "description": "The cluster template to use."},
+            "config": {"type": "array",
+                       "description": "List of configuration to use, "
+                       "either ids or inline config.",
                        "items": {"$ref": "Id"}}
         }})
 
@@ -162,19 +169,21 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-
         if cluster['status'] == 'running':
             raise RestException('Cluster already running.', code=400)
 
         cluster = self._clean(cluster)
 
         on_start_submit = None
-        if json_body and 'onStart' in json_body and 'submitJob' in json_body['onStart']:
+        if json_body and 'onStart' in json_body and \
+           'submitJob' in json_body['onStart']:
             on_start_submit = json_body['onStart']['submitJob']
 
         girder_token = self.get_task_token()['_id']
-        cumulus.starcluster.tasks.cluster.start_cluster.delay(cluster, log_write_url=log_write_url,
-                            on_start_submit=on_start_submit, girder_token=girder_token)
+        tasks.cluster.start_cluster.delay(cluster,
+                                          log_write_url=log_write_url,
+                                          on_start_submit=on_start_submit,
+                                          girder_token=girder_token)
 
     addModel('ClusterOnStartParms', {
         'id': 'ClusterOnStartParms',
@@ -182,11 +191,11 @@ class Cluster(BaseResource):
             'submitJob': {
                 'pattern': '^[0-9a-fA-F]{24}$',
                 'type': 'string',
-                'description': 'The id of a Job to submit when the cluster is started.'
+                'description': 'The id of a Job to submit when the cluster '
+                'is started.'
             }
         }
     })
-
 
     addModel('ClusterStartParams', {
         'id': 'ClusterStartParams',
@@ -207,7 +216,6 @@ class Cluster(BaseResource):
         .param(
             'body', 'Parameter used when starting cluster', paramType='body',
             dataType='ClusterStartParams', required=False))
-
 
     @access.user
     def update(self, id, params):
@@ -240,7 +248,8 @@ class Cluster(BaseResource):
     addModel("ClusterUpdateParameters", {
         "id": "ClusterUpdateParameters",
         "properties": {
-            "status": {"type": "string", "enum": [ "created", "running", "stopped", "terminated" ],
+            "status": {"type": "string", "enum": ["created", "running",
+                                                  "stopped", "terminated"],
                        "description": "The new status. (optional)"}
         }
     })
@@ -252,7 +261,8 @@ class Cluster(BaseResource):
                'The id of the cluster to update', paramType='path')
         .param(
             'body',
-            'The properties to update.', dataType='ClusterUpdateParameters', paramType='body')
+            'The properties to update.', dataType='ClusterUpdateParameters',
+            paramType='body')
         .notes('Internal - Used by Celery tasks'))
 
     @access.user
@@ -283,13 +293,15 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        if cluster['status'] == 'terminated' or cluster['status'] == 'terminating':
+        if cluster['status'] == 'terminated' or \
+           cluster['status'] == 'terminating':
             return
 
         cluster = self._clean(cluster)
         girder_token = self.get_task_token()['_id']
-        cumulus.starcluster.tasks.cluster.terminate_cluster.delay(cluster, log_write_url=log_write_url,
-                                                                  girder_token=girder_token)
+        tasks.cluster.terminate_cluster.delay(cluster,
+                                              log_write_url=log_write_url,
+                                              girder_token=girder_token)
 
     terminate.description = (Description(
         'Terminate a cluster'
@@ -320,7 +332,8 @@ class Cluster(BaseResource):
             'The cluster to get log entries for.', paramType='path')
         .param(
             'offset',
-            'The cluster to get log entries for.', required=False, paramType='query'))
+            'The cluster to get log entries for.', required=False,
+            paramType='query'))
 
     @access.user
     def submit_job(self, id, jobId, params):
@@ -359,20 +372,22 @@ class Cluster(BaseResource):
         del job['access']
 
         girder_token = self.get_task_token()['_id']
-        cumulus.starcluster.tasks.job.submit(girder_token, cluster, job, log_url, config_url)
+        tasks.job.submit(girder_token, cluster, job, log_url, config_url)
 
-    submit_job.description = (Description(
-        'Submit a job to the cluster'
-    )
-    .param(
-        'id',
-        'The cluster to submit the job to.', required=True, paramType='path')
-    .param(
-        'jobId',
-        'The cluster to get log entries for.', required=True, paramType='path')
-    .param(
-        'body',
-        'The properties to template on submit.', dataType='object', paramType='body'))
+    submit_job.description = (
+        Description('Submit a job to the cluster')
+        .param(
+            'id',
+            'The cluster to submit the job to.', required=True,
+            paramType='path')
+        .param(
+            'jobId',
+            'The cluster to get log entries for.', required=True,
+            paramType='path')
+        .param(
+            'body',
+            'The properties to template on submit.', dataType='object',
+            paramType='body'))
 
     @access.user
     def get(self, id, params):
@@ -386,9 +401,8 @@ class Cluster(BaseResource):
 
         return cluster
 
-    get.description = (Description(
-            'Get a cluster'
-        )
+    get.description = (
+        Description('Get a cluster')
         .param(
             'id',
             'The cluster is.', paramType='path', required=True))
@@ -402,9 +416,6 @@ class Cluster(BaseResource):
 
         self._model.delete(user, id)
 
-    delete.description = (Description(
-            'Delete a cluster and its configuration'
-        )
-        .param(
-            'id',
-            'The cluster id.', paramType='path', required=True))
+    delete.description = (
+        Description('Delete a cluster and its configuration')
+        .param('id', 'The cluster id.', paramType='path', required=True))

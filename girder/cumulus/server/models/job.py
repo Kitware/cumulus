@@ -1,9 +1,8 @@
-import cherrypy
-from girder.models.model_base import AccessControlledModel, ValidationException
+from girder.models.model_base import ValidationException
 from bson.objectid import ObjectId
 from girder.constants import AccessType
-import cumulus
 from .base import BaseModel
+
 
 class Job(BaseModel):
 
@@ -15,20 +14,20 @@ class Job(BaseModel):
 
     def validate(self, doc):
         if not doc['name']:
-         raise ValidationException('Name must not be empty.', 'name')
+            raise ValidationException('Name must not be empty.', 'name')
 
         return doc
 
     def create(self, user, job):
 
         job['status'] = 'created'
-        job['log'] =  []
+        job['log'] = []
 
         self.setUserAccess(job, user=user, level=AccessType.ADMIN)
         group = {
             '_id': ObjectId(self.get_group_id())
         }
-        doc  = self.setGroupAccess(job, group, level=AccessType.ADMIN)
+        doc = self.setGroupAccess(job, group, level=AccessType.ADMIN)
 
         self.save(job)
 
