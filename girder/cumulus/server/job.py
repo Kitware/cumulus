@@ -1,8 +1,7 @@
 import cherrypy
 import json
 import re
-import requests
-from girder.api.rest import Resource
+
 from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
@@ -10,7 +9,7 @@ from girder.api.docs import addModel
 from girder.api.rest import RestException
 from .base import BaseResource
 
-import cumulus.starcluster.tasks.job
+from cumulus.starcluster import tasks
 
 
 class Job(BaseResource):
@@ -42,10 +41,13 @@ class Job(BaseResource):
         body = json.loads(cherrypy.request.body.read())
 
         if 'commands' not in body and 'scriptId' not in body:
-            raise RestException('command or scriptId must be provided', code=400)
+            raise RestException('command or scriptId must be provided',
+                                code=400)
 
         if 'scriptId' in body:
-            script = self.model('script', 'cumulus').load(body['scriptId'], user=user, level=AccessType.READ)
+            script = self.model('script', 'cumulus').load(body['scriptId'],
+                                                          user=user,
+                                                          level=AccessType.READ)
             if not script:
                 raise RestException('Script not found', 400)
 
@@ -53,7 +55,9 @@ class Job(BaseResource):
             body['commands'] = script['commands']
 
         if 'onTerminate' in body and 'scriptId' in body['onTerminate']:
-            script = self.model('script', 'cumulus').load(body['onTerminate']['scriptId'], user=user,  level=AccessType.READ)
+            script = self.model('script', 'cumulus') \
+                .load(body['onTerminate']['scriptId'], user=user,
+                      level=AccessType.READ)
             if not script:
                 raise RestException('onTerminate script not found', 400)
 
@@ -66,7 +70,8 @@ class Job(BaseResource):
 
             for i in body['input']:
                 if i['path'] == body['name']:
-                    raise RestException('input can\'t be the same as job name', 400)
+                    raise RestException('input can\'t be the same as job name',
+                                        400)
 
         if 'output' in body:
             if not isinstance(body['output'], list):
@@ -85,7 +90,8 @@ class Job(BaseResource):
             'cluster': {
                 'type': 'string',
                 'enum': ['terminate'],
-                'description': 'Cluster operation to perform when job is complete.'
+                'description': 'Cluster operation to perform when job '
+                'is complete.'
             }
         }
     })
@@ -118,11 +124,10 @@ class Job(BaseResource):
         }
     })
 
-
     addModel('JobParameters', {
-        'id':'JobParameters',
+        'id': 'JobParameters',
         'required': ['name', 'outputCollectionId'],
-        'properties':{
+        'properties': {
             'commands': {
                 'type': 'array',
                 'description': 'The commands to run.',
@@ -158,12 +163,12 @@ class Job(BaseResource):
         }
     })
 
-    create.description = (Description(
-            'Create a new job'
-        )
+    create.description = (
+        Description('Create a new job')
         .param(
             'body',
-            'The job parameters in JSON format.', dataType='JobParameters', paramType='body', required=True))
+            'The job parameters in JSON format.', dataType='JobParameters',
+            paramType='body', required=True))
 
     @access.user
     def terminate(self, id, params):
@@ -173,8 +178,8 @@ class Job(BaseResource):
         if not job:
             raise RestException('Job not found.', code=404)
 
-        cluster = self.model('cluster', 'cumulus').load(job['clusterId'],
-                            user=user, level=AccessType.ADMIN)
+        cluster = self.model('cluster', 'cumulus') \
+            .load(job['clusterId'], user=user, level=AccessType.ADMIN)
 
         # Clean up cluster ( this should be moving into a utility function )
         del cluster['access']
@@ -197,26 +202,20 @@ class Job(BaseResource):
         job = self._clean(job)
 
         girder_token = self.get_task_token()['_id']
-        cumulus.starcluster.tasks.job.terminate_job.delay(cluster, job,
-                                                    log_write_url=log_url,
-                                                    config_url=config_url,
-                                                    girder_token=girder_token)
+        tasks.job.terminate_job.delay(cluster, job, log_write_url=log_url,
+                                      config_url=config_url,
+                                      girder_token=girder_token)
 
         return job
 
-    terminate.description = (Description(
-            'Terminate a job'
-        )
-        .param(
-            'id',
-            'The job id', paramType='path'))
+    terminate.description = (
+        Description('Terminate a job')
+        .param('id', 'The job id', paramType='path'))
 
     @access.user
     def update(self, id, params):
         user = self.getCurrentUser()
         body = json.loads(cherrypy.request.body.read())
-        status = None
-        sge_id = None
 
         job = self._model.load(id, user=user, level=AccessType.WRITE)
         if not job:
@@ -247,8 +246,8 @@ class Job(BaseResource):
         return job
 
     addModel("JobUpdateParameters", {
-        "id":"JobUpdateParameters",
-        "properties":{
+        "id": "JobUpdateParameters",
+        "properties": {
             "status": {
                 "type": "string",
                 "enum": [
@@ -260,19 +259,18 @@ class Job(BaseResource):
                 ],
                 "description": "The new status. (optional)"
             },
-            "sgeId": {"type": "integer", "description": "The SGE job id. (optional)"}
+            "sgeId": {"type": "integer",
+                      "description": "The SGE job id. (optional)"}
         }
     })
 
-
-    update.description = (Description(
-            'Update the job'
-        )
-        .param('id',
-              'The id of the job to update', paramType='path')
+    update.description = (
+        Description('Update the job')
+        .param('id', 'The id of the job to update', paramType='path')
         .param(
             'body',
-            'The properties to update.', dataType='JobUpdateParameters' , paramType='body')
+            'The properties to update.', dataType='JobUpdateParameters',
+            paramType='body')
         .notes('Internal - Used by Celery tasks'))
 
     @access.user
@@ -286,13 +284,9 @@ class Job(BaseResource):
 
         return {'status': job['status']}
 
-    status.description = (Description(
-            'Get the status of a job'
-        )
-        .param(
-            'id',
-            'The job id.', paramType='path'))
-
+    status.description = (
+        Description('Get the status of a job')
+        .param('id', 'The job id.', paramType='path'))
 
     @access.user
     def add_log_record(self, id, params):
@@ -327,15 +321,15 @@ class Job(BaseResource):
 
         return {'log': job['log'][offset:]}
 
-    log.description = (Description(
-            'Get log entries for job'
-        )
+    log.description = (
+        Description('Get log entries for job')
         .param(
             'id',
             'The job to get log entries for.', paramType='path')
         .param(
             'offset',
-            'The offset to start getting entiries at.', required=False, paramType='query'))
+            'The offset to start getting entiries at.', required=False,
+            paramType='query'))
 
     @access.user
     def output(self, id, params):
@@ -369,9 +363,8 @@ class Job(BaseResource):
 
         return {'content': match['content'][offset:]}
 
-    output.description = (Description(
-            'Get output entries for job'
-        )
+    output.description = (
+        Description('Get output entries for job')
         .param(
             'id',
             'The job to get output entries for.', paramType='path')
@@ -380,7 +373,8 @@ class Job(BaseResource):
             'The path for the output file.', required=True, paramType='query')
         .param(
             'offset',
-            'The offset to start getting entries at.', required=False, paramType='query'))
+            'The offset to start getting entries at.', required=False,
+            paramType='query'))
 
     @access.user
     def get(self, id, params):
@@ -394,9 +388,8 @@ class Job(BaseResource):
 
         return job
 
-    get.description = (Description(
-            'Get a job'
-        )
+    get.description = (
+        Description('Get a job')
         .param(
             'id',
             'The job id.', paramType='path', required=True))
@@ -412,9 +405,8 @@ class Job(BaseResource):
 
         self._model.remove(job)
 
-    delete.description = (Description(
-            'Delete a job'
-        )
+    delete.description = (
+        Description('Delete a job')
         .param(
             'id',
             'The job id.', paramType='path', required=True))

@@ -1,7 +1,6 @@
 import io
 import cherrypy
 import json
-from girder.api.rest import RestException
 from girder.api import access
 from girder.api.describe import Description
 from ConfigParser import ConfigParser
@@ -11,13 +10,14 @@ from girder.api.rest import RestException
 from .base import BaseResource
 import cumulus
 
+
 class StarClusterConfig(BaseResource):
 
     def __init__(self):
         self.resourceName = 'starcluster-configs'
         self.route('POST', (), self.create)
         self.route('GET', (':id',), self.get)
-        self.route('PATCH', (':id','import'), self.import_config)
+        self.route('PATCH', (':id', 'import'), self.import_config)
         self.route('DELETE', (':id',), self.delete)
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('starclusterconfig', 'cumulus')
@@ -34,7 +34,8 @@ class StarClusterConfig(BaseResource):
         content = cherrypy.request.body.read()
         config_parser.readfp(io.BytesIO(content))
 
-        valid_sections = ['global', 'key', 'aws', 'cluster', 'permission', 'plugin']
+        valid_sections = ['global', 'key', 'aws', 'cluster', 'permission',
+                          'plugin']
 
         config = {}
 
@@ -68,20 +69,19 @@ class StarClusterConfig(BaseResource):
         star_config['config'] = config
         self._model.save(star_config)
 
-        return self._clean(star_config);
+        return self._clean(star_config)
 
-    import_config.description = (Description(
-        'Import star cluster configuration in ini format'
-    )
-    .param(
-        'id',
-        'The config to upload the configuration to',
-        required=True, paramType='path')
-    .param(
-        'body',
-        'The contents of the INI file',
-        required=True, paramType='body')
-    .consumes('text/plain'))
+    import_config.description = (
+        Description('Import star cluster configuration in ini format')
+        .param(
+            'id',
+            'The config to upload the configuration to',
+            required=True, paramType='path')
+        .param(
+            'body',
+            'The contents of the INI file',
+            required=True, paramType='body')
+        .consumes('text/plain'))
 
     @access.user
     def create(self, params):
@@ -93,7 +93,8 @@ class StarClusterConfig(BaseResource):
         config = self._model.create(config)
 
         cherrypy.response.status = 201
-        cherrypy.response.headers['Location'] = '/starcluster-configs/%s' % config['_id']
+        cherrypy.response.headers['Location'] \
+            = '/starcluster-configs/%s' % config['_id']
 
         return self._clean(config)
 
@@ -169,17 +170,18 @@ class StarClusterConfig(BaseResource):
         "id": "NamedStarClusterConfig",
         "required": ["name"],
         "properties": {
-            "name": {"type": "string", "description": "The name of the configuration."},
-            "config":  {"type": "StarClusterConfig", "description": "The JSON configuration."}
+            "name": {"type": "string",
+                     "description": "The name of the configuration."},
+            "config":  {"type": "StarClusterConfig",
+                        "description": "The JSON configuration."}
         }})
 
-    create.description = (Description(
-        'Create cluster configuration'
-    )
-    .param(
-        'body',
-        'The JSON configuation ',
-        required=True, paramType='body', dataType='NamedStarClusterConfig'))
+    create.description = (
+        Description('Create cluster configuration')
+        .param(
+            'body',
+            'The JSON configuation ',
+            required=True, paramType='body', dataType='NamedStarClusterConfig'))
 
     @access.user
     def get(self, id, params):
@@ -205,7 +207,7 @@ class StarClusterConfig(BaseResource):
                     section_config = ""
 
                     if type == 'global':
-                        section_config +=  '[global]\n'
+                        section_config += '[global]\n'
                         for (k, v) in sections.iteritems():
                             section_config += '%s = %s\n' % (k, v)
                         yield section_config
@@ -219,9 +221,8 @@ class StarClusterConfig(BaseResource):
 
             return stream
 
-    get.description = (Description(
-            'Get configuration'
-        )
+    get.description = (
+        Description('Get configuration')
         .param(
             'id',
             'The id of the config to fetch',
@@ -238,9 +239,9 @@ class StarClusterConfig(BaseResource):
 
         self._model.remove(config)
 
-    delete.description = (Description(
-            'Delete a starcluster configuration'
-        )
+    delete.description = (
+        Description('Delete a starcluster configuration')
         .param(
             'id',
-            'The starcluster configuration id.', paramType='path', required=True))
+            'The starcluster configuration id.', paramType='path',
+            required=True))

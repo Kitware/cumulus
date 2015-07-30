@@ -1,9 +1,8 @@
-import cherrypy
-from girder.models.model_base import AccessControlledModel, ValidationException
+from girder.models.model_base import ValidationException
 from bson.objectid import ObjectId
 from girder.constants import AccessType
-import cumulus
 from .base import BaseModel
+
 
 class Cluster(BaseModel):
 
@@ -27,24 +26,28 @@ class Cluster(BaseModel):
 
         duplicate = self.findOne(query, fields=['_id'])
         if duplicate:
-            raise ValidationException('A cluster with that name already exists.', 'name')
+            raise ValidationException(
+                'A cluster with that name already exists.', 'name')
 
         # Check the template exists
-        config = self.model('starclusterconfig', 'cumulus').load(doc['configId'], force=True)
+        config = self.model('starclusterconfig', 'cumulus').load(
+            doc['configId'], force=True)
         config = config['config']
 
         found = False
 
         if 'cluster' in config:
             for template in config['cluster']:
-                name,_ = template.iteritems().next()
+                name, _ = template.iteritems().next()
 
                 if doc['template'] == name:
                     found = True
                     break
 
         if not found:
-            raise ValidationException('A cluster template \'%s\' not found in configuration.' % doc['template'], 'template')
+            raise ValidationException(
+                'A cluster template \'%s\' not found in configuration.'
+                % doc['template'], 'template')
 
         return doc
 
@@ -56,7 +59,7 @@ class Cluster(BaseModel):
         group = {
             '_id': ObjectId(self.get_group_id())
         }
-        doc  = self.setGroupAccess(cluster, group, level=AccessType.ADMIN)
+        doc = self.setGroupAccess(cluster, group, level=AccessType.ADMIN)
 
         self.save(doc)
 
@@ -86,7 +89,7 @@ class Cluster(BaseModel):
         cluster = self.load(id, user=user, level=AccessType.ADMIN)
 
         # Remove the config associated with the cluster first
-        self.model('starclusterconfig', 'cumulus').remove({'_id': cluster['configId']})
+        self.model('starclusterconfig', 'cumulus').remove(
+            {'_id': cluster['configId']})
 
         return self.remove(cluster)
-
