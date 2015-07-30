@@ -52,7 +52,7 @@ class Task(BaseResource):
         if 'taskSpecId' not in task:
             raise RestException('taskSpecId is required', code=400)
 
-        if not self.model('file').load(task['taskSpecId']):
+        if not self.model('file').load(task['taskSpecId'], user=user):
             raise RestException('Task specification %s doesn\'t exist' % task['taskSpecId'], code=400)
 
         task['status'] = 'created'
@@ -98,7 +98,7 @@ class Task(BaseResource):
         self._model.save(task)
 
         try:
-            file = self.model('file').load(task['taskSpecId'])
+            file = self.model('file').load(task['taskSpecId'], user=user)
             spec = reduce(lambda x, y: x + y, self.model('file').download(file, headers=False)())
             spec = json.loads(spec)
 
