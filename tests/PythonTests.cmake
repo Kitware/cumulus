@@ -61,7 +61,7 @@ function(add_python_style_test name input)
 endfunction()
 
 function(add_python_test case)
-  set(name "server_${case}")
+  set(name "${PROJECT_NAME}_${case}")
 
   set(_options BIND_SERVER PY2_ONLY)
   set(_args PLUGIN)
