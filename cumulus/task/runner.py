@@ -23,21 +23,25 @@ def _check_status(request):
 
 def _remove_empty(d):
     if type(d) is dict:
-        return dict((k, _remove_empty(v)) for k, v in d.iteritems() if v and _remove_empty(v))
+        return dict((k, _remove_empty(v)) for k, v in d.iteritems() if v and
+                    _remove_empty(v))
     elif type(d) is list:
         return [_remove_empty(v) for v in d if v and _remove_empty(v)]
     else:
         return d
 
+
 def _template_dict(d, variables):
     env = Environment()
     json_str = json.dumps(d)
-    json_str = env.from_string(json_str).render(amis=cumulus.config.amis, **variables)
+    json_str = env.from_string(json_str).render(
+        amis=cumulus.config.amis, **variables)
 
     d = json.loads(json_str)
     d = _remove_empty(d)
 
     return d
+
 
 def _run_http(token, task, variables, step):
     params = step['params']
@@ -108,12 +112,11 @@ def run(token, task, spec, variables, start_step=0):
                 else:
                     update['onDelete'] = [url]
 
-        # Task is now complete, save the variable into the output property and set
-        # status
+        # Task is now complete, save the variable into the output property
+        # and set status
         update['output'] = variables
         update['status'] = 'complete'
-        update['endTime'] =  int(round(time.time() * 1000))
-
+        update['endTime'] = int(round(time.time() * 1000))
 
     except requests.HTTPError as e:
         _log_http_error(token, task, e)

@@ -1,18 +1,14 @@
 from __future__ import absolute_import
-from cumulus.starcluster.logging import StarClusterLogHandler, StarClusterCallWriteHandler, logstdout, StarClusterLogFilter
-import cumulus.starcluster.logging
 from cumulus.starcluster.tasks.celery import monitor
 from cumulus.starcluster.tasks.common import _check_status
 import cumulus
 import requests
-import os
-import sys
-import re
 import traceback
 from . import runner
 from celery.exceptions import MaxRetriesExceededError
 
 sleep_interval = 5
+
 
 def _add_log_entry(token, task, entry):
     headers = {'Girder-Token': token}
@@ -20,10 +16,6 @@ def _add_log_entry(token, task, entry):
     r = requests.post(url, headers=headers, json=entry)
     _check_status(r)
 
-def _check_status(request):
-    if request.status_code != 200:
-        print >> sys.stderr, request.content
-        request.raise_for_status()
 
 def _update_status(headers, task, status):
     update = {
@@ -32,6 +24,7 @@ def _update_status(headers, task, status):
     url = '%s/tasks/%s' % (cumulus.config.girder.baseUrl, task['_id'])
     r = requests.patch(url, headers=headers, json=update)
     _check_status(r)
+
 
 @monitor.task(bind=True, max_retries=None)
 def monitor_status(celery_task, token, task, spec, step, variables):
@@ -55,14 +48,16 @@ def monitor_status(celery_task, token, task, spec, step, variables):
             if key in status:
                 status = status.get(key)
             else:
-                raise Exception('Unable to extract status from \'%s\' using \'%s\'' % (status, selector))
+                raise Exception('Unable to extract status from \'%s\''
+                                ' using \'%s\'' % (status, selector))
 
         if status in params['success']:
             runner.run(token, task, spec, variables, step + 1)
         elif status in params['failure']:
             _update_status(headers, task, 'failure')
         else:
-            celery_task.retry(throw=False, countdown=sleep_interval, max_retries=max_retries)
+            celery_task.retry(throw=False, countdown=sleep_interval,
+                              max_retries=max_retries)
 
     except MaxRetriesExceededError:
         _update_status(headers, task, 'timeout')
