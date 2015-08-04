@@ -23,6 +23,7 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None,
     config_url = '%s/starcluster-configs/%s' % (
         cumulus.config.girder.baseUrl, config_id)
     status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl, cluster_id)
+    log = starcluster.logger.get_starcluster_logger()
 
     try:
 
@@ -70,6 +71,11 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None,
                                           on_start_submit)
 
             submit(girder_token, cluster, job, log_url, config_url)
+    except starcluster.exception.ClusterValidationError as ex:
+        r = requests.patch(status_url, headers=headers,
+                           json={'status': 'error'})
+        # Log the error message
+        log.error(ex.msg)
     finally:
         if config_filepath and os.path.exists(config_filepath):
             os.remove(config_filepath)
