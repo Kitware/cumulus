@@ -254,6 +254,49 @@ running_state = ['r', 'd', 'e']
 queued_state = ['qw', 'q', 'w', 's', 'h', 't']
 
 
+def _tail_output(job, master):
+    job_id = job['_id']
+    log = starcluster.logger.get_starcluster_logger()
+
+    # Do we need to tail any output files
+    for output in job['output']:
+        if 'tail' in output and output['tail']:
+            path = output['path']
+            offset = 0
+            if 'content' in output:
+                offset = len(output['content'])
+            else:
+                output['content'] = []
+            tail_path = '%s/%s' % (job_id, path)
+            command = 'tail -n +%d %s' % (offset, tail_path)
+            try:
+                # Only tail if file exists
+                if master.ssh.isfile(tail_path):
+                    stdout = master.ssh.execute(command)
+                    output['content'] = output['content'] + stdout
+                else:
+                    log.info('Skipping tail of %s as file doesn\'t '
+                             'currently exist' %
+                             tail_path)
+            except starcluster.exception.RemoteCommandFailed as ex:
+                _log_exception(ex)
+
+
+def _job_state(master, sge_id):
+    state = None
+    # TODO Work out how to pass a job id to qstat
+    output = master.ssh.execute('qstat')
+
+    # Extract the state from the output
+    for line in output:
+        m = re.match('^\\s*(\\d+)\\s+\\S+\\s+\\S+\\s+\\S+\\s+(\\w+)',
+                     line)
+        if m and m.group(1) == sge_id:
+            state = m.group(2)
+
+    return state
+
+
 @monitor.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
 def monitor_job(task, cluster, job, log_write_url=None, config_url=None,
@@ -285,17 +328,7 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None,
         current_status = r.json()['status']
 
         try:
-            # TODO Work out how to pass a job id to qstat
-            output = master.ssh.execute('qstat')
-
-            state = None
-
-            # Extract the state from the output
-            for line in output:
-                m = re.match('^\\s*(\\d+)\\s+\\S+\\s+\\S+\\s+\\S+\\s+(\\w+)',
-                             line)
-                if m and m.group(1) == sge_id:
-                    state = m.group(2)
+            state = _job_state(master, sge_id)
         except starcluster.exception.SSHConnectionError as ex:
             print >> sys.stderr,  ex
             # Try again
@@ -347,27 +380,7 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None,
                                         job_dir=job_dir,
                                         girder_token=girder_token)
 
-        # Do we need to tail any output files
-        for output in job['output']:
-            if 'tail' in output and output['tail']:
-                path = output['path']
-                offset = 0
-                if 'content' in output:
-                    offset = len(output['content'])
-                else:
-                    output['content'] = []
-                tail_path = '%s/%s' % (job_id, path)
-                command = 'tail -n +%d %s' % (offset, tail_path)
-                try:
-                    # Only tail if file exists
-                    if master.ssh.isfile(tail_path):
-                        stdout = master.ssh.execute(command)
-                        output['content'] = output['content'] + stdout
-                    else:
-                        log.info('Skipping tail of %s as file doesn\'t '
-                                 'currently exist' % tail_path)
-                except starcluster.exception.RemoteCommandFailed as ex:
-                    _log_exception(ex)
+        _tail_output(job, master)
 
         json = {
             'status': status,
