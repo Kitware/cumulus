@@ -10,7 +10,9 @@ import functools
 import uuid
 import traceback
 
+
 class StarClusterLogHandler(logging.Handler):
+
     def __init__(self, token, url, level=logging.NOTSET):
         super(StarClusterLogHandler, self).__init__(level)
         self._url = url
@@ -25,11 +27,12 @@ class StarClusterLogHandler(logging.Handler):
             r = requests.post(self._url, headers=self._headers, data=json_str)
             print >> sys.stderr, self._url
             r.raise_for_status()
-        except:
+        except Exception:
             if r:
                 print >> sys.stderr, 'Unable to POST log record: %s' % r.content
             else:
                 print >> sys.stderr, traceback.format_exc()
+
 
 @contextlib.contextmanager
 def logstdout():
@@ -40,6 +43,7 @@ def logstdout():
         yield
     finally:
         sys.stdout = old_stdout
+
 
 def capture(func):
     @functools.wraps(func)
@@ -66,6 +70,7 @@ def capture(func):
 
 
 class StarClusterCallWriteHandler:
+
     def __init__(self):
         self._logger = starcluster.logger.get_starcluster_logger()
 
@@ -77,7 +82,9 @@ class StarClusterCallWriteHandler:
         # Do nothing for now
         pass
 
+
 class StarClusterLogFilter():
+
     def __init__(self, threadlocal, id):
         self._id = id
         self._threadlocal = threadlocal

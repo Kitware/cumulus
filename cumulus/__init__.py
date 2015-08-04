@@ -5,16 +5,17 @@ import os
 from easydict import EasyDict as edict
 
 config_schema = {
-    "type" : "object",
+    "type": "object",
     "required": ["girder"],
-    "properties" : {
-        "girder" : {
-            "type" : "object",
+    "properties": {
+        "girder": {
+            "type": "object",
             "required": ["baseUrl", "user", "group"],
             'properties': {
                 "baseUrl": {
                     "type": "string",
-                    "pattern": "^http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+$"
+                    "pattern": "^http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]"
+                    "|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+$"
                 },
                 "user": {
                     "type": "string"
@@ -24,8 +25,8 @@ config_schema = {
                 }
             }
         },
-        "moadReader" : {
-            "type" : "object",
+        "moadReader": {
+            "type": "object",
             "required": ["pluginPath"],
             'properties': {
                 "pluginPath": {
@@ -36,7 +37,8 @@ config_schema = {
     }
 }
 
-module_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+module_dir = os.path.dirname(os.path
+                             .abspath(inspect.getfile(inspect.currentframe())))
 config_path = os.path.join(module_dir, '..', 'config.json')
 
 with open(config_path, 'r') as fp:

@@ -4,6 +4,7 @@ import inspect
 import os
 import cumulus.task
 
+
 def validate(spec):
     path = inspect.getsourcefile(cumulus.task)
     schema_path = os.path.join(os.path.dirname(path), 'task.json')

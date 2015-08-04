@@ -41,10 +41,17 @@ install:
 script:
     # Update PYTHONPATH to include cumulus module
     - export PYTHONPATH=`pwd`
-    - mkdir _build
-    - cd _build
+    - mkdir _girder_build
+    - pushd _girder_build
     - cmake -DBUILD_JAVASCRIPT_TESTS:BOOL=OFF -DPYTHON_COVERAGE:BOOL=ON -DPYTHON_VERSION:STRING=${TRAVIS_PYTHON_VERSION} "${HOME}/build/girder"
     - ctest -R cumulus -VV
     - ctest -R task -VV
+    - popd
+    # Now test cumulus package
+    - mkdir _cumulus_build
+    - cd _cumulus_build
+    - cmake -DPYTHON_COVERAGE:BOOL=OFF -DPYTHON_VERSION:STRING=${TRAVIS_PYTHON_VERSION} "${HOME}/build/Kitware/cumulus"
+    - ctest -VV
+ 
 
 
