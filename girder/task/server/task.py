@@ -32,7 +32,8 @@ class Task(BaseResource):
         self._model = self.model('task', 'task')
 
     def _clean(self, task):
-        del task['access']
+        if 'access' in task:
+            del task['access']
 
         return task
 

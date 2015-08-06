@@ -13,6 +13,5 @@ class Task(AccessControlledModel):
     def create(self, user, task):
 
         doc = self.setUserAccess(task, user, level=AccessType.ADMIN, save=True)
-        print doc
 
         return doc
