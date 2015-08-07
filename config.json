@@ -5,6 +5,9 @@
         "group": "cumulus",
         "password": "cumulus"
     },
+    "ssh": {
+        "keyStore": "/tmp"
+    },
      "moabReader": {
             "pluginPath": "/test"
 

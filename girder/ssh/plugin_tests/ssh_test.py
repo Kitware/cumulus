@@ -36,25 +36,38 @@ class SshTestCase(base.TestCase):
         self.assertTrue(_validate_key(self.valid_key), 'Key should in valid')
 
     def test_set_key(self):
+
+        body = json.dumps({
+            'publickey': self.valid_key
+        })
+
         resp = self.request('/user/%s/ssh/publickey' % str(self.user['_id']), method='PATCH',
-                            type='text/plain', body=self.valid_key, user=self.user)
+                            type='application/json', body=body, user=self.user)
 
         self.assertStatusOk(resp)
         self.assertEqual(self.model('user').load(self.user['_id'], force=True)['sshkey'], self.valid_key, 'Updated key doesn\'t match')
 
+        body = json.dumps({
+            'publickey': 'bogus'
+        })
+
         resp = self.request('/user/%s/ssh/publickey' % str(self.user['_id']), method='PATCH',
-                            type='text/plain', body='bogon', user=self.user)
+                            type='application/json', body=body, user=self.user)
         self.assertStatus(resp, 400)
 
     def test_get_key(self):
+        body = json.dumps({
+            'publickey': self.valid_key
+        })
+
         resp = self.request('/user/%s/ssh/publickey' % str(self.user['_id']), method='PATCH',
-                            type='text/plain', body=self.valid_key, user=self.user)
+                            type='application/json', body=body, user=self.user)
         self.assertStatusOk(resp)
 
         resp = self.request('/user/%s/ssh/publickey' % str(self.user['_id']), method='GET',
                             user=self.user)
         self.assertStatusOk(resp)
-        self.assertEqual(resp.json['key'], self.valid_key, 'Fetch key doesn\'t match')
+        self.assertEqual(resp.json['publickey'], self.valid_key, 'Fetch key doesn\'t match')
 
     def test_set_passphrase(self):
         passphrase = 'openup'
@@ -63,9 +76,7 @@ class SshTestCase(base.TestCase):
         })
 
         resp = self.request('/user/%s/ssh/passphrase' % str(self.user['_id']), method='PATCH',
-                            type='text/json', body=body, user=self.user)
-
-        print resp.json
+                            type='application/json', body=body, user=self.user)
 
         self.assertStatusOk(resp)
         self.assertEqual(self.model('user').load(self.user['_id'], fields=['passphrase'],
@@ -73,7 +84,7 @@ class SshTestCase(base.TestCase):
                          passphrase, 'Updated passphrase doesn\'t match')
 
         resp = self.request('/user/%s/ssh/passphrase' % str(self.user['_id']), method='PATCH',
-                            type='text/json', body=json.dumps({}), user=self.user)
+                            type='application/json', body=json.dumps({}), user=self.user)
         self.assertStatus(resp, 400)
 
     def test_get_passphrase(self):
@@ -82,7 +93,7 @@ class SshTestCase(base.TestCase):
             'passphrase': passphrase
         })
         resp = self.request('/user/%s/ssh/passphrase' % str(self.user['_id']), method='PATCH',
-                            type='text/json', body=body, user=self.user)
+                            type='application/json', body=body, user=self.user)
         self.assertStatusOk(resp)
 
         resp = self.request('/user/%s/ssh/passphrase' % str(self.user['_id']), method='GET',

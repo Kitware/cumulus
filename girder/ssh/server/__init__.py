@@ -23,7 +23,12 @@ def _validate_key(key):
 @access.user
 @loadmodel(model='user', level=AccessType.WRITE)
 def set_sshkey(user, params):
-    key = cherrypy.request.body.read()
+    body = json.loads(cherrypy.request.body.read())
+
+    if 'publickey' not in body:
+        raise RestException('publickey must appear in message body', 400)
+
+    key = body['publickey']
 
     if not key:
         raise RestException('Public key should be in message body', 400)
@@ -48,7 +53,7 @@ def get_sshkey(user, params):
         raise RestException('No such resource', 400)
 
     return {
-        'key': user['sshkey']
+        'publickey': user['sshkey']
     }
 
 get_sshkey.description = (
