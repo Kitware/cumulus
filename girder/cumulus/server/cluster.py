@@ -33,10 +33,9 @@ class Cluster(BaseResource):
     def _clean(self, cluster):
         del cluster['access']
         del cluster['log']
-        if 'passphrase' in cluster:
-            del cluster['passphrase']
-        if 'sshkey' in cluster:
-            del cluster['sshkey']
+        if 'ssh' in cluster:
+            del cluster['ssh']
+
         cluster['_id'] = str(cluster['_id'])
         cluster['configId'] = str(cluster['configId'])
 

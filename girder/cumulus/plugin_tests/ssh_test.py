@@ -73,7 +73,9 @@ class SshTestCase(base.TestCase):
                             type='application/json', body=body, user=self._user)
 
         self.assertStatusOk(resp)
-        self.assertEqual(self.model('cluster', plugin='cumulus').load(self._cluster['_id'], force=True)['sshkey'], self.valid_key, 'Updated key doesn\'t match')
+        self.assertEqual(self.model('cluster', plugin='cumulus').load(self._cluster['_id'],
+                                                                      fields=['ssh'],
+                                                                      force=True)['ssh']['publickey'], self.valid_key, 'Updated key doesn\'t match')
 
         body = json.dumps({
             'publickey': 'bogus'
@@ -107,8 +109,9 @@ class SshTestCase(base.TestCase):
                             type='application/json', body=body, user=self._user)
 
         self.assertStatusOk(resp)
-        self.assertEqual(self.model('cluster', plugin='cumulus').load(self._cluster['_id'], fields=['passphrase'],
-                                                 force=True)['passphrase'],
+
+        self.assertEqual(self.model('cluster', plugin='cumulus').load(self._cluster['_id'], fields=['ssh'],
+                                                 force=True)['ssh']['passphrase'],
                          passphrase, 'Updated passphrase doesn\'t match')
 
         resp = self.request('/clusters/%s/ssh/passphrase' % str(self._cluster['_id']), method='PATCH',
@@ -129,3 +132,28 @@ class SshTestCase(base.TestCase):
         self.assertStatusOk(resp)
         self.assertEqual(resp.json['passphrase'], passphrase, 'Fetch passphrase doesn\'t match')
 
+    def test_set_user(self):
+        user = 'bob'
+        body = json.dumps({
+            'user': user
+        })
+        resp = self.request('/clusters/%s/ssh/user' % str(self._cluster['_id']), method='PATCH',
+                            type='application/json', body=body, user=self._user)
+
+        self.assertStatusOk(resp)
+        self.assertEqual(self.model('cluster', plugin='cumulus').load(self._cluster['_id'], fields=['ssh'],
+                                                 force=True)['ssh']['user'], user)
+
+    def test_get_user(self):
+        user = 'bill'
+        body = json.dumps({
+            'user': user
+        })
+        resp = self.request('/clusters/%s/ssh/user' % str(self._cluster['_id']), method='PATCH',
+                            type='application/json', body=body, user=self._user)
+        self.assertStatusOk(resp)
+
+        resp = self.request('/clusters/%s/ssh/user' % str(self._cluster['_id']), method='GET',
+                            user=self._user)
+        self.assertStatusOk(resp)
+        self.assertEqual(resp.json['user'], user, 'Fetch passphrase doesn\'t match')
