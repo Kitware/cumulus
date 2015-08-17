@@ -36,7 +36,10 @@ def set_sshkey(cluster, params):
     if not _validate_key(key):
         raise RestException('Invalid key format', 400)
 
-    cluster['sshkey'] = key
+    ssh = cluster.setdefault('ssh', {})
+
+    ssh['publickey'] = key
+
     ModelImporter.model('cluster', plugin='cumulus').save(cluster)
 
 set_sshkey.description = (
@@ -49,11 +52,15 @@ set_sshkey.description = (
 @access.user
 @loadmodel(model='cluster', level=AccessType.READ, plugin='cumulus')
 def get_sshkey(cluster, params):
-    if 'sshkey' not in cluster:
+    if 'ssh' not in cluster:
+        raise RestException('No such resource', 400)
+    ssh = cluster['ssh']
+
+    if 'publickey' not in ssh:
         raise RestException('No such resource', 400)
 
     return {
-        'publickey': cluster['sshkey']
+        'publickey': ssh['publickey']
     }
 
 get_sshkey.description = (
@@ -70,7 +77,9 @@ def set_passphrase(cluster, params):
     if 'passphrase' not in body:
         raise RestException('passphrase must appear in message body', 400)
 
-    cluster['passphrase'] = body['passphrase']
+    ssh = cluster.setdefault('ssh', {})
+
+    ssh['passphrase'] = body['passphrase']
     ModelImporter.model('cluster', plugin='cumulus').save(cluster)
 
 addModel('Passphrase', {
@@ -94,11 +103,17 @@ set_passphrase.description = (
 @access.user
 @loadmodel(model='cluster', level=AccessType.READ, plugin='cumulus')
 def get_passphrase(cluster, params):
-    if 'passphrase' not in cluster:
+
+    if 'ssh' not in cluster:
+        raise RestException('No such resource', 400)
+
+    ssh = cluster['ssh']
+
+    if 'passphrase' not in ssh:
         raise RestException('No such resource', 400)
 
     return {
-        'passphrase': cluster['passphrase']
+        'passphrase': ssh['passphrase']
     }
 
 get_passphrase.description = (
