@@ -4,6 +4,7 @@ from jsonschema import validate
 import os
 from easydict import EasyDict as edict
 
+
 config_schema = {
     "type": "object",
     "required": ["girder"],
@@ -47,3 +48,5 @@ with open(config_path, 'r') as fp:
 validate(config, config_schema)
 
 config = edict(config)
+
+

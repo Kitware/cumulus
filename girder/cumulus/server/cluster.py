@@ -46,9 +46,8 @@ class Cluster(BaseResource):
             except RestException:
                 del cluster['config']['ssh']['passphrase']
 
-        cluster['_id'] = str(cluster['_id'])
-        if 'config' in cluster and '_id' in cluster['config']:
-            cluster['config']['_id'] = str(cluster['config']['_id'])
+        # Use json module to convert ObjectIds to strings
+        cluster = json.loads(json.dumps(cluster, default=str))
 
         return cluster
 
@@ -178,7 +177,7 @@ class Cluster(BaseResource):
             raise RestException('Invalid cluster type.', code=400)
 
         cherrypy.response.status = 201
-        cherrypy.response.headers['Location'] = '/cluster/%s' % cluster['_id']
+        cherrypy.response.headers['Location'] = '/clusters/%s' % cluster['_id']
 
         return cluster
 
@@ -466,7 +465,7 @@ class Cluster(BaseResource):
         Description('Get a cluster')
         .param(
             'id',
-            'The cluster is.', paramType='path', required=True))
+            'The cluster id.', paramType='path', required=True))
 
     @access.user
     def delete(self, id, params):

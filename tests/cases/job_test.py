@@ -27,7 +27,7 @@ class MockClusterManager:
     def get_cluster(self, name):
         return self.cluster
 
-class MockStarClusterConfig():
+class MockStarClusterConfig:
     def __init__(self, *args, **kw):
         self.cluster_manager = MockClusterManager()
 
