@@ -21,8 +21,8 @@ def _validate_key(key):
 
 
 @access.user
-@loadmodel(model='user', level=AccessType.WRITE)
-def set_sshkey(user, params):
+@loadmodel(model='cluster', level=AccessType.WRITE, plugin='cumulus')
+def set_sshkey(cluster, params):
     body = json.loads(cherrypy.request.body.read())
 
     if 'publickey' not in body:
@@ -36,24 +36,24 @@ def set_sshkey(user, params):
     if not _validate_key(key):
         raise RestException('Invalid key format', 400)
 
-    user['sshkey'] = key
-    ModelImporter.model('user').save(user)
+    cluster['sshkey'] = key
+    ModelImporter.model('cluster', plugin='cumulus').save(cluster)
 
 set_sshkey.description = (
-    Description('Set the public ssh key for a user.')
-    .param('id', 'The ID of the user.', paramType='path')
+    Description('Set the public ssh key for a cluster.')
+    .param('id', 'The ID of the cluster.', paramType='path')
     .param('body', 'The PUBLIC ssh key', required=True, paramType='body')
-    .notes('This endpoint should be treated and internal'))
+    .notes('This endpoint should be treated as internal'))
 
 
 @access.user
-@loadmodel(model='user', level=AccessType.READ)
-def get_sshkey(user, params):
-    if 'sshkey' not in user:
+@loadmodel(model='cluster', level=AccessType.READ, plugin='cumulus')
+def get_sshkey(cluster, params):
+    if 'sshkey' not in cluster:
         raise RestException('No such resource', 400)
 
     return {
-        'publickey': user['sshkey']
+        'publickey': cluster['sshkey']
     }
 
 get_sshkey.description = (
@@ -62,16 +62,16 @@ get_sshkey.description = (
 
 
 @access.user
-@loadmodel(model='user', level=AccessType.WRITE)
-def set_passphrase(user, params):
+@loadmodel(model='cluster', level=AccessType.WRITE, plugin='cumulus')
+def set_passphrase(cluster, params):
 
     body = json.loads(cherrypy.request.body.read())
 
     if 'passphrase' not in body:
         raise RestException('passphrase must appear in message body', 400)
 
-    user['passphrase'] = body['passphrase']
-    ModelImporter.model('user').save(user)
+    cluster['passphrase'] = body['passphrase']
+    ModelImporter.model('cluster', plugin='cumulus').save(cluster)
 
 addModel('Passphrase', {
     'id': 'Passphrase',
@@ -88,32 +88,20 @@ set_passphrase.description = (
     .param('id', 'The ID of the user.', paramType='path')
     .param('body', 'The JSON containing the passphrase', required=True,
            dataType='Passphrase', paramType='body')
-    .notes('This endpoint should be treated and internal'))
+    .notes('This endpoint should be treated as internal'))
 
 
 @access.user
-@loadmodel(model='user', level=AccessType.READ)
-def get_passphrase(user, params):
-    if 'passphrase' not in user:
+@loadmodel(model='cluster', level=AccessType.READ, plugin='cumulus')
+def get_passphrase(cluster, params):
+    if 'passphrase' not in cluster:
         raise RestException('No such resource', 400)
 
     return {
-        'passphrase': user['passphrase']
+        'passphrase': cluster['passphrase']
     }
 
 get_passphrase.description = (
     Description('Get the passphrase for a user.')
     .param('id', 'The ID of the user.', paramType='path')
-    .notes('This endpoint should be treated and internal'))
-
-
-def load(info):
-    info['apiRoot'].user.route('PATCH', (':id', 'ssh', 'publickey'), set_sshkey)
-    info['apiRoot'].user.route('PATCH', (':id', 'ssh', 'passphrase'),
-                               set_passphrase)
-    info['apiRoot'].user.route('GET', (':id', 'ssh', 'publickey'), get_sshkey)
-    info['apiRoot'].user.route('GET', (':id', 'ssh', 'passphrase'),
-                               get_passphrase)
-
-    ModelImporter.model('user').exposeFields(
-        level=AccessType.READ, fields='sshkey')
+    .notes('This endpoint should be treated as internal'))
