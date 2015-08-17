@@ -64,8 +64,8 @@ def get_sshkey(cluster, params):
     }
 
 get_sshkey.description = (
-    Description('Get the public ssh key for a user.')
-    .param('id', 'The ID of the user.', paramType='path'))
+    Description('Get the public ssh key for access to a cluster.')
+    .param('id', 'The ID of the cluster.', paramType='path'))
 
 
 @access.user
@@ -94,7 +94,7 @@ addModel('Passphrase', {
 
 set_passphrase.description = (
     Description('Set the passphrase for a key.')
-    .param('id', 'The ID of the user.', paramType='path')
+    .param('id', 'The ID of the cluster.', paramType='path')
     .param('body', 'The JSON containing the passphrase', required=True,
            dataType='Passphrase', paramType='body')
     .notes('This endpoint should be treated as internal'))
@@ -117,6 +117,58 @@ def get_passphrase(cluster, params):
     }
 
 get_passphrase.description = (
-    Description('Get the passphrase for a user.')
-    .param('id', 'The ID of the user.', paramType='path')
+    Description('Get the passphrase for a cluster key.')
+    .param('id', 'The ID of the cluster.', paramType='path')
     .notes('This endpoint should be treated as internal'))
+
+
+@access.user
+@loadmodel(model='cluster', level=AccessType.WRITE, plugin='cumulus')
+def set_user(cluster, params):
+
+    body = json.loads(cherrypy.request.body.read())
+
+    if 'user' not in body:
+        raise RestException('user must appear in message body', 400)
+
+    ssh = cluster.setdefault('ssh', {})
+    ssh['user'] = body['user']
+
+    ModelImporter.model('cluster', plugin='cumulus').save(cluster)
+
+addModel('User', {
+    'id': 'User',
+    'properties': {
+        'users': {
+            'type': 'string',
+            'description': 'The user'
+        }
+    }
+})
+
+set_user.description = (
+    Description('Set the user.')
+    .param('id', 'The ID of the cluster.', paramType='path')
+    .param('body', 'The JSON containing the user', required=True,
+           dataType='User', paramType='body'))
+
+
+@access.user
+@loadmodel(model='cluster', level=AccessType.READ, plugin='cumulus')
+def get_user(cluster, params):
+
+    if 'ssh' not in cluster:
+        raise RestException('No such resource', 400)
+
+    ssh = cluster['ssh']
+
+    if 'user' not in ssh:
+        raise RestException('No such resource', 400)
+
+    return {
+        'user': ssh['user']
+    }
+
+get_user.description = (
+    Description('Get the user for a cluster.')
+    .param('id', 'The ID of the cluster.', paramType='path'))
