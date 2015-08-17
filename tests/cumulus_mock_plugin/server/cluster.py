@@ -1,16 +1,9 @@
-import cherrypy
-import json
-import re
+
 import mock
 from threading import Timer
 from functools import partial
 
 from girder.api import access
-from girder.api.describe import Description
-from girder.constants import AccessType
-from girder.api.docs import addModel
-from girder.api.rest import RestException
-from .base import BaseResource
 
 import cumulus.starcluster.tasks as tasks
 import girder.plugins.cumulus

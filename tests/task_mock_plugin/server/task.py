@@ -1,19 +1,9 @@
-import cherrypy
-import json
 import time
 import mock
 import threading
 
-from girder.api.rest import RestException
 from girder.api import access
-from girder.api.describe import Description
-from girder.api.docs import addModel
-from girder.constants import AccessType
-from .base import BaseResource
-import requests
-import sys
-import cumulus
-from cumulus.task import runner
+
 from cumulus.task.status import monitor_status
 
 
