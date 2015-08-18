@@ -39,7 +39,7 @@ def _log_exception(ex):
 
 
 def get_ssh_connection(girder_token, cluster):
-    print cluster
+
     if 'ssh' in cluster:
         pass
     else:

@@ -8,6 +8,7 @@ from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException
 from .base import BaseResource
+from .constants import ClusterType
 
 import cumulus.starcluster.tasks as tasks
 
@@ -37,7 +38,8 @@ class Cluster(BaseResource):
             del cluster['ssh']
 
         cluster['_id'] = str(cluster['_id'])
-        cluster['configId'] = str(cluster['configId'])
+        if 'configId' in cluster:
+            cluster['configId'] = str(cluster['configId'])
 
         return cluster
 
@@ -106,9 +108,10 @@ class Cluster(BaseResource):
 
         return config['_id']
 
-    @access.user
-    def create(self, params):
-        body = json.loads(cherrypy.request.body.read())
+    def _create_ec2(self, params, body):
+
+        self.requireParams(['name', 'template', 'config'], body)
+
         name = body['name']
         template = body['template']
         config = body['config']
@@ -117,8 +120,45 @@ class Cluster(BaseResource):
 
         user = self.getCurrentUser()
 
-        cluster = self._model.create(user, config_id, name, template)
+        cluster = self._model.create_ec2(user, config_id, name, template)
         cluster = self._clean(cluster)
+
+        return cluster
+
+    def _create_traditional(self, params, body):
+
+        self.requireParams(['name', 'config'], body)
+        self.requireParams(['username', 'hostname'], body['config'])
+
+        name = body['name']
+        config = body['config']
+        user = self.getCurrentUser()
+        hostname = config['hostname']
+        username = config['username']
+
+        cluster = self._model.create_traditional(user, name, hostname, username)
+        cluster = self._clean(cluster)
+
+        return cluster
+
+    @access.user
+    def create(self, params):
+        body = json.loads(cherrypy.request.body.read())
+
+        # Default ec2 cluster
+        cluster_type = 'ec2'
+
+        if 'type' in body:
+            if not ClusterType.is_valid_type(body['type']):
+                raise RestException('Invalid cluster type.', code=400)
+            cluster_type = body['type']
+
+        if cluster_type == ClusterType.EC2:
+            cluster = self._create_ec2(params, body)
+        elif cluster_type == ClusterType.TRADITIONAL:
+            cluster = self._create_traditional(params, body)
+        else:
+            raise RestException('Invalid cluster type.', code=400)
 
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/cluster/%s' % cluster['_id']
@@ -134,16 +174,26 @@ class Cluster(BaseResource):
 
     addModel('ClusterParameters', {
         "id": "ClusterParameters",
-        "required": ["name", "template", "config"],
+        "required": ["name", "config", "type"],
         "properties": {
             "name": {"type": "string",
                      "description": "The name to give the cluster."},
             "template":  {"type": "string",
-                          "description": "The cluster template to use."},
+                          "description": "The cluster template to use. "
+                          "(ec2 only)"},
             "config": {"type": "array",
                        "description": "List of configuration to use, "
-                       "either ids or inline config.",
-                       "items": {"$ref": "Id"}}
+                                      "either ids or inline config.",
+                       "items": {"$ref": "Id"}},
+            "hostname": {"type": "string",
+                         "description": "The hostname of the head node "
+                                        "(trad only)"},
+            "username": {"type": "string",
+                         "description": "The username to use to access the "
+                                        "cluster (trad only)"},
+            "type": {"type": "string",
+                     "description": "The cluster type, either 'ec2' or 'trad'"}
+
         }})
 
     create.description = (Description(

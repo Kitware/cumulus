@@ -138,7 +138,8 @@ class ClusterTestCase(base.TestCase):
             u'status': u'created',
             u'_id': cluster_id,
             u'name': u'test',
-            u'template': u'default_cluster'
+            u'template': u'default_cluster',
+            u'type': u'ec2'
         }
         config_id = r.json['configId']
         del r.json['configId']
@@ -191,7 +192,7 @@ class ClusterTestCase(base.TestCase):
 
         self.assertStatusOk(r)
         expected_cluster = {u'status': u'testing', u'configId': config_id,
-                            u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster'}
+                            u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}
         self.assertEqual(r.json, expected_cluster)
 
         # Test GET status
@@ -199,7 +200,7 @@ class ClusterTestCase(base.TestCase):
                          user=self._user)
         self.assertStatusOk(r)
         expected_status = {u'status': u'testing', u'configId': config_id,
-                           u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster'}
+                           u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}
         self.assertEquals(r.json, expected_status)
 
     def test_log(self):
@@ -276,7 +277,7 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatusOk(r)
 
-        expected_start_call = [[[{u'status': u'created', u'configId': config_id, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster'}], {
+        expected_start_call = [[[{u'status': u'created', u'configId': config_id, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}], {
             u'on_start_submit': None, u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % str(cluster_id)}]]
         self.assertCalls(start_cluster.call_args_list, expected_start_call)
 
@@ -351,7 +352,7 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body={}, user=self._user)
         self.assertStatusOk(r)
 
-        expected_submit_call = [[[u'token', {u'status': u'running', u'configId': config_id, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster'}, {u'status': u'created', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'clusterId': cluster_id, u'input': [
+        expected_submit_call = [[[u'token', {u'status': u'running', u'configId': config_id, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}, {u'status': u'created', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'clusterId': cluster_id, u'input': [
             {u'itemId': u'546a1844ff34c70456111185', u'path': u''}], u'output': [{u'itemId': u'546a1844ff34c70456111185'}], u'_id': job_id, u'log': []}, u'http://127.0.0.1/api/v1/jobs/%s/log' % job_id, u'http://127.0.0.1/api/v1/starcluster-configs/%s?format=ini' % config_id], {}]]
         self.assertCalls(submit.call_args_list, expected_submit_call)
 
@@ -388,7 +389,7 @@ class ClusterTestCase(base.TestCase):
         self.assertStatusOk(r)
 
         expected_terminate_call = [[[{u'status': u'created', u'configId': config_id, u'_id': str(cluster_id),
-                                      u'name': u'test', u'template': u'default_cluster'}], {u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % str(cluster_id)}]]
+                                      u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}], {u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % str(cluster_id)}]]
 
         self.assertCalls(
             terminate_cluster.call_args_list, expected_terminate_call)
@@ -418,3 +419,33 @@ class ClusterTestCase(base.TestCase):
         r = self.request('/clusters/%s' %
                          str(cluster_id), method='GET', user=self._cumulus)
         self.assertStatus(r, 404)
+
+    def test_create_invalid_type(self):
+        body = {
+            'type': 'bogus'
+        }
+
+        json_body = json.dumps(body)
+
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 400)
+        self.assertEqual(r.json, {u'message': u'Invalid cluster type.', u'type': u'rest'}, 'Unexpected error message')
+
+    def test_create_trad_type(self):
+        body = {
+            'type': 'trad',
+            'name': 'my trad cluster',
+            'config': {
+                'username': 'bob',
+                'hostname': 'myhost'
+            }
+        }
+
+        json_body = json.dumps(body)
+
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+
+        self.assertStatus(r, 201)
+
