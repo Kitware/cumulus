@@ -449,3 +449,47 @@ class ClusterTestCase(base.TestCase):
 
         self.assertStatus(r, 201)
 
+    def test_start_trad(self):
+        body = {
+            'type': 'trad',
+            'name': 'my trad cluster',
+            'config': {
+                'username': 'bob',
+                'hostname': 'myhost'
+            }
+        }
+
+        json_body = json.dumps(body)
+
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+
+        self.assertStatus(r, 201)
+        _id = str(r.json['_id'])
+        r = self.request('/clusters/%s/start' % _id, method='PUT',
+                         type='application/json', body={}, user=self._user)
+
+        self.assertStatus(r, 400)
+
+    def test_terminate_trad(self):
+        body = {
+            'type': 'trad',
+            'name': 'my trad cluster',
+            'config': {
+                'username': 'bob',
+                'hostname': 'myhost'
+            }
+        }
+
+        json_body = json.dumps(body)
+
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+
+        self.assertStatus(r, 201)
+        _id = str(r.json['_id'])
+        r = self.request('/clusters/%s/terminate' % _id, method='PUT',
+                         type='application/json', body={}, user=self._user)
+
+        self.assertStatus(r, 400)
+

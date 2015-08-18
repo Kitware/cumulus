@@ -1,7 +1,13 @@
+import cherrypy
+import re
+
 from girder.utility.model_importer import ModelImporter
 from girder.models.model_base import ValidationException
+from girder.api.rest import RestException
 
 from ..constants import ClusterType
+import cumulus.starcluster.tasks as tasks
+import cumulus
 
 
 class AbstractClusterAdapter(ModelImporter):
@@ -20,8 +26,36 @@ class AbstractClusterAdapter(ModelImporter):
         """
         return self.cluster
 
+    def start(self, request_body):
+        """
+        Adapters may implement this if they support a start operation.
+        """
+        raise ValidationException(
+            'This cluster type does not support a start operation')
+
+    def terminate(self):
+        """
+        Adapters may implement this if they support a terminate operation.
+        """
+        raise ValidationException(
+            'This cluster type does not support a terminate operation')
+
 
 class Ec2ClusterAdapter(AbstractClusterAdapter):
+
+    # TODO This should be replaced with a scoped token, plus there is a
+    # duplicate method in base.py
+    def get_task_token(self):
+        user = self.model('user').find({'login': cumulus.config.girder.user})
+
+        if user.count() != 1:
+            raise Exception('Unable to load user "%s"' %
+                            cumulus.config.girder.user)
+
+        user = user.next()
+
+        return self.model('token').createToken(user=user, days=7)
+
     def validate(self):
         query = {
             'name': self.cluster['name']
@@ -57,6 +91,36 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
                 % self.cluster['template'], 'template')
 
         return self.cluster
+
+    def start(self, request_body):
+        if self.cluster['status'] == 'running':
+            raise RestException('Cluster already running.', code=400)
+
+        on_start_submit = None
+        if request_body and 'onStart' in request_body and \
+           'submitJob' in request_body['onStart']:
+            on_start_submit = request_body['onStart']['submitJob']
+
+        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
+        log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
+        girder_token = self.get_task_token()['_id']
+        tasks.cluster.start_cluster.delay(self.cluster,
+                                          log_write_url=log_write_url,
+                                          on_start_submit=on_start_submit,
+                                          girder_token=girder_token)
+
+    def terminate(self):
+        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
+        log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
+
+        if self.cluster['status'] == 'terminated' or \
+           self.cluster['status'] == 'terminating':
+            return
+
+        girder_token = self.get_task_token()['_id']
+        tasks.cluster.terminate_cluster.delay(self.cluster,
+                                              log_write_url=log_write_url,
+                                              girder_token=girder_token)
 
 
 class TraditionClusterAdapter(AbstractClusterAdapter):

@@ -9,7 +9,7 @@ from girder.api.docs import addModel
 from girder.api.rest import RestException
 from .base import BaseResource
 from .constants import ClusterType
-
+from .utility.cluster_adapters import get_cluster_adapter
 import cumulus.starcluster.tasks as tasks
 
 
@@ -210,33 +210,19 @@ class Cluster(BaseResource):
         json_body = None
 
         if cherrypy.request.body:
-            body = cherrypy.request.body.read()
-            if body:
-                json_body = json.loads(body)
+            request_body = cherrypy.request.body.read()
+            if request_body:
+                json_body = json.loads(request_body)
 
-        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
-        log_write_url = '%s/clusters/%s/log' % (base_url, id)
-        (user, token) = self.getCurrentUser(returnToken=True)
+        (user, _) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
 
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        if cluster['status'] == 'running':
-            raise RestException('Cluster already running.', code=400)
-
         cluster = self._clean(cluster)
-
-        on_start_submit = None
-        if json_body and 'onStart' in json_body and \
-           'submitJob' in json_body['onStart']:
-            on_start_submit = json_body['onStart']['submitJob']
-
-        girder_token = self.get_task_token()['_id']
-        tasks.cluster.start_cluster.delay(cluster,
-                                          log_write_url=log_write_url,
-                                          on_start_submit=on_start_submit,
-                                          girder_token=girder_token)
+        adapter = get_cluster_adapter(cluster)
+        adapter.start(json_body)
 
     addModel('ClusterOnStartParms', {
         'id': 'ClusterOnStartParms',
@@ -260,7 +246,7 @@ class Cluster(BaseResource):
     })
 
     start.description = (Description(
-        'Start a cluster'
+        'Start a cluster (ec2 only)'
     )
         .param(
             'id',
@@ -337,24 +323,15 @@ class Cluster(BaseResource):
 
     @access.user
     def terminate(self, id, params):
-        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
-        log_write_url = '%s/clusters/%s/log' % (base_url, id)
-
-        (user, token) = self.getCurrentUser(returnToken=True)
+        (user, _) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
 
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        if cluster['status'] == 'terminated' or \
-           cluster['status'] == 'terminating':
-            return
-
         cluster = self._clean(cluster)
-        girder_token = self.get_task_token()['_id']
-        tasks.cluster.terminate_cluster.delay(cluster,
-                                              log_write_url=log_write_url,
-                                              girder_token=girder_token)
+        adapter = get_cluster_adapter(cluster)
+        adapter.terminate()
 
     terminate.description = (Description(
         'Terminate a cluster'
