@@ -72,7 +72,7 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
 
         # Check the template exists
         config = self.model('starclusterconfig', 'cumulus').load(
-            self.cluster['configId'], force=True)
+            self.cluster['config']['_id'], force=True)
         config = config['config']
 
         found = False

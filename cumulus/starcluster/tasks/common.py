@@ -45,7 +45,7 @@ def get_ssh_connection(girder_token, cluster):
     else:
         try:
             name = cluster['name']
-            config_id = cluster['configId']
+            config_id = cluster['config']['_id']
             config_url = '%s/starcluster-configs/%s' \
                 % (cumulus.config.girder.baseUrl, config_id)
             config_filepath = _write_config_file(girder_token, config_url)

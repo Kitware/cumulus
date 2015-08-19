@@ -81,7 +81,9 @@ class JobTestCase(unittest.TestCase):
         job_id = 'dummy'
         cluster = {
             'name': 'dummy',
-             'configId': 'dummy'
+            'config': {
+                '_id': 'dummy'
+            }
         }
         job_model = {
             '_id': job_id,
@@ -135,7 +137,9 @@ class JobTestCase(unittest.TestCase):
         job_id = 'dummy'
         cluster = {
             'name': 'dummy',
-             'configId': 'dummy'
+             'config': {
+                '_id': 'dummy'
+            }
         }
         job_model = {
             '_id': job_id,
@@ -178,7 +182,7 @@ class JobTestCase(unittest.TestCase):
 
         self.assertTrue(self._get_status_called, 'Expect get status endpoint to be hit')
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
-        expected_calls = [[[{u'configId': u'dummy', u'name': u'dummy'}, {u'status': u'uploading', u'output': [], u'_id': u'dummy', u'sgeId': u'dummy', u'name': u'dummy'}], {u'girder_token': u's', u'log_write_url': 1, u'config_url': None, u'job_dir': u'dummy'}]]
+        expected_calls = [[[{u'config': {u'_id': u'dummy'}, u'name': u'dummy'}, {u'status': u'uploading', u'output': [], u'_id': u'dummy', u'sgeId': u'dummy', u'name': u'dummy'}], {u'girder_token': u's', u'log_write_url': 1, u'config_url': None, u'job_dir': u'dummy'}]]
         self.assertCalls(self._upload_job_output.call_args_list, expected_calls)
 
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
@@ -192,7 +196,9 @@ class JobTestCase(unittest.TestCase):
         job_id = 'dummy'
         cluster = {
             'name': 'dummy',
-            'configId': 'dummy'
+            'config': {
+                '_id': 'dummy'
+            }
         }
         job_model = {
             '_id': job_id,
@@ -250,7 +256,9 @@ class JobTestCase(unittest.TestCase):
         job_id = 'dummy'
         cluster = {
             'name': 'dummy',
-            'configId': 'dummy'
+            'config': {
+                '_id': 'dummy'
+            }
         }
         job_model = {
             '_id': job_id,
@@ -308,7 +316,9 @@ class JobTestCase(unittest.TestCase):
         job_id = 'dummy'
         cluster = {
             'name': 'dummy',
-            'configId': 'dummy'
+            'config': {
+                '_id': 'dummy'
+            }
         }
         job_model = {
             '_id': job_id,

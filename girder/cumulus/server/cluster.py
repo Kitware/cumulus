@@ -38,8 +38,8 @@ class Cluster(BaseResource):
             del cluster['ssh']
 
         cluster['_id'] = str(cluster['_id'])
-        if 'configId' in cluster:
-            cluster['configId'] = str(cluster['configId'])
+        if 'config' in cluster and '_id' in cluster['config']:
+            cluster['config']['_id'] = str(cluster['config']['_id'])
 
         return cluster
 
@@ -381,7 +381,7 @@ class Cluster(BaseResource):
 
         base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
         config_url = '%s/starcluster-configs/%s?format=ini' % (
-            base_url, cluster['configId'])
+            base_url, cluster['config']['_id'])
 
         job_model = self.model('job', 'cumulus')
         job = job_model.load(

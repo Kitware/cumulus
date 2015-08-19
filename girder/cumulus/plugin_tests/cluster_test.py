@@ -141,8 +141,8 @@ class ClusterTestCase(base.TestCase):
             u'template': u'default_cluster',
             u'type': u'ec2'
         }
-        config_id = r.json['configId']
-        del r.json['configId']
+        config_id = r.json['config']['_id']
+        del r.json['config']
         self.assertEqual(r.json, expected_cluster)
 
         # Ensure user can get full config
@@ -183,7 +183,7 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
         cluster_id = r.json['_id']
-        config_id = r.json['configId']
+        config_id = r.json['config']['_id']
 
         r = self.request(
             '/clusters/%s' % str(cluster_id), method='PATCH',
@@ -191,7 +191,7 @@ class ClusterTestCase(base.TestCase):
             user=self._cumulus)
 
         self.assertStatusOk(r)
-        expected_cluster = {u'status': u'testing', u'configId': config_id,
+        expected_cluster = {u'status': u'testing', u'config': {u'_id': config_id},
                             u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}
         self.assertEqual(r.json, expected_cluster)
 
@@ -199,7 +199,7 @@ class ClusterTestCase(base.TestCase):
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._user)
         self.assertStatusOk(r)
-        expected_status = {u'status': u'testing', u'configId': config_id,
+        expected_status = {u'status': u'testing', u'config': {u'_id': config_id},
                            u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}
         self.assertEquals(r.json, expected_status)
 
@@ -271,13 +271,13 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
         cluster_id = r.json['_id']
-        config_id = r.json['configId']
+        config_id = r.json['config']['_id']
 
         r = self.request('/clusters/%s/start' % str(cluster_id), method='PUT',
                          type='application/json', body=json_body, user=self._user)
         self.assertStatusOk(r)
 
-        expected_start_call = [[[{u'status': u'created', u'configId': config_id, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}], {
+        expected_start_call = [[[{u'status': u'created', u'config': { u'_id': config_id }, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}], {
             u'on_start_submit': None, u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % str(cluster_id)}]]
         self.assertCalls(start_cluster.call_args_list, expected_start_call)
 
@@ -299,7 +299,7 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
         cluster_id = r.json['_id']
-        config_id = r.json['configId']
+        config_id = r.json['config']['_id']
 
         # Create a job
         body = {
@@ -352,7 +352,7 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body={}, user=self._user)
         self.assertStatusOk(r)
 
-        expected_submit_call = [[[u'token', {u'status': u'running', u'configId': config_id, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}, {u'status': u'created', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'clusterId': cluster_id, u'input': [
+        expected_submit_call = [[[u'token', {u'status': u'running', u'config': {u'_id': config_id}, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}, {u'status': u'created', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'clusterId': cluster_id, u'input': [
             {u'itemId': u'546a1844ff34c70456111185', u'path': u''}], u'output': [{u'itemId': u'546a1844ff34c70456111185'}], u'_id': job_id, u'log': []}, u'http://127.0.0.1/api/v1/jobs/%s/log' % job_id, u'http://127.0.0.1/api/v1/starcluster-configs/%s?format=ini' % config_id], {}]]
         self.assertCalls(submit.call_args_list, expected_submit_call)
 
@@ -374,7 +374,7 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
         cluster_id = r.json['_id']
-        config_id = r.json['configId']
+        config_id = r.json['config']['_id']
 
         # Move cluster into running state
         status_body = {
@@ -388,7 +388,7 @@ class ClusterTestCase(base.TestCase):
 
         self.assertStatusOk(r)
 
-        expected_terminate_call = [[[{u'status': u'created', u'configId': config_id, u'_id': str(cluster_id),
+        expected_terminate_call = [[[{u'status': u'created', u'config': {u'_id': config_id}, u'_id': str(cluster_id),
                                       u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}], {u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % str(cluster_id)}]]
 
         self.assertCalls(

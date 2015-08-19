@@ -37,9 +37,16 @@ class Cluster(BaseModel):
         return doc
 
     def create_ec2(self, user, config_id, name, template):
-        cluster = {'name': name, 'template': template,
-                   'log': [], 'status': 'created', 'configId': config_id,
-                   'type': ClusterType.EC2}
+        cluster = {
+            'name': name,
+            'template': template,
+            'log': [],
+            'status': 'created',
+            'config': {
+                '_id': config_id
+            },
+            'type': ClusterType.EC2
+        }
 
         return self._create(user, cluster)
 
@@ -84,6 +91,6 @@ class Cluster(BaseModel):
 
         # Remove the config associated with the cluster first
         self.model('starclusterconfig', 'cumulus').remove(
-            {'_id': cluster['configId']})
+            {'_id': cluster['config']['_id']})
 
         return self.remove(cluster)
