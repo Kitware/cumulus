@@ -1,6 +1,7 @@
 import cherrypy
 import json
 import re
+from jsonpath_rw import parse
 
 from girder.api import access
 from girder.api.describe import Description
@@ -11,6 +12,7 @@ from .base import BaseResource
 from .constants import ClusterType
 from .utility.cluster_adapters import get_cluster_adapter
 import cumulus.starcluster.tasks as tasks
+import cumulus
 
 
 class Cluster(BaseResource):
@@ -34,8 +36,13 @@ class Cluster(BaseResource):
     def _clean(self, cluster):
         del cluster['access']
         del cluster['log']
-        if 'ssh' in cluster:
-            del cluster['ssh']
+
+        user = self.getCurrentUser()
+        if parse('config.ssh.passphrase').find(cluster):
+            try:
+                self.check_group_membership(user, cumulus.config.girder.group)
+            except RestException:
+                del cluster['config']['ssh']['passphrase']
 
         cluster['_id'] = str(cluster['_id'])
         if 'config' in cluster and '_id' in cluster['config']:
@@ -128,13 +135,13 @@ class Cluster(BaseResource):
     def _create_traditional(self, params, body):
 
         self.requireParams(['name', 'config'], body)
-        self.requireParams(['username', 'hostname'], body['config'])
+        self.requireParams(['userName', 'hostName'], body['config'])
 
         name = body['name']
         config = body['config']
         user = self.getCurrentUser()
-        hostname = config['hostname']
-        username = config['username']
+        hostname = config['hostName']
+        username = config['userName']
 
         cluster = self._model.create_traditional(user, name, hostname, username)
         cluster = self._clean(cluster)
@@ -277,10 +284,9 @@ class Cluster(BaseResource):
 
         cluster = self._model.save(cluster)
 
-        # Don't return the access object
-        del cluster['access']
-        # Don't return the log
-        del cluster['log']
+        # Now do any updates the adapter provides
+        adapter = get_cluster_adapter(cluster)
+        adapter.update(body)
 
         return cluster
 

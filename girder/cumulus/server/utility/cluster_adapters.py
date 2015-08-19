@@ -1,5 +1,7 @@
 import cherrypy
 import re
+import base64
+from jsonpath_rw import parse
 
 from girder.utility.model_importer import ModelImporter
 from girder.models.model_base import ValidationException
@@ -39,6 +41,13 @@ class AbstractClusterAdapter(ModelImporter):
         """
         raise ValidationException(
             'This cluster type does not support a terminate operation')
+
+    def update(self, request_body):
+        """
+        Adapters may implement this if they support a update operation.
+        """
+        raise ValidationException(
+            'This cluster type does not support a update operation')
 
 
 class Ec2ClusterAdapter(AbstractClusterAdapter):
@@ -122,9 +131,54 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
                                               log_write_url=log_write_url,
                                               girder_token=girder_token)
 
+    def update(self, body):
+        # Don't return the access object
+        del self.cluster['access']
+        # Don't return the log
+        del self.cluster['log']
+
+        return self.cluster
+
+
+def _validate_key(key):
+    try:
+        key_type, key_string, _ = key.split()
+        data = base64.decodestring(key_string)
+        return data[4:11] == key_type
+    except Exception:
+        return False
+
 
 class TraditionClusterAdapter(AbstractClusterAdapter):
-    pass
+    def update(self, body):
+
+        # Use JSONPath to extract out what we need
+        passphrase = parse('config.ssh.passphrase').find(body)
+        public_key = parse('config.ssh.publicKey').find(body)
+
+        if passphrase:
+            ssh = self.cluster['config'].setdefault('ssh', {})
+            ssh['passphrase'] = passphrase[0].value
+
+        if public_key:
+            public_key = public_key[0].value
+            if not _validate_key(public_key):
+                raise RestException('Invalid key format', 400)
+
+            ssh = self.cluster['config'].setdefault('ssh', {})
+            ssh['publicKey'] = public_key
+
+        self.cluster = self.model('cluster', 'cumulus').save(self.cluster)
+
+        # Don't return the access object
+        del self.cluster['access']
+        # Don't return the log
+        del self.cluster['log']
+        # Don't return the passphrase
+        if parse('config.ssh.passphrase').find(self.cluster):
+            del self.cluster['config']['ssh']['passphrase']
+
+        return self.cluster
 
 type_to_adapter = {
     ClusterType.EC2: Ec2ClusterAdapter,
