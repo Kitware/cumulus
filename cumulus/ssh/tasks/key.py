@@ -53,4 +53,4 @@ def generate_key_pair(cluster, girder_token=None):
                            json={'status': 'error'})
         _check_status(r)
         # Log the error message
-        log.error(ex.msg)
+        log.error(ex.message)
