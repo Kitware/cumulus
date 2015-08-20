@@ -27,7 +27,7 @@ def generate_key_pair(cluster, girder_token=None):
                                      string.digits) for _ in range(64))
         key_path = os.path.join(cumulus.config.ssh.keyStore, cluster_id)
 
-        new_key.write_private_key_file(key_path, passphrase)
+        new_key.write_private_key_file(key_path, password=passphrase)
 
         comment = 'cumulus generated access key'
         public_key = '%s %s %s' % (new_key.get_name(), new_key.get_base64(),

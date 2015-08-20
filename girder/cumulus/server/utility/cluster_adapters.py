@@ -8,7 +8,7 @@ from girder.models.model_base import ValidationException
 from girder.api.rest import RestException
 
 from cumulus.constants import ClusterType
-import cumulus.starcluster.tasks as tasks
+from cumulus.starcluster import tasks
 import cumulus
 
 

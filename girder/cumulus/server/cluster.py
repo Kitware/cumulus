@@ -11,7 +11,7 @@ from girder.api.rest import RestException
 from .base import BaseResource
 from cumulus.constants import ClusterType
 from .utility.cluster_adapters import get_cluster_adapter
-import cumulus.starcluster.tasks as tasks
+from cumulus.starcluster.tasks.job import submit
 from cumulus.ssh.tasks.key import generate_key_pair
 import cumulus
 
@@ -408,8 +408,6 @@ class Cluster(BaseResource):
         cluster = self._clean(cluster)
 
         base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
-        config_url = '%s/starcluster-configs/%s?format=ini' % (
-            base_url, cluster['config']['_id'])
 
         job_model = self.model('job', 'cumulus')
         job = job_model.load(
@@ -430,7 +428,7 @@ class Cluster(BaseResource):
         del job['access']
 
         girder_token = self.get_task_token()['_id']
-        tasks.job.submit(girder_token, cluster, job, log_url, config_url)
+        submit(girder_token, cluster, job, log_url)
 
     submit_job.description = (
         Description('Submit a job to the cluster')
