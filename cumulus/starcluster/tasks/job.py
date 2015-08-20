@@ -44,7 +44,6 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
     job_id = job['_id']
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
     job_name = job['name']
-    name = cluster['name']
 
     try:
         ssh = get_ssh_connection(girder_token, cluster)
@@ -234,6 +233,8 @@ def _tail_output(job, ssh):
     job_id = job['_id']
     log = starcluster.logger.get_starcluster_logger()
 
+    output_updated = False
+
     # Do we need to tail any output files
     for output in job['output']:
         if 'tail' in output and output['tail']:
@@ -250,12 +251,15 @@ def _tail_output(job, ssh):
                 if ssh.isfile(tail_path):
                     stdout = ssh.execute(command)
                     output['content'] = output['content'] + stdout
+                    output_updated = True
                 else:
                     log.info('Skipping tail of %s as file doesn\'t '
                              'currently exist' %
                              tail_path)
             except starcluster.exception.RemoteCommandFailed as ex:
                 _log_exception(ex)
+
+    return output_updated
 
 
 def _job_state(ssh, sge_id):
@@ -273,15 +277,56 @@ def _job_state(ssh, sge_id):
     return state
 
 
+def _handle_queued_or_running(task, job, state):
+    timings = {}
+    if state in running_state:
+        status = 'running'
+        if 'queuedTime' in job:
+            queued_time = time.time() - job['queuedTime']
+            timings = {'queued': int(round(queued_time * 1000))}
+            del job['queuedTime']
+            job['runningTime'] = time.time()
+    elif state in queued_state:
+        status = 'queued'
+    else:
+        raise Exception('Unrecognized SGE state')
+
+    # Job is still active so schedule self again in about 5 secs
+    # N.B. throw=False to prevent Retry exception being raised
+    task.retry(throw=False, countdown=5)
+
+    return status, timings
+
+
+def _handle_complete(cluster, job, log_write_url, girder_token, status):
+    log = starcluster.logger.get_starcluster_logger()
+    job_name = job['name']
+    job_id = job['_id']
+    job_dir = job_id
+    timings = {}
+
+    if 'runningTime' in job:
+        running_time = time.time() - job['runningTime']
+        timings = {'running': int(round(running_time * 1000))}
+        del job['runningTime']
+
+    # Fire off task to upload the output
+    log.info('Jobs "%s" complete' % job_name)
+    if 'output' in job and len(job['output']) > 0:
+        status = 'uploading'
+        job['status'] = status
+        upload_job_output.delay(cluster, job, log_write_url=log_write_url,
+                                job_dir=job_dir, girder_token=girder_token)
+    return status, timings
+
+
 @monitor.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
 def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
-    log = starcluster.logger.get_starcluster_logger()
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
-    job_dir = job_id
     sge_id = job['sgeId']
-    job_name = job['name']
+
     status_update_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
     status_url = '%s/jobs/%s/status' % (cumulus.config.girder.baseUrl, job_id)
 
@@ -311,49 +356,20 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
         timings = {}
 
         if state and current_status != 'terminating':
-            if state in running_state:
-                status = 'running'
-                if 'queuedTime' in job:
-                    queued_time = time.time() - job['queuedTime']
-                    timings = {
-                        'queued': int(round(queued_time * 1000))
-                    }
-                    del job['queuedTime']
-                    job['runningTime'] = time.time()
-            elif state in queued_state:
-                status = 'queued'
-            else:
-                raise Exception('Unrecognized SGE state')
+            status, timings = _handle_queued_or_running(task, job, state)
+        elif status == 'complete':
+            status, timings = _handle_complete(cluster, job, log_write_url,
+                                               girder_token, status)
 
-            # Job is still active so schedule self again in about 5 secs
-            # N.B. throw=False to prevent Retry exception being raised
-            task.retry(throw=False, countdown=5)
-        else:
-            if status == 'complete':
-                if 'runningTime' in job:
-                    running_time = time.time() - job['runningTime']
-                    timings = {
-                        'running': int(round(running_time * 1000))
-                    }
-                    del job['runningTime']
-                # Fire off task to upload the output
-                log.info('Jobs "%s" complete' % job_name)
-
-                if 'output' in job and len(job['output']) > 0:
-                    status = 'uploading'
-                    job['status'] = status
-                    upload_job_output.delay(cluster,
-                                            job, log_write_url=log_write_url,
-                                            job_dir=job_dir,
-                                            girder_token=girder_token)
-
-        _tail_output(job, ssh)
+        output_updated = _tail_output(job, ssh)
 
         json = {
             'status': status,
-            'output': job['output'],
             'timings': timings
         }
+
+        if output_updated:
+            json['output'] = job['output']
 
         r = requests.patch(status_update_url, headers=headers, json=json)
         _check_status(r)
@@ -380,7 +396,6 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
     job_id = job['_id']
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
     job_name = job['name']
-    name = cluster['name']
 
     try:
         ssh = get_ssh_connection(girder_token, cluster)
@@ -508,7 +523,6 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
-    name = cluster['name']
 
     try:
 
