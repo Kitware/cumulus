@@ -7,7 +7,7 @@ from girder.utility.model_importer import ModelImporter
 from girder.models.model_base import ValidationException
 from girder.api.rest import RestException
 
-from ..constants import ClusterType
+from cumulus.constants import ClusterType
 import cumulus.starcluster.tasks as tasks
 import cumulus
 
@@ -48,6 +48,12 @@ class AbstractClusterAdapter(ModelImporter):
         """
         raise ValidationException(
             'This cluster type does not support a update operation')
+
+    def delete(self):
+        """
+        Adapters may implement this if they support a delete operation.
+        """
+        pass
 
 
 class Ec2ClusterAdapter(AbstractClusterAdapter):
@@ -138,6 +144,11 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
         del self.cluster['log']
 
         return self.cluster
+
+    def delete(self):
+        # Remove the config associated with the cluster first
+        self.model('starclusterconfig', 'cumulus').remove(
+            {'_id': self.cluster['config']['_id']})
 
 
 def _validate_key(key):

@@ -1,13 +1,17 @@
 import starcluster.config
 import starcluster.logger
 import starcluster.exception
+from starcluster.sshutils import SSHClient
 import requests
 import tempfile
 import os
 import sys
 import traceback
+from jsonpath_rw import parse
+
 
 import cumulus
+from cumulus.constants import ClusterType
 
 
 def _check_status(request):
@@ -39,10 +43,21 @@ def _log_exception(ex):
 
 
 def get_ssh_connection(girder_token, cluster):
+    conn = None
+    if cluster['type'] == ClusterType.TRADITIONAL:
+        username = parse('config.ssh.username').find(cluster)[0].value
+        hostname = parse('config.hostname').find(cluster)[0].value
+        passphrase = parse('config.ssh.passphrase').find(cluster)[0].value
 
-    if 'ssh' in cluster:
-        pass
+        key_path = os.path.join(cumulus.config.ssh.keyStore, cluster['_id'])
+
+        conn = SSHClient(host=hostname, username=username, private_key=key_path,
+                         private_key_pass=passphrase, timeout=5)
+
+        conn.connect()
+
     else:
+        config_filepath = None
         try:
             name = cluster['name']
             config_id = cluster['config']['_id']
@@ -56,8 +71,9 @@ def get_ssh_connection(girder_token, cluster):
             sc = cm.get_cluster(name)
             master = sc.master_node
             master.user = sc.cluster_user
-
-            return master.ssh
+            conn = master.ssh
         finally:
             if config_filepath and os.path.exists(config_filepath):
                 os.remove(config_filepath)
+
+    return conn

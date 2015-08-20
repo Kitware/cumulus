@@ -89,8 +89,7 @@ class Cluster(BaseModel):
     def delete(self, user, id):
         cluster = self.load(id, user=user, level=AccessType.ADMIN)
 
-        # Remove the config associated with the cluster first
-        self.model('starclusterconfig', 'cumulus').remove(
-            {'_id': cluster['config']['_id']})
+        adapter = get_cluster_adapter(cluster)
+        adapter.delete()
 
-        return self.remove(cluster)
+        self.remove(cluster)

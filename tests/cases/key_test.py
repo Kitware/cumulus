@@ -31,15 +31,15 @@ class KeyTestCase(unittest.TestCase):
             self._update = passphrase and public_key
             return httmock.response(200, None, {}, request=request)
 
-
-        passphrase_url = '/api/v1/clusters/%s' % cluster['_id']
+        update_url = '/api/v1/clusters/%s' % cluster['_id']
         update = httmock.urlmatch(
-            path=r'^%s$' % passphrase_url, method='PATCH')(_update)
+            path=r'^%s$' % update_url, method='PATCH')(_update)
 
         with httmock.HTTMock(update):
             key.generate_key_pair(cluster)
 
         self.assertTrue(os.path.exists(key_path), 'Key was not created')
+        os.remove(key_path)
         self.assertTrue(self._update, 'Update was not called')
 
 
