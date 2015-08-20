@@ -205,7 +205,8 @@ class ClusterTestCase(base.TestCase):
                            u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}
         self.assertEquals(r.json, expected_status)
 
-    def test_update_traditional(self):
+    @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
+    def test_update_traditional(self, generate_key):
         body = {
             'config': {
                     'hostName': 'myhost',
@@ -497,7 +498,8 @@ class ClusterTestCase(base.TestCase):
         self.assertStatus(r, 400)
         self.assertEqual(r.json, {u'message': u'Invalid cluster type.', u'type': u'rest'}, 'Unexpected error message')
 
-    def test_create_trad_type(self):
+    @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
+    def test_create_trad_type(self, generate_key):
         body = {
             'type': 'trad',
             'name': 'my trad cluster',
@@ -513,8 +515,13 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
 
         self.assertStatus(r, 201)
+        cluster_id = r.json['_id']
+        expected = [[[{u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'hostname': u'myhost', u'ssh': {u'username': u'bob'}}, u'name': u'my trad cluster'}, u'token'], {}]]
+        self.assertCalls(
+            generate_key.call_args_list, expected)
 
-    def test_start_trad(self):
+    @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
+    def test_start_trad(self, generate_key):
         body = {
             'type': 'trad',
             'name': 'my trad cluster',
@@ -536,7 +543,8 @@ class ClusterTestCase(base.TestCase):
 
         self.assertStatus(r, 400)
 
-    def test_terminate_trad(self):
+    @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
+    def test_terminate_trad(self, generate_key):
         body = {
             'type': 'trad',
             'name': 'my trad cluster',

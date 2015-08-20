@@ -2,7 +2,7 @@ from girder.models.model_base import ValidationException
 from bson.objectid import ObjectId
 from girder.constants import AccessType
 from .base import BaseModel
-from ..constants import ClusterType
+from cumulus.constants import ClusterType
 from ..utility.cluster_adapters import get_cluster_adapter
 
 

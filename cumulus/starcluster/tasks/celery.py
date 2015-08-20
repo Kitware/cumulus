@@ -4,8 +4,8 @@ from celery import Celery
 _includes = (
     'cumulus.starcluster.tasks.cluster',
     'cumulus.starcluster.tasks.job',
-    'cumulus.moab.tasks.mesh',
-    'cumulus.task.status'
+    'cumulus.task.status',
+    'cumulus.ssh.tasks.key'
 )
 
 # Route short tasks to their own queue

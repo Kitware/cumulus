@@ -9,9 +9,10 @@ from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException
 from .base import BaseResource
-from .constants import ClusterType
+from cumulus.constants import ClusterType
 from .utility.cluster_adapters import get_cluster_adapter
 import cumulus.starcluster.tasks as tasks
+from cumulus.ssh.tasks.key import generate_key_pair
 import cumulus
 
 
@@ -135,16 +136,21 @@ class Cluster(BaseResource):
     def _create_traditional(self, params, body):
 
         self.requireParams(['name', 'config'], body)
-        self.requireParams(['userName', 'hostName'], body['config'])
+        self.requireParams(['ssh', 'hostName'], body['config'])
+        self.requireParams(['userName'], body['config']['ssh'])
 
         name = body['name']
         config = body['config']
         user = self.getCurrentUser()
         hostname = config['hostName']
-        username = config['userName']
+        username = config['ssh']['userName']
 
         cluster = self._model.create_traditional(user, name, hostname, username)
         cluster = self._clean(cluster)
+
+        # Fire off job to create key pair for cluster
+        girder_token = self.get_task_token()['_id']
+        generate_key_pair.delay(cluster, girder_token)
 
         return cluster
 
@@ -179,6 +185,22 @@ class Cluster(BaseResource):
         }
     })
 
+    addModel('UserNameParameter', {
+        "id": "UserNameParameter",
+        "properties": {
+            "userName": {"type": "string", "description": "The ssh user id"}
+        }
+    })
+
+    addModel("SshParameters", {
+        "id": "SshParameters",
+        "properties": {
+            "ssh": {
+                "$ref": "UserNameParameter"
+            }
+        }
+    })
+
     addModel('ClusterParameters', {
         "id": "ClusterParameters",
         "required": ["name", "config", "type"],
@@ -192,12 +214,12 @@ class Cluster(BaseResource):
                        "description": "List of configuration to use, "
                                       "either ids or inline config.",
                        "items": {"$ref": "Id"}},
-            "hostname": {"type": "string",
+            "config": {
+                "$ref": "SshParameters",
+                "hostName": {"type": "string",
                          "description": "The hostname of the head node "
-                                        "(trad only)"},
-            "username": {"type": "string",
-                         "description": "The username to use to access the "
-                                        "cluster (trad only)"},
+                                        "(trad only)"}
+            },
             "type": {"type": "string",
                      "description": "The cluster type, either 'ec2' or 'trad'"}
 

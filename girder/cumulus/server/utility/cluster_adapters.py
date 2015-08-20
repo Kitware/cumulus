@@ -142,7 +142,8 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
 
 def _validate_key(key):
     try:
-        key_type, key_string, _ = key.split()
+        parts = key.split()
+        key_type, key_string = parts[:2]
         data = base64.decodestring(key_string)
         return data[4:11] == key_type
     except Exception:
