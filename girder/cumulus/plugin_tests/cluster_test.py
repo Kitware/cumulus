@@ -421,7 +421,7 @@ class ClusterTestCase(base.TestCase):
         self.assertStatusOk(r)
 
         expected_submit_call = [[[u'token', {u'status': u'running', u'config': {u'_id': config_id}, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}, {u'status': u'created', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'clusterId': cluster_id, u'input': [
-            {u'itemId': u'546a1844ff34c70456111185', u'path': u''}], u'output': [{u'itemId': u'546a1844ff34c70456111185'}], u'_id': job_id, u'log': []}, u'http://127.0.0.1/api/v1/jobs/%s/log' % job_id, u'http://127.0.0.1/api/v1/starcluster-configs/%s?format=ini' % config_id], {}]]
+            {u'itemId': u'546a1844ff34c70456111185', u'path': u''}], u'output': [{u'itemId': u'546a1844ff34c70456111185'}], u'_id': job_id, u'log': []}, u'http://127.0.0.1/api/v1/jobs/%s/log' % job_id], {}]]
         self.assertCalls(submit.call_args_list, expected_submit_call)
 
     @mock.patch('cumulus.starcluster.tasks.cluster.terminate_cluster.delay')

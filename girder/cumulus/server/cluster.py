@@ -11,7 +11,7 @@ from girder.api.rest import RestException
 from .base import BaseResource
 from cumulus.constants import ClusterType
 from .utility.cluster_adapters import get_cluster_adapter
-from cumulus.starcluster.tasks.job import submit
+import cumulus.starcluster.tasks.job
 from cumulus.ssh.tasks.key import generate_key_pair
 import cumulus
 
@@ -428,7 +428,10 @@ class Cluster(BaseResource):
         del job['access']
 
         girder_token = self.get_task_token()['_id']
-        submit(girder_token, cluster, job, log_url)
+        print "before"
+        cumulus.starcluster.tasks.job.submit(girder_token, cluster, job,
+                                             log_url)
+        print "after"
 
     submit_job.description = (
         Description('Submit a job to the cluster')
