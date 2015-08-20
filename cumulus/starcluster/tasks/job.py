@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import traceback
 from cumulus.starcluster.logging import logstdout
 import cumulus.starcluster.logging
 from cumulus.starcluster.tasks.common import _check_status, _log_exception, \
@@ -365,7 +366,7 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None,
         _check_status(r)
         _log_exception(ex)
     except Exception as ex:
-        print >> sys.stderr,  ex
+        traceback.print_exc()
         r = requests.patch(status_update_url, headers=headers,
                            json={'status': 'error'})
         _check_status(r)

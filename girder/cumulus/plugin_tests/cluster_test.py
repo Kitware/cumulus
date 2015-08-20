@@ -209,8 +209,10 @@ class ClusterTestCase(base.TestCase):
     def test_update_traditional(self, generate_key):
         body = {
             'config': {
-                    'hostName': 'myhost',
+                'hostName': 'myhost',
+                'ssh': {
                     'userName': 'myuser'
+                }
             },
             'name': 'test',
             'type': 'trad'
@@ -504,7 +506,9 @@ class ClusterTestCase(base.TestCase):
             'type': 'trad',
             'name': 'my trad cluster',
             'config': {
-                'userName': 'bob',
+                'ssh': {
+                        'userName': 'bob'
+                },
                 'hostName': 'myhost'
             }
         }
@@ -526,7 +530,9 @@ class ClusterTestCase(base.TestCase):
             'type': 'trad',
             'name': 'my trad cluster',
             'config': {
-                'userName': 'bob',
+                'ssh': {
+                    'userName': 'bob'
+                },
                 'hostName': 'myhost'
             }
         }
@@ -549,7 +555,9 @@ class ClusterTestCase(base.TestCase):
             'type': 'trad',
             'name': 'my trad cluster',
             'config': {
-                'userName': 'bob',
+                'ssh': {
+                    'userName': 'bob'
+                },
                 'hostName': 'myhost'
             }
         }

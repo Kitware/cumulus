@@ -217,8 +217,8 @@ class Cluster(BaseResource):
             "config": {
                 "$ref": "SshParameters",
                 "hostName": {"type": "string",
-                         "description": "The hostname of the head node "
-                                        "(trad only)"}
+                             "description": "The hostname of the head node "
+                                            "(trad only)"}
             },
             "type": {"type": "string",
                      "description": "The cluster type, either 'ec2' or 'trad'"}
