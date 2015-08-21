@@ -8,7 +8,7 @@ from girder.models.model_base import ValidationException
 from girder.api.rest import RestException
 
 from cumulus.constants import ClusterType
-from cumulus.starcluster import tasks
+import cumulus.starcluster.tasks.cluster
 import cumulus
 
 
@@ -119,7 +119,7 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
         base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = self.get_task_token()['_id']
-        tasks.cluster.start_cluster.delay(self.cluster,
+        cumulus.starcluster.tasks.cluster.start_cluster.delay(self.cluster,
                                           log_write_url=log_write_url,
                                           on_start_submit=on_start_submit,
                                           girder_token=girder_token)
@@ -133,7 +133,7 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
             return
 
         girder_token = self.get_task_token()['_id']
-        tasks.cluster.terminate_cluster.delay(self.cluster,
+        cumulus.starcluster.tasks.cluster.terminate_cluster.delay(self.cluster,
                                               log_write_url=log_write_url,
                                               girder_token=girder_token)
 
