@@ -99,6 +99,9 @@ class Cluster(BaseResource):
 
         loaded_config = []
 
+        if not isinstance(config, list):
+            config = [config]
+
         for c in config:
             if '_id' in c:
 

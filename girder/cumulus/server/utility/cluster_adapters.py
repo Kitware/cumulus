@@ -119,10 +119,11 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
         base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = self.get_task_token()['_id']
-        cumulus.starcluster.tasks.cluster.start_cluster.delay(self.cluster,
-                                          log_write_url=log_write_url,
-                                          on_start_submit=on_start_submit,
-                                          girder_token=girder_token)
+        cumulus.starcluster.tasks.cluster.start_cluster \
+            .delay(self.cluster,
+                   log_write_url=log_write_url,
+                   on_start_submit=on_start_submit,
+                   girder_token=girder_token)
 
     def terminate(self):
         base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
@@ -133,9 +134,10 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
             return
 
         girder_token = self.get_task_token()['_id']
-        cumulus.starcluster.tasks.cluster.terminate_cluster.delay(self.cluster,
-                                              log_write_url=log_write_url,
-                                              girder_token=girder_token)
+        cumulus.starcluster.tasks.cluster.terminate_cluster \
+            .delay(self.cluster,
+                   log_write_url=log_write_url,
+                   girder_token=girder_token)
 
     def update(self, body):
         # Don't return the access object
