@@ -56,9 +56,9 @@ class Cluster(BaseModel):
             'log': [],
             'status': 'running',
             'config': {
-                'hostname': hostname,
+                'host': hostname,
                 'ssh': {
-                    'username': username
+                    'user': username
                 }
             },
             'type': ClusterType.TRADITIONAL

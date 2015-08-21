@@ -209,9 +209,9 @@ class ClusterTestCase(base.TestCase):
     def test_update_traditional(self, generate_key):
         body = {
             'config': {
-                'hostName': 'myhost',
+                'host': 'myhost',
                 'ssh': {
-                    'userName': 'myuser'
+                    'user': 'myuser'
                 }
             },
             'name': 'test',
@@ -240,20 +240,20 @@ class ClusterTestCase(base.TestCase):
             user=self._cumulus)
 
         self.assertStatusOk(r)
-        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'hostname': u'myhost', u'ssh': {u'username': u'myuser', u'publicKey': self._valid_key}}, u'name': u'test'}
+        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'host': u'myhost', u'ssh': {u'user': u'myuser', u'publicKey': self._valid_key}}, u'name': u'test'}
         self.assertEqual(self.normalize(expected), self.normalize(r.json), 'Unexpected response')
 
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._user)
         self.assertStatusOk(r)
-        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'hostname': u'myhost', u'ssh': {u'username': u'myuser', u'publicKey': self._valid_key}}, u'name': u'test'}
+        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'host': u'myhost', u'ssh': {u'user': u'myuser', u'publicKey': self._valid_key}}, u'name': u'test'}
         self.assertEqual(self.normalize(expected), self.normalize(r.json), 'Unexpected response')
 
         # Check that if we are in the right group we will get the passphrase
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._cumulus)
         self.assertStatusOk(r)
-        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'hostname': u'myhost', u'ssh': {u'username': u'myuser', u'publicKey': self._valid_key, u'passphrase': u'supersecret'}}, u'name': u'test'}
+        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'host': u'myhost', u'ssh': {u'user': u'myuser', u'publicKey': self._valid_key, u'passphrase': u'supersecret'}}, u'name': u'test'}
         self.assertEqual(self.normalize(expected), self.normalize(r.json), 'Unexpected response')
 
         # Check we get an error if we try and update in invalid key
@@ -507,9 +507,9 @@ class ClusterTestCase(base.TestCase):
             'name': 'my trad cluster',
             'config': {
                 'ssh': {
-                        'userName': 'bob'
+                        'user': 'bob'
                 },
-                'hostName': 'myhost'
+                'host': 'myhost'
             }
         }
 
@@ -520,7 +520,7 @@ class ClusterTestCase(base.TestCase):
 
         self.assertStatus(r, 201)
         cluster_id = r.json['_id']
-        expected = [[[{u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'hostname': u'myhost', u'ssh': {u'username': u'bob'}}, u'name': u'my trad cluster'}, u'token'], {}]]
+        expected = [[[{u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'host': u'myhost', u'ssh': {u'user': u'bob'}}, u'name': u'my trad cluster'}, u'token'], {}]]
         self.assertCalls(
             generate_key.call_args_list, expected)
 
@@ -531,9 +531,9 @@ class ClusterTestCase(base.TestCase):
             'name': 'my trad cluster',
             'config': {
                 'ssh': {
-                    'userName': 'bob'
+                    'user': 'bob'
                 },
-                'hostName': 'myhost'
+                'host': 'myhost'
             }
         }
 
@@ -556,9 +556,9 @@ class ClusterTestCase(base.TestCase):
             'name': 'my trad cluster',
             'config': {
                 'ssh': {
-                    'userName': 'bob'
+                    'user': 'bob'
                 },
-                'hostName': 'myhost'
+                'host': 'myhost'
             }
         }
 

@@ -30,10 +30,10 @@ class CommonTestCase(unittest.TestCase):
             '_id': self._cluster_id,
             'config': {
                 'ssh': {
-                    'username': 'bob',
+                    'user': 'bob',
                     'passphrase': 'test'
                 },
-                'hostname': 'localhost'
+                'host': 'localhost'
             },
             'type': 'trad'
         }

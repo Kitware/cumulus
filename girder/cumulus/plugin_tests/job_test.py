@@ -207,7 +207,6 @@ class JobTestCase(base.TestCase):
 
         # input path and name can't be that same
         self.assertStatus(r, 400)
-        print r.json
 
     def test_get(self):
         r = self.request(
