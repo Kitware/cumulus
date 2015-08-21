@@ -74,13 +74,17 @@ class JobTestCase(unittest.TestCase):
 
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.job._write_config_file')
+    @mock.patch('cumulus.starcluster.tasks.common._write_config_file')
     def test_monitor_job_terminated(self, _write_config_file, logging):
         _write_config_file.return_value = 'dummy file path'
 
         job_id = 'dummy'
         cluster = {
-            'name': 'dummy'
+            'type': 'ec2',
+            'name': 'dummy',
+            'config': {
+                '_id': 'dummy'
+            }
         }
         job_model = {
             '_id': job_id,
@@ -105,9 +109,9 @@ class JobTestCase(unittest.TestCase):
             return httmock.response(200, content, headers, request=request)
 
         def _set_status(url, request):
-            self._set_status_called = True
-            expected = {'status': 'terminated', 'output': [], 'timings': {}}
-            self.assertEqual(json.loads(request.body), expected, 'Unexpected status update body')
+            expected = {u'status': u'terminated', u'timings': {}}
+            self._set_status_called = json.loads(request.body) == expected
+
             return httmock.response(200, None, {}, request=request)
 
         status_url = '/api/v1/jobs/%s/status' % job_id
@@ -127,19 +131,25 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.job._write_config_file')
+    @mock.patch('cumulus.starcluster.tasks.common._write_config_file')
     def test_monitor_job_complete(self, _write_config_file, logging,logger):
         _write_config_file.return_value = 'dummy file path'
 
         job_id = 'dummy'
         cluster = {
-            'name': 'dummy'
+            'type': 'ec2',
+            'name': 'dummy',
+             'config': {
+                '_id': 'dummy'
+            }
         }
         job_model = {
             '_id': job_id,
             'sgeId': 'dummy',
             'name': 'dummy',
-            'output': []
+            'output': [{
+                'itemId': 'dummy'
+            }]
         }
 
         MockMaster.execute_stack = ['qstat output']
@@ -158,9 +168,9 @@ class JobTestCase(unittest.TestCase):
             return httmock.response(200, content, headers, request=request)
 
         def _set_status(url, request):
-            expected = {'status': 'uploading', 'output': [], 'timings': {}}
+            expected = {'status': 'uploading', 'timings': {}}
             self._set_status_called = json.loads(request.body) == expected
-            self.assertEqual(json.loads(request.body), expected, 'Unexpected status update body')
+
             return httmock.response(200, None, {}, request=request)
 
         status_url = '/api/v1/jobs/%s/status' % job_id
@@ -176,20 +186,24 @@ class JobTestCase(unittest.TestCase):
 
         self.assertTrue(self._get_status_called, 'Expect get status endpoint to be hit')
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
-        expected_calls = [[[{u'name': u'dummy'}, {u'status': u'uploading', u'output': [], u'_id': u'dummy', u'sgeId': u'dummy', u'name': u'dummy'}], {u'config_url': None, u'log_write_url': 1, u'job_dir': u'dummy', u'girder_token': u's'}]]
+        expected_calls = [[[{u'config': {u'_id': u'dummy'}, u'name': u'dummy', u'type': u'ec2'}, {u'status': u'uploading', u'output': [{u'itemId': u'dummy'}], u'_id': u'dummy', u'sgeId': u'dummy', u'name': u'dummy'}], {u'girder_token': u's', u'log_write_url': 1, u'job_dir': u'dummy'}]]
         self.assertCalls(self._upload_job_output.call_args_list, expected_calls)
 
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.job._write_config_file')
+    @mock.patch('cumulus.starcluster.tasks.common._write_config_file')
     @mock.patch('cumulus.starcluster.tasks.celery.monitor.Task.retry')
     def test_monitor_job_running(self, retry, _write_config_file, *args):
         _write_config_file.return_value = 'dummy file path'
 
         job_id = 'dummy'
         cluster = {
-            'name': 'dummy'
+            'type': 'ec2',
+            'name': 'dummy',
+            'config': {
+                '_id': 'dummy'
+            }
         }
         job_model = {
             '_id': job_id,
@@ -216,10 +230,12 @@ class JobTestCase(unittest.TestCase):
             return httmock.response(200, content, headers, request=request)
 
         def _set_status(url, request):
-            expected = {'status': 'running', 'output': [], 'timings': {}}
+            expected = {'status': 'running', 'timings': {}}
             self._set_status_called = json.loads(request.body) == expected
 
-            self.assertEqual(json.loads(request.body), expected, 'Unexpected status update body')
+            if not self._set_status_called:
+                print json.loads(request.body)
+
             return httmock.response(200, None, {}, request=request)
 
         status_url = '/api/v1/jobs/%s/status' % job_id
@@ -239,14 +255,18 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.job._write_config_file')
+    @mock.patch('cumulus.starcluster.tasks.common._write_config_file')
     @mock.patch('cumulus.starcluster.tasks.celery.monitor.Task.retry')
     def test_monitor_job_queued(self, retry, _write_config_file, *args):
         _write_config_file.return_value = 'dummy file path'
 
         job_id = 'dummy'
         cluster = {
-            'name': 'dummy'
+            'type': 'ec2',
+            'name': 'dummy',
+            'config': {
+                '_id': 'dummy'
+            }
         }
         job_model = {
             '_id': job_id,
@@ -273,10 +293,9 @@ class JobTestCase(unittest.TestCase):
             return httmock.response(200, content, headers, request=request)
 
         def _set_status(url, request):
-            expected = {'status': 'queued', 'output': [], 'timings': {}}
+            expected = {'status': 'queued', 'timings': {}}
             self._set_status_called = json.loads(request.body) == expected
 
-            self.assertEqual(json.loads(request.body), expected, 'Unexpected status update body')
             return httmock.response(200, None, {}, request=request)
 
         status_url = '/api/v1/jobs/%s/status' % job_id
@@ -296,14 +315,18 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.job._write_config_file')
+    @mock.patch('cumulus.starcluster.tasks.common._write_config_file')
     @mock.patch('cumulus.starcluster.tasks.celery.monitor.Task.retry')
     def test_monitor_job_tail_output(self, retry, _write_config_file, *args):
         _write_config_file.return_value = 'dummy file path'
 
         job_id = 'dummy'
         cluster = {
-            'name': 'dummy'
+            'type': 'ec2',
+            'name': 'dummy',
+            'config': {
+                '_id': 'dummy'
+            }
         }
         job_model = {
             '_id': job_id,
@@ -333,7 +356,9 @@ class JobTestCase(unittest.TestCase):
             expected = {u'status': u'running', u'output': [{u'content': [u'i have a tail', u'asdfas'], u'path': u'dummy/file/path', u'tail': True}], u'timings': {}}
             self._set_status_called = json.loads(request.body) == expected
 
-            self.assertEqual(json.loads(request.body), expected, 'Unexpected status update body')
+            if not self._set_status_called:
+                print json.loads(request.body)
+
             return httmock.response(200, None, {}, request=request)
 
         status_url = '/api/v1/jobs/%s/status' % job_id

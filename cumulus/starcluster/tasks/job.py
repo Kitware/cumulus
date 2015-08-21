@@ -1,8 +1,9 @@
 from __future__ import absolute_import
+import traceback
 from cumulus.starcluster.logging import logstdout
 import cumulus.starcluster.logging
-from cumulus.starcluster.tasks.common import _write_config_file, \
-    _check_status, _log_exception
+from cumulus.starcluster.tasks.common import _check_status, _log_exception, \
+    get_ssh_connection
 from cumulus.starcluster.tasks.celery import command, monitor
 import cumulus
 import cumulus.girderclient
@@ -37,31 +38,22 @@ def _put_script(ssh, script_commands):
 
 @command.task
 @cumulus.starcluster.logging.capture
-def download_job_input(cluster, job, log_write_url=None, config_url=None,
-                       girder_token=None):
+def download_job_input(cluster, job, log_write_url=None, girder_token=None):
     log = starcluster.logger.get_starcluster_logger()
-    config_filepath = None
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
     job_name = job['name']
-    name = cluster['name']
 
     try:
-        config_filepath = _write_config_file(girder_token, config_url)
-        config = starcluster.config.StarClusterConfig(config_filepath)
-        config.load()
-        cm = config.get_cluster_manager()
-        sc = cm.get_cluster(name)
-        master = sc.master_node
-        master.user = sc.cluster_user
+        ssh = get_ssh_connection(girder_token, cluster)
 
         # First put girder client on master
         path = inspect.getsourcefile(cumulus.girderclient)
-        master.ssh.put(path)
+        ssh.put(path)
 
         # Create job directory
-        master.ssh.mkdir('./%s' % job_id)
+        ssh.mkdir('./%s' % job_id)
 
         log.info('Downloading input for "%s"' % job_name)
 
@@ -77,11 +69,11 @@ def download_job_input(cluster, job, log_write_url=None, config_url=None,
         download_output = '%s.download.out' % job_id
         download_cmd = 'nohup %s  &> %s  &\n' % (download_cmd, download_output)
 
-        download_cmd = _put_script(master.ssh, download_cmd)
-        output = master.ssh.execute(download_cmd)
+        download_cmd = _put_script(ssh, download_cmd)
+        output = ssh.execute(download_cmd)
 
         # Remove download script
-        master.ssh.unlink(download_cmd)
+        ssh.unlink(download_cmd)
 
         if len(output) != 1:
             raise Exception('PID not returned by execute command')
@@ -93,12 +85,10 @@ def download_job_input(cluster, job, log_write_url=None, config_url=None,
 
         # When the download is complete submit the job
         on_complete = submit_job.s(cluster, job, log_write_url=log_write_url,
-                                   config_url=config_url,
                                    girder_token=girder_token)
 
-        monitor_process.delay(name, job, pid, download_output,
+        monitor_process.delay(cluster, job, pid, download_output,
                               log_write_url=log_write_url,
-                              config_url=config_url,
                               on_complete=on_complete,
                               girder_token=girder_token)
 
@@ -107,28 +97,22 @@ def download_job_input(cluster, job, log_write_url=None, config_url=None,
                            json={'status': 'error'})
         _check_status(r)
         _log_exception(ex)
-    finally:
-        if config_filepath and os.path.exists(config_filepath):
-            os.remove(config_filepath)
 
 
 @command.task
 @cumulus.starcluster.logging.capture
-def submit_job(cluster, job, log_write_url=None, config_url=None,
-               girder_token=None):
+def submit_job(cluster, job, log_write_url=None, girder_token=None):
+
+    print >> sys.stderr, 'submit_job'
+
     log = starcluster.logger.get_starcluster_logger()
-    config_filepath = None
     script_filepath = None
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
     job_dir = job_id
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
-    name = cluster['name']
 
     try:
-        config_filepath = _write_config_file(girder_token, config_url)
-        config = starcluster.config.StarClusterConfig(config_filepath)
-
         # Write out script to upload to master
 
         (fd, script_filepath) = tempfile.mkstemp()
@@ -140,14 +124,10 @@ def submit_job(cluster, job, log_write_url=None, config_url=None,
             script_template.write('%s\n' % c)
 
         with logstdout():
-            config.load()
-            cm = config.get_cluster_manager()
-            sc = cm.get_cluster(name)
-            master = sc.master_node
-            master.user = sc.cluster_user
+            ssh = get_ssh_connection(girder_token, cluster)
 
             # First get number of slots available
-            output = master.ssh.execute('qconf -sp orte')
+            output = ssh.execute('qconf -sp orte')
             slots = -1
             for line in output:
                 m = re.match('slots[\s]+(\d+)', line)
@@ -171,9 +151,9 @@ def submit_job(cluster, job, log_write_url=None, config_url=None,
             with open(script_filepath, 'w') as fp:
                 fp.write('%s\n' % script)
 
-            master.ssh.mkdir(job_id, ignore_failure=True)
+            ssh.mkdir(job_id, ignore_failure=True)
             # put the script to master
-            master.ssh.put(script_filepath, job_id)
+            ssh.put(script_filepath, job_id)
             # Now submit the job
 
             log.info('We have %s slots available' % slots)
@@ -181,7 +161,7 @@ def submit_job(cluster, job, log_write_url=None, config_url=None,
             cmd = 'cd %s && qsub -cwd ./%s' \
                 % (job_dir, script_name)
 
-            output = master.ssh.execute(cmd)
+            output = ssh.execute(cmd)
 
             if len(output) != 1:
                 raise Exception('Unexpected output: %s' % output)
@@ -203,8 +183,7 @@ def submit_job(cluster, job, log_write_url=None, config_url=None,
             job['queuedTime'] = time.time()
 
             # Now monitor the jobs progress
-            monitor_job.s(cluster, job, config_url=config_url,
-                          log_write_url=log_write_url,
+            monitor_job.s(cluster, job, log_write_url=log_write_url,
                           girder_token=girder_token).apply_async(countdown=5)
 
         # Now update the status of the cluster
@@ -229,23 +208,19 @@ def submit_job(cluster, job, log_write_url=None, config_url=None,
         _log_exception(ex)
         raise
     finally:
-        if config_filepath and os.path.exists(config_filepath):
-            os.remove(config_filepath)
         if script_filepath and os.path.exists(script_filepath):
             os.remove(script_filepath)
 
 
-def submit(girder_token, cluster, job, log_url, config_url):
-
+def submit(girder_token, cluster, job, log_url):
     # Do we inputs to download ?
     if 'input' in job and len(job['input']) > 0:
 
         download_job_input.delay(cluster, job, log_write_url=log_url,
-                                 config_url=config_url,
                                  girder_token=girder_token)
     else:
         submit_job.delay(cluster, job, log_write_url=log_url,
-                         config_url=config_url, girder_token=girder_token)
+                         girder_token=girder_token)
 
 # Running states
 running_state = ['r', 'd', 'e']
@@ -254,9 +229,11 @@ running_state = ['r', 'd', 'e']
 queued_state = ['qw', 'q', 'w', 's', 'h', 't']
 
 
-def _tail_output(job, master):
+def _tail_output(job, ssh):
     job_id = job['_id']
     log = starcluster.logger.get_starcluster_logger()
+
+    output_updated = False
 
     # Do we need to tail any output files
     for output in job['output']:
@@ -271,9 +248,10 @@ def _tail_output(job, master):
             command = 'tail -n +%d %s' % (offset, tail_path)
             try:
                 # Only tail if file exists
-                if master.ssh.isfile(tail_path):
-                    stdout = master.ssh.execute(command)
+                if ssh.isfile(tail_path):
+                    stdout = ssh.execute(command)
                     output['content'] = output['content'] + stdout
+                    output_updated = True
                 else:
                     log.info('Skipping tail of %s as file doesn\'t '
                              'currently exist' %
@@ -281,11 +259,13 @@ def _tail_output(job, master):
             except starcluster.exception.RemoteCommandFailed as ex:
                 _log_exception(ex)
 
+    return output_updated
 
-def _job_state(master, sge_id):
+
+def _job_state(ssh, sge_id):
     state = None
     # TODO Work out how to pass a job id to qstat
-    output = master.ssh.execute('qstat')
+    output = ssh.execute('qstat')
 
     # Extract the state from the output
     for line in output:
@@ -297,30 +277,61 @@ def _job_state(master, sge_id):
     return state
 
 
-@monitor.task(bind=True, max_retries=None)
-@cumulus.starcluster.logging.capture
-def monitor_job(task, cluster, job, log_write_url=None, config_url=None,
-                girder_token=None):
+def _handle_queued_or_running(task, job, state):
+    timings = {}
+    if state in running_state:
+        status = 'running'
+        if 'queuedTime' in job:
+            queued_time = time.time() - job['queuedTime']
+            timings = {'queued': int(round(queued_time * 1000))}
+            del job['queuedTime']
+            job['runningTime'] = time.time()
+    elif state in queued_state:
+        status = 'queued'
+    else:
+        raise Exception('Unrecognized SGE state')
+
+    # Job is still active so schedule self again in about 5 secs
+    # N.B. throw=False to prevent Retry exception being raised
+    task.retry(throw=False, countdown=5)
+
+    return status, timings
+
+
+def _handle_complete(cluster, job, log_write_url, girder_token, status):
     log = starcluster.logger.get_starcluster_logger()
-    config_filepath = None
-    headers = {'Girder-Token':  girder_token}
+    job_name = job['name']
     job_id = job['_id']
     job_dir = job_id
+    timings = {}
+
+    if 'runningTime' in job:
+        running_time = time.time() - job['runningTime']
+        timings = {'running': int(round(running_time * 1000))}
+        del job['runningTime']
+
+    # Fire off task to upload the output
+    log.info('Jobs "%s" complete' % job_name)
+    if 'output' in job and len(job['output']) > 0:
+        status = 'uploading'
+        job['status'] = status
+        upload_job_output.delay(cluster, job, log_write_url=log_write_url,
+                                job_dir=job_dir, girder_token=girder_token)
+    return status, timings
+
+
+@monitor.task(bind=True, max_retries=None)
+@cumulus.starcluster.logging.capture
+def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
+    headers = {'Girder-Token':  girder_token}
+    job_id = job['_id']
     sge_id = job['sgeId']
-    job_name = job['name']
+
     status_update_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
     status_url = '%s/jobs/%s/status' % (cumulus.config.girder.baseUrl, job_id)
-    name = cluster['name']
 
     try:
-        config_filepath = _write_config_file(girder_token, config_url)
-        config = starcluster.config.StarClusterConfig(config_filepath)
-        config.load()
-        cm = config.get_cluster_manager()
-        sc = cm.get_cluster(name)
-        master = sc.master_node
-        master.user = sc.cluster_user
-
+        ssh = get_ssh_connection(girder_token, cluster)
         # First get the current status
         r = requests.get(status_url, headers=headers)
         _check_status(r)
@@ -328,7 +339,7 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None,
         current_status = r.json()['status']
 
         try:
-            state = _job_state(master, sge_id)
+            state = _job_state(ssh, sge_id)
         except starcluster.exception.SSHConnectionError as ex:
             print >> sys.stderr,  ex
             # Try again
@@ -345,48 +356,20 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None,
         timings = {}
 
         if state and current_status != 'terminating':
-            if state in running_state:
-                status = 'running'
-                if 'queuedTime' in job:
-                    queued_time = time.time() - job['queuedTime']
-                    timings = {
-                        'queued': int(round(queued_time * 1000))
-                    }
-                    del job['queuedTime']
-                    job['runningTime'] = time.time()
-            elif state in queued_state:
-                status = 'queued'
-            else:
-                raise Exception('Unrecognized SGE state')
+            status, timings = _handle_queued_or_running(task, job, state)
+        elif status == 'complete':
+            status, timings = _handle_complete(cluster, job, log_write_url,
+                                               girder_token, status)
 
-            # Job is still active so schedule self again in about 5 secs
-            # N.B. throw=False to prevent Retry exception being raised
-            task.retry(throw=False, countdown=5)
-        else:
-            if status == 'complete':
-                if 'runningTime' in job:
-                    running_time = time.time() - job['runningTime']
-                    timings = {
-                        'running': int(round(running_time * 1000))
-                    }
-                    del job['runningTime']
-                # Fire off task to upload the output
-                log.info('Jobs "%s" complete' % job_name)
-                status = 'uploading'
-                job['status'] = status
-                upload_job_output.delay(cluster,
-                                        job, log_write_url=log_write_url,
-                                        config_url=config_url,
-                                        job_dir=job_dir,
-                                        girder_token=girder_token)
-
-        _tail_output(job, master)
+        output_updated = _tail_output(job, ssh)
 
         json = {
             'status': status,
-            'output': job['output'],
             'timings': timings
         }
+
+        if output_updated:
+            json['output'] = job['output']
 
         r = requests.patch(status_update_url, headers=headers, json=json)
         _check_status(r)
@@ -396,41 +379,30 @@ def monitor_job(task, cluster, job, log_write_url=None, config_url=None,
         _check_status(r)
         _log_exception(ex)
     except Exception as ex:
-        print >> sys.stderr,  ex
+        traceback.print_exc()
         r = requests.patch(status_update_url, headers=headers,
                            json={'status': 'error'})
         _check_status(r)
         _log_exception(ex)
         raise
-    finally:
-        if config_filepath and os.path.exists(config_filepath):
-            os.remove(config_filepath)
 
 
 @command.task
 @cumulus.starcluster.logging.capture
-def upload_job_output(cluster, job, log_write_url=None, config_url=None,
-                      job_dir=None, girder_token=None):
+def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
+                      girder_token=None):
     log = starcluster.logger.get_starcluster_logger()
-    config_filepath = None
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
     job_name = job['name']
-    name = cluster['name']
 
     try:
-        config_filepath = _write_config_file(girder_token, config_url)
-        config = starcluster.config.StarClusterConfig(config_filepath)
-        config.load()
-        cm = config.get_cluster_manager()
-        sc = cm.get_cluster(name)
-        master = sc.master_node
-        master.user = sc.cluster_user
+        ssh = get_ssh_connection(girder_token, cluster)
 
         # First put girder client on master
         path = inspect.getsourcefile(cumulus.girderclient)
-        master.ssh.put(path)
+        ssh.put(path)
 
         log.info('Uploading output for "%s"' % job_name)
 
@@ -443,11 +415,11 @@ def upload_job_output(cluster, job, log_write_url=None, config_url=None,
         upload_output = '%s.upload.out' % job_id
         cmds.append('nohup %s  &> ../%s  &\n' % (upload_cmd, upload_output))
 
-        upload_cmd = _put_script(master.ssh, '\n'.join(cmds))
-        output = master.ssh.execute(upload_cmd)
+        upload_cmd = _put_script(ssh, '\n'.join(cmds))
+        output = ssh.execute(upload_cmd)
 
         # Remove upload script
-        master.ssh.unlink(upload_cmd)
+        ssh.unlink(upload_cmd)
 
         if len(output) != 1:
             raise Exception('PID not returned by execute command')
@@ -467,9 +439,9 @@ def upload_job_output(cluster, job, log_write_url=None, config_url=None,
                 args=(cluster,), kwargs={'log_write_url': cluster_log_url,
                                          'girder_token': girder_token})
 
-        monitor_process.delay(name, job, pid, upload_output,
+        monitor_process.delay(cluster, job, pid, upload_output,
                               log_write_url=log_write_url,
-                              config_url=config_url, on_complete=on_complete,
+                              on_complete=on_complete,
                               girder_token=girder_token)
 
     except starcluster.exception.RemoteCommandFailed as ex:
@@ -477,36 +449,26 @@ def upload_job_output(cluster, job, log_write_url=None, config_url=None,
                            json={'status': 'error'})
         _check_status(r)
         _log_exception(ex)
-    finally:
-        if config_filepath and os.path.exists(config_filepath):
-            os.remove(config_filepath)
 
 
 @monitor.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
-def monitor_process(task, name, job, pid, nohup_out, log_write_url=None,
-                    config_url=None, on_complete=None,
+def monitor_process(task, cluster, job, pid, nohup_out,
+                    log_write_url=None, on_complete=None,
                     output_message='Job download/upload error: %s',
                     girder_token=None):
     log = starcluster.logger.get_starcluster_logger()
-    config_filepath = None
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
 
     try:
-        config_filepath = _write_config_file(girder_token, config_url)
-        config = starcluster.config.StarClusterConfig(config_filepath)
-        config.load()
-        cm = config.get_cluster_manager()
-        sc = cm.get_cluster(name)
-        master = sc.master_node
-        master.user = sc.cluster_user
+        ssh = get_ssh_connection(girder_token, cluster)
 
         # See if the process is still running
-        output = master.ssh.execute('ps %s | grep %s' % (pid, pid),
-                                    ignore_exit_status=True,
-                                    source_profile=False)
+        output = ssh.execute('ps %s | grep %s' % (pid, pid),
+                             ignore_exit_status=True,
+                             source_profile=False)
 
         if len(output) > 0:
             # Process is still running so schedule self again in about 5 secs
@@ -514,7 +476,7 @@ def monitor_process(task, name, job, pid, nohup_out, log_write_url=None,
             task.retry(throw=False, countdown=5)
         else:
             try:
-                master.ssh.get(nohup_out)
+                ssh.get(nohup_out)
                 # Log the output
                 with open(nohup_out, 'r') as fp:
                     output = fp.read()
@@ -552,40 +514,26 @@ def monitor_process(task, name, job, pid, nohup_out, log_write_url=None,
         _check_status(r)
         _log_exception(ex)
         raise
-    finally:
-        if config_filepath and os.path.exists(config_filepath):
-            os.remove(config_filepath)
 
 
 @command.task
 @cumulus.starcluster.logging.capture
-def terminate_job(cluster, job, log_write_url=None, config_url=None,
-                  girder_token=None):
-    config_filepath = None
+def terminate_job(cluster, job, log_write_url=None, girder_token=None):
     script_filepath = None
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
-    name = cluster['name']
-
-    print >> sys.stderr, name
 
     try:
-        config_filepath = _write_config_file(girder_token, config_url)
-        config = starcluster.config.StarClusterConfig(config_filepath)
 
         with logstdout():
-            config.load()
-            cm = config.get_cluster_manager()
-            sc = cm.get_cluster(name)
-            master = sc.master_node
-            master.user = sc.cluster_user
+            ssh = get_ssh_connection(girder_token, cluster)
 
             if 'sgeId' not in job:
                 raise Exception('Job doesn\'t have a sge id')
 
             # First get number of slots available
-            output = master.ssh.execute('qdel %s' % job['sgeId'])
+            output = ssh.execute('qdel %s' % job['sgeId'])
 
             if 'onTerminate' in job:
                 commands = '\n'.join(job['onTerminate']['commands']) + '\n'
@@ -594,16 +542,16 @@ def terminate_job(cluster, job, log_write_url=None, config_url=None,
                             job=job,
                             base_url=cumulus.config.girder.baseUrl)
 
-                on_terminate = _put_script(master.ssh, commands + '\n')
+                on_terminate = _put_script(ssh, commands + '\n')
 
                 terminate_output = '%s.terminate.out' % job_id
                 terminate_cmd = 'nohup %s  &> %s  &\n' % (on_terminate,
                                                           terminate_output)
-                terminate_cmd = _put_script(master.ssh, terminate_cmd)
-                output = master.ssh.execute(terminate_cmd)
+                terminate_cmd = _put_script(ssh, terminate_cmd)
+                output = ssh.execute(terminate_cmd)
 
-                master.ssh.unlink(on_terminate)
-                master.ssh.unlink(terminate_cmd)
+                ssh.unlink(on_terminate)
+                ssh.unlink(terminate_cmd)
 
                 if len(output) != 1:
                     raise Exception('PID not returned by execute command')
@@ -613,9 +561,8 @@ def terminate_job(cluster, job, log_write_url=None, config_url=None,
                 except ValueError:
                     raise Exception('Unable to extract PID from: %s' % output)
 
-                monitor_process.delay(name, job, pid, terminate_output,
+                monitor_process.delay(cluster, job, pid, terminate_output,
                                       log_write_url=log_write_url,
-                                      config_url=config_url,
                                       output_message='onTerminate error: %s',
                                       girder_token=girder_token)
 
@@ -636,7 +583,5 @@ def terminate_job(cluster, job, log_write_url=None, config_url=None,
         _log_exception(ex)
         raise
     finally:
-        if config_filepath and os.path.exists(config_filepath):
-            os.remove(config_filepath)
         if script_filepath and os.path.exists(script_filepath):
             os.remove(script_filepath)

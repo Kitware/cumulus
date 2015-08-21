@@ -185,11 +185,11 @@ class Job(BaseResource):
         del cluster['access']
         del cluster['log']
         cluster['_id'] = str(cluster['_id'])
-        cluster['configId'] = str(cluster['configId'])
+        cluster['config']['_id'] = str(cluster['config']['_id'])
 
         base_url = re.match('(.*)/jobs.*', cherrypy.url()).group(1)
         config_url = '%s/starcluster-configs/%s?format=ini' % (
-            base_url, cluster['configId'])
+            base_url, cluster['config']['_id'])
 
         job = self._model.load(id, user=user, level=AccessType.ADMIN)
         job['status'] = 'terminating'

@@ -59,7 +59,9 @@ class ClusterTestCase(unittest.TestCase):
         cluster_id = 'dummy_id'
         cluster_model = {
             '_id': cluster_id,
-            'configId': 'dummy_config_id',
+            'config': {
+                '_id': 'dummy_config_id'
+            },
             'name': 'dummy_cluster_name',
             'template': 'dummy_template'
         }

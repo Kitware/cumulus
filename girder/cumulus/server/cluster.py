@@ -1,6 +1,7 @@
 import cherrypy
 import json
 import re
+from jsonpath_rw import parse
 
 from girder.api import access
 from girder.api.describe import Description
@@ -8,8 +9,11 @@ from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException
 from .base import BaseResource
-
-import cumulus.starcluster.tasks as tasks
+from cumulus.constants import ClusterType
+from .utility.cluster_adapters import get_cluster_adapter
+import cumulus.starcluster.tasks.job
+from cumulus.ssh.tasks.key import generate_key_pair
+import cumulus
 
 
 class Cluster(BaseResource):
@@ -33,11 +37,17 @@ class Cluster(BaseResource):
     def _clean(self, cluster):
         del cluster['access']
         del cluster['log']
-        if 'ssh' in cluster:
-            del cluster['ssh']
+
+        user = self.getCurrentUser()
+        if parse('config.ssh.passphrase').find(cluster):
+            try:
+                self.check_group_membership(user, cumulus.config.girder.group)
+            except RestException:
+                del cluster['config']['ssh']['passphrase']
 
         cluster['_id'] = str(cluster['_id'])
-        cluster['configId'] = str(cluster['configId'])
+        if 'config' in cluster and '_id' in cluster['config']:
+            cluster['config']['_id'] = str(cluster['config']['_id'])
 
         return cluster
 
@@ -89,6 +99,9 @@ class Cluster(BaseResource):
 
         loaded_config = []
 
+        if not isinstance(config, list):
+            config = [config]
+
         for c in config:
             if '_id' in c:
 
@@ -106,9 +119,10 @@ class Cluster(BaseResource):
 
         return config['_id']
 
-    @access.user
-    def create(self, params):
-        body = json.loads(cherrypy.request.body.read())
+    def _create_ec2(self, params, body):
+
+        self.requireParams(['name', 'template', 'config'], body)
+
         name = body['name']
         template = body['template']
         config = body['config']
@@ -117,8 +131,50 @@ class Cluster(BaseResource):
 
         user = self.getCurrentUser()
 
-        cluster = self._model.create(user, config_id, name, template)
+        cluster = self._model.create_ec2(user, config_id, name, template)
         cluster = self._clean(cluster)
+
+        return cluster
+
+    def _create_traditional(self, params, body):
+
+        self.requireParams(['name', 'config'], body)
+        self.requireParams(['ssh', 'hostName'], body['config'])
+        self.requireParams(['userName'], body['config']['ssh'])
+
+        name = body['name']
+        config = body['config']
+        user = self.getCurrentUser()
+        hostname = config['hostName']
+        username = config['ssh']['userName']
+
+        cluster = self._model.create_traditional(user, name, hostname, username)
+        cluster = self._clean(cluster)
+
+        # Fire off job to create key pair for cluster
+        girder_token = self.get_task_token()['_id']
+        generate_key_pair.delay(cluster, girder_token)
+
+        return cluster
+
+    @access.user
+    def create(self, params):
+        body = json.loads(cherrypy.request.body.read())
+
+        # Default ec2 cluster
+        cluster_type = 'ec2'
+
+        if 'type' in body:
+            if not ClusterType.is_valid_type(body['type']):
+                raise RestException('Invalid cluster type.', code=400)
+            cluster_type = body['type']
+
+        if cluster_type == ClusterType.EC2:
+            cluster = self._create_ec2(params, body)
+        elif cluster_type == ClusterType.TRADITIONAL:
+            cluster = self._create_traditional(params, body)
+        else:
+            raise RestException('Invalid cluster type.', code=400)
 
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/cluster/%s' % cluster['_id']
@@ -132,18 +188,44 @@ class Cluster(BaseResource):
         }
     })
 
+    addModel('UserNameParameter', {
+        "id": "UserNameParameter",
+        "properties": {
+            "userName": {"type": "string", "description": "The ssh user id"}
+        }
+    })
+
+    addModel("SshParameters", {
+        "id": "SshParameters",
+        "properties": {
+            "ssh": {
+                "$ref": "UserNameParameter"
+            }
+        }
+    })
+
     addModel('ClusterParameters', {
         "id": "ClusterParameters",
-        "required": ["name", "template", "config"],
+        "required": ["name", "config", "type"],
         "properties": {
             "name": {"type": "string",
                      "description": "The name to give the cluster."},
             "template":  {"type": "string",
-                          "description": "The cluster template to use."},
+                          "description": "The cluster template to use. "
+                          "(ec2 only)"},
             "config": {"type": "array",
                        "description": "List of configuration to use, "
-                       "either ids or inline config.",
-                       "items": {"$ref": "Id"}}
+                                      "either ids or inline config.",
+                       "items": {"$ref": "Id"}},
+            "config": {
+                "$ref": "SshParameters",
+                "hostName": {"type": "string",
+                             "description": "The hostname of the head node "
+                                            "(trad only)"}
+            },
+            "type": {"type": "string",
+                     "description": "The cluster type, either 'ec2' or 'trad'"}
+
         }})
 
     create.description = (Description(
@@ -160,33 +242,19 @@ class Cluster(BaseResource):
         json_body = None
 
         if cherrypy.request.body:
-            body = cherrypy.request.body.read()
-            if body:
-                json_body = json.loads(body)
+            request_body = cherrypy.request.body.read()
+            if request_body:
+                json_body = json.loads(request_body)
 
-        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
-        log_write_url = '%s/clusters/%s/log' % (base_url, id)
-        (user, token) = self.getCurrentUser(returnToken=True)
+        (user, _) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
 
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        if cluster['status'] == 'running':
-            raise RestException('Cluster already running.', code=400)
-
         cluster = self._clean(cluster)
-
-        on_start_submit = None
-        if json_body and 'onStart' in json_body and \
-           'submitJob' in json_body['onStart']:
-            on_start_submit = json_body['onStart']['submitJob']
-
-        girder_token = self.get_task_token()['_id']
-        tasks.cluster.start_cluster.delay(cluster,
-                                          log_write_url=log_write_url,
-                                          on_start_submit=on_start_submit,
-                                          girder_token=girder_token)
+        adapter = get_cluster_adapter(cluster)
+        adapter.start(json_body)
 
     addModel('ClusterOnStartParms', {
         'id': 'ClusterOnStartParms',
@@ -210,7 +278,7 @@ class Cluster(BaseResource):
     })
 
     start.description = (Description(
-        'Start a cluster'
+        'Start a cluster (ec2 only)'
     )
         .param(
             'id',
@@ -241,10 +309,9 @@ class Cluster(BaseResource):
 
         cluster = self._model.save(cluster)
 
-        # Don't return the access object
-        del cluster['access']
-        # Don't return the log
-        del cluster['log']
+        # Now do any updates the adapter provides
+        adapter = get_cluster_adapter(cluster)
+        adapter.update(body)
 
         return cluster
 
@@ -287,24 +354,15 @@ class Cluster(BaseResource):
 
     @access.user
     def terminate(self, id, params):
-        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
-        log_write_url = '%s/clusters/%s/log' % (base_url, id)
-
-        (user, token) = self.getCurrentUser(returnToken=True)
+        (user, _) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
 
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        if cluster['status'] == 'terminated' or \
-           cluster['status'] == 'terminating':
-            return
-
         cluster = self._clean(cluster)
-        girder_token = self.get_task_token()['_id']
-        tasks.cluster.terminate_cluster.delay(cluster,
-                                              log_write_url=log_write_url,
-                                              girder_token=girder_token)
+        adapter = get_cluster_adapter(cluster)
+        adapter.terminate()
 
     terminate.description = (Description(
         'Terminate a cluster'
@@ -353,8 +411,6 @@ class Cluster(BaseResource):
         cluster = self._clean(cluster)
 
         base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
-        config_url = '%s/starcluster-configs/%s?format=ini' % (
-            base_url, cluster['configId'])
 
         job_model = self.model('job', 'cumulus')
         job = job_model.load(
@@ -375,7 +431,10 @@ class Cluster(BaseResource):
         del job['access']
 
         girder_token = self.get_task_token()['_id']
-        tasks.job.submit(girder_token, cluster, job, log_url, config_url)
+        print "before"
+        cumulus.starcluster.tasks.job.submit(girder_token, cluster, job,
+                                             log_url)
+        print "after"
 
     submit_job.description = (
         Description('Submit a job to the cluster')

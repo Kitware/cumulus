@@ -2,6 +2,8 @@ from girder.models.model_base import ValidationException
 from bson.objectid import ObjectId
 from girder.constants import AccessType
 from .base import BaseModel
+from cumulus.constants import ClusterType
+from ..utility.cluster_adapters import get_cluster_adapter
 
 
 class Cluster(BaseModel):
@@ -12,49 +14,18 @@ class Cluster(BaseModel):
     def initialize(self):
         self.name = 'clusters'
 
-    def validate(self, doc):
-
-        if not doc['name']:
+    def validate(self, cluster):
+        if not cluster['name']:
             raise ValidationException('Name must not be empty.', 'name')
 
-        query = {
-            'name': doc['name']
-        }
+        if not cluster['type']:
+            raise ValidationException('Type must not be empty.', 'type')
 
-        if '_id' in doc:
-            query['_id'] = {'$ne': doc['_id']}
+        adapter = get_cluster_adapter(cluster)
 
-        duplicate = self.findOne(query, fields=['_id'])
-        if duplicate:
-            raise ValidationException(
-                'A cluster with that name already exists.', 'name')
+        return adapter.validate()
 
-        # Check the template exists
-        config = self.model('starclusterconfig', 'cumulus').load(
-            doc['configId'], force=True)
-        config = config['config']
-
-        found = False
-
-        if 'cluster' in config:
-            for template in config['cluster']:
-                name, _ = template.iteritems().next()
-
-                if doc['template'] == name:
-                    found = True
-                    break
-
-        if not found:
-            raise ValidationException(
-                'A cluster template \'%s\' not found in configuration.'
-                % doc['template'], 'template')
-
-        return doc
-
-    def create(self, user, config_id, name, template):
-        cluster = {'name': name, 'template': template,
-                   'log': [], 'status': 'created', 'configId': config_id}
-
+    def _create(self, user, cluster):
         self.setUserAccess(cluster, user=user, level=AccessType.ADMIN)
         group = {
             '_id': ObjectId(self.get_group_id())
@@ -64,6 +35,36 @@ class Cluster(BaseModel):
         self.save(doc)
 
         return doc
+
+    def create_ec2(self, user, config_id, name, template):
+        cluster = {
+            'name': name,
+            'template': template,
+            'log': [],
+            'status': 'created',
+            'config': {
+                '_id': config_id
+            },
+            'type': ClusterType.EC2
+        }
+
+        return self._create(user, cluster)
+
+    def create_traditional(self, user, name, hostname, username):
+        cluster = {
+            'name': name,
+            'log': [],
+            'status': 'running',
+            'config': {
+                'hostname': hostname,
+                'ssh': {
+                    'username': username
+                }
+            },
+            'type': ClusterType.TRADITIONAL
+        }
+
+        return self._create(user, cluster)
 
     def add_log_record(self, user, id, record):
         # Load first to force access check
@@ -88,8 +89,7 @@ class Cluster(BaseModel):
     def delete(self, user, id):
         cluster = self.load(id, user=user, level=AccessType.ADMIN)
 
-        # Remove the config associated with the cluster first
-        self.model('starclusterconfig', 'cumulus').remove(
-            {'_id': cluster['configId']})
+        adapter = get_cluster_adapter(cluster)
+        adapter.delete()
 
-        return self.remove(cluster)
+        self.remove(cluster)

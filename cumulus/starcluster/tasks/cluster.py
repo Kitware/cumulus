@@ -19,7 +19,7 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None,
     name = cluster['name']
     template = cluster['template']
     cluster_id = cluster['_id']
-    config_id = cluster['configId']
+    config_id = cluster['config']['_id']
     config_url = '%s/starcluster-configs/%s' % (
         cumulus.config.girder.baseUrl, config_id)
     status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl, cluster_id)
@@ -86,7 +86,7 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None,
 def terminate_cluster(cluster, log_write_url=None, girder_token=None):
     name = cluster['name']
     cluster_id = cluster['_id']
-    config_id = cluster['configId']
+    config_id = cluster['config']['_id']
     config_url = '%s/starcluster-configs/%s' \
         % (cumulus.config.girder.baseUrl, config_id)
     status_url = '%s/clusters/%s' \
