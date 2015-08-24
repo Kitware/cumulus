@@ -30,6 +30,7 @@ class Cluster(BaseResource):
         self.route('PUT', (':id', 'job', ':jobId', 'submit'), self.submit_job)
         self.route('GET', (':id', ), self.get)
         self.route('DELETE', (':id', ), self.delete)
+        self.route('GET', (), self.find)
 
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('cluster', 'cumulus')
@@ -479,3 +480,28 @@ class Cluster(BaseResource):
     delete.description = (
         Description('Delete a cluster and its configuration')
         .param('id', 'The cluster id.', paramType='path', required=True))
+
+    @access.user
+    def find(self, params):
+        user = self.getCurrentUser()
+        query = {}
+
+        if 'type' in params:
+            query['type'] = params['type']
+
+        limit = params.get('limit', 50)
+
+        clusters = self._model.find(query=query)
+
+        clusters = self._model.filterResultsByPermission(clusters, user,
+                                                         AccessType.ADMIN,
+                                                         limit=int(limit))
+
+        return [self._clean(cluster) for cluster in clusters]
+
+    find.description = (
+        Description('Search for clusters with certain properties')
+        .param('type', 'The cluster type to search for', paramType='query',
+               required=False)
+        .param('limit', 'The max number of clusters to return',
+               paramType='query', required=False, default=50))

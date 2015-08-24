@@ -240,21 +240,27 @@ class ClusterTestCase(base.TestCase):
             user=self._cumulus)
 
         self.assertStatusOk(r)
-        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'host': u'myhost', u'ssh': {u'user': u'myuser', u'publicKey': self._valid_key}}, u'name': u'test'}
-        self.assertEqual(self.normalize(expected), self.normalize(r.json), 'Unexpected response')
+        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {
+            u'host': u'myhost', u'ssh': {u'user': u'myuser', u'publicKey': self._valid_key}}, u'name': u'test'}
+        self.assertEqual(
+            self.normalize(expected), self.normalize(r.json), 'Unexpected response')
 
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._user)
         self.assertStatusOk(r)
-        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'host': u'myhost', u'ssh': {u'user': u'myuser', u'publicKey': self._valid_key}}, u'name': u'test'}
-        self.assertEqual(self.normalize(expected), self.normalize(r.json), 'Unexpected response')
+        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {
+            u'host': u'myhost', u'ssh': {u'user': u'myuser', u'publicKey': self._valid_key}}, u'name': u'test'}
+        self.assertEqual(
+            self.normalize(expected), self.normalize(r.json), 'Unexpected response')
 
         # Check that if we are in the right group we will get the passphrase
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._cumulus)
         self.assertStatusOk(r)
-        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'host': u'myhost', u'ssh': {u'user': u'myuser', u'publicKey': self._valid_key, u'passphrase': u'supersecret'}}, u'name': u'test'}
-        self.assertEqual(self.normalize(expected), self.normalize(r.json), 'Unexpected response')
+        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'host': u'myhost', u'ssh': {
+            u'user': u'myuser', u'publicKey': self._valid_key, u'passphrase': u'supersecret'}}, u'name': u'test'}
+        self.assertEqual(
+            self.normalize(expected), self.normalize(r.json), 'Unexpected response')
 
         # Check we get an error if we try and update in invalid key
         update_body = {
@@ -345,7 +351,7 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatusOk(r)
 
-        expected_start_call = [[[{u'status': u'created', u'config': { u'_id': config_id }, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}], {
+        expected_start_call = [[[{u'status': u'created', u'config': {u'_id': config_id}, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}], {
             u'on_start_submit': None, u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % str(cluster_id)}]]
         self.assertCalls(start_cluster.call_args_list, expected_start_call)
 
@@ -498,7 +504,8 @@ class ClusterTestCase(base.TestCase):
         r = self.request('/clusters', method='POST',
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 400)
-        self.assertEqual(r.json, {u'message': u'Invalid cluster type.', u'type': u'rest'}, 'Unexpected error message')
+        self.assertEqual(r.json, {
+                         u'message': u'Invalid cluster type.', u'type': u'rest'}, 'Unexpected error message')
 
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
     def test_create_trad_type(self, generate_key):
@@ -507,7 +514,7 @@ class ClusterTestCase(base.TestCase):
             'name': 'my trad cluster',
             'config': {
                 'ssh': {
-                        'user': 'bob'
+                    'user': 'bob'
                 },
                 'host': 'myhost'
             }
@@ -520,7 +527,8 @@ class ClusterTestCase(base.TestCase):
 
         self.assertStatus(r, 201)
         cluster_id = r.json['_id']
-        expected = [[[{u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'host': u'myhost', u'ssh': {u'user': u'bob'}}, u'name': u'my trad cluster'}, u'token'], {}]]
+        expected = [[[{u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {
+            u'host': u'myhost', u'ssh': {u'user': u'bob'}}, u'name': u'my trad cluster'}, u'token'], {}]]
         self.assertCalls(
             generate_key.call_args_list, expected)
 
@@ -573,4 +581,106 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body={}, user=self._user)
 
         self.assertStatus(r, 400)
+
+    @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
+    def test_find(self, generate_key):
+        # Create a EC2 cluster
+        body = {
+            'config': [
+                {
+                    '_id': self._config_id
+                }
+            ],
+            'name': 'test',
+            'template': 'default_cluster'
+        }
+
+        json_body = json.dumps(body)
+
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 201)
+        ec2_cluster_id = r.json['_id']
+        ec2_cluster_config_id = r.json['config']['_id']
+
+        # Create a traditional cluster
+        body = {
+            'config': {
+                'ssh': {
+                    'user': 'billy'
+                },
+                'host': 'home'
+            },
+            'name': 'trad_test',
+            'type': 'trad'
+        }
+
+        json_body = json.dumps(body)
+
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 201)
+        trad_cluster_id = r.json['_id']
+
+        # Search for the EC2 cluster
+        params = {
+            'type': 'ec2'
+        }
+        r = self.request(
+            '/clusters', method='GET', params=params, user=self._user)
+        self.assertStatusOk(r)
+        self.assertEqual(len(r.json), 1, 'Only expecting a single cluster')
+        expected_cluster = {
+            u'status': u'created',
+            u'type': u'ec2',
+            u'template': u'default_cluster',
+            u'_id': ec2_cluster_id,
+            u'config': {
+                u'_id': ec2_cluster_config_id
+            },
+            u'name': u'test'
+        }
+        self.assertEqual(r.json[0], expected_cluster, 'Return cluster doesn\'t match')
+
+        # Search for the trad cluster
+        params = {
+            'type': 'trad'
+        }
+        r = self.request(
+            '/clusters', method='GET', params=params, user=self._user)
+        self.assertStatusOk(r)
+        self.assertEqual(len(r.json), 1, 'Only expecting a single cluster')
+        expected_cluster = {
+            u'status': u'running',
+            u'type': u'trad',
+            u'_id': trad_cluster_id,
+            u'config': {
+                u'host': u'home',
+                u'ssh': {
+                    u'user': u'billy'
+                }
+            },
+            u'name': u'trad_test'
+        }
+        self.assertEqual(r.json[0], expected_cluster, 'Return cluster doesn\'t match')
+
+        # Check limit works
+        r = self.request(
+            '/clusters', method='GET', params={}, user=self._user)
+        self.assertStatusOk(r)
+        self.assertEqual(len(r.json), 2, 'Two clusters expected')
+
+        params = {
+            'limit': 1
+        }
+        r = self.request(
+            '/clusters', method='GET', params=params, user=self._user)
+        self.assertStatusOk(r)
+        self.assertEqual(len(r.json), 1, 'One cluster expected')
+
+        # Checkout that only owner can see clusters
+        r = self.request(
+            '/clusters', method='GET', params={}, user=self._another_user)
+        self.assertStatusOk(r)
+        self.assertEqual(len(r.json), 0, 'Don\'t expect any clusters')
 
