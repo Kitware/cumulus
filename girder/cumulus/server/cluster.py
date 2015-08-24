@@ -30,6 +30,7 @@ class Cluster(BaseResource):
         self.route('PUT', (':id', 'job', ':jobId', 'submit'), self.submit_job)
         self.route('GET', (':id', ), self.get)
         self.route('DELETE', (':id', ), self.delete)
+        self.route('GET', (), self.find)
 
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('cluster', 'cumulus')
@@ -139,14 +140,14 @@ class Cluster(BaseResource):
     def _create_traditional(self, params, body):
 
         self.requireParams(['name', 'config'], body)
-        self.requireParams(['ssh', 'hostName'], body['config'])
-        self.requireParams(['userName'], body['config']['ssh'])
+        self.requireParams(['ssh', 'host'], body['config'])
+        self.requireParams(['user'], body['config']['ssh'])
 
         name = body['name']
         config = body['config']
         user = self.getCurrentUser()
-        hostname = config['hostName']
-        username = config['ssh']['userName']
+        hostname = config['host']
+        username = config['ssh']['user']
 
         cluster = self._model.create_traditional(user, name, hostname, username)
         cluster = self._clean(cluster)
@@ -219,9 +220,9 @@ class Cluster(BaseResource):
                        "items": {"$ref": "Id"}},
             "config": {
                 "$ref": "SshParameters",
-                "hostName": {"type": "string",
-                             "description": "The hostname of the head node "
-                                            "(trad only)"}
+                "host": {"type": "string",
+                         "description": "The hostname of the head node "
+                                        "(trad only)"}
             },
             "type": {"type": "string",
                      "description": "The cluster type, either 'ec2' or 'trad'"}
@@ -431,10 +432,8 @@ class Cluster(BaseResource):
         del job['access']
 
         girder_token = self.get_task_token()['_id']
-        print "before"
         cumulus.starcluster.tasks.job.submit(girder_token, cluster, job,
                                              log_url)
-        print "after"
 
     submit_job.description = (
         Description('Submit a job to the cluster')
@@ -481,3 +480,28 @@ class Cluster(BaseResource):
     delete.description = (
         Description('Delete a cluster and its configuration')
         .param('id', 'The cluster id.', paramType='path', required=True))
+
+    @access.user
+    def find(self, params):
+        user = self.getCurrentUser()
+        query = {}
+
+        if 'type' in params:
+            query['type'] = params['type']
+
+        limit = params.get('limit', 50)
+
+        clusters = self._model.find(query=query)
+
+        clusters = self._model.filterResultsByPermission(clusters, user,
+                                                         AccessType.ADMIN,
+                                                         limit=int(limit))
+
+        return [self._clean(cluster) for cluster in clusters]
+
+    find.description = (
+        Description('Search for clusters with certain properties')
+        .param('type', 'The cluster type to search for', paramType='query',
+               required=False)
+        .param('limit', 'The max number of clusters to return',
+               paramType='query', required=False, default=50))

@@ -45,8 +45,8 @@ def _log_exception(ex):
 def get_ssh_connection(girder_token, cluster):
     conn = None
     if cluster['type'] == ClusterType.TRADITIONAL:
-        username = parse('config.ssh.username').find(cluster)[0].value
-        hostname = parse('config.hostname').find(cluster)[0].value
+        username = parse('config.ssh.user').find(cluster)[0].value
+        hostname = parse('config.host').find(cluster)[0].value
         passphrase = parse('config.ssh.passphrase').find(cluster)[0].value
 
         key_path = os.path.join(cumulus.config.ssh.keyStore, cluster['_id'])

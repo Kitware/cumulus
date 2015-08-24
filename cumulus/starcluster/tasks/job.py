@@ -7,13 +7,13 @@ from cumulus.starcluster.tasks.common import _check_status, _log_exception, \
 from cumulus.starcluster.tasks.celery import command, monitor
 import cumulus
 import cumulus.girderclient
+from cumulus.constants import ClusterType
 import starcluster.config
 import starcluster.logger
 import starcluster.exception
 import requests
 import tempfile
 import os
-import sys
 import re
 import inspect
 import time
@@ -99,11 +99,38 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
         _log_exception(ex)
 
 
+def _get_parallel_env(cluster, job_params):
+    parallel_env = None
+    if 'parallel_environment' in job_params:
+        parallel_env = job_params['parallel_environment']
+
+    # if this is a ec2 cluster then we can default to orte
+    if not parallel_env and cluster['type'] == ClusterType.EC2:
+        parallel_env = 'orte'
+
+    return parallel_env
+
+
+def _get_number_of_slots(ssh, parallel_env):
+    slots = -1
+    # First get number of slots available
+    output = ssh.execute('qconf -sp %s' % parallel_env)
+
+    for line in output:
+        m = re.match('slots[\s]+(\d+)', line)
+        if m:
+            slots = m.group(1)
+            break
+
+    if slots < 1:
+        raise Exception('Unable to retrieve number of slots')
+
+    return slots
+
+
 @command.task
 @cumulus.starcluster.logging.capture
 def submit_job(cluster, job, log_write_url=None, girder_token=None):
-
-    print >> sys.stderr, 'submit_job'
 
     log = starcluster.logger.get_starcluster_logger()
     script_filepath = None
@@ -126,27 +153,27 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
         with logstdout():
             ssh = get_ssh_connection(girder_token, cluster)
 
-            # First get number of slots available
-            output = ssh.execute('qconf -sp orte')
-            slots = -1
-            for line in output:
-                m = re.match('slots[\s]+(\d+)', line)
-                if m:
-                    slots = m.group(1)
-                    break
-
-            if slots < 1:
-                raise Exception('Unable to retrieve number of slots')
-
             job_params = {}
             if 'params' in job:
                 job_params = job['params']
+
+            parallel_env = _get_parallel_env(cluster, job_params)
+            if parallel_env:
+                job_params['parallel_environment'] = parallel_env
+
+            slots = -1
+            # If the number of slots has not been provided we will get the
+            # number of slots from the parallel environment
+            if ('number_of_slots' not in job_params) and parallel_env:
+                slots = _get_number_of_slots(ssh, parallel_env)
+                if slots > 0:
+                    job_params['number_of_slots'] = int(slots)
 
             # Now we can template submission script
             script = Template(script_template.getvalue()) \
                 .render(cluster=cluster,
                         job=job, base_url=cumulus.config.girder.baseUrl,
-                        number_of_slots=int(slots), **job_params)
+                        **job_params)
 
             with open(script_filepath, 'w') as fp:
                 fp.write('%s\n' % script)
@@ -156,7 +183,8 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
             ssh.put(script_filepath, job_id)
             # Now submit the job
 
-            log.info('We have %s slots available' % slots)
+            if slots > -1:
+                log.info('We have %s slots available' % slots)
 
             cmd = 'cd %s && qsub -cwd ./%s' \
                 % (job_dir, script_name)
@@ -202,6 +230,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
         _check_status(r)
         _log_exception(ex)
     except Exception as ex:
+        traceback.print_exc()
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
         _check_status(r)
@@ -341,7 +370,6 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
         try:
             state = _job_state(ssh, sge_id)
         except starcluster.exception.SSHConnectionError as ex:
-            print >> sys.stderr,  ex
             # Try again
             task.retry(throw=False, countdown=5)
             return
@@ -508,7 +536,6 @@ def monitor_process(task, cluster, job, pid, nohup_out,
         _check_status(r)
         _log_exception(ex)
     except Exception as ex:
-        print >> sys.stderr,  ex
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
         _check_status(r)

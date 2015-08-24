@@ -13,6 +13,7 @@ class MockMaster:
         self.ssh = mock.MagicMock()
 
         self.ssh.execute.side_effect = MockMaster.execute_stack
+        MockMaster.instance = self
 
 class MockCluster:
     def __init__(self):
@@ -375,3 +376,171 @@ class JobTestCase(unittest.TestCase):
         self.assertTrue(self._get_status_called, 'Expect get status endpoint to be hit')
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
 
+    @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
+    @mock.patch('starcluster.logger')
+    @mock.patch('cumulus.starcluster.logging')
+    @mock.patch('cumulus.starcluster.tasks.celery.monitor.Task.retry')
+    @mock.patch('cumulus.starcluster.tasks.job.monitor_job')
+    @mock.patch('cumulus.starcluster.tasks.common.SSHClient', autospec=True)
+    @mock.patch('cumulus.starcluster.tasks.common._write_config_file')
+    def test_submit_job(self,  _write_config_file, ssh_client, *args):
+
+        _write_config_file.return_value = 'dummy file path'
+        cluster = {
+            'type': 'ec2',
+            'name': 'dummy',
+            'config': {
+                '_id': 'dummy'
+            }
+        }
+        job_id = 'dummy'
+        job_model = {
+            '_id': job_id,
+            'sgeId': '1',
+            'name': 'dummy',
+            'commands': ['ls'],
+            'output': [{'tail': True,  'path': 'dummy/file/path'}]
+        }
+
+        qconf_output = ['pe_name            orte',
+                        'slots              10\n',
+                        'user_lists         NONE',
+                        'xuser_lists        NONE',
+                        'start_proc_args    /bin/true',
+                        'stop_proc_args     /bin/true',
+                        'allocation_rule    $pe_slots',
+                        'control_slaves     FALSE',
+                        'job_is_first_task  TRUE',
+                        'urgency_slots      min',
+                        'accounting_summary FALSE']
+
+        qsub_output = ['Your job 74 ("test.sh") has been submitted']
+
+        MockMaster.execute_stack = [qconf_output, qsub_output]
+
+        def _get_status(url, request):
+            content = {
+                'status': 'queued'
+            }
+            content = json.dumps(content)
+            headers = {
+                'content-length': len(content),
+                'content-type': 'application/json'
+            }
+
+            return httmock.response(200, content, headers, request=request)
+
+        def _set_status(url, request):
+            content = {
+                'status': 'queued'
+            }
+            content = json.dumps(content)
+            headers = {
+                'content-length': len(content),
+                'content-type': 'application/json'
+            }
+            return httmock.response(200, content, headers, request=request)
+
+        status_url = '/api/v1/jobs/%s/status' % job_id
+        get_status = httmock.urlmatch(
+            path=r'^%s$' % status_url, method='GET')(_get_status)
+
+        status_update_url = '/api/v1/jobs/%s' % job_id
+        set_status = httmock.urlmatch(
+            path=r'^%s$' % status_update_url, method='PATCH')(_set_status)
+
+        with httmock.HTTMock(get_status, set_status):
+            job.submit_job(cluster, job_model, log_write_url='log_write_url',
+                           girder_token='girder_token')
+
+        self.assertEqual(MockMaster.instance.ssh.execute.call_args_list[0],
+                         mock.call('qconf -sp orte'), 'Unexpected qconf command: %s' %
+                         str(MockMaster.instance.ssh.execute.call_args_list[0]))
+
+        # Specifying and parallel environment
+        job_model = {
+            '_id': job_id,
+            'sgeId': '1',
+            'name': 'dummy',
+            'commands': ['ls'],
+            'output': [{'tail': True,  'path': 'dummy/file/path'}],
+            'params': {
+                'parallel_environment': 'mype'
+            }
+        }
+
+        with httmock.HTTMock(get_status, set_status):
+            job.submit_job(cluster, job_model, log_write_url='log_write_url',
+                           girder_token='girder_token')
+
+        self.assertEqual(MockMaster.instance.ssh.execute.call_args_list[0],
+                         mock.call('qconf -sp mype'), 'Unexpected qconf command: %s' %
+                         str(MockMaster.instance.ssh.execute.call_args_list[0]))
+
+        # For traditional clusters we shouldn't try to extract slot from orte
+        cluster = {
+            '_id': 'dummy',
+            'type': 'trad',
+            'name': 'dummy',
+            'config': {
+                'host': 'dummy',
+                'ssh': {
+                    'user': 'dummy',
+                    'passphrase': 'its a secret'
+                }
+            }
+        }
+        job_id = 'dummy'
+        job_model = {
+            '_id': job_id,
+            'sgeId': '1',
+            'name': 'dummy',
+            'commands': ['ls'],
+            'output': [{'tail': True,  'path': 'dummy/file/path'}]
+        }
+
+        instance = ssh_client.return_value
+        instance.execute.return_value = ['Your job 74 ("test.sh") has been submitted']
+
+        with httmock.HTTMock(get_status, set_status):
+            job.submit_job(cluster, job_model, log_write_url='log_write_url',
+                           girder_token='girder_token')
+
+        # Assert that we don't try and get the number of slots
+        self.assertFalse('qconf' in str(instance.execute.call_args_list), 'qconf should not be called')
+
+        # For traditional clusters define a parallel env
+        cluster = {
+            '_id': 'dummy',
+            'type': 'trad',
+            'name': 'dummy',
+            'config': {
+                'host': 'dummy',
+                'ssh': {
+                    'user': 'dummy',
+                    'passphrase': 'its a secret'
+                }
+            }
+        }
+        job_id = 'dummy'
+        job_model = {
+            '_id': job_id,
+            'sgeId': '1',
+            'name': 'dummy',
+            'commands': ['ls'],
+            'output': [{'tail': True,  'path': 'dummy/file/path'}],
+            'params': {
+                'parallel_environment': 'mype'
+            }
+        }
+
+        ssh_client.reset_mock()
+        instance = ssh_client.return_value
+        instance.execute.side_effect = [qconf_output, ['Your job 74 ("test.sh") has been submitted']]
+
+        with httmock.HTTMock(get_status, set_status):
+            job.submit_job(cluster, job_model, log_write_url='log_write_url',
+                           girder_token='girder_token')
+
+        self.assertEqual(instance.execute.call_args_list[0], mock.call('qconf -sp mype'))
+        self.assertEqual(job_model['params']['number_of_slots'], 10)
