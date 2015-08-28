@@ -48,5 +48,3 @@ with open(config_path, 'r') as fp:
 validate(config, config_schema)
 
 config = edict(config)
-
-

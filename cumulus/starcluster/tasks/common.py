@@ -41,6 +41,7 @@ def _log_exception(ex):
     log = starcluster.logger.get_starcluster_logger()
     log.error(traceback.format_exc())
 
+
 def get_ssh_connection(girder_token, cluster):
     conn = None
     if cluster['type'] == ClusterType.TRADITIONAL:
