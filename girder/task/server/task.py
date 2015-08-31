@@ -3,7 +3,7 @@ import json
 import time
 import traceback
 
-from girder.api.rest import RestException
+from girder.api.rest import RestException, getBodyJson
 from girder.api import access
 from girder.api.describe import Description
 from girder.api.docs import addModel
@@ -46,7 +46,7 @@ class Task(BaseResource):
     def create(self, params):
         user = self.getCurrentUser()
 
-        task = json.load(cherrypy.request.body)
+        task = getBodyJson()
 
         if 'taskSpecId' not in task:
             raise RestException('taskSpecId is required', code=400)
@@ -219,7 +219,7 @@ class Task(BaseResource):
         if not task:
             raise RestException('Task not found.', code=404)
 
-        body = cherrypy.request.body.read()
+        body = getBodyJson()
         body = body.replace('$ref', Task.DOLLAR_REF)
 
         if not body:

@@ -7,7 +7,7 @@ from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
-from girder.api.rest import RestException
+from girder.api.rest import RestException, getBodyJson
 from .base import BaseResource
 from cumulus.constants import ClusterType
 from .utility.cluster_adapters import get_cluster_adapter
@@ -159,7 +159,7 @@ class Cluster(BaseResource):
 
     @access.user
     def create(self, params):
-        body = json.loads(cherrypy.request.body.read())
+        body = getBodyJson()
 
         # Default ec2 cluster
         cluster_type = 'ec2'
@@ -239,10 +239,10 @@ class Cluster(BaseResource):
 
     @access.user
     def start(self, id, params):
-        json_body = None
+        json_body = getBodyJson()
 
         if cherrypy.request.body:
-            request_body = cherrypy.request.body.read()
+            request_body = cherrypy.request.body.read().decode('utf8')
             if request_body:
                 json_body = json.loads(request_body)
 
@@ -290,7 +290,7 @@ class Cluster(BaseResource):
 
     @access.user
     def update(self, id, params):
-        body = json.loads(cherrypy.request.body.read())
+        body = getBodyJson()
         user = self.getCurrentUser()
 
         cluster = self._model.load(id, user=user, level=AccessType.WRITE)
@@ -420,7 +420,7 @@ class Cluster(BaseResource):
         job['clusterId'] = id
 
         # Add any job parameters to be used when templating job script
-        body = cherrypy.request.body.read()
+        body = cherrypy.request.body.read().decode('utf8')
         if body:
             job['params'] = json.loads(body)
 

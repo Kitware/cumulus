@@ -1,12 +1,11 @@
 import cherrypy
-import json
 import re
 
 from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
-from girder.api.rest import RestException
+from girder.api.rest import RestException, getBodyJson
 from .base import BaseResource
 
 from cumulus.starcluster import tasks
@@ -38,7 +37,7 @@ class Job(BaseResource):
     def create(self, params):
         user = self.getCurrentUser()
 
-        body = json.loads(cherrypy.request.body.read())
+        body = getBodyJson()
 
         if 'commands' not in body and 'scriptId' not in body:
             raise RestException('command or scriptId must be provided',
@@ -215,7 +214,7 @@ class Job(BaseResource):
     @access.user
     def update(self, id, params):
         user = self.getCurrentUser()
-        body = json.loads(cherrypy.request.body.read())
+        body = getBodyJson()
 
         job = self._model.load(id, user=user, level=AccessType.WRITE)
         if not job:
@@ -297,12 +296,12 @@ class Job(BaseResource):
         if not job:
             raise RestException('Job not found.', code=404)
 
-        body = cherrypy.request.body.read()
+        body = getBodyJson()
 
         if not body:
             raise RestException('Log entry must be provided', code=400)
 
-        job['log'].append(json.loads(body))
+        job['log'].append(body)
         self._model.save(job)
 
     add_log_record.description = None
