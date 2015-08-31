@@ -145,7 +145,6 @@ class VolumeTestCase(base.TestCase):
             u'zone': u'us-west-2a',
             u'type': u'ebs',
             u'size': 20,
-            u'initialized': False,
             u'ec2': {
                 u'id': volume_id
             },
@@ -183,7 +182,6 @@ class VolumeTestCase(base.TestCase):
             u'type': u'ebs',
             u'size': 20,
             u'fs': u'ext4',
-            u'initialized': False,
             u'ec2': {
                 u'id': volume_id
             },
@@ -262,7 +260,6 @@ class VolumeTestCase(base.TestCase):
             u'ec2': {
                 u'id': u'vol-1'
             },
-            u'initialized': False,
             u'type':
             u'ebs',
             u'size': 20,

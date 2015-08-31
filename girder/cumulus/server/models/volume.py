@@ -34,7 +34,6 @@ class Volume(BaseModel):
             'zone': zone,
             'size': size,
             'type': VolumeType.EBS,
-            'initialized': False,
             'ec2': {
                 'id': volume_id
             },
