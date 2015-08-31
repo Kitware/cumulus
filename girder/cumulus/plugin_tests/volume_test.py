@@ -2,8 +2,6 @@ from tests import base
 import json
 import mock
 import re
-import httmock
-import cherrypy
 from easydict import EasyDict
 
 def setUpModule():
@@ -557,6 +555,32 @@ class VolumeTestCase(base.TestCase):
         self.assertStatusOk(r)
         self.assertEqual(len(r.json), 1, 'Wrong number of volumes returned')
         self.assertEqual(r.json[0]['_id'], volume_2_id, 'Wrong volume returned')
+
+        # Seach for volumes attached to a particular cluster
+        params = {
+            'clusterId': self._cluster_id
+        }
+        r = self.request('/volumes', method='GET', user=self._user,
+                         params=params)
+        self.assertStatusOk(r)
+        self.assertEqual(len(r.json), 0, 'Wrong number of volumes returned')
+
+        body = {
+            'path': '/data'
+        }
+
+        # Attach a volume
+        url = '/volumes/%s/clusters/%s/attach' % (str(volume_1_id), self._cluster_id)
+        r = self.request(url, method='PUT',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatusOk(r)
+
+        # Search again
+        r = self.request('/volumes', method='GET', user=self._user,
+                         params=params)
+        self.assertStatusOk(r)
+        self.assertEqual(len(r.json), 1, 'Wrong number of volumes returned')
 
     @mock.patch('starcluster.config.StarClusterConfig')
     def test_get_status(self, MockStarClusterConfig):

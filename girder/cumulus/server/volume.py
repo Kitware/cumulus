@@ -1,14 +1,14 @@
 import cherrypy
-import json
 import re
 from jsonpath_rw import parse
 import urllib2
+from bson.objectid import ObjectId
 
 from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
-from girder.api.rest import RestException, getCurrentUser
+from girder.api.rest import RestException, getCurrentUser, getBodyJson
 from girder.models.model_base import ValidationException
 from girder.api.rest import loadmodel
 from .base import BaseResource
@@ -65,7 +65,7 @@ class Volume(BaseResource):
 
     @access.user
     def create(self, params):
-        body = json.loads(cherrypy.request.body.read())
+        body = getBodyJson()
         self.requireParams(['name', 'type', 'size', 'config'], body)
         self.requireParams(['_id'], body['config'])
 
@@ -155,9 +155,13 @@ class Volume(BaseResource):
         user = self.getCurrentUser()
         query = {}
 
+        if 'clusterId' in params:
+            query['clusterId'] = ObjectId(params['clusterId'])
+
         limit = params.get('limit', 50)
 
         volumes = self.model('volume', 'cumulus').find(query=query)
+        volumes = list(volumes)
 
         volumes = self.model('volume', 'cumulus') \
             .filterResultsByPermission(volumes, user, AccessType.ADMIN,
@@ -233,14 +237,13 @@ class Volume(BaseResource):
                level=AccessType.ADMIN)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def attach(self, volume, cluster, params):
-        body = json.loads(cherrypy.request.body.read())
+        body = getBodyJson()
         self.requireParams(['path'], body)
 
         if cluster['type'] != ClusterType.EC2:
             raise RestException('Invalid cluster type', 400)
 
         config_id = parse('config._id').find(volume)[0].value
-        print config_id
         volume_id = parse('ec2.id').find(volume)[0].value
         config_request = self._create_config_request(config_id)
         conf = starcluster.config.StarClusterConfig(config_request)
