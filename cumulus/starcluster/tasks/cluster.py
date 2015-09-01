@@ -124,7 +124,7 @@ def terminate_cluster(cluster, log_write_url=None, girder_token=None):
             try:
                 detach_url = '%s/volumes/%s/detach' \
                     % (cumulus.config.girder.baseUrl, volume_id)
-                r  = requests.put(detach_url, headers=headers)
+                r = requests.put(detach_url, headers=headers)
                 _check_status(r)
             except Exception:
                 # _check_status will have logged the error
