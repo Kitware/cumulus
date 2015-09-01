@@ -471,8 +471,12 @@ class Cluster(BaseResource):
     def delete(self, id, params):
         user = self.getCurrentUser()
 
-        if not self._model.load(id, user=user, level=AccessType.ADMIN):
+        cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+        if not cluster:
             raise RestException('Cluster not found.', code=404)
+
+        if cluster['status'] in ['running', 'initializing']:
+            raise RestException('Cluster is active', code=400)
 
         self._model.delete(user, id)
 

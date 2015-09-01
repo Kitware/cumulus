@@ -494,6 +494,27 @@ class ClusterTestCase(base.TestCase):
                          str(cluster_id), method='GET', user=self._cumulus)
         self.assertStatus(r, 404)
 
+        # Test trying to delete a cluster that is running
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 201)
+        cluster_id = str(r.json['_id'])
+
+        status_body = {
+            'status': 'running'
+        }
+        r = self.request(
+            '/clusters/%s' % cluster_id, method='PATCH',
+            type='application/json', body=json.dumps(status_body),
+            user=self._user)
+        self.assertStatusOk(r)
+
+        r = self.request('/clusters/%s' %
+                         cluster_id, method='DELETE', user=self._cumulus)
+        self.assertStatus(r, 400)
+
+
+
     def test_create_invalid_type(self):
         body = {
             'type': 'bogus'
