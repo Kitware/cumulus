@@ -112,8 +112,8 @@ class VolumeTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
         self._cluster_id = str(r.json['_id'])
+        self._cluster_config_id = str(r.json['config']['_id'])
 
-    #@mock.patch('urllib2.urlopen')
     @mock.patch('starcluster.config.StarClusterConfig')
     def test_create(self, MockStarClusterConfig):
         #mock_urlopen.return_value = mock.Mock()
@@ -147,10 +147,10 @@ class VolumeTestCase(base.TestCase):
                 u'id': volume_id
             },
             u'config': {
-                u'_id': self._config_id
             }
         }
         del r.json['_id']
+        del r.json['config']['_id']
         self.assertEqual(r.json, expected, 'Unexpected volume returned')
 
         # Try invalid type
@@ -184,10 +184,10 @@ class VolumeTestCase(base.TestCase):
                 u'id': volume_id
             },
             u'config': {
-                u'_id': self._config_id
             }
         }
         del r.json['_id']
+        del r.json['config']['_id']
         self.assertEqual(r.json, expected, 'Unexpected volume returned')
         # Try invalid file system type
         body['fs'] = 'bogus'
@@ -233,7 +233,6 @@ class VolumeTestCase(base.TestCase):
         self.assertStatus(r, 201)
         self.assertEqual(r.json['zone'], test_zone, 'Volume created in wrong zone')
 
-
     @mock.patch('starcluster.config.StarClusterConfig')
     def test_get(self, MockStarClusterConfig):
         volume_id = 'vol-1'
@@ -252,6 +251,14 @@ class VolumeTestCase(base.TestCase):
             }
         }
 
+        r = self.request('/volumes', method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._cumulus)
+        self.assertStatus(r, 201)
+        volume = r.json
+        volume_id = str(r.json['_id'])
+        config_id = str(r.json['config']['_id'])
+
         expected = {
             u'name': u'test',
             u'zone': u'us-west-2a',
@@ -262,16 +269,9 @@ class VolumeTestCase(base.TestCase):
             u'ebs',
             u'size': 20,
             u'config': {
-                u'_id': self._config_id
+                u'_id': config_id
             }
         }
-
-        r = self.request('/volumes', method='POST',
-                         type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
-        self.assertStatus(r, 201)
-        volume = r.json
-        volume_id = str(r.json['_id'])
 
         r = self.request('/volumes/%s' % volume_id, method='GET',
                          type='application/json',
@@ -343,6 +343,13 @@ class VolumeTestCase(base.TestCase):
                          user=self._cumulus)
         self.assertStatus(r, 200)
 
+        # Make sure config was cleaned up
+        volume_config_id = str(volume['config']['_id'])
+        r = self.request('/starcluster-configs/%s' % volume_config_id, method='GET',
+                 type='application/json', user=self._cumulus)
+        self.assertStatus(r, 404)
+
+
     @mock.patch('starcluster.config.StarClusterConfig')
     def test_attach_volume(self, MockStarClusterConfig):
         ec2_volume_id = 'vol-1'
@@ -361,6 +368,7 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
+            'fs': 'ext4',
             'config': {
                 '_id': self._config_id
             }
@@ -382,10 +390,10 @@ class VolumeTestCase(base.TestCase):
                          user=self._cumulus)
         self.assertStatusOk(r)
 
-        r = self.request('/starcluster-configs/%s' % self._config_id, method='GET',
+        r = self.request('/starcluster-configs/%s' % self._cluster_config_id, method='GET',
                          type='application/json', user=self._cumulus)
         self.assertStatusOk(r)
-        expected = {u'plugin': [{u'requests-installer': {u'setup_class': u'starcluster.plugins.pypkginstaller.PyPkgInstaller', u'packages': u'requests, requests-toolbelt'}}], u'vol': [{u'test': {u'mount_path': u'/data', u'volume_id': u'vol-1'}}], u'global': {u'default_template': u''}, u'aws': [{u'info': {u'aws_user_id': u'cjh', u'aws_region_name': u'us-west-2', u'aws_region_host': u'ec2.us-west-2.amazonaws.com', u'aws_access_key_id': u'AKRWOVFSYTVQ2Q', u'aws_secret_access_key': u'3z/PSglaGt1MGtGJ'}}], u'cluster': [{u'default_cluster': {u'plugins': u'requests-installer', u'volumes': u'test', u'availability_zone': u'us-west-2a', u'master_instance_type': u't1.micro', u'cluster_user': u'ubuntu',
+        expected = {u'plugin': [{u'requests-installer': {u'setup_class': u'starcluster.plugins.pypkginstaller.PyPkgInstaller', u'packages': u'requests, requests-toolbelt'}}], u'vol': [{u'test': {u'fs': u'ext4', u'mount_path': u'/data', u'volume_id': u'vol-1'}}], u'global': {u'default_template': u''}, u'aws': [{u'info': {u'aws_user_id': u'cjh', u'aws_region_name': u'us-west-2', u'aws_region_host': u'ec2.us-west-2.amazonaws.com', u'aws_access_key_id': u'AKRWOVFSYTVQ2Q', u'aws_secret_access_key': u'3z/PSglaGt1MGtGJ'}}], u'cluster': [{u'default_cluster': {u'plugins': u'requests-installer', u'volumes': u'test', u'availability_zone': u'us-west-2a', u'master_instance_type': u't1.micro', u'cluster_user': u'ubuntu',
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               u'public_ips': u'True', u'keyname': u'cjh', u'cluster_size': u'2', u'node_image_id': u'ami-b2badb82', u'node_instance_type': u't1.micro', u'permissions': u'ssh, http, paraview, http8080'}}], u'key': [{u'cjh': {u'key_location': u'/home/cjh/work/source/cumulus/cjh.pem'}}], u'permission': [{u'http': {u'to_port': u'80', u'from_port': u'80', u'ip_protocol': u'tcp'}}, {u'http8080': {u'to_port': u'8080', u'from_port': u'8080', u'ip_protocol': u'tcp'}}, {u'https': {u'to_port': u'443', u'from_port': u'443', u'ip_protocol': u'tcp'}}, {u'paraview': {u'to_port': u'11111', u'from_port': u'11111', u'ip_protocol': u'tcp'}}, {u'ssh': {u'to_port': u'22', u'from_port': u'22', u'ip_protocol': u'tcp'}}]}
         self.assertEqual(
             expected, r.json, 'Config was not successfully updated')
@@ -491,7 +499,7 @@ class VolumeTestCase(base.TestCase):
                              .return_value.detach.call_args_list),
                          1, "detach was not called")
 
-        r = self.request('/starcluster-configs/%s' % self._config_id, method='GET',
+        r = self.request('/starcluster-configs/%s' % self._cluster_config_id, method='GET',
                          type='application/json', user=self._cumulus)
         expected = {u'plugin': [{u'requests-installer': {u'setup_class': u'starcluster.plugins.pypkginstaller.PyPkgInstaller', u'packages': u'requests, requests-toolbelt'}}], u'vol': [], u'global': {u'default_template': u''}, u'aws': [{u'info': {u'aws_user_id': u'cjh', u'aws_region_name': u'us-west-2', u'aws_region_host': u'ec2.us-west-2.amazonaws.com', u'aws_access_key_id': u'AKRWOVFSYTVQ2Q', u'aws_secret_access_key': u'3z/PSglaGt1MGtGJ'}}], u'cluster': [{u'default_cluster': {u'plugins': u'requests-installer', u'availability_zone': u'us-west-2a', u'master_instance_type': u't1.micro', u'cluster_user': u'ubuntu', u'public_ips': u'True', u'keyname': u'cjh',
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   u'cluster_size': u'2', u'node_image_id': u'ami-b2badb82', u'node_instance_type': u't1.micro', u'permissions': u'ssh, http, paraview, http8080'}}], u'key': [{u'cjh': {u'key_location': u'/home/cjh/work/source/cumulus/cjh.pem'}}], u'permission': [{u'http': {u'to_port': u'80', u'from_port': u'80', u'ip_protocol': u'tcp'}}, {u'http8080': {u'to_port': u'8080', u'from_port': u'8080', u'ip_protocol': u'tcp'}}, {u'https': {u'to_port': u'443', u'from_port': u'443', u'ip_protocol': u'tcp'}}, {u'paraview': {u'to_port': u'11111', u'from_port': u'11111', u'ip_protocol': u'tcp'}}, {u'ssh': {u'to_port': u'22', u'from_port': u'22', u'ip_protocol': u'tcp'}}]}

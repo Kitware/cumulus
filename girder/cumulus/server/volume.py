@@ -14,6 +14,7 @@ from girder.api.rest import loadmodel
 from .base import BaseResource
 
 import starcluster.config
+from starcluster.exception import VolumeDoesNotExist
 
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
@@ -40,15 +41,14 @@ class Volume(BaseResource):
 
         return volume
 
-    def _create_ebs(self, volume_id, body, zone):
+    def _create_ebs(self, body, zone):
         user = self.getCurrentUser()
         name = body['name']
         size = body['size']
         fs = body.get('fs', None)
         config = body['config']
 
-        return self.model('volume', 'cumulus').create_ebs(user, config,
-                                                          volume_id, name,
+        return self.model('volume', 'cumulus').create_ebs(user, config, name,
                                                           zone, size, fs)
 
     def _create_config_request(self, config_id):
@@ -73,6 +73,13 @@ class Volume(BaseResource):
                 raise RestException('Invalid volume type.', code=400)
 
         config_id = parse('config._id').find(body)[0].value
+        # Create copy of configuration for this volume
+        config_model = self.model('starclusterconfig', 'cumulus')
+        c = config_model.load(config_id, force=True)
+        c = config_model.create({
+            'config': c['config']
+        })
+        body['config']['_id'] = c['_id']
         config_request = self._create_config_request(config_id)
 
         config = starcluster.config.StarClusterConfig(config_request)
@@ -92,9 +99,11 @@ class Volume(BaseResource):
         else:
             zone = ec2.get_zones()[0].name
 
+        volume = self._create_ebs(body, zone)
         vol = ec2.create_volume(body['size'], zone)
-
-        volume = self._create_ebs(vol.id, body, zone)
+        # Now set the EC2 volume id
+        volume['ec2']['id'] = vol.id
+        self.model('volume', 'cumulus').save(volume)
 
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/volumes/%s' % volume['_id']
@@ -183,12 +192,17 @@ class Volume(BaseResource):
                                           'exists', 'name')
 
         # Add to volume list
+        volume_config = {
+            'volume_id': volume['ec2']['id'],
+            'mount_path': path
+        }
+
         vol.append({
-            volume['name']: {
-                'volume_id': volume['ec2']['id'],
-                'mount_path': path
-            }
+            volume['name']: volume_config
         })
+
+        if 'fs' in volume:
+            volume_config['fs'] = volume['fs']
 
         template_name = cluster['template']
         # Now add the volume to the cluster
@@ -262,9 +276,11 @@ class Volume(BaseResource):
         volumes = cluster.setdefault('volumes', [])
         volumes.append(volume['_id'])
 
-        # Now update the configuration to include this volume
+        # Now update the configuration for the cluster to include this volume
+        cluster_config_id = parse('config._id').find(cluster)[0].value
         starcluster_config = self.model('starclusterconfig',
-                                        'cumulus').load(config_id, force=True)
+                                        'cumulus').load(cluster_config_id,
+                                                        force=True)
         self._add_volume(starcluster_config['config'], cluster, volume,
                          body['path'])
 
@@ -303,6 +319,10 @@ class Volume(BaseResource):
     @access.user
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def detach(self, volume, params):
+
+        if 'clusterId' not in volume:
+            raise RestException('Volume is not attached', 400)
+
         user = getCurrentUser()
         config_id = parse('config._id').find(volume)[0].value
         volume_id = parse('ec2.id').find(volume)[0].value
@@ -311,23 +331,25 @@ class Volume(BaseResource):
         conf.load()
         status = self._get_status(conf, volume_id)
 
-        if status != VolumeState.INUSE:
-            raise RestException('Volume is not attached', 400)
-
         # Call ec2 to do the detach
-        vol = conf.get_easy_ec2().get_volume(volume_id)
-        vol.detach()
+        if status == VolumeState.INUSE:
+            try:
+                vol = conf.get_easy_ec2().get_volume(volume_id)
+                vol.detach()
+            except VolumeDoesNotExist:
+                pass
 
         # First remove from cluster
         cluster = self.model('cluster', 'cumulus').load(volume['clusterId'],
                                                         user=user,
                                                         level=AccessType.ADMIN)
-        cluster['volumes'] = cluster.get('volumes').remove(volume['_id'])
+        cluster.setdefault('volumes', []).remove(volume['_id'])
         del volume['clusterId']
 
-        # Now remove from starcluster configuration
+        # Now remove from starcluster configuration for this cluster
+        cluster_config_id = parse('config._id').find(cluster)[0].value
         starcluster_config = self.model('starclusterconfig', 'cumulus') \
-            .load(config_id, force=True)
+            .load(cluster_config_id, force=True)
         self._remove_volume(starcluster_config['config'], cluster, volume)
 
         self.model('starclusterconfig', 'cumulus').save(starcluster_config)
@@ -346,6 +368,21 @@ class Volume(BaseResource):
     def delete(self, volume, params):
         if 'clusterId' in volume:
             raise RestException('Unable to delete attached volume')
+
+        # Call EC2 to delete volume
+        config_id = parse('config._id').find(volume)[0].value
+        volume_id = parse('ec2.id').find(volume)[0].value
+        config_request = self._create_config_request(config_id)
+        conf = starcluster.config.StarClusterConfig(config_request)
+        conf.load()
+        ec2 = conf.get_easy_ec2()
+        vol = ec2.get_volume(volume_id)
+        vol.delete()
+
+        # Remove the config associated with the volume if it not used by
+        # any volumes
+        self.model('starclusterconfig', 'cumulus').remove(
+            {'_id': config_id})
 
         self.model('volume', 'cumulus').remove(volume)
 

@@ -28,14 +28,14 @@ class Volume(BaseModel):
 
         return volume
 
-    def create_ebs(self, user, config, volume_id, name, zone, size, fs):
+    def create_ebs(self, user, config, name, zone, size, fs):
         volume = {
             'name': name,
             'zone': zone,
             'size': size,
             'type': VolumeType.EBS,
             'ec2': {
-                'id': volume_id
+                'id': None
             },
             'config': config
         }
