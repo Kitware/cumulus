@@ -4,6 +4,7 @@ from jsonschema import validate
 import os
 from easydict import EasyDict as edict
 
+
 config_schema = {
     "type": "object",
     "required": ["girder"],

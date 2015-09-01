@@ -130,7 +130,7 @@ class Script(BaseResource):
         if not body:
             raise RestException('No message body provided', code=400)
 
-        body = json.loads(body)
+        body = json.loads(body.decode('utf8'))
 
         script = self._model.load(id, user=user, level=AccessType.WRITE)
         if not script:

@@ -35,7 +35,7 @@ class StarClusterConfig(BaseResource):
         config_parser.readfp(io.BytesIO(content))
 
         valid_sections = ['global', 'key', 'aws', 'cluster', 'permission',
-                          'plugin']
+                          'plugin', 'vol']
 
         config = {}
 

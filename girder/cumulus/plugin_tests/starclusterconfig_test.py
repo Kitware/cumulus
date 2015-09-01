@@ -1,10 +1,14 @@
+import urllib2
+import cherrypy
+
 from tests import base
 import json
-
+import starcluster.config
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
-    base.startServer()
+    cherrypy.server.socket_port = 8080
+    base.startServer(mock=False)
 
 
 def tearDownModule():
@@ -150,3 +154,30 @@ class StarclusterconfigTestCase(base.TestCase):
         r = self.request('/starcluster-configs/%s' %
                          str(config_id), method='GET', user=self._cumulus)
         self.assertStatus(r, 404)
+
+    def test_fetch_via_url(self):
+        ''' Test patch to StarCluster to allow fetching from urllib2.Request '''
+        config = {u'permission': [{u'http': {u'to_port': u'80', u'from_port': u'80', u'ip_protocol': u'tcp'}}, {u'http8080': {u'to_port': u'8080', u'from_port': u'8080', u'ip_protocol': u'tcp'}}, {u'https': {u'to_port': u'443', u'from_port': u'443', u'ip_protocol': u'tcp'}}, {u'paraview': {u'to_port': u'11111', u'from_port': u'11111', u'ip_protocol': u'tcp'}}, {u'ssh': {u'to_port': u'22', u'from_port': u'22', u'ip_protocol': u'tcp'}}], u'global': {u'default_template': u''}, u'aws': [{u'info': {u'aws_secret_access_key': u'3z/PSglaGt1MGtGJ', u'aws_region_name': u'us-west-2', u'aws_region_host': u'ec2.us-west-2.amazonaws.com', u'aws_access_key_id': u'AKRWOVFSYTVQ2Q', u'aws_user_id': u'cjh'}}], u'cluster': [
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         {u'default_cluster': {u'availability_zone': u'us-west-2a', u'master_instance_type': u't1.micro', u'node_image_id': u'ami-b2badb82', u'cluster_user': u'ubuntu', u'public_ips': u'True', u'keyname': u'cjh', u'cluster_size': u'2', u'plugins': u'requests-installer', u'node_instance_type': u't1.micro', u'permissions': u'ssh, http, paraview, http8080'}}], u'key': [{u'cjh': {u'key_location': u'/home/cjh/work/source/cumulus/cjh.pem'}}], u'plugin': [{u'requests-installer': {u'setup_class': u'starcluster.plugins.pypkginstaller.PyPkgInstaller', u'packages': u'requests, requests-toolbelt'}}]}
+        body = {
+            'config': config,
+            'name': 'test'
+        }
+        body = json.dumps(body)
+
+        r = self.request('/starcluster-configs', method='POST',
+                         type='application/json', body=body, user=self._cumulus)
+        self.assertStatus(r, 201)
+        config_id = str(r.json['_id'])
+
+        token = self.model('token').createToken(self._cumulus)
+        headers = {
+            'Girder-Token': str(token['_id'])
+        }
+
+        url = 'http://127.0.0.1:%d/api/v1/starcluster-configs/%s?format=ini' % (cherrypy.server.socket_port, config_id)
+        request = urllib2.Request(url, headers=headers)
+        config = starcluster.config.StarClusterConfig(request)
+        config.load()
+
+
