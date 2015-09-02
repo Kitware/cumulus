@@ -1,5 +1,8 @@
 import urllib2
 import cherrypy
+import mock
+from easydict import EasyDict
+from jsonpath_rw import parse
 
 from tests import base
 import json
@@ -180,4 +183,73 @@ class StarclusterconfigTestCase(base.TestCase):
         config = starcluster.config.StarClusterConfig(request)
         config.load()
 
+    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
+    def test_get_with_aws_profile(self, EasyEC2):
+        test_availability_zone = 'cornwall-2b'
+        body = {
+            'name': 'myProfile',
+            'accessKeyId': 'mykeyId',
+            'secretAccessKey': 'mysecret',
+            'regionName': 'cornwall',
+            'availabilityZone': test_availability_zone
+        }
 
+        # Create a profile to use
+        instance = EasyEC2.return_value
+        instance.get_region.return_value = EasyDict({'endpoint': 'cornwall.ec2.amazon.com'})
+
+        create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
+        r = self.request(create_url, method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatus(r, 201)
+        profile_id = str(r.json['_id'])
+
+
+        # Now create the config using that profile
+        body = {
+            'name': 'profileTest',
+            'aws': {
+                'profileId': profile_id
+            }
+        }
+        body = json.dumps(body)
+
+        r = self.request('/starcluster-configs', method='POST',
+                         type='application/json', body=body, user=self._cumulus)
+        self.assertStatus(r, 201)
+
+        self.assertEqual(r.json['name'], 'profileTest')
+        config_id = r.json['_id']
+
+        with open('plugins/cumulus/plugin_tests/fixtures/profile.ini') as fp:
+            ini_file = fp.read()
+
+        r = self.request('/starcluster-configs/%s/import' % str(config_id), method='PATCH',
+                         type='text/plain', body=str(ini_file), user=self._cumulus)
+        self.assertStatusOk(r)
+
+        # Fetch the config
+        r = self.request('/starcluster-configs/%s' % str(config_id), method='GET',
+                         user=self._cumulus)
+        self.assertStatusOk(r)
+
+        availability_zone \
+            = parse('cluster[0].default_cluster.availability_zone').find(r.json)
+
+        self.assertEqual(len(availability_zone), 1, 'Unable to find availability_zone')
+        self.assertEqual(availability_zone[0].value, test_availability_zone,
+                         'Unable to find availability_zone')
+
+        expected_aws = [{
+            u'info': {
+                u'aws_user_id': u'cjh',
+                u'aws_region_name': u'cornwall',
+                u'aws_region_host': u'cornwall.ec2.amazon.com',
+                u'aws_access_key_id': u'mykeyId',
+                u'aws_secret_access_key': u'mysecret'
+            }
+        }]
+
+        self.assertEqual(r.json['aws'], expected_aws,
+                         'aws property not as expected')

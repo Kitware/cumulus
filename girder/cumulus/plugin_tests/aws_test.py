@@ -203,7 +203,7 @@ class AwsTestCase(base.TestCase):
                          user=self._user)
         self.assertStatus(r, 400)
 
-        # Try changing all values
+        # Try changing all values ( only the key related one should change )
         change_value = 'cchange ...'
         body = {
             'accessKeyId': change_value,
@@ -218,12 +218,20 @@ class AwsTestCase(base.TestCase):
                          user=self._user)
         self.assertStatusOk(r)
         profile = self.model('aws', 'cumulus').load(profile_id, user=self._user)
-        del profile['name']
         del profile['access']
         del profile['userId']
         del profile['_id']
 
-        self.assertEqual(profile, body, 'Profile values not updated')
+        expected = {
+            'name': profile_name,
+            'accessKeyId': change_value,
+            'secretAccessKey': change_value,
+            'regionName': 'cornwall',
+            'regionHost': region_host,
+            'availabilityZone': 'cornwall-2b'
+        }
+
+        self.assertEqual(profile, expected, 'Profile values not updated')
 
 
     @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')

@@ -83,8 +83,7 @@ delete_profile.description = (
            level=AccessType.WRITE)
 def update_profile(user, profile, params):
     body = getBodyJson()
-    properties = ['accessKeyId', 'secretAccessKey', 'regionName',
-                  'regionHost', 'availabilityZone']
+    properties = ['accessKeyId', 'secretAccessKey']
     for prop in properties:
         if prop in body:
             profile[prop] = body[prop]
@@ -93,18 +92,11 @@ def update_profile(user, profile, params):
 
 addModel('AwsUpdateParameters', {
     'id': 'AwsUpdateParameters',
-    'required': ['name'],
     'properties': {
-        'name': {'type': 'string',
-                 'description': 'The name of the profile.'},
         'accessKeyId':  {'type': 'string',
                          'description': 'The aws access key id'},
         'secretAccessKey': {'type': 'string',
                             'description': 'The aws secret access key'},
-        'regionName': {'type': 'string',
-                       'description': 'The aws region'},
-        'availabilityZone': {'type': 'string',
-                             'description': 'The aws availablility zone'}
     }
 })
 

@@ -66,8 +66,8 @@ class Volume(BaseResource):
     @access.user
     def create(self, params):
         body = getBodyJson()
-        self.requireParams(['name', 'type', 'size', 'config'], body)
-        self.requireParams(['_id'], body['config'])
+        self.requireParams(['name', 'type', 'size', 'aws'], body)
+        self.requireParams(['profileId'], body['aws'])
 
         if not VolumeType.is_valid_type(body['type']):
                 raise RestException('Invalid volume type.', code=400)

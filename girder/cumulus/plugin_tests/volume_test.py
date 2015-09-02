@@ -388,6 +388,7 @@ class VolumeTestCase(base.TestCase):
         r = self.request(url, method='PUT',
                          type='application/json', body=json.dumps(body),
                          user=self._cumulus)
+        print r.json
         self.assertStatusOk(r)
 
         r = self.request('/starcluster-configs/%s' % self._cluster_config_id, method='GET',

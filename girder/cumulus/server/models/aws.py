@@ -43,9 +43,12 @@ class Aws(BaseModel):
 
         try:
             region = ec2.get_region(doc['regionName'])
-            ec2.connect_to_region(doc['regionName'])
-            ec2.get_zone(doc['availabilityZone'])
-            doc['regionHost'] = region.endpoint
+            # Only do the rest of the validation if this is a new profile (not
+            # a key update )
+            if '_id' not in doc:
+                ec2.connect_to_region(doc['regionName'])
+                ec2.get_zone(doc['availabilityZone'])
+                doc['regionHost'] = region.endpoint
         except EC2ResponseError:
             raise ValidationException('Invalid AWS credentials')
         except RegionDoesNotExist:
