@@ -1,3 +1,5 @@
+from jsonpath_rw import parse
+
 from girder.utility.model_importer import ModelImporter
 from girder.models.model_base import ValidationException
 from girder.constants import AccessType
@@ -32,6 +34,12 @@ class AbstractVolumeAdapter(ModelImporter):
 class EbsVolumeAdapter(AbstractVolumeAdapter):
 
     def validate(self):
+        profile_id = parse('aws.profileId').find(self.volume)[0].value
+        profile = self.model('aws', 'cumulus').load(profile_id,
+                                                    user=getCurrentUser())
+
+        if not profile:
+            raise ValidationException('Invalid profile id')
 
         valid_fs = ['ext2', 'ext3', 'ext4']
 

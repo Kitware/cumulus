@@ -2,6 +2,7 @@ from tests import base
 import json
 import mock
 import re
+from easydict import EasyDict
 
 
 def setUpModule():
@@ -113,6 +114,46 @@ class ClusterTestCase(base.TestCase):
         r = self.request('/clusters', method='POST',
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 400)
+
+    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
+    def test_create_using_aws_profile(self, EasyEC2):
+        # First create a profile
+        instance = EasyEC2.return_value
+        instance.get_region.return_value = EasyDict({'endpoint': 'cornwall.ec2.amazon.com'})
+
+        body = {
+            'name': 'myprof',
+            'accessKeyId': 'mykeyId',
+            'secretAccessKey': 'mysecret',
+            'regionName': 'cornwall',
+            'availabilityZone': 'cornwall-2b'
+        }
+
+        create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
+        r = self.request(create_url, method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatus(r, 201)
+        profile_id = str(r.json['_id'])
+
+        # First test invalid profileId
+        body = {
+            'config': [
+                {
+                    '_id': self._config_id,
+                    'aws': {
+                        'profileId': '546a1844ff34c70456111385'
+                    }
+                }
+            ],
+            'name': 'mycluster',
+            'template': 'default_cluster'
+        }
+
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json.dumps(body), user=self._user)
+        self.assertStatus(r, 400)
+
 
     def test_get(self):
         body = {

@@ -1,12 +1,15 @@
 import io
 import cherrypy
 import json
+from jinja2 import Template
+from jsonpath_rw import parse
+
 from girder.api import access
 from girder.api.describe import Description
 from ConfigParser import ConfigParser
 from girder.api.docs import addModel
 from girder.constants import AccessType
-from girder.api.rest import RestException
+from girder.api.rest import RestException, getBodyJson
 from .base import BaseResource
 import cumulus
 
@@ -85,12 +88,13 @@ class StarClusterConfig(BaseResource):
 
     @access.user
     def create(self, params):
+        body = getBodyJson()
+        self.requireParams(['name'], body)
         user = self.getCurrentUser()
 
         self.check_group_membership(user, cumulus.config.girder.group)
 
-        config = json.load(cherrypy.request.body)
-        config = self._model.create(config)
+        config = self._model.create(body)
 
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] \
@@ -192,18 +196,31 @@ class StarClusterConfig(BaseResource):
         if 'format' in params:
             format = params['format']
 
-        config = self._model.load(id, user=user, level=AccessType.READ)
+        doc = self._model.load(id, user=user, level=AccessType.READ)
 
-        if not config:
+        if not doc:
             raise RestException('Config not found', code=404)
 
+        config = doc['config']
+
+        # If we have a aws profile apply it to the configuration
+        profile_id = parse('aws.profileId').find(doc)
+
+        if profile_id:
+            profile_id = profile_id[0].value
+            profile = self.model('aws', 'cumulus').load(profile_id, user=user)
+
+            json_str = json.dumps(config)
+            json_str = Template(json_str).render(**profile)
+            config = json.loads(json_str)
+
         if format == 'json':
-            return config['config']
+            return config
         else:
             def stream():
                 cherrypy.response.headers['Content-Type'] = 'text/plain'
 
-                for (type, sections) in config['config'].iteritems():
+                for (type, sections) in config.iteritems():
                     section_config = ""
 
                     if type == 'global':
