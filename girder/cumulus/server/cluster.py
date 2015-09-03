@@ -7,7 +7,8 @@ from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
-from girder.api.rest import RestException, getBodyJson
+from girder.api.rest import RestException, getBodyJson, getCurrentUser
+from girder.models.model_base import ValidationException
 from .base import BaseResource
 from cumulus.constants import ClusterType
 from .utility.cluster_adapters import get_cluster_adapter
@@ -102,7 +103,20 @@ class Cluster(BaseResource):
         if not isinstance(config, list):
             config = [config]
 
+        profile_id = None
         for c in config:
+            if not profile_id:
+                profile_id = parse('aws.profileId').find(c)
+                if profile_id:
+                    profile_id = profile_id[0].value
+                    # Check this a valid profile
+                    profile = \
+                        self.model('aws', 'cumulus').load(profile_id,
+                                                          user=getCurrentUser())
+
+                    if not profile:
+                        raise ValidationException('Invalid profile id')
+
             if '_id' in c:
 
                 if not c['_id']:
@@ -113,9 +127,16 @@ class Cluster(BaseResource):
 
             loaded_config.append(c)
 
-        config = config_model.create({
+        doc = {
             'config': self._merge_configs(loaded_config)
-        })
+        }
+
+        if profile_id:
+            doc['aws'] = {
+                'profileId': profile_id
+            }
+
+        config = config_model.create(doc)
 
         return config['_id']
 

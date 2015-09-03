@@ -253,7 +253,6 @@ class VolumeTestCase(base.TestCase):
                          type='application/json', body=json.dumps(body),
                          user=self._cumulus)
         self.assertStatus(r, 201)
-        print r.json
         self.assertEqual(r.json['zone'], self._availability_zone,
                          'Volume created in wrong zone')
 
@@ -264,7 +263,6 @@ class VolumeTestCase(base.TestCase):
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
                          user=self._cumulus)
-        print r.json
         self.assertStatus(r, 400)
 
     @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
