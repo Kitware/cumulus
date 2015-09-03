@@ -21,7 +21,7 @@ class Starclusterconfig(BaseModel):
         if profile_id:
             profile_id = profile_id[0].value
             profile = self.model('aws', 'cumulus').load(profile_id,
-                                                        getCurrentUser())
+                                                        user=getCurrentUser())
 
             if not profile:
                 raise ValidationException('Invalid profile id')

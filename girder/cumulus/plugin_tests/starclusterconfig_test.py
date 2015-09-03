@@ -201,7 +201,7 @@ class StarclusterconfigTestCase(base.TestCase):
         create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
         r = self.request(create_url, method='POST',
                          type='application/json', body=json.dumps(body),
-                         user=self._user)
+                         user=self._cumulus)
         self.assertStatus(r, 201)
         profile_id = str(r.json['_id'])
 
