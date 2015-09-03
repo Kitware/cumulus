@@ -29,7 +29,8 @@ class VolumeTestCase(base.TestCase):
         self.assertListEqual(self.normalize(calls), expected, msg)
 
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
-    def setUp(self, *args):
+    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
+    def setUp(self, EasyEC2, *args):
         super(VolumeTestCase, self).setUp()
 
         users = ({
@@ -114,14 +115,39 @@ class VolumeTestCase(base.TestCase):
         self._cluster_id = str(r.json['_id'])
         self._cluster_config_id = str(r.json['config']['_id'])
 
-    @mock.patch('starcluster.config.StarClusterConfig')
-    def test_create(self, MockStarClusterConfig):
-        #mock_urlopen.return_value = mock.Mock()
-        #mock_urlopen.return_value.readline.side_effect = self._ini_file
+        # Create a AWS profile
+        self._availability_zone = 'cornwall-2b'
+        body = {
+            'name': 'myprof',
+            'accessKeyId': 'mykeyId',
+            'secretAccessKey': 'mysecret',
+            'regionName': 'cornwall',
+            'availabilityZone': self._availability_zone
+        }
+
+        instance = EasyEC2.return_value
+        instance.get_region.return_value = EasyDict({'endpoint': 'cornwall.ec2.amazon.com'})
+
+        create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
+        r = self.request(create_url, method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatus(r, 201)
+        self._profile_id = str(r.json['_id'])
+
+        create_url = '/user/%s/aws/profiles' % str(self._another_user['_id'])
+        r = self.request(create_url, method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._another_user)
+        self.assertStatus(r, 201)
+        self._another_profile_id = str(r.json['_id'])
+
+    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
+    def test_create(self, EasyEC2):
+
         volume_id = 'vol-1'
-        instance = MockStarClusterConfig.return_value
+        instance = EasyEC2.return_value
         instance \
-            .get_easy_ec2.return_value \
             .create_volume.return_value.id = volume_id
 
         body = {
@@ -129,14 +155,14 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'config': {
-                '_id': self._config_id
+            'aws': {
+                'profileId': self._profile_id
             }
         }
 
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatus(r, 201)
         expected = {
             u'name': u'test',
@@ -146,11 +172,11 @@ class VolumeTestCase(base.TestCase):
             u'ec2': {
                 u'id': volume_id
             },
-            u'config': {
+            u'aws': {
+                u'profileId': self._profile_id
             }
         }
         del r.json['_id']
-        del r.json['config']['_id']
         self.assertEqual(r.json, expected, 'Unexpected volume returned')
 
         # Try invalid type
@@ -166,8 +192,8 @@ class VolumeTestCase(base.TestCase):
             'zone': 'us-west-2a',
             'type': 'ebs',
             'fs': 'ext4',
-            'config': {
-                '_id': self._config_id
+            'aws': {
+                'profileId': self._profile_id
             }
         }
         r = self.request('/volumes', method='POST',
@@ -183,11 +209,12 @@ class VolumeTestCase(base.TestCase):
             u'ec2': {
                 u'id': volume_id
             },
-            u'config': {
+            u'aws': {
+                u'profileId': self._profile_id
             }
         }
         del r.json['_id']
-        del r.json['config']['_id']
+
         self.assertEqual(r.json, expected, 'Unexpected volume returned')
         # Try invalid file system type
         body['fs'] = 'bogus'
@@ -202,8 +229,8 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'config': {
-                '_id': self._config_id
+            'aws': {
+                'profileId': self._profile_id
             }
         }
 
@@ -213,17 +240,12 @@ class VolumeTestCase(base.TestCase):
         self.assertStatus(r, 400)
 
         # Create a volume without a zone
-        test_zone = 'test-zone'
-        instance \
-            .get_easy_ec2.return_value \
-            .get_zones.return_value = [EasyDict({'name': test_zone})]
-
         body = {
             'name': 'zoneless',
             'size': 20,
             'type': 'ebs',
-            'config': {
-                '_id': self._config_id
+            'aws': {
+                'profileId': self._profile_id
             }
         }
 
@@ -231,14 +253,25 @@ class VolumeTestCase(base.TestCase):
                          type='application/json', body=json.dumps(body),
                          user=self._cumulus)
         self.assertStatus(r, 201)
-        self.assertEqual(r.json['zone'], test_zone, 'Volume created in wrong zone')
+        print r.json
+        self.assertEqual(r.json['zone'], self._availability_zone,
+                         'Volume created in wrong zone')
 
-    @mock.patch('starcluster.config.StarClusterConfig')
-    def test_get(self, MockStarClusterConfig):
+        # Try to create a volume with a invalid profile
+        body['aws'] = {
+            'profileId': 'bogus'
+        }
+        r = self.request('/volumes', method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._cumulus)
+        print r.json
+        self.assertStatus(r, 400)
+
+    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
+    def test_get(self, EasyEC2):
         volume_id = 'vol-1'
-        instance = MockStarClusterConfig.return_value
+        instance = EasyEC2.return_value
         instance \
-            .get_easy_ec2.return_value \
             .create_volume.return_value.id = volume_id
 
         body = {
@@ -246,8 +279,8 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'config': {
-                '_id': self._config_id
+            'aws': {
+                'profileId': self._profile_id
             }
         }
 
@@ -255,9 +288,7 @@ class VolumeTestCase(base.TestCase):
                          type='application/json', body=json.dumps(body),
                          user=self._cumulus)
         self.assertStatus(r, 201)
-        volume = r.json
         volume_id = str(r.json['_id'])
-        config_id = str(r.json['config']['_id'])
 
         expected = {
             u'name': u'test',
@@ -268,8 +299,8 @@ class VolumeTestCase(base.TestCase):
             u'type':
             u'ebs',
             u'size': 20,
-            u'config': {
-                u'_id': config_id
+            u'aws': {
+                u'profileId': self._profile_id
             }
         }
 
@@ -286,20 +317,19 @@ class VolumeTestCase(base.TestCase):
                          user=self._cumulus)
         self.assertStatus(r, 400)
 
-    @mock.patch('starcluster.config.StarClusterConfig')
-    def test_delete(self, MockStarClusterConfig):
+    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
+    def test_delete(self, EasyEC2):
         volume_id = 'vol-1'
-        instance = MockStarClusterConfig.return_value
+        instance = EasyEC2.return_value
         instance \
-            .get_easy_ec2.return_value \
             .create_volume.return_value.id = volume_id
         body = {
             'name': 'test',
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'config': {
-                '_id': self._config_id
+            'aws': {
+                'profileId': self._profile_id
             }
         }
 
@@ -312,7 +342,6 @@ class VolumeTestCase(base.TestCase):
 
         # Try and delete any attached volume
         instance \
-            .get_easy_ec2.return_value \
             .get_volume.return_value \
             .update.return_value = 'available'
 
@@ -332,7 +361,6 @@ class VolumeTestCase(base.TestCase):
 
         # Detach it then delete it
         instance \
-            .get_easy_ec2.return_value \
             .get_volume.return_value \
             .update.return_value = 'in-use'
         url = '/volumes/%s/detach' % (volume_id)
@@ -343,23 +371,16 @@ class VolumeTestCase(base.TestCase):
                          user=self._cumulus)
         self.assertStatus(r, 200)
 
-        # Make sure config was cleaned up
-        volume_config_id = str(volume['config']['_id'])
-        r = self.request('/starcluster-configs/%s' % volume_config_id, method='GET',
-                 type='application/json', user=self._cumulus)
-        self.assertStatus(r, 404)
 
 
-    @mock.patch('starcluster.config.StarClusterConfig')
-    def test_attach_volume(self, MockStarClusterConfig):
+    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
+    def test_attach_volume(self, EasyEC2):
         ec2_volume_id = 'vol-1'
-        instance = MockStarClusterConfig.return_value
+        instance = EasyEC2.return_value
         instance \
-            .get_easy_ec2.return_value \
             .create_volume.return_value.id = ec2_volume_id
 
         instance \
-            .get_easy_ec2.return_value \
             .get_volume.return_value \
             .update.return_value = 'available'
 
@@ -369,8 +390,8 @@ class VolumeTestCase(base.TestCase):
             'zone': 'us-west-2a',
             'type': 'ebs',
             'fs': 'ext4',
-            'config': {
-                '_id': self._config_id
+            'aws': {
+                'profileId': self._profile_id
             }
         }
 
@@ -388,7 +409,7 @@ class VolumeTestCase(base.TestCase):
         r = self.request(url, method='PUT',
                          type='application/json', body=json.dumps(body),
                          user=self._cumulus)
-        print r.json
+
         self.assertStatusOk(r)
 
         r = self.request('/starcluster-configs/%s' % self._cluster_config_id, method='GET',
@@ -402,7 +423,6 @@ class VolumeTestCase(base.TestCase):
         # Try to attach volume that is already attached
         instance.reset_mock()
         instance \
-            .get_easy_ec2.return_value \
             .get_volume.return_value \
             .update.return_value = 'in-use'
         url = '/volumes/%s/clusters/%s/attach' % (volume_id, self._cluster_id)
@@ -414,7 +434,6 @@ class VolumeTestCase(base.TestCase):
         # Try to attach volume that is currently being created
         instance.reset_mock()
         instance \
-            .get_easy_ec2.return_value \
             .get_volume.return_value \
             .update.return_value = 'creating'
         url = '/volumes/%s/clusters/%s/attach' % (volume_id, self._cluster_id)
@@ -426,7 +445,6 @@ class VolumeTestCase(base.TestCase):
         # Try to attach volume to traditional cluster
         instance.reset_mock()
         instance \
-            .get_easy_ec2.return_value \
             .get_volume.return_value \
             .update.return_value = 'creating'
         url = '/volumes/%s/clusters/%s/attach' % (
@@ -436,16 +454,13 @@ class VolumeTestCase(base.TestCase):
                          user=self._cumulus)
         self.assertStatus(r, 400)
 
-    @mock.patch('starcluster.config.StarClusterConfig')
-    def test_detach_volume(self, MockStarClusterConfig):
+    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
+    def test_detach_volume(self, EasyEC2):
         ec2_volume_id = 'vol-1'
-        instance = MockStarClusterConfig.return_value
+        instance = EasyEC2.return_value
         instance \
-            .get_easy_ec2.return_value \
             .create_volume.return_value.id = ec2_volume_id
-
         instance \
-            .get_easy_ec2.return_value \
             .get_volume.return_value \
             .update.return_value = 'available'
 
@@ -454,8 +469,8 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'config': {
-                '_id': self._config_id
+            'aws': {
+                'profileId': self._profile_id
             }
         }
 
@@ -483,11 +498,9 @@ class VolumeTestCase(base.TestCase):
         # Try successful detach
         instance.reset_mock()
         instance \
-            .get_easy_ec2.return_value \
             .create_volume.return_value.id = ec2_volume_id
 
         instance \
-            .get_easy_ec2.return_value \
             .get_volume.return_value \
             .update.return_value = 'in-use'
 
@@ -496,7 +509,7 @@ class VolumeTestCase(base.TestCase):
         self.assertStatusOk(r)
 
         # Assert that detach was called on ec2 object
-        self.assertEqual(len(instance.get_easy_ec2.return_value.get_volume
+        self.assertEqual(len(instance.get_volume
                              .return_value.detach.call_args_list),
                          1, "detach was not called")
 
@@ -507,16 +520,13 @@ class VolumeTestCase(base.TestCase):
         self.assertStatusOk(r)
         self.assertEqual(expected, r.json, 'Config was not updated correctly')
 
-    @mock.patch('starcluster.config.StarClusterConfig')
-    def test_find_volume(self, MockStarClusterConfig):
+    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
+    def test_find_volume(self, EasyEC2):
         ec2_volume_id = 'vol-1'
-        instance = MockStarClusterConfig.return_value
+        instance = EasyEC2.return_value
         instance \
-            .get_easy_ec2.return_value \
             .create_volume.return_value.id = ec2_volume_id
-
         instance \
-            .get_easy_ec2.return_value \
             .get_volume.return_value \
             .update.return_value = 'available'
 
@@ -526,8 +536,8 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'config': {
-                '_id': self._config_id
+            'aws': {
+                'profileId': self._profile_id
             }
         }
 
@@ -542,8 +552,8 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'config': {
-                '_id': self._config_id
+            'aws': {
+                'profileId': self._another_profile_id
             }
         }
 
@@ -591,16 +601,13 @@ class VolumeTestCase(base.TestCase):
         self.assertStatusOk(r)
         self.assertEqual(len(r.json), 1, 'Wrong number of volumes returned')
 
-    @mock.patch('starcluster.config.StarClusterConfig')
-    def test_get_status(self, MockStarClusterConfig):
+    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
+    def test_get_status(self, EasyEC2):
         ec2_volume_id = 'vol-1'
-        instance = MockStarClusterConfig.return_value
+        instance = EasyEC2.return_value
         instance \
-            .get_easy_ec2.return_value \
             .create_volume.return_value.id = ec2_volume_id
-
         instance \
-            .get_easy_ec2.return_value \
             .get_volume.return_value \
             .update.return_value = 'available'
 
@@ -610,8 +617,8 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'config': {
-                '_id': self._config_id
+            'aws': {
+                'profileId': self._profile_id
             }
         }
 
@@ -631,7 +638,6 @@ class VolumeTestCase(base.TestCase):
         self.assertEqual(r.json, expected, 'Unexpected status')
 
         instance \
-            .get_easy_ec2.return_value \
             .get_volume.return_value \
             .update.return_value = 'in-use'
         r = self.request(url, method='GET', user=self._user)

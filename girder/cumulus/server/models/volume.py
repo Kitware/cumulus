@@ -28,7 +28,7 @@ class Volume(BaseModel):
 
         return volume
 
-    def create_ebs(self, user, config, name, zone, size, fs):
+    def create_ebs(self, user, profileId, name, zone, size, fs):
         volume = {
             'name': name,
             'zone': zone,
@@ -37,7 +37,9 @@ class Volume(BaseModel):
             'ec2': {
                 'id': None
             },
-            'config': config
+            'aws': {
+                'profileId': profileId
+            }
         }
 
         if fs:

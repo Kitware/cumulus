@@ -1,7 +1,5 @@
 import cherrypy
-import re
 from jsonpath_rw import parse
-import urllib2
 from bson.objectid import ObjectId
 
 from girder.api import access
@@ -13,13 +11,12 @@ from girder.models.model_base import ValidationException
 from girder.api.rest import loadmodel
 from .base import BaseResource
 
-import starcluster.config
-from starcluster.exception import VolumeDoesNotExist
+from starcluster.awsutils import EasyEC2
+from starcluster.exception import VolumeDoesNotExist, ZoneDoesNotExist
 
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
 from cumulus.constants import ClusterType
-from cumulus.common import get_config_url
 
 
 class Volume(BaseResource):
@@ -46,22 +43,21 @@ class Volume(BaseResource):
         name = body['name']
         size = body['size']
         fs = body.get('fs', None)
-        config = body['config']
+        profileId = body['aws']['profileId']
 
-        return self.model('volume', 'cumulus').create_ebs(user, config, name,
+        return self.model('volume', 'cumulus').create_ebs(user, profileId, name,
                                                           zone, size, fs)
 
-    def _create_config_request(self, config_id):
-        base_url = re.match('(.*)/volumes.*', cherrypy.url()).group(1)
-        config_url = get_config_url(base_url, config_id)
+    def get_easy_ec2(self, profile):
+        aws_access_key_id = profile['accessKeyId']
+        aws_secret_access_key = profile['secretAccessKey']
+        aws_region_name = profile['regionName']
+        aws_region_host = profile['regionHost']
+        ec2 = EasyEC2(aws_access_key_id, aws_secret_access_key,
+                      aws_region_name=aws_region_name,
+                      aws_region_host=aws_region_host)
 
-        headers = {
-            'Girder-Token': self.get_task_token()['_id']
-        }
-
-        config_request = urllib2.Request(config_url, headers=headers)
-
-        return config_request
+        return ec2
 
     @access.user
     def create(self, params):
@@ -72,32 +68,24 @@ class Volume(BaseResource):
         if not VolumeType.is_valid_type(body['type']):
                 raise RestException('Invalid volume type.', code=400)
 
-        config_id = parse('config._id').find(body)[0].value
-        # Create copy of configuration for this volume
-        config_model = self.model('starclusterconfig', 'cumulus')
-        c = config_model.load(config_id, force=True)
-        c = config_model.create({
-            'config': c['config']
-        })
-        body['config']['_id'] = c['_id']
-        config_request = self._create_config_request(config_id)
+        profile_id = parse('aws.profileId').find(body)[0].value
+        profile = self.model('aws', 'cumulus').load(profile_id,
+                                                    user=getCurrentUser())
 
-        config = starcluster.config.StarClusterConfig(config_request)
-        config.load()
-        ec2 = config.get_easy_ec2()
+        ec2 = self.get_easy_ec2(profile)
 
         if 'zone' in body:
             # Check that the zone is valid
             try:
                 zone = body['zone']
                 ec2.get_zone(zone)
-            except starcluster.exception.ZoneDoesNotExist:
+            except ZoneDoesNotExist:
                 raise ValidationException('Zone does not exist in region',
                                           'zone')
 
-        # Just pick the first
+        # Use the zone from the profile
         else:
-            zone = ec2.get_zones()[0].name
+            zone = profile['availabilityZone']
 
         volume = self._create_ebs(body, zone)
         vol = ec2.create_volume(body['size'], zone)
@@ -111,12 +99,12 @@ class Volume(BaseResource):
 
         return volume
 
-    addModel('ConfigParameter', {
+    addModel('AwsParameter', {
         'id': 'ConfigParameter',
         'required': ['_id'],
         'properties': {
-            '_id': {'type': 'string',
-                    'description': 'Id of starcluster configuration'}
+            'profileId': {'type': 'string',
+                          'description': 'Id of AWS profile to use'}
         }
     })
 
@@ -126,8 +114,8 @@ class Volume(BaseResource):
         'properties': {
             'name': {'type': 'string',
                      'description': 'The name to give the cluster.'},
-            'config':  {'type': 'ConfigParameter',
-                        'description': 'The starcluster configuration'},
+            'aws':  {'type': 'AwsParameter',
+                     'description': 'The AWS configuration'},
             'type': {'type': 'string',
                      'description': 'The type of volume to create ( currently '
                      'only esb )'},
@@ -257,12 +245,12 @@ class Volume(BaseResource):
         if cluster['type'] != ClusterType.EC2:
             raise RestException('Invalid cluster type', 400)
 
-        config_id = parse('config._id').find(volume)[0].value
+        profile_id = parse('aws.profileId').find(volume)[0].value
+        profile = self.model('aws', 'cumulus').load(profile_id,
+                                                    user=getCurrentUser())
+        ec2 = self.get_easy_ec2(profile)
         volume_id = parse('ec2.id').find(volume)[0].value
-        config_request = self._create_config_request(config_id)
-        conf = starcluster.config.StarClusterConfig(config_request)
-        conf.load()
-        status = self._get_status(conf, volume_id)
+        status = self._get_status(ec2, volume_id)
 
         if status != VolumeState.AVAILABLE:
             raise RestException('This volume is not available to attach '
@@ -324,17 +312,17 @@ class Volume(BaseResource):
             raise RestException('Volume is not attached', 400)
 
         user = getCurrentUser()
-        config_id = parse('config._id').find(volume)[0].value
+        profile_id = parse('aws.profileId').find(volume)[0].value
+        profile = self.model('aws', 'cumulus').load(profile_id,
+                                                    user=getCurrentUser())
+        ec2 = self.get_easy_ec2(profile)
         volume_id = parse('ec2.id').find(volume)[0].value
-        config_request = self._create_config_request(config_id)
-        conf = starcluster.config.StarClusterConfig(config_request)
-        conf.load()
-        status = self._get_status(conf, volume_id)
+        status = self._get_status(ec2, volume_id)
 
         # Call ec2 to do the detach
         if status == VolumeState.INUSE:
             try:
-                vol = conf.get_easy_ec2().get_volume(volume_id)
+                vol = ec2.get_volume(volume_id)
                 vol.detach()
             except VolumeDoesNotExist:
                 pass
@@ -370,19 +358,13 @@ class Volume(BaseResource):
             raise RestException('Unable to delete attached volume')
 
         # Call EC2 to delete volume
-        config_id = parse('config._id').find(volume)[0].value
+        profile_id = parse('aws.profileId').find(volume)[0].value
+        profile = self.model('aws', 'cumulus').load(profile_id,
+                                                    user=getCurrentUser())
+        ec2 = self.get_easy_ec2(profile)
         volume_id = parse('ec2.id').find(volume)[0].value
-        config_request = self._create_config_request(config_id)
-        conf = starcluster.config.StarClusterConfig(config_request)
-        conf.load()
-        ec2 = conf.get_easy_ec2()
         vol = ec2.get_volume(volume_id)
         vol.delete()
-
-        # Remove the config associated with the volume if it not used by
-        # any volumes
-        self.model('starclusterconfig', 'cumulus').remove(
-            {'_id': config_id})
 
         self.model('volume', 'cumulus').remove(volume)
 
@@ -390,8 +372,7 @@ class Volume(BaseResource):
         Description('Delete a volume')
         .param('id', 'The volume id.', paramType='path', required=True))
 
-    def _get_status(self, starcluster_config, volume_id):
-        ec2 = starcluster_config.get_easy_ec2()
+    def _get_status(self, ec2, volume_id):
         v = ec2.get_volume(volume_id)
 
         return v.update()
@@ -406,12 +387,12 @@ class Volume(BaseResource):
             return {'status': 'creating'}
 
         # If we have an ec2 id delegate the call to ec2
-        config_id = parse('config._id').find(volume)[0].value
-        config_request = self._create_config_request(config_id)
-        conf = starcluster.config.StarClusterConfig(config_request)
-        conf.load()
+        profile_id = parse('aws.profileId').find(volume)[0].value
+        profile = self.model('aws', 'cumulus').load(profile_id,
+                                                    user=getCurrentUser())
+        ec2 = self.get_easy_ec2(profile)
 
-        return {'status': self._get_status(conf, ec2_id)}
+        return {'status': self._get_status(ec2, ec2_id)}
 
     get_status.description = (
         Description('Get the status of a volume')
