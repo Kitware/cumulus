@@ -11,8 +11,6 @@ from cumulus.starcluster.tasks.common import get_ssh_connection
 
 class CommonTestCase(unittest.TestCase):
     def setUp(self):
-        self._get_config_called = False
-
         self._cluster_id = '55c3a698f6571011a48f6817'
         self._key_path = os.path.join(cumulus.config.ssh.keyStore, self._cluster_id)
         with open(self._key_path, 'w') as fp:
@@ -38,10 +36,12 @@ class CommonTestCase(unittest.TestCase):
             'type': 'trad'
         }
 
-        conn = get_ssh_connection('girder_token', cluster)
+        get_ssh_connection('girder_token', cluster)
 
+    @mock.patch('cumulus.starcluster.tasks.common.create_config_request')
     @mock.patch('starcluster.config.StarClusterConfig')
-    def test_get_ssh_connection_ec2(self, config):
+    def test_get_ssh_connection_ec2(self, StarClusterConfig,
+                                    create_config_request):
         cluster = {
             'config': {
                 '_id': 'dummy'
@@ -50,26 +50,9 @@ class CommonTestCase(unittest.TestCase):
             'name': 'mycluster'
         }
 
-        dummy_config = 'my dummy config'
-
-        def _get_config(url, request):
-            headers = {
-                'content-length': len(dummy_config),
-                'content-type': 'text/plain'
-            }
-
-            self._get_config_called  = True
-            return httmock.response(200, dummy_config, headers, request=request)
-
-
-        config_url = '/api/v1/starcluster-configs/dummy'
-        config = httmock.urlmatch(
-            path=r'^%s$' % config_url, method='GET')(_get_config)
-
-        with httmock.HTTMock(config):
-            get_ssh_connection('girder_token', cluster)
-
-        self.assertTrue(self._get_config_called, 'The cluster configuration was not fetched')
+        get_ssh_connection('girder_token', cluster)
+        self.assertEqual(len(create_config_request.call_args_list),
+                         1, 'The cluster configuration was not fetched')
 
 
 

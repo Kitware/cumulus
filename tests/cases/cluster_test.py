@@ -47,15 +47,13 @@ class ClusterTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.config.awsutils.EasyEC2', new=MockEasyEC2)
     @mock.patch('cumulus.starcluster.logging.StarClusterLogHandler')
-    @mock.patch('cumulus.starcluster.tasks.cluster._write_config_file')
-    def test_start_cluster_max_instance_limit(self, _write_config_file, logging):
+    def test_start_cluster_max_instance_limit(self, logging):
 
         def valid(self):
             return True
 
         starcluster.cluster.ClusterValidator.validate_required_settings = valid
 
-        _write_config_file.return_value = 'dummy file path'
         cluster_id = 'dummy_id'
         cluster_model = {
             '_id': cluster_id,

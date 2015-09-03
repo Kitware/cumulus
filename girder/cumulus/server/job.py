@@ -187,9 +187,6 @@ class Job(BaseResource):
         cluster['config']['_id'] = str(cluster['config']['_id'])
 
         base_url = re.match('(.*)/jobs.*', cherrypy.url()).group(1)
-        config_url = '%s/starcluster-configs/%s?format=ini' % (
-            base_url, cluster['config']['_id'])
-
         job = self._model.load(id, user=user, level=AccessType.ADMIN)
         job['status'] = 'terminating'
 
@@ -202,7 +199,6 @@ class Job(BaseResource):
 
         girder_token = self.get_task_token()['_id']
         tasks.job.terminate_job.delay(cluster, job, log_write_url=log_url,
-                                      config_url=config_url,
                                       girder_token=girder_token)
 
         return job

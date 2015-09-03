@@ -1,13 +1,14 @@
 from cumulus.starcluster.logging import logstdout
 import cumulus.starcluster.logging
-from cumulus.starcluster.tasks.common import _write_config_file, _check_status
+from cumulus.starcluster.tasks.common import _check_status
 from cumulus.starcluster.tasks.job import submit
 from cumulus.starcluster.tasks.celery import command
+from cumulus.common import create_config_request
+import cumulus
 import starcluster.config
 import starcluster.logger
 import starcluster.exception
 import requests
-import os
 import time
 
 
@@ -15,25 +16,23 @@ import time
 @cumulus.starcluster.logging.capture
 def start_cluster(cluster, log_write_url=None, on_start_submit=None,
                   girder_token=None):
-    config_filepath = None
     name = cluster['name']
     template = cluster['template']
     cluster_id = cluster['_id']
     config_id = cluster['config']['_id']
-    config_url = '%s/starcluster-configs/%s' % (
-        cumulus.config.girder.baseUrl, config_id)
     status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl, cluster_id)
     log = starcluster.logger.get_starcluster_logger()
 
     try:
-
-        config_filepath = _write_config_file(girder_token, config_url)
         headers = {'Girder-Token':  girder_token}
         r = requests.patch(
             status_url, headers=headers, json={'status': 'initializing'})
         _check_status(r)
 
-        config = starcluster.config.StarClusterConfig(config_filepath)
+        config_request = create_config_request(girder_token,
+                                               cumulus.config.girder.baseUrl,
+                                               config_id)
+        config = starcluster.config.StarClusterConfig(config_request)
 
         config.load()
         sc = config.get_cluster_template(template, name)
@@ -70,15 +69,12 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None,
             log_url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl,
                                           on_start_submit)
 
-            submit(girder_token, cluster, job, log_url, config_url)
+            submit(girder_token, cluster, job, log_url)
     except starcluster.exception.ClusterValidationError as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
         # Log the error message
         log.error(ex.msg)
-    finally:
-        if config_filepath and os.path.exists(config_filepath):
-            os.remove(config_filepath)
 
 
 @command.task
@@ -87,15 +83,14 @@ def terminate_cluster(cluster, log_write_url=None, girder_token=None):
     name = cluster['name']
     cluster_id = cluster['_id']
     config_id = cluster['config']['_id']
-    config_url = '%s/starcluster-configs/%s' \
-        % (cumulus.config.girder.baseUrl, config_id)
     status_url = '%s/clusters/%s' \
         % (cumulus.config.girder.baseUrl, cluster_id)
 
-    config_filepath = None
     try:
-        config_filepath = _write_config_file(girder_token, config_url)
-        config = starcluster.config.StarClusterConfig(config_filepath)
+        config_request = create_config_request(girder_token,
+                                               cumulus.config.girder.baseUrl,
+                                               config_id)
+        config = starcluster.config.StarClusterConfig(config_request)
         config.load()
         cm = config.get_cluster_manager()
 
@@ -141,6 +136,3 @@ def terminate_cluster(cluster, log_write_url=None, girder_token=None):
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'terminated'})
         _check_status(r)
-    finally:
-        if config_filepath and os.path.exists(config_filepath):
-            os.remove(config_filepath)
