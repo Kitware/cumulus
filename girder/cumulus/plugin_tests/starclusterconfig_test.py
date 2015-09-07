@@ -71,7 +71,8 @@ class StarclusterconfigTestCase(base.TestCase):
             r.json['_id'], force=True)
         self.assertEqual(config['access'], expected_access)
 
-    def test_import(self):
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
+    def test_import(self, generate_key_pair):
         body = {
             'config': {},
             'name': 'test'
@@ -183,8 +184,9 @@ class StarclusterconfigTestCase(base.TestCase):
         config = starcluster.config.StarClusterConfig(request)
         config.load()
 
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_get_with_aws_profile(self, EasyEC2):
+    def test_get_with_aws_profile(self, EasyEC2, generate_key_pair):
         test_availability_zone = 'cornwall-2b'
         body = {
             'name': 'myProfile',

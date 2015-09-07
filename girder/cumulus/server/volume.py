@@ -11,12 +11,12 @@ from girder.models.model_base import ValidationException
 from girder.api.rest import loadmodel
 from .base import BaseResource
 
-from starcluster.awsutils import EasyEC2
 from starcluster.exception import VolumeDoesNotExist, ZoneDoesNotExist
 
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
 from cumulus.constants import ClusterType
+from cumulus.common import get_easy_ec2
 
 
 class Volume(BaseResource):
@@ -48,17 +48,6 @@ class Volume(BaseResource):
         return self.model('volume', 'cumulus').create_ebs(user, profileId, name,
                                                           zone, size, fs)
 
-    def get_easy_ec2(self, profile):
-        aws_access_key_id = profile['accessKeyId']
-        aws_secret_access_key = profile['secretAccessKey']
-        aws_region_name = profile['regionName']
-        aws_region_host = profile['regionHost']
-        ec2 = EasyEC2(aws_access_key_id, aws_secret_access_key,
-                      aws_region_name=aws_region_name,
-                      aws_region_host=aws_region_host)
-
-        return ec2
-
     @access.user
     def create(self, params):
         body = getBodyJson()
@@ -72,7 +61,7 @@ class Volume(BaseResource):
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
 
-        ec2 = self.get_easy_ec2(profile)
+        ec2 = get_easy_ec2(profile)
 
         if 'zone' in body:
             # Check that the zone is valid
@@ -248,7 +237,7 @@ class Volume(BaseResource):
         profile_id = parse('aws.profileId').find(volume)[0].value
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
-        ec2 = self.get_easy_ec2(profile)
+        ec2 = get_easy_ec2(profile)
         volume_id = parse('ec2.id').find(volume)[0].value
         status = self._get_status(ec2, volume_id)
 
@@ -315,7 +304,7 @@ class Volume(BaseResource):
         profile_id = parse('aws.profileId').find(volume)[0].value
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
-        ec2 = self.get_easy_ec2(profile)
+        ec2 = get_easy_ec2(profile)
         volume_id = parse('ec2.id').find(volume)[0].value
         status = self._get_status(ec2, volume_id)
 
@@ -361,7 +350,7 @@ class Volume(BaseResource):
         profile_id = parse('aws.profileId').find(volume)[0].value
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
-        ec2 = self.get_easy_ec2(profile)
+        ec2 = get_easy_ec2(profile)
         volume_id = parse('ec2.id').find(volume)[0].value
         vol = ec2.get_volume(volume_id)
         vol.delete()
@@ -390,7 +379,7 @@ class Volume(BaseResource):
         profile_id = parse('aws.profileId').find(volume)[0].value
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
-        ec2 = self.get_easy_ec2(profile)
+        ec2 = get_easy_ec2(profile)
 
         return {'status': self._get_status(ec2, ec2_id)}
 

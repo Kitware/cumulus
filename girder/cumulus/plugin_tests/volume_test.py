@@ -28,6 +28,7 @@ class VolumeTestCase(base.TestCase):
 
         self.assertListEqual(self.normalize(calls), expected, msg)
 
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
     @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
     def setUp(self, EasyEC2, *args):
@@ -142,11 +143,10 @@ class VolumeTestCase(base.TestCase):
         self.assertStatus(r, 201)
         self._another_profile_id = str(r.json['_id'])
 
-    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
-    def test_create(self, EasyEC2):
-
+    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
+    def test_create(self, get_easy_ec2):
         volume_id = 'vol-1'
-        instance = EasyEC2.return_value
+        instance = get_easy_ec2.return_value
         instance \
             .create_volume.return_value.id = volume_id
 
@@ -265,10 +265,10 @@ class VolumeTestCase(base.TestCase):
                          user=self._cumulus)
         self.assertStatus(r, 400)
 
-    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
-    def test_get(self, EasyEC2):
+    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
+    def test_get(self, get_easy_ec2):
         volume_id = 'vol-1'
-        instance = EasyEC2.return_value
+        instance = get_easy_ec2.return_value
         instance \
             .create_volume.return_value.id = volume_id
 
@@ -315,10 +315,10 @@ class VolumeTestCase(base.TestCase):
                          user=self._cumulus)
         self.assertStatus(r, 400)
 
-    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
-    def test_delete(self, EasyEC2):
+    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
+    def test_delete(self, get_easy_ec2):
         volume_id = 'vol-1'
-        instance = EasyEC2.return_value
+        instance = get_easy_ec2.return_value
         instance \
             .create_volume.return_value.id = volume_id
         body = {
@@ -371,10 +371,11 @@ class VolumeTestCase(base.TestCase):
 
 
 
-    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
-    def test_attach_volume(self, EasyEC2):
+    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
+    def test_attach_volume(self, get_easy_ec2):
+
         ec2_volume_id = 'vol-1'
-        instance = EasyEC2.return_value
+        instance = get_easy_ec2.return_value
         instance \
             .create_volume.return_value.id = ec2_volume_id
 
@@ -452,10 +453,10 @@ class VolumeTestCase(base.TestCase):
                          user=self._cumulus)
         self.assertStatus(r, 400)
 
-    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
-    def test_detach_volume(self, EasyEC2):
+    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
+    def test_detach_volume(self, get_easy_ec2):
         ec2_volume_id = 'vol-1'
-        instance = EasyEC2.return_value
+        instance = get_easy_ec2.return_value
         instance \
             .create_volume.return_value.id = ec2_volume_id
         instance \
@@ -518,10 +519,10 @@ class VolumeTestCase(base.TestCase):
         self.assertStatusOk(r)
         self.assertEqual(expected, r.json, 'Config was not updated correctly')
 
-    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
-    def test_find_volume(self, EasyEC2):
+    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
+    def test_find_volume(self, get_easy_ec2):
         ec2_volume_id = 'vol-1'
-        instance = EasyEC2.return_value
+        instance = get_easy_ec2.return_value
         instance \
             .create_volume.return_value.id = ec2_volume_id
         instance \
@@ -599,10 +600,10 @@ class VolumeTestCase(base.TestCase):
         self.assertStatusOk(r)
         self.assertEqual(len(r.json), 1, 'Wrong number of volumes returned')
 
-    @mock.patch('girder.plugins.cumulus.volume.EasyEC2')
-    def test_get_status(self, EasyEC2):
+    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
+    def test_get_status(self, get_easy_ec2):
         ec2_volume_id = 'vol-1'
-        instance = EasyEC2.return_value
+        instance = get_easy_ec2.return_value
         instance \
             .create_volume.return_value.id = ec2_volume_id
         instance \

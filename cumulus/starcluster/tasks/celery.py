@@ -5,7 +5,8 @@ _includes = (
     'cumulus.starcluster.tasks.cluster',
     'cumulus.starcluster.tasks.job',
     'cumulus.task.status',
-    'cumulus.ssh.tasks.key'
+    'cumulus.ssh.tasks.key',
+    'cumulus.aws.ec2.tasks.key'
 )
 
 # Route short tasks to their own queue

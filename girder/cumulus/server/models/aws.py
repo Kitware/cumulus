@@ -1,6 +1,7 @@
 from starcluster.awsutils import EasyEC2
 from starcluster.exception import RegionDoesNotExist, ZoneDoesNotExist
 from boto.exception import EC2ResponseError
+from bson.objectid import ObjectId
 
 from girder.constants import AccessType
 
@@ -18,7 +19,7 @@ class Aws(BaseModel):
         self.ensureIndices(['userId', 'name'])
         self.exposeFields(level=AccessType.READ, fields=(
             '_id', 'name', 'accessKeyId', 'regionName', 'regionHost',
-            'availabilityZone'))
+            'availabilityZone', 'status'))
 
     def validate(self, doc):
         name = doc['name']
@@ -76,11 +77,16 @@ class Aws(BaseModel):
             'secretAccessKey': secret_access_key,
             'regionName': region_name,
             'availabilityZone': availability_zone,
-            'userId': userId
+            'userId': userId,
+            'status': 'creating'
         }
 
         profile = self.setUserAccess(profile, user, level=AccessType.ADMIN,
                                      save=False)
+        group = {
+            '_id': ObjectId(self.get_group_id())
+        }
+        profile = self.setGroupAccess(profile, group, level=AccessType.ADMIN)
 
         return self.save(profile)
 

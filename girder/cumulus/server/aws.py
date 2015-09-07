@@ -1,4 +1,6 @@
 import cherrypy
+import json
+
 from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
@@ -7,11 +9,22 @@ from girder.api.rest import RestException, getBodyJson, ModelImporter,\
     getCurrentUser
 from girder.api.rest import loadmodel
 
+import cumulus
+from cumulus.common.girder import get_task_token
+import cumulus.aws.ec2.tasks.key
+
 
 def requireParams(required, params):
     for param in required:
         if param not in params:
             raise RestException("Parameter '%s' is required." % param)
+
+
+def _filter(profile):
+    del profile['access']
+    profile = json.loads(json.dumps(profile, default=str))
+
+    return profile
 
 
 @access.user
@@ -22,15 +35,20 @@ def create_profile(user, params):
                    'availabilityZone'], body)
 
     model = ModelImporter.model('aws', 'cumulus')
-    doc = model.create_profile(user['_id'], body['name'], body['accessKeyId'],
-                               body['secretAccessKey'], body['regionName'],
-                               body['availabilityZone'])
+    profile = model.create_profile(user['_id'], body['name'],
+                                   body['accessKeyId'],
+                                   body['secretAccessKey'], body['regionName'],
+                                   body['availabilityZone'])
+
+    # Now fire of a task to create a key pair for this profile
+    cumulus.aws.ec2.tasks.key.generate_key_pair.delay(_filter(profile),
+                                                      get_task_token()['_id'])
 
     cherrypy.response.status = 201
     cherrypy.response.headers['Location'] \
-        = '/user/%s/aws/profile/%s' % (str(user['_id']), str(doc['_id']))
+        = '/user/%s/aws/profile/%s' % (str(user['_id']), str(profile['_id']))
 
-    return model.filter(doc, getCurrentUser())
+    return model.filter(profile, getCurrentUser())
 
 
 addModel('AwsParameters', {
@@ -66,9 +84,13 @@ create_profile.description = (
 @loadmodel(model='aws', plugin='cumulus',  map={'profileId': 'profile'},
            level=AccessType.WRITE)
 def delete_profile(user, profile, params):
+    # Clean up key associate with profile
+    cumulus.aws.ec2.tasks.key.delete_key_pair.delay(_filter(profile),
+                                                    get_task_token()['_id'])
 
     # TODO Need to check it profile is in use before deleting it
     ModelImporter.model('aws', 'cumulus').remove(profile)
+
 
 delete_profile.description = (
     Description('Delete an aws profile')
@@ -83,7 +105,7 @@ delete_profile.description = (
            level=AccessType.WRITE)
 def update_profile(user, profile, params):
     body = getBodyJson()
-    properties = ['accessKeyId', 'secretAccessKey']
+    properties = ['accessKeyId', 'secretAccessKey', 'status', 'errorMessage']
     for prop in properties:
         if prop in body:
             profile[prop] = body[prop]
@@ -97,6 +119,12 @@ addModel('AwsUpdateParameters', {
                          'description': 'The aws access key id'},
         'secretAccessKey': {'type': 'string',
                             'description': 'The aws secret access key'},
+        'status': {'type': 'string',
+                   'description': 'The status of this profile, if its ready'
+                   ' to use'},
+        'errorMessage': {'type': 'string',
+                         'description': 'A error message if a error occured '
+                         'during the creation of this profile'}
     }
 })
 

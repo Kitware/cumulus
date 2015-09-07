@@ -1,6 +1,6 @@
 from girder.api.rest import Resource, RestException
 from bson.objectid import ObjectId
-import cumulus
+from cumulus.common.girder import get_task_token
 
 
 class BaseResource(Resource):
@@ -20,12 +20,4 @@ class BaseResource(Resource):
                                 code=403)
 
     def get_task_token(self):
-        user = self.model('user').find({'login': cumulus.config.girder.user})
-
-        if user.count() != 1:
-            raise Exception('Unable to load user "%s"' %
-                            cumulus.config.girder.user)
-
-        user = user.next()
-
-        return self.model('token').createToken(user=user, days=7)
+        return get_task_token()
