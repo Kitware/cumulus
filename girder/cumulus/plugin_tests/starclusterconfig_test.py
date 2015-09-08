@@ -7,6 +7,7 @@ from jsonpath_rw import parse
 from tests import base
 import json
 import starcluster.config
+import cumulus
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
@@ -71,7 +72,8 @@ class StarclusterconfigTestCase(base.TestCase):
             r.json['_id'], force=True)
         self.assertEqual(config['access'], expected_access)
 
-    def test_import(self):
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
+    def test_import(self, generate_key_pair):
         body = {
             'config': {},
             'name': 'test'
@@ -183,8 +185,9 @@ class StarclusterconfigTestCase(base.TestCase):
         config = starcluster.config.StarClusterConfig(request)
         config.load()
 
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_get_with_aws_profile(self, EasyEC2):
+    def test_get_with_aws_profile(self, EasyEC2, generate_key_pair):
         test_availability_zone = 'cornwall-2b'
         body = {
             'name': 'myProfile',
@@ -230,6 +233,7 @@ class StarclusterconfigTestCase(base.TestCase):
         self.assertStatusOk(r)
 
         # Fetch the config
+        cumulus.config.ssh.keyStore = '/tmp/keys'
         r = self.request('/starcluster-configs/%s' % str(config_id), method='GET',
                          user=self._cumulus)
         self.assertStatusOk(r)
@@ -243,7 +247,6 @@ class StarclusterconfigTestCase(base.TestCase):
 
         expected_aws = [{
             u'info': {
-                u'aws_user_id': u'cjh',
                 u'aws_region_name': u'cornwall',
                 u'aws_region_host': u'cornwall.ec2.amazon.com',
                 u'aws_access_key_id': u'mykeyId',
@@ -253,3 +256,14 @@ class StarclusterconfigTestCase(base.TestCase):
 
         self.assertEqual(r.json['aws'], expected_aws,
                          'aws property not as expected')
+
+        expected_key = [{
+            u'testKey': {
+                u'key_location': u'/tmp/keys/%s' % profile_id
+            }
+        }]
+        self.assertEqual(r.json['key'], expected_key,
+                         'key property not as expected')
+
+
+

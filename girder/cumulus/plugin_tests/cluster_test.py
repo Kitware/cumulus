@@ -115,8 +115,9 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 400)
 
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_create_using_aws_profile(self, EasyEC2):
+    def test_create_using_aws_profile(self, EasyEC2, generate_key_pair):
         # First create a profile
         instance = EasyEC2.return_value
         instance.get_region.return_value = EasyDict({'endpoint': 'cornwall.ec2.amazon.com'})

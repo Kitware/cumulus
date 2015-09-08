@@ -50,9 +50,6 @@ class MockContext(task.Context):
 def capture_mock(func):
     pass
 
-def _write_config_file():
-    return ''
-
 class JobTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -75,9 +72,7 @@ class JobTestCase(unittest.TestCase):
 
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.common._write_config_file')
-    def test_monitor_job_terminated(self, _write_config_file, logging):
-        _write_config_file.return_value = 'dummy file path'
+    def test_monitor_job_terminated(self, logging):
 
         job_id = 'dummy'
         cluster = {
@@ -132,9 +127,7 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.common._write_config_file')
-    def test_monitor_job_complete(self, _write_config_file, logging,logger):
-        _write_config_file.return_value = 'dummy file path'
+    def test_monitor_job_complete(self, logging,logger):
 
         job_id = 'dummy'
         cluster = {
@@ -193,11 +186,8 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.common._write_config_file')
     @mock.patch('cumulus.starcluster.tasks.celery.monitor.Task.retry')
-    def test_monitor_job_running(self, retry, _write_config_file, *args):
-        _write_config_file.return_value = 'dummy file path'
-
+    def test_monitor_job_running(self, retry, *args):
         job_id = 'dummy'
         cluster = {
             'type': 'ec2',
@@ -256,10 +246,8 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.common._write_config_file')
     @mock.patch('cumulus.starcluster.tasks.celery.monitor.Task.retry')
-    def test_monitor_job_queued(self, retry, _write_config_file, *args):
-        _write_config_file.return_value = 'dummy file path'
+    def test_monitor_job_queued(self, *args):
 
         job_id = 'dummy'
         cluster = {
@@ -316,10 +304,8 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.common._write_config_file')
     @mock.patch('cumulus.starcluster.tasks.celery.monitor.Task.retry')
-    def test_monitor_job_tail_output(self, retry, _write_config_file, *args):
-        _write_config_file.return_value = 'dummy file path'
+    def test_monitor_job_tail_output(self, retry, *args):
 
         job_id = 'dummy'
         cluster = {
@@ -382,10 +368,8 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('cumulus.starcluster.tasks.celery.monitor.Task.retry')
     @mock.patch('cumulus.starcluster.tasks.job.monitor_job')
     @mock.patch('cumulus.starcluster.tasks.common.SSHClient', autospec=True)
-    @mock.patch('cumulus.starcluster.tasks.common._write_config_file')
-    def test_submit_job(self,  _write_config_file, ssh_client, *args):
+    def test_submit_job(self, ssh_client, *args):
 
-        _write_config_file.return_value = 'dummy file path'
         cluster = {
             'type': 'ec2',
             'name': 'dummy',

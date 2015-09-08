@@ -2,10 +2,11 @@ from tests import base
 import json
 import mock
 import re
+import tempfile
 from easydict import EasyDict
 from boto.exception import EC2ResponseError
 from starcluster.exception import RegionDoesNotExist, ZoneDoesNotExist
-import unittest
+
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
@@ -93,8 +94,10 @@ class AwsTestCase(base.TestCase):
         self._cluster_config_id = str(r.json['config']['_id'])
 
 
+
     @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_create(self, EasyEC2):
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
+    def test_create(self, generate_key_pair, EasyEC2):
 
         instance = EasyEC2.return_value
         instance.get_region.side_effect = EC2ResponseError(401, '', '')
@@ -104,7 +107,6 @@ class AwsTestCase(base.TestCase):
             'accessKeyId': 'mykeyId',
             'secretAccessKey': 'mysecret',
             'regionName': 'cornwall',
-            #'regionHost': 'cornwall.ec2.amazon.com',
             'availabilityZone': 'cornwall-2b'
         }
 
@@ -145,7 +147,8 @@ class AwsTestCase(base.TestCase):
             u'regionHost': u'cornwall.ec2.amazon.com',
             u'accessKeyId': u'mykeyId',
             u'secretAccessKey': u'mysecret',
-            u'regionName': u'cornwall'
+            u'regionName': u'cornwall',
+            u'status': 'creating'
         }
 
         profile = self.model('aws', 'cumulus').load(profile_id, force=True)
@@ -154,14 +157,18 @@ class AwsTestCase(base.TestCase):
         del profile['userId']
         self.assertEqual(profile, expected, 'User aws property not updated as expected')
 
+        # Check that we fired of a task to create the key pair for this profile
+        self.assertEqual(len(generate_key_pair.call_args_list), 1, 'Task to create key not called')
+
         # Try create another one with the same name
         r = self.request(create_url, method='POST',
                          type='application/json', body=json.dumps(body),
                          user=self._user)
         self.assertStatus(r, 400)
 
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_update(self, EasyEC2):
+    def test_update(self, EasyEC2, delay):
         region_host = 'cornwall.ec2.amazon.com'
         instance = EasyEC2.return_value
         instance.get_region.return_value = EasyDict({'endpoint': region_host})
@@ -228,14 +235,49 @@ class AwsTestCase(base.TestCase):
             'secretAccessKey': change_value,
             'regionName': 'cornwall',
             'regionHost': region_host,
-            'availabilityZone': 'cornwall-2b'
+            'availabilityZone': 'cornwall-2b',
+            'status': 'creating'
         }
 
         self.assertEqual(profile, expected, 'Profile values not updated')
 
+        # Try updating errorMessage
+        body = {
+            'accessKeyId': change_value,
+            'secretAccessKey': change_value,
+            'regionName': change_value,
+            'regionHost': region_host,
+            'availabilityZone': change_value,
+            'status': 'error',
+            'errorMessage': 'some message'
+        }
+        update_url = '/user/%s/aws/profiles/%s' % (str(self._user['_id']), profile_id)
+        r = self.request(update_url, method='PATCH',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatusOk(r)
+        profile = self.model('aws', 'cumulus').load(profile_id, user=self._user)
+        del profile['access']
+        del profile['userId']
+        del profile['_id']
 
+        expected = {
+            u'status': u'error',
+            u'availabilityZone': u'cornwall-2b',
+            u'name': u'myprof',
+            u'regionHost': u'cornwall.ec2.amazon.com',
+            u'errorMessage': u'some message',
+            u'accessKeyId': u'cchange ...',
+            u'secretAccessKey': u'cchange ...',
+            u'regionName': u'cornwall'
+        }
+        self.assertEqual(profile, expected, 'Profile values not updated')
+
+
+    @mock.patch('cumulus.aws.ec2.tasks.key.delete_key_pair.delay')
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_delete(self, EasyEC2):
+    def test_delete(self, EasyEC2, generate_key_pair, delete_key_pair):
         region_host = 'cornwall.ec2.amazon.com'
         instance = EasyEC2.return_value
         instance.get_region.return_value = EasyDict({'endpoint': region_host})
@@ -264,8 +306,9 @@ class AwsTestCase(base.TestCase):
 
         self.assertFalse(profile, 'Expect profiles to be empty')
 
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_get(self, EasyEC2):
+    def test_get(self, EasyEC2, generate_key_pair):
         region_host = 'cornwall.ec2.amazon.com'
         instance = EasyEC2.return_value
         instance.get_region.return_value = EasyDict({'endpoint': region_host})
@@ -276,7 +319,8 @@ class AwsTestCase(base.TestCase):
             'secretAccessKey': 'mysecret',
             'regionName': 'cornwall',
             'regionHost': 'cornwall.ec2.amazon.com',
-            'availabilityZone': 'cornwall-2b'
+            'availabilityZone': 'cornwall-2b',
+            'status': 'creating'
         }
 
         create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
@@ -292,7 +336,8 @@ class AwsTestCase(base.TestCase):
             'secretAccessKey': 'mysecret',
             'regionName': 'cornwall',
             'regionHost': 'cornwall.ec2.amazon.com',
-            'availabilityZone': 'cornwall-2b'
+            'availabilityZone': 'cornwall-2b',
+            'status': 'creating'
         }
 
         create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
