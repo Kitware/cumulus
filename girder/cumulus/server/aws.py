@@ -41,14 +41,19 @@ def create_profile(user, params):
                                    body['availabilityZone'])
 
     # Now fire of a task to create a key pair for this profile
-    cumulus.aws.ec2.tasks.key.generate_key_pair.delay(_filter(profile),
-                                                      get_task_token()['_id'])
+    try:
+        cumulus.aws.ec2.tasks.key.generate_key_pair.delay(_filter(profile),
+                                                          get_task_token()['_id'])
 
-    cherrypy.response.status = 201
-    cherrypy.response.headers['Location'] \
-        = '/user/%s/aws/profile/%s' % (str(user['_id']), str(profile['_id']))
+        cherrypy.response.status = 201
+        cherrypy.response.headers['Location'] \
+            = '/user/%s/aws/profile/%s' % (str(user['_id']), str(profile['_id']))
 
-    return model.filter(profile, getCurrentUser())
+        return model.filter(profile, getCurrentUser())
+    except Exception:
+        # Remove profile if error occurs fire of task
+        model.remove(profile)
+        raise
 
 
 addModel('AwsParameters', {

@@ -16,6 +16,7 @@ class KeyTestCase(unittest.TestCase):
 
     def setUp(self):
         self._update = False
+        self._errorMessage = None
         self._expected_status = 'creating'
 
     @mock.patch('cumulus.aws.ec2.tasks.key.get_easy_ec2')
@@ -42,6 +43,10 @@ class KeyTestCase(unittest.TestCase):
                 status = status[0].value
 
             self._update = status == self._expected_status
+
+            if status == 'error':
+                self._errorMessage = request_body['errorMessage']
+
             return httmock.response(200, None, {}, request=request)
 
         update_url = '/api/v1/user/%s/aws/profiles/%s' % (profile['userId'],
@@ -54,6 +59,7 @@ class KeyTestCase(unittest.TestCase):
             key.generate_key_pair(profile, 'girder-token')
 
         self.assertTrue(self._update, 'Update was not called')
+        self.assertTrue(self._errorMessage, 'No errorMessage set')
 
         # Now mock out EC2 and check for success
         self._update = False

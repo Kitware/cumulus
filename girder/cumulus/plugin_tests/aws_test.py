@@ -241,6 +241,38 @@ class AwsTestCase(base.TestCase):
 
         self.assertEqual(profile, expected, 'Profile values not updated')
 
+        # Try updating errorMessage
+        body = {
+            'accessKeyId': change_value,
+            'secretAccessKey': change_value,
+            'regionName': change_value,
+            'regionHost': region_host,
+            'availabilityZone': change_value,
+            'status': 'error',
+            'errorMessage': 'some message'
+        }
+        update_url = '/user/%s/aws/profiles/%s' % (str(self._user['_id']), profile_id)
+        r = self.request(update_url, method='PATCH',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatusOk(r)
+        profile = self.model('aws', 'cumulus').load(profile_id, user=self._user)
+        del profile['access']
+        del profile['userId']
+        del profile['_id']
+
+        expected = {
+            u'status': u'error',
+            u'availabilityZone': u'cornwall-2b',
+            u'name': u'myprof',
+            u'regionHost': u'cornwall.ec2.amazon.com',
+            u'errorMessage': u'some message',
+            u'accessKeyId': u'cchange ...',
+            u'secretAccessKey': u'cchange ...',
+            u'regionName': u'cornwall'
+        }
+        self.assertEqual(profile, expected, 'Profile values not updated')
+
 
     @mock.patch('cumulus.aws.ec2.tasks.key.delete_key_pair.delay')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
