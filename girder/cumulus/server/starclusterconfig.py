@@ -211,8 +211,9 @@ class StarClusterConfig(BaseResource):
             profile = self.model('aws', 'cumulus').load(profile_id, user=user)
 
             json_str = json.dumps(config)
-            json_str = Template(json_str).render(awsProfile=profile,
-                keyStore=cumulus.config.ssh.keyStore)
+            json_str = Template(json_str) \
+                .render(awsProfile=profile,
+                        keyStore=cumulus.config.ssh.keyStore)
             config = json.loads(json_str)
 
         if format == 'json':
