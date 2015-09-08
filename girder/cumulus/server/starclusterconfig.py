@@ -213,6 +213,10 @@ class StarClusterConfig(BaseResource):
             json_str = json.dumps(config)
             json_str = Template(json_str) \
                 .render(awsProfile=profile,
+                        # We need to profile the separatly as we can't have
+                        # dot in mongo keys and need to use awsProfile name
+                        # as a key.
+                        awsProfile_name=profile['name'],
                         keyStore=cumulus.config.ssh.keyStore)
             config = json.loads(json_str)
 
