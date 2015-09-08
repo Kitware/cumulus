@@ -212,7 +212,7 @@ class Cluster(BaseResource):
     addModel('UserNameParameter', {
         "id": "UserNameParameter",
         "properties": {
-            "userName": {"type": "string", "description": "The ssh user id"}
+            "user": {"type": "string", "description": "The ssh user id"}
         }
     })
 
@@ -260,12 +260,12 @@ class Cluster(BaseResource):
 
     @access.user
     def start(self, id, params):
-        json_body = getBodyJson()
+        body = None
 
         if cherrypy.request.body:
             request_body = cherrypy.request.body.read().decode('utf8')
             if request_body:
-                json_body = json.loads(request_body)
+                body = json.loads(request_body)
 
         (user, _) = self.getCurrentUser(returnToken=True)
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
@@ -275,7 +275,7 @@ class Cluster(BaseResource):
 
         cluster = self._clean(cluster)
         adapter = get_cluster_adapter(cluster)
-        adapter.start(json_body)
+        adapter.start(body)
 
     addModel('ClusterOnStartParms', {
         'id': 'ClusterOnStartParms',

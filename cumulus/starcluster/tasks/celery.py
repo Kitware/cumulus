@@ -6,6 +6,7 @@ _includes = (
     'cumulus.starcluster.tasks.job',
     'cumulus.task.status',
     'cumulus.ssh.tasks.key',
+    'cumulus.trad.tasks.cluster',
     'cumulus.aws.ec2.tasks.key'
 )
 

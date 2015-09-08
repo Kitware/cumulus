@@ -73,8 +73,8 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None,
     except starcluster.exception.ClusterValidationError as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
-        # Log the error message
-        log.error(ex.msg)
+        # Log the exception
+        log.exception(ex)
 
 
 @command.task

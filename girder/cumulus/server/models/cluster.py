@@ -54,7 +54,7 @@ class Cluster(BaseModel):
         cluster = {
             'name': name,
             'log': [],
-            'status': 'running',
+            'status': 'creating',
             'config': {
                 'host': hostname,
                 'ssh': {

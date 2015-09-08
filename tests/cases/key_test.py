@@ -27,8 +27,9 @@ class KeyTestCase(unittest.TestCase):
             request_body = json.loads(request.body)
             passphrase = parse('config.ssh.passphrase').find(request_body)
             public_key = parse('config.ssh.publicKey').find(request_body)
+            status = request_body['status'] == 'created'
 
-            self._update = passphrase and public_key
+            self._update = passphrase and public_key and status
             return httmock.response(200, None, {}, request=request)
 
         update_url = '/api/v1/clusters/%s' % cluster['_id']
