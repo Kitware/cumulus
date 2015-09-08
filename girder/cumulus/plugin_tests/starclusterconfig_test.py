@@ -263,7 +263,6 @@ class StarclusterconfigTestCase(base.TestCase):
                 u'key_location': u'/tmp/keys/%s' % profile_id
             }
         }]
-        print r.json['key']
         self.assertEqual(r.json['key'], expected_key,
                          'key property not as expected')
 
