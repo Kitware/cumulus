@@ -164,6 +164,22 @@ get_profiles.description = (
     .param('id', 'The id of the user', required=True, paramType='path'))
 
 
+@access.user
+@loadmodel(model='user', level=AccessType.READ)
+@loadmodel(model='aws', plugin='cumulus',  map={'profileId': 'profile'},
+           level=AccessType.WRITE)
+def status(user, profile, params):
+    return {
+        'status': profile['status']
+    }
+
+status.description = (
+    Description('Get the status of this profile')
+    .param('id', 'The id of the user', paramType='path')
+    .param('profileId', 'The id of the profile to update', required=True,
+           paramType='path'))
+
+
 def load(apiRoot):
     apiRoot.user.route('POST', (':id', 'aws', 'profiles'), create_profile)
     apiRoot.user.route('DELETE', (':id', 'aws', 'profiles', ':profileId'),
@@ -171,3 +187,5 @@ def load(apiRoot):
     apiRoot.user.route('PATCH', (':id', 'aws', 'profiles', ':profileId'),
                        update_profile)
     apiRoot.user.route('GET', (':id', 'aws', 'profiles'), get_profiles)
+    apiRoot.user.route('GET', (':id', 'aws', 'profiles', ':profileId',
+                               'status'), status)
