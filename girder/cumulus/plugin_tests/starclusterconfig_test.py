@@ -247,7 +247,6 @@ class StarclusterconfigTestCase(base.TestCase):
 
         expected_aws = [{
             u'info': {
-                u'aws_user_id': u'cjh',
                 u'aws_region_name': u'cornwall',
                 u'aws_region_host': u'cornwall.ec2.amazon.com',
                 u'aws_access_key_id': u'mykeyId',

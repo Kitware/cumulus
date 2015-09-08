@@ -42,12 +42,13 @@ def create_profile(user, params):
 
     # Now fire of a task to create a key pair for this profile
     try:
-        cumulus.aws.ec2.tasks.key.generate_key_pair.delay(_filter(profile),
-                                                          get_task_token()['_id'])
+        cumulus.aws.ec2.tasks.key.generate_key_pair.delay(
+            _filter(profile), get_task_token()['_id'])
 
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] \
-            = '/user/%s/aws/profile/%s' % (str(user['_id']), str(profile['_id']))
+            = '/user/%s/aws/profile/%s' % (str(user['_id']),
+                                           str(profile['_id']))
 
         return model.filter(profile, getCurrentUser())
     except Exception:
