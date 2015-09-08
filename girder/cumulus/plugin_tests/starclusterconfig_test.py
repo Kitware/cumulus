@@ -7,6 +7,7 @@ from jsonpath_rw import parse
 from tests import base
 import json
 import starcluster.config
+import cumulus
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
@@ -232,6 +233,7 @@ class StarclusterconfigTestCase(base.TestCase):
         self.assertStatusOk(r)
 
         # Fetch the config
+        cumulus.config.ssh.keyStore = '/tmp/keys'
         r = self.request('/starcluster-configs/%s' % str(config_id), method='GET',
                          user=self._cumulus)
         self.assertStatusOk(r)
@@ -255,3 +257,15 @@ class StarclusterconfigTestCase(base.TestCase):
 
         self.assertEqual(r.json['aws'], expected_aws,
                          'aws property not as expected')
+
+        expected_key = [{
+            u'testKey': {
+                u'key_location': u'/tmp/keys/%s' % profile_id
+            }
+        }]
+        print r.json['key']
+        self.assertEqual(r.json['key'], expected_key,
+                         'key property not as expected')
+
+
+
