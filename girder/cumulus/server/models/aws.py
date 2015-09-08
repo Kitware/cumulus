@@ -19,7 +19,7 @@ class Aws(BaseModel):
         self.ensureIndices(['userId', 'name'])
         self.exposeFields(level=AccessType.READ, fields=(
             '_id', 'name', 'accessKeyId', 'regionName', 'regionHost',
-            'availabilityZone', 'status'))
+            'availabilityZone', 'status', 'errorMessage'))
 
     def validate(self, doc):
         name = doc['name']
