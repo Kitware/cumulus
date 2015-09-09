@@ -1,5 +1,3 @@
-import cherrypy
-import re
 import base64
 from jsonpath_rw import parse
 
@@ -102,7 +100,7 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
            'submitJob' in request_body['onStart']:
             on_start_submit = request_body['onStart']['submitJob']
 
-        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
+        base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
         cumulus.starcluster.tasks.cluster.start_cluster \
@@ -112,7 +110,7 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
                    girder_token=girder_token)
 
     def terminate(self):
-        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
+        base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
 
         if self.cluster['status'] == 'terminated' or \

@@ -1,6 +1,5 @@
 import cherrypy
 import json
-import re
 from jsonpath_rw import parse
 
 from girder.api import access
@@ -8,6 +7,7 @@ from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, getCurrentUser
+from girder.api.rest import getApiUrl
 from girder.models.model_base import ValidationException
 from .base import BaseResource
 from cumulus.constants import ClusterType
@@ -431,8 +431,7 @@ class Cluster(BaseResource):
 
         cluster = self._clean(cluster)
 
-        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
-
+        base_url = getApiUrl()
         job_model = self.model('job', 'cumulus')
         job = job_model.load(
             job_id, user=user, level=AccessType.ADMIN)
