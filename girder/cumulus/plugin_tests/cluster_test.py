@@ -282,7 +282,7 @@ class ClusterTestCase(base.TestCase):
             user=self._cumulus)
 
         self.assertStatusOk(r)
-        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {
+        expected = {u'status': u'creating', u'type': u'trad', u'_id': cluster_id, u'config': {
             u'host': u'myhost', u'ssh': {u'user': u'myuser', u'publicKey': self._valid_key}}, u'name': u'test'}
         self.assertEqual(
             self.normalize(expected), self.normalize(r.json), 'Unexpected response')
@@ -290,7 +290,7 @@ class ClusterTestCase(base.TestCase):
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._user)
         self.assertStatusOk(r)
-        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {
+        expected = {u'status': u'creating', u'type': u'trad', u'_id': cluster_id, u'config': {
             u'host': u'myhost', u'ssh': {u'user': u'myuser', u'publicKey': self._valid_key}}, u'name': u'test'}
         self.assertEqual(
             self.normalize(expected), self.normalize(r.json), 'Unexpected response')
@@ -299,7 +299,7 @@ class ClusterTestCase(base.TestCase):
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._cumulus)
         self.assertStatusOk(r)
-        expected = {u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {u'host': u'myhost', u'ssh': {
+        expected = {u'status': u'creating', u'type': u'trad', u'_id': cluster_id, u'config': {u'host': u'myhost', u'ssh': {
             u'user': u'myuser', u'publicKey': self._valid_key, u'passphrase': u'supersecret'}}, u'name': u'test'}
         self.assertEqual(
             self.normalize(expected), self.normalize(r.json), 'Unexpected response')
@@ -590,13 +590,14 @@ class ClusterTestCase(base.TestCase):
 
         self.assertStatus(r, 201)
         cluster_id = r.json['_id']
-        expected = [[[{u'status': u'running', u'type': u'trad', u'_id': cluster_id, u'config': {
+        expected = [[[{u'status': u'creating', u'type': u'trad', u'_id': cluster_id, u'config': {
             u'host': u'myhost', u'ssh': {u'user': u'bob'}}, u'name': u'my trad cluster'}, u'token'], {}]]
         self.assertCalls(
             generate_key.call_args_list, expected)
 
+    @mock.patch('cumulus.trad.tasks.cluster.test_connection.delay')
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
-    def test_start_trad(self, generate_key):
+    def test_start_trad(self, generate_key, test_connection):
         body = {
             'type': 'trad',
             'name': 'my trad cluster',
@@ -614,11 +615,31 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
 
         self.assertStatus(r, 201)
-        _id = str(r.json['_id'])
-        r = self.request('/clusters/%s/start' % _id, method='PUT',
-                         type='application/json', body={}, user=self._user)
+        cluster_id = str(r.json['_id'])
+        r = self.request('/clusters/%s/start' % cluster_id, method='PUT',
+                         user=self._user)
 
         self.assertStatus(r, 400)
+        self.assertEqual(r.json['message'], 'Cluster is not ready to start.',
+                         'Unexpected error message')
+
+        # Now update the cluster state to created and try again
+        update_body = {
+            'status': 'created'
+        }
+
+        r = self.request(
+            '/clusters/%s' % cluster_id, method='PATCH',
+            type='application/json', body=json.dumps(update_body),
+            user=self._cumulus)
+        self.assertStatusOk(r)
+        r = self.request('/clusters/%s/start' % cluster_id, method='PUT',
+                         user=self._user)
+
+        self.assertStatusOk(r)
+        expected = [[[{u'status': u'created', u'config': {u'host': u'myhost', u'ssh': {u'user': u'bob'}}, u'_id': cluster_id, u'type': u'trad', u'name': u'my trad cluster'}], {u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % cluster_id}]]
+        self.assertEqual(expected, self.normalize(test_connection.call_args_list))
+
 
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
     def test_terminate_trad(self, generate_key):
@@ -703,7 +724,7 @@ class ClusterTestCase(base.TestCase):
             },
             u'name': u'test'
         }
-        self.assertEqual(r.json[0], expected_cluster, 'Return cluster doesn\'t match')
+        self.assertEqual(r.json[0], expected_cluster, 'Returned cluster doesn\'t match')
 
         # Search for the trad cluster
         params = {
@@ -714,7 +735,7 @@ class ClusterTestCase(base.TestCase):
         self.assertStatusOk(r)
         self.assertEqual(len(r.json), 1, 'Only expecting a single cluster')
         expected_cluster = {
-            u'status': u'running',
+            u'status': u'creating',
             u'type': u'trad',
             u'_id': trad_cluster_id,
             u'config': {
@@ -725,7 +746,7 @@ class ClusterTestCase(base.TestCase):
             },
             u'name': u'trad_test'
         }
-        self.assertEqual(r.json[0], expected_cluster, 'Return cluster doesn\'t match')
+        self.assertEqual(r.json[0], expected_cluster, 'Returned cluster doesn\'t match')
 
         # Check limit works
         r = self.request(

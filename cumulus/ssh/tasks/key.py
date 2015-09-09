@@ -40,7 +40,8 @@ def generate_key_pair(cluster, girder_token=None):
                     'passphrase': passphrase,
                     'publicKey': public_key
                 }
-            }
+            },
+            'status': 'created'
         }
 
         patch_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,

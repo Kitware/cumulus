@@ -1,11 +1,10 @@
 import cherrypy
-import re
 
 from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
-from girder.api.rest import RestException, getBodyJson
+from girder.api.rest import RestException, getBodyJson, getApiUrl
 from .base import BaseResource
 
 from cumulus.starcluster import tasks
@@ -186,7 +185,7 @@ class Job(BaseResource):
         cluster['_id'] = str(cluster['_id'])
         cluster['config']['_id'] = str(cluster['config']['_id'])
 
-        base_url = re.match('(.*)/jobs.*', cherrypy.url()).group(1)
+        base_url = getApiUrl()
         job = self._model.load(id, user=user, level=AccessType.ADMIN)
         job['status'] = 'terminating'
 

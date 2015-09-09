@@ -1,15 +1,13 @@
-import cherrypy
-import re
 import base64
 from jsonpath_rw import parse
 
 from girder.utility.model_importer import ModelImporter
 from girder.models.model_base import ValidationException
-from girder.api.rest import RestException
+from girder.api.rest import RestException, getApiUrl
 
 from cumulus.constants import ClusterType
-import cumulus.starcluster.tasks.cluster
-import cumulus
+from cumulus.common.girder import get_task_token
+import cumulus.trad.tasks.cluster
 
 
 class AbstractClusterAdapter(ModelImporter):
@@ -57,20 +55,6 @@ class AbstractClusterAdapter(ModelImporter):
 
 
 class Ec2ClusterAdapter(AbstractClusterAdapter):
-
-    # TODO This should be replaced with a scoped token, plus there is a
-    # duplicate method in base.py
-    def get_task_token(self):
-        user = self.model('user').find({'login': cumulus.config.girder.user})
-
-        if user.count() != 1:
-            raise Exception('Unable to load user "%s"' %
-                            cumulus.config.girder.user)
-
-        user = user.next()
-
-        return self.model('token').createToken(user=user, days=7)
-
     def validate(self):
         query = {
             'name': self.cluster['name']
@@ -116,9 +100,9 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
            'submitJob' in request_body['onStart']:
             on_start_submit = request_body['onStart']['submitJob']
 
-        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
+        base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
-        girder_token = self.get_task_token()['_id']
+        girder_token = get_task_token()['_id']
         cumulus.starcluster.tasks.cluster.start_cluster \
             .delay(self.cluster,
                    log_write_url=log_write_url,
@@ -126,14 +110,14 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
                    girder_token=girder_token)
 
     def terminate(self):
-        base_url = re.match('(.*)/clusters.*', cherrypy.url()).group(1)
+        base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
 
         if self.cluster['status'] == 'terminated' or \
            self.cluster['status'] == 'terminating':
             return
 
-        girder_token = self.get_task_token()['_id']
+        girder_token = get_task_token()['_id']
         cumulus.starcluster.tasks.cluster.terminate_cluster \
             .delay(self.cluster,
                    log_write_url=log_write_url,
@@ -193,6 +177,18 @@ class TraditionClusterAdapter(AbstractClusterAdapter):
             del self.cluster['config']['ssh']['passphrase']
 
         return self.cluster
+
+    def start(self, request_body):
+        if self.cluster['status'] == 'creating':
+            raise RestException('Cluster is not ready to start.', code=400)
+
+        log_write_url = '%s/clusters/%s/log' % (getApiUrl(),
+                                                self.cluster['_id'])
+        girder_token = get_task_token()['_id']
+        cumulus.trad.tasks.cluster.test_connection \
+            .delay(self.cluster,
+                   log_write_url=log_write_url,
+                   girder_token=girder_token)
 
 type_to_adapter = {
     ClusterType.EC2: Ec2ClusterAdapter,
