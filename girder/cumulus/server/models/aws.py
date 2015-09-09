@@ -8,6 +8,7 @@ from girder.constants import AccessType
 from .base import BaseModel
 from girder.models.model_base import ValidationException
 from girder.api.rest import getCurrentUser
+from cumulus.common.girder import create_status_notifications
 
 
 class Aws(BaseModel):
@@ -96,3 +97,17 @@ class Aws(BaseModel):
         }
 
         return self.find(query)
+
+    def update_aws_profile(self, user, profile):
+        profile_id = profile['_id']
+        current_profile = self.load(profile_id, user=user,
+                                    level=AccessType.ADMIN)
+        new_status = profile['status']
+        if current_profile['status'] != new_status:
+            notification = {
+                '_id': profile_id,
+                'status': new_status
+            }
+            create_status_notifications('profile', notification, profile)
+
+        return self.save(profile)

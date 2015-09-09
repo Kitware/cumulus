@@ -186,10 +186,7 @@ class Job(BaseResource):
         cluster['config']['_id'] = str(cluster['config']['_id'])
 
         base_url = getApiUrl()
-        job = self._model.load(id, user=user, level=AccessType.ADMIN)
-        job['status'] = 'terminating'
-
-        self._model.save(job)
+        self.model.update_status(id, 'terminating')
 
         log_url = '%s/jobs/%s/log' % (base_url, id)
 
@@ -230,7 +227,7 @@ class Job(BaseResource):
             else:
                 job['timings'] = body['timings']
 
-        job = self._model.save(job)
+        job = self._model.update_job(user, job)
 
         # Don't return the access object
         del job['access']

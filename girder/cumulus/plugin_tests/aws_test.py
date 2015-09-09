@@ -273,6 +273,22 @@ class AwsTestCase(base.TestCase):
         }
         self.assertEqual(profile, expected, 'Profile values not updated')
 
+        # Check we get the right server side events
+        r = self.request('/notification/stream', method='GET', user=self._user,
+                         isJson=False, params={'timeout': 0})
+        self.assertStatusOk(r)
+        notifications = self.getSseMessages(r)
+        self.assertEqual(len(notifications), 1, 'Expecting a single notification')
+        notification = notifications[0]
+        notification_type = notification['type']
+        data = notification['data']
+        self.assertEqual(notification_type, 'profile.status')
+        expected = {
+            u'status': u'error',
+            u'_id': profile_id
+        }
+        self.assertEqual(data, expected, 'Unexpected notification data')
+
 
     @mock.patch('cumulus.aws.ec2.tasks.key.delete_key_pair.delay')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')

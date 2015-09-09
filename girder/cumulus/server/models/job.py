@@ -2,6 +2,7 @@ from girder.models.model_base import ValidationException
 from bson.objectid import ObjectId
 from girder.constants import AccessType
 from .base import BaseModel
+from cumulus.common.girder import create_status_notifications
 
 
 class Job(BaseModel):
@@ -38,15 +39,33 @@ class Job(BaseModel):
 
         return job['status']
 
-    def update_job(self, user, id, status=None, sge_id=None):
+    def update_status(self, user, id, status):
         # Load first to force access check
         job = self.load(id, user=user, level=AccessType.WRITE)
+
+        if job['status'] != status:
+            notification = {
+                '_id': id,
+                'status': status
+            }
+            create_status_notifications('job', notification, job)
 
         if status:
             job['status'] = status
 
-        if sge_id:
-            job['sgeId'] = sge_id
+        return self.save(job)
+
+    def update_job(self, user, job):
+        job_id = job['_id']
+        current_job = self.load(job_id, user=user, level=AccessType.WRITE)
+        new_status = job['status']
+
+        if current_job['status'] != new_status:
+            notification = {
+                '_id': job_id,
+                'status': new_status
+            }
+            create_status_notifications('job', notification, job)
 
         return self.save(job)
 

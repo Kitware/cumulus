@@ -109,7 +109,7 @@ class TaskTestCase(base.TestCase):
 
     def test_create(self):
         body = {
-            'taskSpecId': self._simpleSpecId,
+            'taskSpecId': self._simpleSpecId
         }
         body = json.dumps(body)
 
@@ -117,6 +117,42 @@ class TaskTestCase(base.TestCase):
                          type='application/json', body=body, user=self._user)
         self.assertStatus(r, 201)
         self.assertEquals(r.json['taskSpecId'], self._simpleSpecId)
+
+    def test_update(self):
+        body = {
+            'taskSpecId': self._simpleSpecId
+        }
+        body = json.dumps(body)
+
+        r = self.request('/tasks', method='POST',
+                         type='application/json', body=body, user=self._user)
+        self.assertStatus(r, 201)
+        task_id = str(r.json['_id'])
+
+        body = {
+            'status': 'complete'
+        }
+        body = json.dumps(body)
+        r = self.request('/tasks/%s' % task_id, method='PATCH',
+                         type='application/json', body=body, user=self._user)
+        self.assertStatus(r, 200)
+
+        # Check we get the right server side events
+        r = self.request('/notification/stream', method='GET', user=self._user,
+                         isJson=False, params={'timeout': 0})
+        self.assertStatusOk(r)
+        notifications = self.getSseMessages(r)
+        self.assertEqual(len(notifications), 1, 'Expecting a single notification')
+        notification = notifications[0]
+        notification_type = notification['type']
+        data = notification['data']
+        self.assertEqual(notification_type, 'task.status')
+        expected = {
+            u'status': u'complete',
+            u'_id': task_id
+        }
+        self.assertEqual(data, expected, 'Unexpected notification data')
+
 
     def run_simple(self):
         body = {
