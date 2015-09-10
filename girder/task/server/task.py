@@ -93,7 +93,7 @@ class Task(BaseResource):
         task['onDelete'] = []
         task['startTime'] = int(round(time.time() * 1000))
 
-        self._model.save(task)
+        self._model.update_task(user, task)
 
         try:
             file = self.model('file').load(task['taskSpecId'], user=user)
@@ -107,7 +107,7 @@ class Task(BaseResource):
             runner.run(token['_id'], self._clean(task), spec, variables)
         except requests.HTTPError as err:
             task['status'] = 'failure'
-            self._model.save(task)
+            self._model.update_task(user, task)
             raise RestException(err.response.content, err.response.status_code)
 
     run.description = (
@@ -153,7 +153,7 @@ class Task(BaseResource):
         if 'endTime' in updates:
             task['endTime'] = updates['endTime']
 
-        self._model.save(task)
+        self._model.update_task(user, task)
 
         return self._clean(task)
 
@@ -226,7 +226,7 @@ class Task(BaseResource):
             raise RestException('Log entry must be provided', code=400)
 
         task['log'].append(json.loads(body))
-        self._model.save(task)
+        self._model.update_task(user, task)
 
     log.description = None
 
@@ -272,7 +272,7 @@ class Task(BaseResource):
                 task['status'] = 'failure'
                 raise RestException('Task termination failed.', code=500)
         finally:
-            self._model.save(task)
+            self._model.update_task(user, task)
 
     terminate.description = (
         Description('Terminate the task ')
@@ -303,6 +303,7 @@ class Task(BaseResource):
             self._model.remove(task)
         except Exception:
             task['state'] = 'failure'
+            self._model.update_task(user, task)
             raise
 
     delete.description = (

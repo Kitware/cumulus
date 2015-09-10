@@ -4,6 +4,7 @@ from girder.constants import AccessType
 from .base import BaseModel
 from cumulus.constants import ClusterType
 from ..utility.cluster_adapters import get_cluster_adapter
+from cumulus.common.girder import create_status_notifications
 
 
 class Cluster(BaseModel):
@@ -71,12 +72,20 @@ class Cluster(BaseModel):
         self.load(id, user=user, level=AccessType.WRITE)
         self.update({'_id': ObjectId(id)}, {'$push': {'log': record}})
 
-    def update_cluster(self, user, id, status):
+    def update_cluster(self, user, cluster):
         # Load first to force access check
-        cluster = self.load(id, user=user, level=AccessType.WRITE)
+        cluster_id = cluster['_id']
+        current_cluster = self.load(cluster_id, user=user,
+                                    level=AccessType.WRITE)
 
-        if status:
-            cluster['status'] = status
+        # If the status has changed create a notification
+        new_status = cluster['status']
+        if current_cluster['status'] != new_status:
+            notification = {
+                '_id': cluster_id,
+                'status': new_status
+            }
+            create_status_notifications('cluster', notification, cluster)
 
         return self.save(cluster)
 

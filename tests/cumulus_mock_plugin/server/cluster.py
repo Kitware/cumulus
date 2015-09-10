@@ -4,6 +4,7 @@ from threading import Timer
 from functools import partial
 
 from girder.api import access
+from girder.api.rest import getCurrentUser
 
 import cumulus.starcluster.tasks as tasks
 import girder.plugins.cumulus
@@ -13,13 +14,13 @@ class Cluster(girder.plugins.cumulus.Cluster):
     def _update_status(self, id, status):
         cluster = self._model.load(id, force=True)
         cluster['status'] = status
-        self._model.save(cluster)
+        self._model.update_cluster(getCurrentUser(), cluster)
 
     def _update_job_status(self, id, status):
         model = self.model('job', 'cumulus')
         job = model.load(id, force=True)
         job['status'] = status
-        model.save(job)
+        model.update_job(getCurrentUser(), job)
 
     @access.user
     def start(self, id, params):

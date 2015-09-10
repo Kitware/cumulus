@@ -328,7 +328,7 @@ class Cluster(BaseResource):
             else:
                 cluster['timings'] = body['timings']
 
-        cluster = self._model.save(cluster)
+        cluster = self._model.update_cluster(user, cluster)
 
         # Now do any updates the adapter provides
         adapter = get_cluster_adapter(cluster)

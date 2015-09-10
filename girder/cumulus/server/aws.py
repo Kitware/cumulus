@@ -116,7 +116,8 @@ def update_profile(user, profile, params):
         if prop in body:
             profile[prop] = body[prop]
 
-    ModelImporter.model('aws', 'cumulus').save(profile)
+    ModelImporter.model('aws', 'cumulus').update_aws_profile(getCurrentUser(),
+                                                             profile)
 
 addModel('AwsUpdateParameters', {
     'id': 'AwsUpdateParameters',

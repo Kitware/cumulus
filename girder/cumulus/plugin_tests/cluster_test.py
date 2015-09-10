@@ -239,6 +239,23 @@ class ClusterTestCase(base.TestCase):
                             u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}
         self.assertEqual(r.json, expected_cluster)
 
+        # Check we get the right server side events
+        r = self.request('/notification/stream', method='GET', user=self._user,
+                         isJson=False, params={'timeout': 0})
+        self.assertStatusOk(r)
+        notifications = self.getSseMessages(r)
+        self.assertEqual(len(notifications), 1, 'Expecting a single notification')
+        notification = notifications[0]
+        notification_type = notification['type']
+        data = notification['data']
+        self.assertEqual(notification_type, 'cluster.status')
+        expected = {
+            u'status': u'testing',
+            u'_id': cluster_id
+        }
+        self.assertEqual(data, expected, 'Unexpected notification data')
+
+
         # Test GET status
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._user)
