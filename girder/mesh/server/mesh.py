@@ -52,7 +52,7 @@ class Mesh(Resource):
         girder_token = self.get_task_token()['_id']
         command.send_task('cumulus.moab.tasks.mesh.extract', args=(girder_token, mesh_file_id, body['output']))
 
-    addModel('MeshOutput', {
+    addModel('meshes', 'MeshOutput', {
         'id':'MeshOutput',
         'required': ['itemId', 'name'],
         'properties':{
@@ -66,7 +66,7 @@ class Mesh(Resource):
         }
     })
 
-    addModel('ExtractMeshParams', {
+    addModel('meshes', 'ExtractMeshParams', {
         'id':'ExtractMeshParams',
         'required': ['output'],
         'properties':{

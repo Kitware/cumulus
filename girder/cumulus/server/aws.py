@@ -66,14 +66,14 @@ addModel('AwsParameters', {
                  'description': 'The name of the profile.'},
         'accessKeyId':  {'type': 'string',
                          'description': 'The aws access key id'},
-        'secretAc    cessKey': {'type': 'string',
+        'secretAccessKey': {'type': 'string',
                                 'description': 'The aws secret access key'},
         'regionName': {'type': 'string',
                        'description': 'The aws region'},
         'availabilityZone': {'type': 'string',
                              'description': 'The aws availablility zone'}
     }
-})
+}, 'user')
 
 create_profile.description = (
     Description('Create a AWS profile')
@@ -133,7 +133,7 @@ addModel('AwsUpdateParameters', {
                          'description': 'A error message if a error occured '
                          'during the creation of this profile'}
     }
-})
+}, 'user')
 
 update_profile.description = (
     Description('Update a AWS profile')

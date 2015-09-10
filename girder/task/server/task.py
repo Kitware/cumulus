@@ -63,14 +63,14 @@ class Task(BaseResource):
 
         return self._clean(task)
 
-    addModel("TaskIdParam", {
-        "id": "TaskIdParam",
-        "properties": {
-            "taskSpecId": {
-                "type": "string"
+    addModel('TaskIdParam', {
+        'id': 'TaskIdParam',
+        'properties': {
+            'taskSpecId': {
+                'type': 'string'
             }
         }
-    })
+    }, 'tasks')
 
     create.description = (
         Description('Create task from a spec file id')

@@ -102,83 +102,84 @@ class StarClusterConfig(BaseResource):
 
         return self._clean(config)
 
-    addModel("Global", {
-        "id": "Global",
-        "properties": {
-            "default_template": {
-                "type": "string"
+    addModel('Global', {
+        'id': 'Global',
+        'properties': {
+            'default_template': {
+                'type': 'string'
             }
         }
-    })
+    }, 'starcluster-configs')
 
-    addModel("StarClusterSetting", {
-        "id": "StarClusterSetting",
-        "type": "object",
-        "additionalProperties": {
-            "type": "string"
+    addModel('StarClusterSetting', {
+        'id': 'StarClusterSetting',
+        'type': 'object',
+        'additionalProperties': {
+            'type': 'string'
         }
-    })
+    }, 'starcluster-configs')
 
-    addModel("Section", {
-        "id": "Section",
-        "type": "object",
-        "additionalProperties": {
-            "type": "array",
-            "items": {
-                "$ref": "StarClusterSetting"
+    addModel('Section', {
+        'id': 'Section',
+        'type': 'object',
+        'additionalProperties': {
+            'type': 'array',
+            'items': {
+                '$ref': 'StarClusterSetting'
             }
         }
-    })
+    }, 'starcluster-configs')
 
     addModel('StarClusterConfig', {
-        "id": "StartClusterConfig",
-        "required": "global",
-        "properties": {
-            "global": {
-                "type": "Global",
+        'id': 'StartClusterConfig',
+        'required': 'global',
+        'properties': {
+            'global': {
+                'type': 'Global',
             },
-            "key": {
-                "type": "array",
-                "items": {
-                    "$ref": "Section"
+            'key': {
+                'type': 'array',
+                'items': {
+                    '$ref': 'Section'
                 }
             },
-            "aws": {
-                "type": "array",
-                "items": {
-                    "$ref": "Section"
+            'aws': {
+                'type': 'array',
+                'items': {
+                    '$ref': 'Section'
                 }
             },
-            "cluster": {
-                "type": "array",
-                "items": {
-                    "$ref": "Section"
+            'cluster': {
+                'type': 'array',
+                'items': {
+                    '$ref': 'Section'
                 }
             },
-            "permission": {
-                "type": "array",
-                "items": {
-                    "$ref": "Section"
+            'permission': {
+                'type': 'array',
+                'items': {
+                    '$ref': 'Section'
                 }
             },
-            "plugin": {
-                "type": "array",
-                "items": {
-                    "$ref": "Section"
+            'plugin': {
+                'type': 'array',
+                'items': {
+                    '$ref': 'Section'
                 }
             }
         }
-    })
+    }, 'starcluster-configs')
 
     addModel('NamedStarClusterConfig', {
-        "id": "NamedStarClusterConfig",
-        "required": ["name"],
-        "properties": {
-            "name": {"type": "string",
-                     "description": "The name of the configuration."},
-            "config":  {"type": "StarClusterConfig",
-                        "description": "The JSON configuration."}
-        }})
+        'id': 'NamedStarClusterConfig',
+        'required': ['name'],
+        'properties': {
+            'name': {'type': 'string',
+                     'description': 'The name of the configuration.'},
+            'config':  {'type': 'StarClusterConfig',
+                        'description': 'The JSON configuration.'}
+        }
+    }, 'starcluster-configs')
 
     create.description = (
         Description('Create cluster configuration')
@@ -227,7 +228,7 @@ class StarClusterConfig(BaseResource):
                 cherrypy.response.headers['Content-Type'] = 'text/plain'
 
                 for (type, sections) in config.iteritems():
-                    section_config = ""
+                    section_config = ''
 
                     if type == 'global':
                         section_config += '[global]\n'

@@ -92,7 +92,7 @@ class Job(BaseResource):
                 'is complete.'
             }
         }
-    })
+    }, 'jobs')
 
     addModel('InputItem', {
         'id': 'InputItem',
@@ -106,7 +106,7 @@ class Job(BaseResource):
                 'description': 'The path to download this item to'
             }
         }
-    })
+    }, 'jobs')
 
     addModel('OutputItem', {
         'id': 'OutputItem',
@@ -120,7 +120,7 @@ class Job(BaseResource):
                 'description': 'The path to upload, may include * wildcard'
             }
         }
-    })
+    }, 'jobs')
 
     addModel('JobParameters', {
         'id': 'JobParameters',
@@ -159,7 +159,7 @@ class Job(BaseResource):
                 '$ref': 'JobOnCompleteParams'
             }
         }
-    })
+    }, 'jobs')
 
     create.description = (
         Description('Create a new job')
@@ -236,24 +236,24 @@ class Job(BaseResource):
 
         return job
 
-    addModel("JobUpdateParameters", {
-        "id": "JobUpdateParameters",
-        "properties": {
-            "status": {
-                "type": "string",
-                "enum": [
-                    "created",
-                    "queued",
-                    "running",
-                    "error",
-                    "completed"
+    addModel('JobUpdateParameters', {
+        'id': 'JobUpdateParameters',
+        'properties': {
+            'status': {
+                'type': 'string',
+                'enum': [
+                    'created',
+                    'queued',
+                    'running',
+                    'error',
+                    'completed'
                 ],
-                "description": "The new status. (optional)"
+                'description': 'The new status. (optional)'
             },
-            "sgeId": {"type": "integer",
-                      "description": "The SGE job id. (optional)"}
+            'sgeId': {'type': 'integer',
+                      'description': 'The SGE job id. (optional)'}
         }
-    })
+    }, 'jobs')
 
     update.description = (
         Description('Update the job')

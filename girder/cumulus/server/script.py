@@ -81,7 +81,7 @@ class Script(BaseResource):
                 }
             }
         }
-    })
+    }, 'scripts')
 
     create.description = (
         Description('Create script')
