@@ -8,6 +8,7 @@ from girder.api.rest import RestException, getApiUrl
 from cumulus.constants import ClusterType
 from cumulus.common.girder import get_task_token
 import cumulus.trad.tasks.cluster
+import cumulus.starcluster.tasks.cluster
 
 
 class AbstractClusterAdapter(ModelImporter):
