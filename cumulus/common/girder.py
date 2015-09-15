@@ -47,6 +47,7 @@ def _get_group_id(group):
 
     return group.next()['_id']
 
+
 def check_group_membership(user, group):
     group_id = _get_group_id(group)
     if 'groups' not in user or ObjectId(group_id) not in user['groups']:
