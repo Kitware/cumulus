@@ -57,6 +57,9 @@ class Volume(BaseModel):
         if fs:
             volume['fs'] = fs
 
+        # Add userId field to make search for a user volumes easier
+        volume['userId'] = user['_id']
+
         self.setUserAccess(volume, user=user, level=AccessType.ADMIN)
         group = {
             '_id': ObjectId(self.get_group_id())

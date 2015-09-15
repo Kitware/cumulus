@@ -236,8 +236,24 @@ class VolumeTestCase(base.TestCase):
 
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatus(r, 400)
+
+        # Now try create volume with same name another user this should work
+        body = {
+            'name': 'test',
+            'size': 20,
+            'zone': 'us-west-2a',
+            'type': 'ebs',
+            'aws': {
+                'profileId': self._profile_id
+            }
+        }
+
+        r = self.request('/volumes', method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._cumulus)
+        self.assertStatus(r, 201)
 
         # Create a volume without a zone
         body = {
