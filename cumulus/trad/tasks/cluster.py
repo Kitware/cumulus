@@ -1,8 +1,9 @@
 import requests
 
 import cumulus.starcluster.logging
-from cumulus.starcluster.tasks.common import _check_status, get_ssh_connection
-from cumulus.starcluster.tasks.celery import command
+from cumulus.common import check_status
+from cumulus.starcluster.common import get_ssh_connection
+from cumulus.celery import command
 import starcluster.logger
 
 
@@ -25,7 +26,7 @@ def test_connection(cluster, log_write_url=None, girder_token=None):
 
         r = requests.patch(
             status_url, headers=headers, json={'status': status})
-        _check_status(r)
+        check_status(r)
     except Exception as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})

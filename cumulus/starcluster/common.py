@@ -1,21 +1,15 @@
 import starcluster.config
 import starcluster.logger
 import starcluster.exception
+from starcluster.awsutils import EasyEC2
 from starcluster.sshutils import SSHClient
 import os
-import sys
 import traceback
 from jsonpath_rw import parse
 
 import cumulus
 from cumulus.constants import ClusterType
 from cumulus.common import create_config_request
-
-
-def _check_status(request):
-    if request.status_code != 200:
-        print >> sys.stderr, request.content
-        request.raise_for_status()
 
 
 def _log_exception(ex):
@@ -53,3 +47,15 @@ def get_ssh_connection(girder_token, cluster):
         conn = master.ssh
 
     return conn
+
+
+def get_easy_ec2(profile):
+    aws_access_key_id = profile['accessKeyId']
+    aws_secret_access_key = profile['secretAccessKey']
+    aws_region_name = profile['regionName']
+    aws_region_host = profile['regionHost']
+    ec2 = EasyEC2(aws_access_key_id, aws_secret_access_key,
+                  aws_region_name=aws_region_name,
+                  aws_region_host=aws_region_host)
+
+    return ec2

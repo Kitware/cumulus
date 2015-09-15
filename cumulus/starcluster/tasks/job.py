@@ -2,9 +2,9 @@ from __future__ import absolute_import
 import traceback
 from cumulus.starcluster.logging import logstdout
 import cumulus.starcluster.logging
-from cumulus.starcluster.tasks.common import _check_status, _log_exception, \
-    get_ssh_connection
-from cumulus.starcluster.tasks.celery import command, monitor
+from cumulus.common import check_status
+from cumulus.starcluster.common import _log_exception, get_ssh_connection
+from cumulus.celery import command, monitor
 import cumulus
 import cumulus.girderclient
 from cumulus.constants import ClusterType
@@ -59,7 +59,7 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
 
         r = requests.patch(status_url, json={'status': 'downloading'},
                            headers=headers)
-        _check_status(r)
+        check_status(r)
 
         download_cmd = 'python girderclient.py --token %s --url "%s" ' \
                        'download --dir %s  --job %s' \
@@ -95,7 +95,7 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
-        _check_status(r)
+        check_status(r)
         _log_exception(ex)
 
 
@@ -205,7 +205,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
 
             r = requests.patch(status_url, headers=headers,
                                json={'status': 'queued', 'sgeId': sge_id})
-            _check_status(r)
+            check_status(r)
             job = r.json()
 
             job['queuedTime'] = time.time()
@@ -218,22 +218,22 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
         headers = {'Girder-Token':  girder_token}
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'queued'})
-        _check_status(r)
+        check_status(r)
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
-        _check_status(r)
+        check_status(r)
         _log_exception(ex)
     except starcluster.exception.ClusterDoesNotExist as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
-        _check_status(r)
+        check_status(r)
         _log_exception(ex)
     except Exception as ex:
         traceback.print_exc()
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
-        _check_status(r)
+        check_status(r)
         _log_exception(ex)
         raise
     finally:
@@ -363,7 +363,7 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
         ssh = get_ssh_connection(girder_token, cluster)
         # First get the current status
         r = requests.get(status_url, headers=headers)
-        _check_status(r)
+        check_status(r)
 
         current_status = r.json()['status']
 
@@ -400,17 +400,17 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
             json['output'] = job['output']
 
         r = requests.patch(status_update_url, headers=headers, json=json)
-        _check_status(r)
+        check_status(r)
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_update_url, headers=headers,
                            json={'status': 'error'})
-        _check_status(r)
+        check_status(r)
         _log_exception(ex)
     except Exception as ex:
         traceback.print_exc()
         r = requests.patch(status_update_url, headers=headers,
                            json={'status': 'error'})
-        _check_status(r)
+        check_status(r)
         _log_exception(ex)
         raise
 
@@ -475,7 +475,7 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
-        _check_status(r)
+        check_status(r)
         _log_exception(ex)
 
 
@@ -514,7 +514,7 @@ def monitor_process(task, cluster, job, pid, nohup_out,
                         # job and return
                         r = requests.patch(status_url, headers=headers,
                                            json={'status': 'error'})
-                        _check_status(r)
+                        check_status(r)
                         return
             finally:
                 if nohup_out and os.path.exists(nohup_out):
@@ -528,17 +528,17 @@ def monitor_process(task, cluster, job, pid, nohup_out,
             if job['status'] == 'uploading':
                 r = requests.patch(status_url, headers=headers,
                                    json={'status': 'complete'})
-                _check_status(r)
+                check_status(r)
 
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
-        _check_status(r)
+        check_status(r)
         _log_exception(ex)
     except Exception as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
-        _check_status(r)
+        check_status(r)
         _log_exception(ex)
         raise
 
@@ -596,17 +596,17 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
-        _check_status(r)
+        check_status(r)
         _log_exception(ex)
     except starcluster.exception.ClusterDoesNotExist as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
-        _check_status(r)
+        check_status(r)
         _log_exception(ex)
     except Exception as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
-        _check_status(r)
+        check_status(r)
         _log_exception(ex)
         raise
     finally:

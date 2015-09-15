@@ -1,6 +1,6 @@
 from __future__ import absolute_import
-from cumulus.starcluster.tasks.celery import monitor
-from cumulus.starcluster.tasks.common import _check_status
+from cumulus.celery import monitor
+from cumulus.common import check_status
 import cumulus
 import requests
 import traceback
@@ -14,7 +14,7 @@ def _add_log_entry(token, task, entry):
     headers = {'Girder-Token': token}
     url = '%s/tasks/%s/log' % (cumulus.config.girder.baseUrl, task['_id'])
     r = requests.post(url, headers=headers, json=entry)
-    _check_status(r)
+    check_status(r)
 
 
 def _update_status(headers, task, status):
@@ -23,7 +23,7 @@ def _update_status(headers, task, status):
     }
     url = '%s/tasks/%s' % (cumulus.config.girder.baseUrl, task['_id'])
     r = requests.patch(url, headers=headers, json=update)
-    _check_status(r)
+    check_status(r)
 
 
 @monitor.task(bind=True, max_retries=None)
@@ -40,7 +40,7 @@ def monitor_status(celery_task, token, task, spec, step, variables):
 
         url = '%s/%s' % (cumulus.config.girder.baseUrl, params['url'])
         status = requests.get(url, headers=headers)
-        _check_status(status)
+        check_status(status)
         status = status.json()
         selector = params['selector']
         selector_path = selector.split('.')

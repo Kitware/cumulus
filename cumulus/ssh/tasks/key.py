@@ -6,8 +6,8 @@ import requests
 import starcluster.logger
 
 import cumulus
-from cumulus.starcluster.tasks.celery import command
-from cumulus.starcluster.tasks.common import _check_status
+from cumulus.celery import command
+from cumulus.common import check_status
 
 
 @command.task
@@ -48,10 +48,10 @@ def generate_key_pair(cluster, girder_token=None):
                                         cluster_id)
         headers = {'Girder-Token':  girder_token}
         request = requests.patch(patch_url, json=config_update, headers=headers)
-        _check_status(request)
+        check_status(request)
     except Exception as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
-        _check_status(r)
+        check_status(r)
         # Log the error message
         log.error(ex.message)

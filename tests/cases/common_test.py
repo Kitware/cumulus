@@ -7,7 +7,7 @@ from jsonpath_rw import parse
 
 import cumulus
 from cumulus.ssh.tasks import key
-from cumulus.starcluster.tasks.common import get_ssh_connection
+from cumulus.starcluster.common import get_ssh_connection
 
 class CommonTestCase(unittest.TestCase):
     def setUp(self):
@@ -38,7 +38,7 @@ class CommonTestCase(unittest.TestCase):
 
         get_ssh_connection('girder_token', cluster)
 
-    @mock.patch('cumulus.starcluster.tasks.common.create_config_request')
+    @mock.patch('cumulus.starcluster.common.create_config_request')
     @mock.patch('starcluster.config.StarClusterConfig')
     def test_get_ssh_connection_ec2(self, StarClusterConfig,
                                     create_config_request):

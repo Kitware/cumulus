@@ -7,6 +7,7 @@ import re
 from cumulus.starcluster.tasks import job
 from celery.app import task
 
+
 class MockMaster:
     execute_stack = []
     def __init__(self):
@@ -186,7 +187,7 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.celery.monitor.Task.retry')
+    @mock.patch('cumulus.celery.monitor.Task.retry')
     def test_monitor_job_running(self, retry, *args):
         job_id = 'dummy'
         cluster = {
@@ -246,7 +247,7 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.celery.monitor.Task.retry')
+    @mock.patch('cumulus.celery.monitor.Task.retry')
     def test_monitor_job_queued(self, *args):
 
         job_id = 'dummy'
@@ -304,7 +305,7 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.celery.monitor.Task.retry')
+    @mock.patch('cumulus.celery.monitor.Task.retry')
     def test_monitor_job_tail_output(self, retry, *args):
 
         job_id = 'dummy'
@@ -365,9 +366,9 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.starcluster.tasks.celery.monitor.Task.retry')
+    @mock.patch('cumulus.celery.monitor.Task.retry')
     @mock.patch('cumulus.starcluster.tasks.job.monitor_job')
-    @mock.patch('cumulus.starcluster.tasks.common.SSHClient', autospec=True)
+    @mock.patch('cumulus.starcluster.common.SSHClient', autospec=True)
     def test_submit_job(self, ssh_client, *args):
 
         cluster = {
