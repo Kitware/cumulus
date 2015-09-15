@@ -203,51 +203,51 @@ class Cluster(BaseResource):
         return cluster
 
     addModel('Id', {
-        "id": "Id",
-        "properties": {
-            "_id": {"type": "string", "description": "The id."}
+        'id': 'Id',
+        'properties': {
+            '_id': {'type': 'string', 'description': 'The id.'}
         }
-    })
+    }, 'clusters')
 
     addModel('UserNameParameter', {
-        "id": "UserNameParameter",
-        "properties": {
-            "user": {"type": "string", "description": "The ssh user id"}
+        'id': 'UserNameParameter',
+        'properties': {
+            'user': {'type': 'string', 'description': 'The ssh user id'}
         }
-    })
+    }, 'clusters')
 
-    addModel("SshParameters", {
-        "id": "SshParameters",
-        "properties": {
-            "ssh": {
-                "$ref": "UserNameParameter"
+    addModel('SshParameters', {
+        'id': 'SshParameters',
+        'properties': {
+            'ssh': {
+                '$ref': 'UserNameParameter'
             }
         }
-    })
+    }, 'clusters')
 
     addModel('ClusterParameters', {
-        "id": "ClusterParameters",
-        "required": ["name", "config", "type"],
-        "properties": {
-            "name": {"type": "string",
-                     "description": "The name to give the cluster."},
-            "template":  {"type": "string",
-                          "description": "The cluster template to use. "
-                          "(ec2 only)"},
-            "config": {"type": "array",
-                       "description": "List of configuration to use, "
-                                      "either ids or inline config.",
-                       "items": {"$ref": "Id"}},
-            "config": {
-                "$ref": "SshParameters",
-                "host": {"type": "string",
-                         "description": "The hostname of the head node "
-                                        "(trad only)"}
+        'id': 'ClusterParameters',
+        'required': ['name', 'config', 'type'],
+        'properties': {
+            'name': {'type': 'string',
+                     'description': 'The name to give the cluster.'},
+            'template':  {'type': 'string',
+                          'description': 'The cluster template to use. '
+                          '(ec2 only)'},
+            'config': {'type': 'array',
+                       'description': 'List of configuration to use, '
+                                      'either ids or inline config.',
+                       'items': {'$ref': 'Id'}},
+            'config': {
+                '$ref': 'SshParameters',
+                'host': {'type': 'string',
+                         'description': 'The hostname of the head node '
+                                        '(trad only)'}
             },
-            "type": {"type": "string",
-                     "description": "The cluster type, either 'ec2' or 'trad'"}
+            'type': {'type': 'string',
+                     'description': 'The cluster type, either "ec2" or "trad"'}
 
-        }})
+        }}, 'clusters')
 
     create.description = (Description(
         'Create a cluster'
@@ -287,7 +287,7 @@ class Cluster(BaseResource):
                 'is started.'
             }
         }
-    })
+    }, 'clusters')
 
     addModel('ClusterStartParams', {
         'id': 'ClusterStartParams',
@@ -296,7 +296,7 @@ class Cluster(BaseResource):
                 '$ref': 'ClusterOnStartParms'
             }
         }
-    })
+    }, 'clusters')
 
     start.description = (Description(
         'Start a cluster (ec2 only)'
@@ -336,14 +336,14 @@ class Cluster(BaseResource):
 
         return cluster
 
-    addModel("ClusterUpdateParameters", {
-        "id": "ClusterUpdateParameters",
-        "properties": {
-            "status": {"type": "string", "enum": ["created", "running",
-                                                  "stopped", "terminated"],
-                       "description": "The new status. (optional)"}
+    addModel('ClusterUpdateParameters', {
+        'id': 'ClusterUpdateParameters',
+        'properties': {
+            'status': {'type': 'string', 'enum': ['created', 'running',
+                                                  'stopped', 'terminated'],
+                       'description': 'The new status. (optional)'}
         }
-    })
+    }, 'clusters')
 
     update.description = (Description(
         'Update the cluster'

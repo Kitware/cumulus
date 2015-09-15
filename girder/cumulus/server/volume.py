@@ -95,7 +95,7 @@ class Volume(BaseResource):
             'profileId': {'type': 'string',
                           'description': 'Id of AWS profile to use'}
         }
-    })
+    }, 'volumes')
 
     addModel('VolumeParameters', {
         'id': 'VolumeParameters',
@@ -113,7 +113,7 @@ class Volume(BaseResource):
             'size': {'type': 'integer',
                      'description': 'The size of the volume to create'}
         },
-    })
+    }, 'volumes')
 
     create.description = (
         Description('Create a volume')
@@ -275,7 +275,7 @@ class Volume(BaseResource):
             'path': {'type': 'string',
                      'description': 'Id of starcluster configuration'}
         }
-    })
+    }, 'volumes')
 
     attach.description = (
         Description('Attach a volume to a cluster')
