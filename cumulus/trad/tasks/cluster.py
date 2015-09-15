@@ -1,8 +1,8 @@
 import requests
 
 import cumulus.starcluster.logging
-from cumulus.starcluster.tasks.common import _check_status, get_ssh_connection
-from cumulus.starcluster.tasks.celery import command
+from cumulus.starcluster.common import _check_status, get_ssh_connection
+from cumulus.celery import command
 import starcluster.logger
 
 

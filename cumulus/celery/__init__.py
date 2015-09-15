@@ -27,7 +27,7 @@ command = Celery('command',  backend='amqp',
                  broker='amqp://guest:guest@localhost:5672/',
                  include=_includes)
 
-command.config_from_object('cumulus.starcluster.tasks.commandconfig')
+command.config_from_object('cumulus.celery.commandconfig')
 command.conf.update(
     CELERY_ROUTES=_routes
 )
@@ -36,7 +36,7 @@ monitor = Celery('monitor',  backend='amqp',
                  broker='amqp://guest:guest@localhost:5672/',
                  include=_includes)
 
-monitor.config_from_object('cumulus.starcluster.tasks.monitorconfig')
+monitor.config_from_object('cumulus.celery.monitorconfig')
 monitor.conf.update(
     CELERY_ROUTES=_routes
 )

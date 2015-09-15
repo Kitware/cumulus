@@ -2,9 +2,9 @@ from __future__ import absolute_import
 import traceback
 from cumulus.starcluster.logging import logstdout
 import cumulus.starcluster.logging
-from cumulus.starcluster.tasks.common import _check_status, _log_exception, \
+from cumulus.starcluster.common import _check_status, _log_exception, \
     get_ssh_connection
-from cumulus.starcluster.tasks.celery import command, monitor
+from cumulus.celery import command, monitor
 import cumulus
 import cumulus.girderclient
 from cumulus.constants import ClusterType

@@ -3,7 +3,7 @@ import cumulus
 from jinja2 import Environment
 import requests
 import sys
-from cumulus.starcluster.tasks.celery import monitor
+from cumulus.celery import monitor
 import traceback
 import time
 

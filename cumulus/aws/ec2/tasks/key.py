@@ -3,9 +3,9 @@ import requests
 import traceback
 
 import cumulus
-from cumulus.starcluster.tasks.celery import command
+from cumulus.celery import command
 from cumulus.common import get_easy_ec2
-from cumulus.starcluster.tasks.common import _check_status
+from cumulus.starcluster.common import _check_status
 
 
 def _key_path(profile):
