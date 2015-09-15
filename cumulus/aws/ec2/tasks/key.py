@@ -4,8 +4,7 @@ import traceback
 
 import cumulus
 from cumulus.celery import command
-from cumulus.common import get_easy_ec2
-from cumulus.starcluster.common import _check_status
+from cumulus.common import get_easy_ec2, _check_status
 
 
 def _key_path(profile):

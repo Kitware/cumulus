@@ -1,6 +1,13 @@
 from __future__ import absolute_import
+import sys
 import urllib2
 from starcluster.awsutils import EasyEC2
+
+
+def _check_status(request):
+    if request.status_code != 200:
+        print >> sys.stderr, request.content
+        request.raise_for_status()
 
 
 def get_config_url(base_url, config_id):

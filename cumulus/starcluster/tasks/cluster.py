@@ -1,9 +1,8 @@
 from cumulus.starcluster.logging import logstdout
 import cumulus.starcluster.logging
-from cumulus.starcluster.common import _check_status
 from cumulus.starcluster.tasks.job import submit
 from cumulus.celery import command
-from cumulus.common import create_config_request
+from cumulus.common import create_config_request, _check_status
 import cumulus
 import starcluster.config
 import starcluster.logger

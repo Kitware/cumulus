@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from cumulus.celery import monitor
-from cumulus.starcluster.common import _check_status
+from cumulus.common import _check_status
 import cumulus
 import requests
 import traceback

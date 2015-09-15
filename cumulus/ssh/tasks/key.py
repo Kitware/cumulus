@@ -7,7 +7,7 @@ import starcluster.logger
 
 import cumulus
 from cumulus.celery import command
-from cumulus.starcluster.common import _check_status
+from cumulus.common import _check_status
 
 
 @command.task

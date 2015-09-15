@@ -3,19 +3,12 @@ import starcluster.logger
 import starcluster.exception
 from starcluster.sshutils import SSHClient
 import os
-import sys
 import traceback
 from jsonpath_rw import parse
 
 import cumulus
 from cumulus.constants import ClusterType
 from cumulus.common import create_config_request
-
-
-def _check_status(request):
-    if request.status_code != 200:
-        print >> sys.stderr, request.content
-        request.raise_for_status()
 
 
 def _log_exception(ex):
