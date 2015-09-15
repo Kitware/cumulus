@@ -19,7 +19,7 @@ class GirderBase(object):
         self._girder_token = girder_token
         self._headers = {'Girder-Token': self._girder_token}
 
-    def _check_status(self, request):
+    def check_status(self, request):
         if request.status_code != 200:
             if request.headers['Content-Type'] == 'application/json':
                 print >> sys.stderr, request.json()
@@ -38,7 +38,7 @@ class DirectoryUploader(GirderBase):
         job_url = '%s/jobs/%s' % (self._base_url, self._job_id)
 
         r = requests.get(job_url, headers=self._headers)
-        self._check_status(r)
+        self.check_status(r)
 
         job = r.json()
 
@@ -62,7 +62,7 @@ class DirectoryUploader(GirderBase):
         }
 
         r = requests.patch(job_url, json=updates, headers=self._headers)
-        self._check_status(r)
+        self.check_status(r)
 
     def _upload_file(self, name, path, parent_id):
         datalen = os.path.getsize(path)
@@ -76,7 +76,7 @@ class DirectoryUploader(GirderBase):
 
         r = requests.post(
             '%s/file' % self._base_url, params=params, headers=self._headers)
-        self._check_status(r)
+        self.check_status(r)
         obj = r.json()
 
         if '_id' in obj:
@@ -107,7 +107,7 @@ class DirectoryUploader(GirderBase):
 
                 r = requests.post('%s/file/chunk' % self._base_url,
                                   params=params, data=m, headers=headers)
-                self._check_status(r)
+                self.check_status(r)
 
                 uploaded += chunk_size
 
@@ -148,14 +148,14 @@ class JobInputDownloader(GirderBase):
 
         item_files_url = '%s/item/%s/files' % (self._base_url, item_id)
         r = requests.get(item_files_url, headers=self._headers)
-        self._check_status(r)
+        self.check_status(r)
 
         files = r.json()
 
         if len(files) == 1:
             item_url = '%s/item/%s/download' % (self._base_url, item_id)
             r = requests.get(item_url, headers=self._headers)
-            self._check_status(r)
+            self.check_status(r)
             dest_path = os.path.join(self._dest, target_path, files[0]['name'])
 
             self._mkdir(os.path.dirname(dest_path))
@@ -165,7 +165,7 @@ class JobInputDownloader(GirderBase):
             # Download the item in zip format
             item_url = '%s/item/%s/download' % (self._base_url, item_id)
             r = requests.get(item_url, headers=self._headers, stream=True)
-            self._check_status(r)
+            self.check_status(r)
             with tempfile.NamedTemporaryFile(suffix='.zip') as fp:
                 for chunk in r.iter_content(chunk_size=1024):
                     if chunk:
@@ -205,7 +205,7 @@ class JobInputDownloader(GirderBase):
         job_url = '%s/jobs/%s' % (self._base_url, self._job_id)
 
         r = requests.get(job_url, headers=self._headers)
-        self._check_status(r)
+        self.check_status(r)
 
         job = r.json()
 
@@ -227,7 +227,7 @@ class JobInputDownloader(GirderBase):
         }
 
         r = requests.patch(job_url, json=updates, headers=self._headers)
-        self._check_status(r)
+        self.check_status(r)
 
 
 def main():

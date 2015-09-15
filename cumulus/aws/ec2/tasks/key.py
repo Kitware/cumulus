@@ -4,7 +4,7 @@ import traceback
 
 import cumulus
 from cumulus.celery import command
-from cumulus.common import get_easy_ec2, _check_status
+from cumulus.common import get_easy_ec2, check_status
 
 
 def _key_path(profile):
@@ -30,7 +30,7 @@ def generate_key_pair(aws_profile, girder_token):
 
     headers = {'Girder-Token':  girder_token}
     r = requests.patch(update_url, json=aws_profile, headers=headers)
-    _check_status(r)
+    check_status(r)
 
 
 @command.task

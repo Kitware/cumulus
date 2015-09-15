@@ -2,7 +2,7 @@ from cumulus.starcluster.logging import logstdout
 import cumulus.starcluster.logging
 from cumulus.starcluster.tasks.job import submit
 from cumulus.celery import command
-from cumulus.common import create_config_request, _check_status
+from cumulus.common import create_config_request, check_status
 import cumulus
 import starcluster.config
 import starcluster.logger
@@ -26,7 +26,7 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None,
         headers = {'Girder-Token':  girder_token}
         r = requests.patch(
             status_url, headers=headers, json={'status': 'initializing'})
-        _check_status(r)
+        check_status(r)
 
         config_request = create_config_request(girder_token,
                                                cumulus.config.girder.baseUrl,
@@ -54,7 +54,7 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None,
 
         # Now update the status of the cluster
         r = requests.patch(status_url, headers=headers, json=updates)
-        _check_status(r)
+        check_status(r)
 
         # Now if we have a job to submit do it!
         if on_start_submit:
@@ -63,7 +63,7 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None,
 
             # Get the Job information
             r = requests.get(job_url, headers=headers)
-            _check_status(r)
+            check_status(r)
             job = r.json()
             log_url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl,
                                           on_start_submit)
@@ -96,7 +96,7 @@ def terminate_cluster(cluster, log_write_url=None, girder_token=None):
         headers = {'Girder-Token':  girder_token}
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'terminating'})
-        _check_status(r)
+        check_status(r)
 
         start = time.time()
 
@@ -119,9 +119,9 @@ def terminate_cluster(cluster, log_write_url=None, girder_token=None):
                 detach_url = '%s/volumes/%s/detach' \
                     % (cumulus.config.girder.baseUrl, volume_id)
                 r = requests.put(detach_url, headers=headers)
-                _check_status(r)
+                check_status(r)
             except Exception:
-                # _check_status will have logged the error
+                # check_status will have logged the error
                 pass
 
         # Now update the status of the cluster
@@ -129,9 +129,9 @@ def terminate_cluster(cluster, log_write_url=None, girder_token=None):
         # During terminate of a task the user may delete the cluster before its
         # terminated, so for now just ignore 404's when updated the status.
         if r.status_code != 404:
-            _check_status(r)
+            check_status(r)
 
     except starcluster.exception.ClusterDoesNotExist:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'terminated'})
-        _check_status(r)
+        check_status(r)
