@@ -108,6 +108,32 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
 
+        # Try creating with the same name
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 400)
+
+        # Try creating with the same name as another user, this should work
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._another_user)
+        self.assertStatus(r, 201)
+
+        # Try creating trad cluster with the same name, this should also work
+        trad_body = {
+            'config': {
+                'host': 'myhost',
+                'ssh': {
+                    'user': 'myuser'
+                }
+            },
+            'name': 'mycluster',
+            'type': 'trad'
+        }
+        json_body = json.dumps(trad_body)
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 201)
+
         # Try invalid template name
         body['template'] = 'mycluster'
         json_body = json.dumps(body)

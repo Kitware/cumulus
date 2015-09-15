@@ -56,6 +56,9 @@ class Cluster(BaseModel):
         }
         doc = self.setGroupAccess(cluster, group, level=AccessType.ADMIN)
 
+        # Add userId field to indicate ownership
+        doc['userId'] = user['_id']
+
         self.save(doc)
 
         return doc
