@@ -67,7 +67,7 @@ addModel('AwsParameters', {
         'accessKeyId':  {'type': 'string',
                          'description': 'The aws access key id'},
         'secretAccessKey': {'type': 'string',
-                                'description': 'The aws secret access key'},
+                            'description': 'The aws secret access key'},
         'regionName': {'type': 'string',
                        'description': 'The aws region'},
         'availabilityZone': {'type': 'string',
