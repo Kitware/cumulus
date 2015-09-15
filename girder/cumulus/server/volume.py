@@ -16,7 +16,7 @@ from starcluster.exception import VolumeDoesNotExist, ZoneDoesNotExist
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
 from cumulus.constants import ClusterType
-from cumulus.common import get_easy_ec2
+from cumulus.starcluster.common import get_easy_ec2
 
 
 class Volume(BaseResource):
