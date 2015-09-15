@@ -20,14 +20,6 @@ class Volume(BaseModel):
                           fields=('_id', 'config', 'ec2', 'fs', 'name', 'size',
                                   'type', 'zone', 'aws'))
 
-    def filter(self, vol, user):
-        vol = super(Volume, self).filter(doc=vol, user=user)
-        del vol['_accessLevel']
-        del vol['_modelType']
-        vol['_id'] = str(vol['_id'])
-
-        return vol
-
     def validate(self, volume):
         if not volume['name']:
             raise ValidationException('Name must not be empty.', 'name')

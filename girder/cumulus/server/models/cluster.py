@@ -1,10 +1,15 @@
+import json
+from jsonpath_rw import parse
 from girder.models.model_base import ValidationException
 from bson.objectid import ObjectId
 from girder.constants import AccessType
+from girder.api.rest import RestException
 from .base import BaseModel
 from cumulus.constants import ClusterType
 from ..utility.cluster_adapters import get_cluster_adapter
-from cumulus.common.girder import create_status_notifications
+from cumulus.common.girder import create_status_notifications, \
+    check_group_membership
+import cumulus
 
 
 class Cluster(BaseModel):
@@ -14,6 +19,24 @@ class Cluster(BaseModel):
 
     def initialize(self):
         self.name = 'clusters'
+
+        self.exposeFields(level=AccessType.READ,
+                          fields=('_id', 'status', 'name', 'config', 'template',
+                                  'type'))
+
+    def filter(self, cluster, user):
+        cluster = super(Cluster, self).filter(doc=cluster, user=user)
+
+        if parse('config.ssh.passphrase').find(cluster):
+            try:
+                check_group_membership(user, cumulus.config.girder.group)
+            except RestException:
+                del cluster['config']['ssh']['passphrase']
+
+        # Use json module to convert ObjectIds to strings
+        cluster = json.loads(json.dumps(cluster, default=str))
+
+        return cluster
 
     def validate(self, cluster):
         if not cluster['name']:

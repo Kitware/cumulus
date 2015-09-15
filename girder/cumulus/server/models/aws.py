@@ -60,14 +60,6 @@ class Aws(BaseModel):
 
         return doc
 
-    def filter(self, profile, user):
-        profile = super(Aws, self).filter(doc=profile, user=user)
-
-        del profile['_accessLevel']
-        del profile['_modelType']
-
-        return profile
-
     def create_profile(self, userId, name, access_key_id, secret_access_key,
                        region_name, availability_zone):
 

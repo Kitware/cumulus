@@ -22,3 +22,12 @@ class BaseModel(AccessControlledModel):
             self._group_id = group.next()['_id']
 
         return self._group_id
+
+    def filter(self, doc, user):
+        doc = super(BaseModel, self).filter(doc=doc, user=user)
+        doc.pop('_accessLevel', None)
+        doc.pop('_modelType', None)
+        if '_id' in doc:
+            doc['_id'] = str(doc['_id'])
+
+        return doc
