@@ -240,14 +240,7 @@ class Job(BaseResource):
         'id': 'JobUpdateParameters',
         'properties': {
             'status': {
-                'type': 'string',
-                'enum': [
-                    'created',
-                    'queued',
-                    'running',
-                    'error',
-                    'completed'
-                ],
+                '$ref': 'JobStatus',
                 'description': 'The new status. (optional)'
             },
             'sgeId': {'type': 'integer',
@@ -275,9 +268,21 @@ class Job(BaseResource):
 
         return {'status': job['status']}
 
+    addModel('JobStatus', {
+        'id': 'JobStatus',
+        'required': ['status'],
+        'properties': {
+            'status': {'type': 'string',
+                       'enum': ['created', 'downloading', 'queued', 'running',
+                                'uploading', 'terminating', 'terminated',
+                                'complete', 'error']}
+        }
+    }, 'jobs')
+
     status.description = (
         Description('Get the status of a job')
-        .param('id', 'The job id.', paramType='path'))
+        .param('id', 'The job id.', paramType='path')
+        .responseClass('JobStatus'))
 
     @access.user
     def add_log_record(self, id, params):
