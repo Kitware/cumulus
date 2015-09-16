@@ -43,6 +43,7 @@ class CommonTestCase(unittest.TestCase):
     def test_get_ssh_connection_ec2(self, StarClusterConfig,
                                     create_config_request):
         cluster = {
+            '_id': self._cluster_id,
             'config': {
                 '_id': 'dummy'
             },
