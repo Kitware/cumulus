@@ -240,14 +240,7 @@ class Job(BaseResource):
         'id': 'JobUpdateParameters',
         'properties': {
             'status': {
-                'type': 'string',
-                'enum': [
-                    'created',
-                    'queued',
-                    'running',
-                    'error',
-                    'completed'
-                ],
+                '$ref': 'JobStatus',
                 'description': 'The new status. (optional)'
             },
             'sgeId': {'type': 'integer',
