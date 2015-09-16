@@ -265,7 +265,7 @@ def _tail_output(job, ssh):
     output_updated = False
 
     # Do we need to tail any output files
-    for output in job['output']:
+    for output in job.get('output', []):
         if 'tail' in output and output['tail']:
             path = output['path']
             offset = 0
