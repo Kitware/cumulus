@@ -349,12 +349,14 @@ def _handle_complete(cluster, job, log_write_url, girder_token, status):
                                 job_dir=job_dir, girder_token=girder_token)
     elif _get_on_complete(job) == 'terminate':
         cluster_log_url = '%s/clusters/%s/log' % \
-                (cumulus.config.girder.baseUrl, cluster['_id'])
+            (cumulus.config.girder.baseUrl, cluster['_id'])
         command.send_task('cumulus.starcluster.tasks.cluster.terminate_cluster',
-                args=(cluster,), kwargs={'log_write_url': cluster_log_url,
-                                         'girder_token': girder_token})
+                          args=(cluster,),
+                          kwargs={'log_write_url': cluster_log_url,
+                                  'girder_token': girder_token})
 
     return status, timings
+
 
 def _get_on_complete(job):
     on_complete = parse('onComplete.cluster').find(job)
@@ -365,6 +367,7 @@ def _get_on_complete(job):
         on_complete = None
 
     return on_complete
+
 
 @monitor.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
@@ -479,7 +482,6 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
             raise Exception('Unable to extract PID from: %s' % output)
 
         on_complete = None
-
 
         if _get_on_complete(job) == 'terminate':
             cluster_log_url = '%s/clusters/%s/log' % \
