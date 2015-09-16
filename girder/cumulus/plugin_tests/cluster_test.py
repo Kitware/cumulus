@@ -73,7 +73,8 @@ class ClusterTestCase(base.TestCase):
 
         self._valid_key = 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDJ0wahxwaNbCDdbRll9FypQRXQv5PXQSTh1IeSynTcZZWSyQH4JhoI0lb3/IW7GllIkWblEuyv2SHzXMKRaaFuwmnU1zsY6Y55N6DJt0e9TvieT8MfaM2e7qqaN+0RS2aFb8iw3i+G80tmFVJWuNm7AITVVPf60Nbc5Bgk9qVIa4BakJ3SmW0p/iHT3CStb/k+psevFYyYCEw5l3+3ejPh9b/3423yRzq5r0cyOw8y8fIe4JV8MlE4z2huc/o9Xpw8mzNim7QdobNOylwJsvIYtB4d+MTqvsnt16e22BS/FKuTXx6jGRFFtYNWwwDQe9IIxYb6dPs1XPKVx081nRUwNjar2um41XUOhPx1N5+LfbrYkACVEZiEkW/Ph6hu0PsYQXbL00sWzrzIunixepn5c2dMnDvugvGQA54Z0EXgIYHnetJp2Xck1pJH6oNSSyA+5Mx5QAH5MFNL3YOnGxGBLrkUfK9Ff7QOiZdqXbZoXXS49WtL42Jsv8SgFu3w5NLffvD6/vCOBHwWxh+8VLg5n28M7pZ8+xyMBidkGkG9di2PfV4XsSAeoIc5utgbUJFT6URr2pW9KT4FxTq/easgiJFZUz48SNAjcBneElB9bjAaGf47BPfCNsIAWU2c9MZJWjURpWtzfk21k2/BAfBPs2VNb8dapY6dNinxLqbPIQ== your_email@example.com'
 
-    def test_create(self):
+    @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
+    def test_create(self, generate_key_pair):
         body = {
             'config': [
                 {
@@ -104,6 +105,32 @@ class ClusterTestCase(base.TestCase):
 
         body['name'] = 'mycluster'
         json_body = json.dumps(body)
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 201)
+
+        # Try creating with the same name
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 400)
+
+        # Try creating with the same name as another user, this should work
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._another_user)
+        self.assertStatus(r, 201)
+
+        # Try creating trad cluster with the same name, this should also work
+        trad_body = {
+            'config': {
+                'host': 'myhost',
+                'ssh': {
+                    'user': 'myuser'
+                }
+            },
+            'name': 'mycluster',
+            'type': 'trad'
+        }
+        json_body = json.dumps(trad_body)
         r = self.request('/clusters', method='POST',
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)

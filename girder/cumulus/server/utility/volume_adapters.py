@@ -2,7 +2,6 @@ from jsonpath_rw import parse
 
 from girder.utility.model_importer import ModelImporter
 from girder.models.model_base import ValidationException
-from girder.constants import AccessType
 from cumulus.constants import VolumeType
 from girder.api.rest import getCurrentUser
 
@@ -52,19 +51,17 @@ class EbsVolumeAdapter(AbstractVolumeAdapter):
             raise ValidationException('size number in an integer', 'size')
 
         # Name should be unique
+        user = getCurrentUser()
         query = {
-            'name': self.volume['name']
+            'name': self.volume['name'],
+            'userId': user['_id']
         }
 
         if '_id' in self.volume:
             query['_id'] = {'$ne': self.volume['_id']}
 
-        user = getCurrentUser()
-        volumes = self.model('volume', 'cumulus').find(query)
-        volumes = self.model('volume', 'cumulus') \
-            .filterResultsByPermission(volumes, user, AccessType.ADMIN, limit=1)
-
-        if len(list(volumes)) > 0:
+        volume = self.model('volume', 'cumulus').findOne(query)
+        if volume:
             raise ValidationException('A volume with that name already exists',
                                       'name')
 

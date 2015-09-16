@@ -14,7 +14,6 @@ from cumulus.constants import ClusterType
 from .utility.cluster_adapters import get_cluster_adapter
 import cumulus.starcluster.tasks.job
 from cumulus.ssh.tasks.key import generate_key_pair
-import cumulus
 
 
 class Cluster(BaseResource):
@@ -35,22 +34,6 @@ class Cluster(BaseResource):
 
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('cluster', 'cumulus')
-
-    def _clean(self, cluster):
-        del cluster['access']
-        del cluster['log']
-
-        user = self.getCurrentUser()
-        if parse('config.ssh.passphrase').find(cluster):
-            try:
-                self.check_group_membership(user, cumulus.config.girder.group)
-            except RestException:
-                del cluster['config']['ssh']['passphrase']
-
-        # Use json module to convert ObjectIds to strings
-        cluster = json.loads(json.dumps(cluster, default=str))
-
-        return cluster
 
     @access.user
     def handle_log_record(self, id, params):
@@ -153,7 +136,7 @@ class Cluster(BaseResource):
         user = self.getCurrentUser()
 
         cluster = self._model.create_ec2(user, config_id, name, template)
-        cluster = self._clean(cluster)
+        cluster = self._model.filter(cluster, user)
 
         return cluster
 
@@ -170,7 +153,7 @@ class Cluster(BaseResource):
         username = config['ssh']['user']
 
         cluster = self._model.create_traditional(user, name, hostname, username)
-        cluster = self._clean(cluster)
+        cluster = self._model.filter(cluster, user)
 
         # Fire off job to create key pair for cluster
         girder_token = self.get_task_token()['_id']
@@ -267,13 +250,13 @@ class Cluster(BaseResource):
             if request_body:
                 body = json.loads(request_body)
 
-        (user, _) = self.getCurrentUser(returnToken=True)
+        user = self.getCurrentUser()
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
 
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        cluster = self._clean(cluster)
+        cluster = self._model.filter(cluster, user)
         adapter = get_cluster_adapter(cluster)
         adapter.start(body)
 
@@ -334,7 +317,7 @@ class Cluster(BaseResource):
         adapter = get_cluster_adapter(cluster)
         adapter.update(body)
 
-        return cluster
+        return self._model.filter(cluster, user)
 
     addModel('ClusterUpdateParameters', {
         'id': 'ClusterUpdateParameters',
@@ -375,13 +358,13 @@ class Cluster(BaseResource):
 
     @access.user
     def terminate(self, id, params):
-        (user, _) = self.getCurrentUser(returnToken=True)
+        user = self.getCurrentUser()
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
 
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        cluster = self._clean(cluster)
+        cluster = self._model.filter(cluster, user)
         adapter = get_cluster_adapter(cluster)
         adapter.terminate()
 
@@ -420,7 +403,7 @@ class Cluster(BaseResource):
     @access.user
     def submit_job(self, id, jobId, params):
         job_id = jobId
-        (user, token) = self.getCurrentUser(returnToken=True)
+        user = self.getCurrentUser()
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
 
         if not cluster:
@@ -429,7 +412,7 @@ class Cluster(BaseResource):
         if cluster['status'] != 'running':
             raise RestException('Cluster is not running', code=400)
 
-        cluster = self._clean(cluster)
+        cluster = self._model.filter(cluster, user)
 
         base_url = getApiUrl()
         job_model = self.model('job', 'cumulus')
@@ -477,9 +460,7 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        cluster = self._clean(cluster)
-
-        return cluster
+        return self._model.filter(cluster, user)
 
     get.description = (
         Description('Get a cluster')
@@ -520,7 +501,7 @@ class Cluster(BaseResource):
                                                          AccessType.ADMIN,
                                                          limit=int(limit))
 
-        return [self._clean(cluster) for cluster in clusters]
+        return [self._model.filter(cluster, user) for cluster in clusters]
 
     find.description = (
         Description('Search for clusters with certain properties')

@@ -3,7 +3,7 @@ from jsonpath_rw import parse
 
 from girder.utility.model_importer import ModelImporter
 from girder.models.model_base import ValidationException
-from girder.api.rest import RestException, getApiUrl
+from girder.api.rest import RestException, getApiUrl, getCurrentUser
 
 from cumulus.constants import ClusterType
 from cumulus.common.girder import get_task_token
@@ -58,7 +58,9 @@ class AbstractClusterAdapter(ModelImporter):
 class Ec2ClusterAdapter(AbstractClusterAdapter):
     def validate(self):
         query = {
-            'name': self.cluster['name']
+            'name': self.cluster['name'],
+            'userId': getCurrentUser()['_id'],
+            'type': 'ec2'
         }
 
         if '_id' in self.cluster:
@@ -149,6 +151,24 @@ def _validate_key(key):
 
 
 class TraditionClusterAdapter(AbstractClusterAdapter):
+    def validate(self):
+        query = {
+            'name': self.cluster['name'],
+            'userId': getCurrentUser()['_id'],
+            'type': 'trad'
+        }
+
+        if '_id' in self.cluster:
+            query['_id'] = {'$ne': self.cluster['_id']}
+
+        duplicate = self.model('cluster', 'cumulus').findOne(query,
+                                                             fields=['_id'])
+        if duplicate:
+            raise ValidationException(
+                'A cluster with that name already exists.', 'name')
+
+        return self.cluster
+
     def update(self, body):
 
         # Use JSONPath to extract out what we need

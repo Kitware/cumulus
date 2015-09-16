@@ -16,6 +16,10 @@ class Volume(BaseModel):
     def initialize(self):
         self.name = 'volumes'
 
+        self.exposeFields(level=AccessType.READ,
+                          fields=('_id', 'config', 'ec2', 'fs', 'name', 'size',
+                                  'type', 'zone', 'aws'))
+
     def validate(self, volume):
         if not volume['name']:
             raise ValidationException('Name must not be empty.', 'name')
@@ -44,6 +48,9 @@ class Volume(BaseModel):
 
         if fs:
             volume['fs'] = fs
+
+        # Add userId field to make search for a user volumes easier
+        volume['userId'] = user['_id']
 
         self.setUserAccess(volume, user=user, level=AccessType.ADMIN)
         group = {

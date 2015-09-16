@@ -20,6 +20,7 @@ import time
 from celery import signature
 import StringIO
 from jinja2 import Template
+from jsonpath_rw import parse
 
 
 def _put_script(ssh, script_commands):
@@ -265,7 +266,7 @@ def _tail_output(job, ssh):
     output_updated = False
 
     # Do we need to tail any output files
-    for output in job['output']:
+    for output in job.get('output', []):
         if 'tail' in output and output['tail']:
             path = output['path']
             offset = 0
@@ -340,13 +341,32 @@ def _handle_complete(cluster, job, log_write_url, girder_token, status):
         del job['runningTime']
 
     # Fire off task to upload the output
-    log.info('Jobs "%s" complete' % job_name)
+    log.info('Job "%s" complete' % job_name)
     if 'output' in job and len(job['output']) > 0:
         status = 'uploading'
         job['status'] = status
         upload_job_output.delay(cluster, job, log_write_url=log_write_url,
                                 job_dir=job_dir, girder_token=girder_token)
+    elif _get_on_complete(job) == 'terminate':
+        cluster_log_url = '%s/clusters/%s/log' % \
+            (cumulus.config.girder.baseUrl, cluster['_id'])
+        command.send_task('cumulus.starcluster.tasks.cluster.terminate_cluster',
+                          args=(cluster,),
+                          kwargs={'log_write_url': cluster_log_url,
+                                  'girder_token': girder_token})
+
     return status, timings
+
+
+def _get_on_complete(job):
+    on_complete = parse('onComplete.cluster').find(job)
+
+    if on_complete:
+        on_complete = on_complete[0].value
+    else:
+        on_complete = None
+
+    return on_complete
 
 
 @monitor.task(bind=True, max_retries=None)
@@ -369,6 +389,10 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
 
         try:
             state = _job_state(ssh, sge_id)
+        except EOFError:
+            # Try again
+            task.retry(throw=False, countdown=5)
+            return
         except starcluster.exception.SSHConnectionError as ex:
             # Try again
             task.retry(throw=False, countdown=5)
@@ -458,8 +482,8 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
             raise Exception('Unable to extract PID from: %s' % output)
 
         on_complete = None
-        if 'onComplete' in job and 'cluster' in job['onComplete'] and \
-                job['onComplete']['cluster'] == 'terminate':
+
+        if _get_on_complete(job) == 'terminate':
             cluster_log_url = '%s/clusters/%s/log' % \
                 (cumulus.config.girder.baseUrl, cluster['_id'])
             on_complete = signature(
@@ -530,6 +554,9 @@ def monitor_process(task, cluster, job, pid, nohup_out,
                                    json={'status': 'complete'})
                 check_status(r)
 
+    except EOFError:
+        # Try again
+        task.retry(throw=False, countdown=5)
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})

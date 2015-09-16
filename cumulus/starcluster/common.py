@@ -32,7 +32,7 @@ def get_ssh_connection(girder_token, cluster):
         conn.connect()
 
     else:
-        name = cluster['name']
+        cluster_id = cluster['_id']
         config_id = cluster['config']['_id']
         config_request = create_config_request(girder_token,
                                                cumulus.config.girder.baseUrl,
@@ -41,7 +41,7 @@ def get_ssh_connection(girder_token, cluster):
 
         config.load()
         cm = config.get_cluster_manager()
-        sc = cm.get_cluster(name)
+        sc = cm.get_cluster(cluster_id)
         master = sc.master_node
         master.user = sc.cluster_user
         conn = master.ssh

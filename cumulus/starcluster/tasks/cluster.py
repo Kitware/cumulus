@@ -15,7 +15,6 @@ import time
 @cumulus.starcluster.logging.capture
 def start_cluster(cluster, log_write_url=None, on_start_submit=None,
                   girder_token=None):
-    name = cluster['name']
     template = cluster['template']
     cluster_id = cluster['_id']
     config_id = cluster['config']['_id']
@@ -34,7 +33,8 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None,
         config = starcluster.config.StarClusterConfig(config_request)
 
         config.load()
-        sc = config.get_cluster_template(template, name)
+        # We use the cluster id as the name
+        sc = config.get_cluster_template(template, cluster_id)
         sc.refresh_interval = 5
 
         start = time.time()
@@ -79,7 +79,6 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None,
 @command.task
 @cumulus.starcluster.logging.capture
 def terminate_cluster(cluster, log_write_url=None, girder_token=None):
-    name = cluster['name']
     cluster_id = cluster['_id']
     config_id = cluster['config']['_id']
     status_url = '%s/clusters/%s' \
@@ -101,7 +100,7 @@ def terminate_cluster(cluster, log_write_url=None, girder_token=None):
         start = time.time()
 
         with logstdout():
-            cm.terminate_cluster(name, force=True)
+            cm.terminate_cluster(cluster_id, force=True)
 
         end = time.time()
         shutdown_time = end - start

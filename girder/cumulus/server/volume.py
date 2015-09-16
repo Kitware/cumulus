@@ -32,11 +32,7 @@ class Volume(BaseResource):
         self.route('PUT', (':id', 'detach'), self.detach)
         self.route('DELETE', (':id', ), self.delete)
 
-    def _clean(self, volume):
-        del volume['access']
-        volume['_id'] = str(volume['_id'])
-
-        return volume
+        self._model = self.model('volume', 'cumulus')
 
     def _create_ebs(self, body, zone):
         user = self.getCurrentUser()
@@ -84,9 +80,8 @@ class Volume(BaseResource):
 
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/volumes/%s' % volume['_id']
-        self._clean(volume)
 
-        return volume
+        return self._model.filter(volume, getCurrentUser())
 
     addModel('AwsParameter', {
         'id': 'ConfigParameter',
@@ -126,9 +121,8 @@ class Volume(BaseResource):
     @access.user
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.READ)
     def get(self, volume, params):
-        self._clean(volume)
 
-        return volume
+        return self._model.filter(volume, getCurrentUser())
 
     get.description = (
         Description('Get a volume')
@@ -153,7 +147,7 @@ class Volume(BaseResource):
             .filterResultsByPermission(volumes, user, AccessType.ADMIN,
                                        limit=int(limit))
 
-        return [self._clean(volume) for volume in volumes]
+        return [self._model.filter(volume, user) for volume in volumes]
 
     find.description = (
         Description('Search for volumes')
