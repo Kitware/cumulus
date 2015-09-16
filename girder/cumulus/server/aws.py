@@ -174,11 +174,22 @@ def status(user, profile, params):
         'status': profile['status']
     }
 
+addModel('AwsProfileStatus', {
+    'id': 'AwsProfileStatus',
+    'required': ['status'],
+    'properties': {
+        'status': {'type': 'string',
+                 'enum': ['creating', 'available', 'error']
+        }
+    }
+}, 'user')
+
 status.description = (
-    Description('Get the status of this profile')
+    Description('Get the status of this profile.')
     .param('id', 'The id of the user', paramType='path')
     .param('profileId', 'The id of the profile to update', required=True,
-           paramType='path'))
+           paramType='path')
+    .responseClass('AwsProfileStatus'))
 
 
 def load(apiRoot):
