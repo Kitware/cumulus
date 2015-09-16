@@ -369,6 +369,10 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
 
         try:
             state = _job_state(ssh, sge_id)
+        except EOFError:
+            # Try again
+            task.retry(throw=False, countdown=5)
+            return
         except starcluster.exception.SSHConnectionError as ex:
             # Try again
             task.retry(throw=False, countdown=5)
@@ -530,6 +534,9 @@ def monitor_process(task, cluster, job, pid, nohup_out,
                                    json={'status': 'complete'})
                 check_status(r)
 
+    except EOFError:
+        # Try again
+        task.retry(throw=False, countdown=5)
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
