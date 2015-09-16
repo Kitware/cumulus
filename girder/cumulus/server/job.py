@@ -280,10 +280,9 @@ class Job(BaseResource):
         'required': ['status'],
         'properties': {
             'status': {'type': 'string',
-                     'enum': ['created', 'downloading', 'queued', 'running',
-                              'uploading', 'terminating', 'terminated',
-                              'complete', 'error']
-            }
+                       'enum': ['created', 'downloading', 'queued', 'running',
+                                'uploading', 'terminating', 'terminated',
+                                'complete', 'error']}
         }
     }, 'jobs')
 

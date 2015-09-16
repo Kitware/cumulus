@@ -354,19 +354,16 @@ class Cluster(BaseResource):
         'required': ['status'],
         'properties': {
             'status': {'type': 'string',
-                     'enum': ['created', 'initializing', 'running',
-                              'terminating', 'terminated', 'error']
-            }
+                       'enum': ['created', 'initializing', 'running',
+                                'terminating', 'terminated', 'error']}
         }
     }, 'clusters')
 
-    status.description = (Description(
-        'Get the clusters current state'
-    )
-    .param(
-        'id',
-        'The cluster id to get the status of.', paramType='path')
-    .responseClass('ClusterStatus'))
+    status.description = (
+        Description('Get the clusters current state')
+        .param('id',
+               'The cluster id to get the status of.', paramType='path')
+        .responseClass('ClusterStatus'))
 
     @access.user
     def terminate(self, id, params):

@@ -179,8 +179,7 @@ addModel('AwsProfileStatus', {
     'required': ['status'],
     'properties': {
         'status': {'type': 'string',
-                 'enum': ['creating', 'available', 'error']
-        }
+                   'enum': ['creating', 'available', 'error']}
     }
 }, 'user')
 
