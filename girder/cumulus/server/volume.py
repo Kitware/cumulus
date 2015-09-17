@@ -53,9 +53,16 @@ class Volume(BaseResource):
         if not VolumeType.is_valid_type(body['type']):
                 raise RestException('Invalid volume type.', code=400)
 
-        profile_id = parse('aws.profileId').find(body)[0].value
+        profile_id = parse('aws.profileId').find(body)
+        if not profile_id:
+            raise RestException('A profile id must be provided', 400)
+
+        profile_id = profile_id[0].value
+
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
+        if not profile:
+            raise RestException('Invalid profile', 400)
 
         ec2 = get_easy_ec2(profile)
 
