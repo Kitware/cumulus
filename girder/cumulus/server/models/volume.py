@@ -1,8 +1,9 @@
 from bson.objectid import ObjectId
+from jsonpath_rw import parse
 
 from girder.models.model_base import ValidationException
 from girder.constants import AccessType
-
+from girder.api.rest import getCurrentUser
 from .base import BaseModel
 from ..utility.volume_adapters import get_volume_adapter
 from cumulus.constants import VolumeType
@@ -26,6 +27,17 @@ class Volume(BaseModel):
 
         if not volume['type']:
             raise ValidationException('Type must not be empty.', 'type')
+
+        profile_id = parse('aws.profileId').find(volume)
+        if profile_id:
+            profile_id = profile_id[0].value
+            profile = self.model('aws', 'cumulus').load(profile_id,
+                                                        user=getCurrentUser())
+
+            if not profile:
+                raise ValidationException('Invalid profile id')
+
+            volume['aws']['profileId'] = profile['_id']
 
         volume_adapter = get_volume_adapter(volume)
         volume = volume_adapter.validate()
