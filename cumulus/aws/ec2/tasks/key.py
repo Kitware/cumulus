@@ -17,7 +17,7 @@ def generate_key_pair(aws_profile, girder_token):
     try:
         ec2 = get_easy_ec2(aws_profile)
         key_path = _key_path(aws_profile)
-        ec2.create_keypair(aws_profile['name'], output_file=key_path)
+        ec2.create_keypair(aws_profile['_id'], output_file=key_path)
         aws_profile['status'] = 'available'
 
     except Exception as ex:
