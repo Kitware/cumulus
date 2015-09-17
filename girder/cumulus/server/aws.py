@@ -1,6 +1,12 @@
 import cherrypy
 import json
 
+import cumulus
+import cumulus.aws.ec2.tasks.key
+
+from cumulus.common.girder import get_task_token
+from cumulus.starcluster.common import get_easy_ec2
+
 from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
@@ -8,10 +14,6 @@ from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, ModelImporter,\
     getCurrentUser
 from girder.api.rest import loadmodel
-
-import cumulus
-from cumulus.common.girder import get_task_token
-import cumulus.aws.ec2.tasks.key
 
 
 def requireParams(required, params):
@@ -90,11 +92,28 @@ create_profile.description = (
 @loadmodel(model='aws', plugin='cumulus',  map={'profileId': 'profile'},
            level=AccessType.WRITE)
 def delete_profile(user, profile, params):
+
+    query = {
+        'aws': {
+            'profileId': profile['_id']
+        }
+    }
+
+    if ModelImporter.model('volume', 'cumulus').findOne(query):
+        raise RestException('Unable to delete profile as it is associated with'
+                            ' a volume', 400)
+
+    if ModelImporter.model('starclusterconfig', 'cumulus').findOne(query):
+        raise RestException('Unable to delete profile as it is associated with'
+                            ' a configuration', 400)
+
     # Clean up key associate with profile
     cumulus.aws.ec2.tasks.key.delete_key_pair.delay(_filter(profile),
                                                     get_task_token()['_id'])
 
-    # TODO Need to check it profile is in use before deleting it
+    ec2 = get_easy_ec2(profile)
+    ec2.delete_keypair(profile['_id'])
+
     ModelImporter.model('aws', 'cumulus').remove(profile)
 
 

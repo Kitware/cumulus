@@ -26,15 +26,17 @@ class Starclusterconfig(BaseModel):
             if not profile:
                 raise ValidationException('Invalid profile id')
 
+            doc['aws']['profileId'] = profile['_id']
+
         return doc
 
     def create(self, config):
-
         group = {
             '_id': ObjectId(self.get_group_id())
         }
 
         doc = self.setGroupAccess(config, group, level=AccessType.ADMIN,
-                                  save=True)
+                                  save=False)
+        self.save(doc)
 
         return doc

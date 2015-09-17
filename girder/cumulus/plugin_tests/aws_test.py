@@ -61,12 +61,12 @@ class AwsTestCase(base.TestCase):
         self._group = self.model('group').createGroup('cumulus', self._cumulus)
 
         # Create a config to use
-        config = {u'permission': [{u'http': {u'to_port': u'80', u'from_port': u'80', u'ip_protocol': u'tcp'}}, {u'http8080': {u'to_port': u'8080', u'from_port': u'8080', u'ip_protocol': u'tcp'}}, {u'https': {u'to_port': u'443', u'from_port': u'443', u'ip_protocol': u'tcp'}}, {u'paraview': {u'to_port': u'11111', u'from_port': u'11111', u'ip_protocol': u'tcp'}}, {u'ssh': {u'to_port': u'22', u'from_port': u'22', u'ip_protocol': u'tcp'}}], u'global': {u'default_template': u''}, u'aws': [{u'info': {u'aws_secret_access_key': u'3z/PSglaGt1MGtGJ', u'aws_region_name': u'us-west-2', u'aws_region_host': u'ec2.us-west-2.amazonaws.com', u'aws_access_key_id': u'AKRWOVFSYTVQ2Q', u'aws_user_id': u'cjh'}}], u'cluster': [
+        self.config = {u'permission': [{u'http': {u'to_port': u'80', u'from_port': u'80', u'ip_protocol': u'tcp'}}, {u'http8080': {u'to_port': u'8080', u'from_port': u'8080', u'ip_protocol': u'tcp'}}, {u'https': {u'to_port': u'443', u'from_port': u'443', u'ip_protocol': u'tcp'}}, {u'paraview': {u'to_port': u'11111', u'from_port': u'11111', u'ip_protocol': u'tcp'}}, {u'ssh': {u'to_port': u'22', u'from_port': u'22', u'ip_protocol': u'tcp'}}], u'global': {u'default_template': u''}, u'aws': [{u'info': {u'aws_secret_access_key': u'3z/PSglaGt1MGtGJ', u'aws_region_name': u'us-west-2', u'aws_region_host': u'ec2.us-west-2.amazonaws.com', u'aws_access_key_id': u'AKRWOVFSYTVQ2Q', u'aws_user_id': u'cjh'}}], u'cluster': [
             {u'default_cluster': {u'availability_zone': u'us-west-2a', u'master_instance_type': u't1.micro', u'node_image_id': u'ami-b2badb82', u'cluster_user': u'ubuntu', u'public_ips': u'True', u'keyname': u'cjh', u'cluster_size': u'2', u'plugins': u'requests-installer', u'node_instance_type': u't1.micro', u'permissions': u'ssh, http, paraview, http8080'}}], u'key': [{u'cjh': {u'key_location': u'/home/cjh/work/source/cumulus/cjh.pem'}}], u'plugin': [{u'requests-installer': {u'setup_class': u'starcluster.plugins.pypkginstaller.PyPkgInstaller', u'packages': u'requests, requests-toolbelt'}}]}
 
         config_body = {
             'name': 'test',
-            'config': config
+            'config': self.config
         }
 
         r = self.request('/starcluster-configs', method='POST',
@@ -290,10 +290,13 @@ class AwsTestCase(base.TestCase):
         self.assertEqual(data, expected, 'Unexpected notification data')
 
 
+    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
+    @mock.patch('girder.plugins.cumulus.aws.get_easy_ec2')
     @mock.patch('cumulus.aws.ec2.tasks.key.delete_key_pair.delay')
-    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay' )
     @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_delete(self, EasyEC2, generate_key_pair, delete_key_pair):
+    def test_delete(self, EasyEC2, generate_key_pair, delete_key_pair,
+                    get_easy_ec2, volume_get_easy_ec2):
         region_host = 'cornwall.ec2.amazon.com'
         instance = EasyEC2.return_value
         instance.get_region.return_value = EasyDict({'endpoint': region_host})
@@ -321,6 +324,102 @@ class AwsTestCase(base.TestCase):
         profile = self.model('aws', 'cumulus').load(profile_id)
 
         self.assertFalse(profile, 'Expect profiles to be empty')
+
+        # Create and new profile and associate it with a configuration, this
+        # should prevent it from being deleted
+        body = {
+            'name': 'myprof',
+            'accessKeyId': 'mykeyId',
+            'secretAccessKey': 'mysecret',
+            'regionName': 'cornwall',
+            'regionHost': 'cornwall.ec2.amazon.com',
+            'availabilityZone': 'cornwall-2b'
+        }
+
+        create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
+        r = self.request(create_url, method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatus(r, 201)
+        profile_id = str(r.json['_id'])
+
+        config_body = {
+            'name': 'profile_test',
+            'config': self.config,
+            'aws': {
+                'profileId': profile_id
+            }
+        }
+
+        r = self.request('/starcluster-configs', method='POST',
+                         type='application/json', body=json.dumps(config_body),
+                         user=self._cumulus)
+        self.assertStatus(r, 201)
+        config_id = str(r.json['_id'])
+
+        delete_url = '/user/%s/aws/profiles/%s' % (str(self._user['_id']), profile_id)
+        r = self.request(delete_url, method='DELETE', user=self._user)
+        self.assertStatus(r, 400)
+
+        # Now delete the config
+        r = self.request('/starcluster-configs/%s' % config_id, method='DELETE',
+                         type='application/json', body=json.dumps(config_body),
+                         user=self._cumulus)
+        self.assertStatusOk(r)
+
+        r = self.request(delete_url, method='DELETE', user=self._user)
+        self.assertStatusOk(r)
+
+        # Create and new profile and associate it with a volume, this
+        # should prevent it from being deleted
+        body = {
+            'name': 'myprof',
+            'accessKeyId': 'mykeyId',
+            'secretAccessKey': 'mysecret',
+            'regionName': 'cornwall',
+            'regionHost': 'cornwall.ec2.amazon.com',
+            'availabilityZone': 'cornwall-2b'
+        }
+
+        create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
+        r = self.request(create_url, method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatus(r, 201)
+        profile_id = str(r.json['_id'])
+
+        volume_id = 'vol-1'
+        volume_get_easy_ec2.return_value.create_volume.return_value.id \
+            = volume_id
+
+        body = {
+            'name': 'test',
+            'size': 20,
+            'zone': 'us-west-2a',
+            'type': 'ebs',
+            'aws': {
+                'profileId': profile_id
+            }
+        }
+
+        r = self.request('/volumes', method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatus(r, 201)
+        volume_id = str(r.json['_id'])
+
+        delete_url = '/user/%s/aws/profiles/%s' % (str(self._user['_id']), profile_id)
+        r = self.request(delete_url, method='DELETE', user=self._user)
+        self.assertStatus(r, 400)
+
+        # Now delete the volume
+        r = self.request('/volumes/%s' % volume_id, method='DELETE',
+                 type='application/json', body=json.dumps(body),
+                 user=self._user)
+        self.assertStatusOk(r)
+
+        r = self.request(delete_url, method='DELETE', user=self._user)
+        self.assertStatusOk(r)
 
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
