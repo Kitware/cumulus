@@ -111,7 +111,8 @@ class Cluster(BaseModel):
                 '_id': cluster_id,
                 'status': new_status
             }
-            create_status_notifications('cluster', notification, cluster)
+            create_status_notifications('cluster', notification,
+                                        current_cluster)
 
         return self.save(cluster)
 

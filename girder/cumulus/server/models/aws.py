@@ -100,6 +100,7 @@ class Aws(BaseModel):
                 '_id': profile_id,
                 'status': new_status
             }
-            create_status_notifications('profile', notification, profile)
+            create_status_notifications('profile', notification,
+                                        current_profile)
 
         return self.save(profile)
