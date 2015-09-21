@@ -69,10 +69,35 @@ class TradClusterTestCase(unittest.TestCase):
                             % self._set_status_request)
 
         # Mock our ssh calls and try again
+        def _get_cluster(url, request):
+            content =   {
+                "_id": "55ef53bff657104278e8b185",
+                "config": {
+                    "host": "ulmus",
+                    "ssh": {
+                        "publicKey": "ssh-rsa dummy",
+                        'passphrase': 'dummy',
+                        "user": "test"
+                    }
+                }
+            }
+
+            content = json.dumps(content)
+            headers = {
+                'content-length': len(content),
+                'content-type': 'application/json'
+            }
+            return httmock.response(200, content, headers, request=request)
+
+        cluster_url = '/api/v1/clusters/%s' % cluster_id
+        get_cluster = httmock.urlmatch(
+            path=r'^%s$' % cluster_url, method='GET')(_get_cluster)
+
+
         ssh = get_ssh_connection.return_value
         ssh.execute.return_value = ['/usr/bin/qsub']
         self._expected_status = 'running'
-        with httmock.HTTMock(set_status):
+        with httmock.HTTMock(set_status, get_cluster):
             cluster.test_connection(cluster_model, **{'girder_token': 's', 'log_write_url': 'http://localhost/log'})
 
         self.assertTrue(self._set_status_called, 'Set status endpoint not called')
