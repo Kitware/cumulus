@@ -65,7 +65,7 @@ class Job(BaseModel):
                 '_id': job_id,
                 'status': new_status
             }
-            create_status_notifications('job', notification, job)
+            create_status_notifications('job', notification, current_job)
 
         return self.save(job)
 
