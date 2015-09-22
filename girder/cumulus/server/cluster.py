@@ -256,7 +256,7 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        cluster = self._model.filter(cluster, user)
+        cluster = self._model.filter(cluster, user, passphrase=False)
         adapter = get_cluster_adapter(cluster)
         adapter.start(body)
 
@@ -373,7 +373,7 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        cluster = self._model.filter(cluster, user)
+        cluster = self._model.filter(cluster, user, passphrase=False)
         adapter = get_cluster_adapter(cluster)
         adapter.terminate()
 
@@ -421,7 +421,7 @@ class Cluster(BaseResource):
         if cluster['status'] != 'running':
             raise RestException('Cluster is not running', code=400)
 
-        cluster = self._model.filter(cluster, user)
+        cluster = self._model.filter(cluster, user, passphrase=False)
 
         base_url = getApiUrl()
         job_model = self.model('job', 'cumulus')
