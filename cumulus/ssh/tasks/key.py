@@ -10,6 +10,10 @@ from cumulus.celery import command
 from cumulus.common import check_status
 
 
+def _key_path(profile):
+    return os.path.join(cumulus.config.ssh.keyStore, str(profile['_id']))
+
+
 @command.task
 def generate_key_pair(cluster, girder_token=None):
     '''
@@ -55,3 +59,11 @@ def generate_key_pair(cluster, girder_token=None):
         check_status(r)
         # Log the error message
         log.error(ex.message)
+
+
+@command.task
+def delete_key_pair(aws_profile, girder_token):
+    path = _key_path(aws_profile)
+
+    if os.path.exists(path):
+        os.remove(path)

@@ -125,7 +125,4 @@ class Cluster(BaseModel):
     def delete(self, user, id):
         cluster = self.load(id, user=user, level=AccessType.ADMIN)
 
-        adapter = get_cluster_adapter(cluster)
-        adapter.delete()
-
         self.remove(cluster)

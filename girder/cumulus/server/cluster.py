@@ -485,8 +485,9 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        if cluster['status'] in ['running', 'initializing']:
-            raise RestException('Cluster is active', code=400)
+        cluster = self._model.filter(cluster, user)
+        adapter = get_cluster_adapter(cluster)
+        adapter.delete()
 
         self._model.delete(user, id)
 
