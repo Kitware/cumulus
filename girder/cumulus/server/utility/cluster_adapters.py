@@ -135,6 +135,9 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
         return self.cluster
 
     def delete(self):
+        if self.cluster['status'] in ['running', 'initializing']:
+            raise RestException('Cluster is active', code=400)
+
         # Remove the config associated with the cluster first
         self.model('starclusterconfig', 'cumulus').remove(
             {'_id': self.cluster['config']['_id']})
@@ -210,6 +213,11 @@ class TraditionClusterAdapter(AbstractClusterAdapter):
             .delay(self.cluster,
                    log_write_url=log_write_url,
                    girder_token=girder_token)
+
+    def delete(self):
+        # Clean up key associate with cluster
+        cumulus.ssh.tasks.key.delete_key_pair.delay(self.cluster,
+                                                    get_task_token()['_id'])
 
 type_to_adapter = {
     ClusterType.EC2: Ec2ClusterAdapter,
