@@ -6,7 +6,9 @@
 ###   run.sh
 ###
 #$ -S /bin/bash
+{% if parallel_environment -%}
 #$ -pe {{ parallel_environment }} {{ number_of_slots-1 }}
+{% endif -%}
 
 # Set up cluster-specific variables
 PARAVIEW_DIR="/opt/paraview/install"
@@ -20,4 +22,4 @@ PV_SERVER="${PARAVIEW_DIR}/bin/pvserver"
 # Wait for pvpython
 while ! nc -z master ${RC_PORT}; do sleep 1; done
 # Now run pvserver and tell it to reverse connect
-${MPIPROG} -n  {{ number_of_slots-1 }} ${PV_SERVER} --client-host=master -rc --server-port=${RC_PORT}
+${MPIPROG} {{ '-n %d' % number_of_slots-1 if number_of_slots }} ${PV_SERVER} --client-host=master -rc --server-port=${RC_PORT}
