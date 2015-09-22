@@ -2,7 +2,7 @@
 
 ###
 #$ -S /bin/bash
-#$ -pe orte {{ number_of_slots }}
+#$ -pe {{ parallel_environment }} {{ number_of_slots }}
 ###
 
 HYDRA_DIR="/opt/hydra"
