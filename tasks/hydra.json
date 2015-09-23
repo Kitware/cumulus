@@ -102,7 +102,11 @@
                         "body": {
                             "mesh": {
                                 "name":  "{{mesh.name}}"
-                            }
+                            },
+                            "hydraExecutablePath": "{{ hydraExecutablePath }}",
+                            "numberOfSlots": "{{ numberOfSlots }}",
+                            "parallelEnvironment": "{{ parallelEnvironment }}",
+                            "jobOutputDir": "{{ jobOutputDir }}"
                         }
                   },
                   "log": "/jobs/{{hydra_job._id}}/log",

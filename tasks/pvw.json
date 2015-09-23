@@ -95,6 +95,11 @@
                   "params": {
                        "url": "/clusters/{{cluster._id}}/job/{{pvw_job._id}}/submit",
                         "method": "PUT"
+                        "body": {
+                            "numberOfSlots": "{{ numberOfSlots }}",
+                            "parallelEnvironment": "{{ parallelEnvironment }}",
+                            "jobOutputDir": "{{ jobOutputDir }}"
+                        }
                   },
                   "log": "/jobs/{{pvw_job._id}}/log",
                   "terminate": "/jobs/{{pvw_job._id}}/terminate",
@@ -134,7 +139,12 @@
                   "type": "http",
                   "params": {
                        "url": "/clusters/{{cluster._id}}/job/{{pvserver_job._id}}/submit",
-                        "method": "PUT"
+                        "method": "PUT",
+                        "body": {
+                            "numberOfSlots": "{{ numberOfSlots }}",
+                            "parallelEnvironment": "{{ parallelEnvironment }}",
+                            "jobOutputDir": "{{ jobOutputDir }}"
+                        }
                   },
                   "log": "/jobs/{{pvserver_job._id}}/log",
                   "terminate": "/jobs/{{pvserver_job._id}}/terminate",

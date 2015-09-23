@@ -37,6 +37,17 @@ def _put_script(ssh, script_commands):
     return cmd
 
 
+def _job_dir(job):
+    job_dir = './%s' % job['_id']
+    output_root = parse('params.jobOutputDir').find(job)
+
+    if output_root:
+        output_root = output_root[0].value
+        job_dir = os.path.join(output_root, job['_id'])
+
+    return job_dir
+
+
 @command.task
 @cumulus.starcluster.logging.capture
 def download_job_input(cluster, job, log_write_url=None, girder_token=None):
@@ -54,7 +65,7 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
         ssh.put(path)
 
         # Create job directory
-        ssh.mkdir('./%s' % job_id)
+        ssh.mkdir(_job_dir(job))
 
         log.info('Downloading input for "%s"' % job_name)
 
@@ -65,7 +76,7 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
         download_cmd = 'python girderclient.py --token %s --url "%s" ' \
                        'download --dir %s  --job %s' \
             % (girder_token, cumulus.config.girder.baseUrl,
-               job_id, job_id)
+               _job_dir(job), job_id)
 
         download_output = '%s.download.out' % job_id
         download_cmd = 'nohup %s  &> %s  &\n' % (download_cmd, download_output)
@@ -102,8 +113,8 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
 
 def _get_parallel_env(cluster, job_params):
     parallel_env = None
-    if 'parallel_environment' in job_params:
-        parallel_env = job_params['parallel_environment']
+    if 'parallelEnvironment' in job_params:
+        parallel_env = job_params['parallelEnvironment']
 
     # if this is a ec2 cluster then we can default to orte
     if not parallel_env and cluster['type'] == ClusterType.EC2:
@@ -137,7 +148,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
     script_filepath = None
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
-    job_dir = job_id
+    job_dir = _job_dir(job)
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
 
     try:
@@ -160,15 +171,15 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
 
             parallel_env = _get_parallel_env(cluster, job_params)
             if parallel_env:
-                job_params['parallel_environment'] = parallel_env
+                job_params['parallelEnvironment'] = parallel_env
 
             slots = -1
             # If the number of slots has not been provided we will get the
             # number of slots from the parallel environment
-            if ('number_of_slots' not in job_params) and parallel_env:
+            if ('numberOfSlots' not in job_params) and parallel_env:
                 slots = _get_number_of_slots(ssh, parallel_env)
                 if slots > 0:
-                    job_params['number_of_slots'] = int(slots)
+                    job_params['numberOfSlots'] = int(slots)
 
             # Now we can template submission script
             script = Template(script_template.getvalue()) \
@@ -179,7 +190,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
             with open(script_filepath, 'w') as fp:
                 fp.write('%s\n' % script)
 
-            ssh.mkdir(job_id, ignore_failure=True)
+            ssh.mkdir(job_dir, ignore_failure=True)
             # put the script to master
             ssh.put(script_filepath, job_id)
             # Now submit the job
@@ -260,7 +271,6 @@ queued_state = ['qw', 'q', 'w', 's', 'h', 't']
 
 
 def _tail_output(job, ssh):
-    job_id = job['_id']
     log = starcluster.logger.get_starcluster_logger()
 
     output_updated = False
@@ -274,7 +284,7 @@ def _tail_output(job, ssh):
                 offset = len(output['content'])
             else:
                 output['content'] = []
-            tail_path = '%s/%s' % (job_id, path)
+            tail_path = os.path.join(_job_dir(job), path)
             command = 'tail -n +%d %s' % (offset, tail_path)
             try:
                 # Only tail if file exists
@@ -331,8 +341,7 @@ def _handle_queued_or_running(task, job, state):
 def _handle_complete(cluster, job, log_write_url, girder_token, status):
     log = starcluster.logger.get_starcluster_logger()
     job_name = job['name']
-    job_id = job['_id']
-    job_dir = job_id
+    job_dir = _job_dir(job)
     timings = {}
 
     if 'runningTime' in job:
