@@ -51,7 +51,8 @@ class Task(BaseResource):
         if 'taskSpecId' not in task:
             raise RestException('taskSpecId is required', code=400)
 
-        if not self.model('file').load(task['taskSpecId'], user=user):
+        if not self.model('file').load(task['taskSpecId'], user=user,
+                                       level=AccessType.READ):
             raise RestException('Task specification %s doesn\'t exist'
                                 % task['taskSpecId'], code=400)
 
