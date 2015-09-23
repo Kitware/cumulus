@@ -97,7 +97,8 @@ class Task(BaseResource):
         self._model.update_task(user, task)
 
         try:
-            file = self.model('file').load(task['taskSpecId'], user=user)
+            file = self.model('file').load(task['taskSpecId'], user=user,
+                                           level=AccessType.READ)
             spec = reduce(lambda x, y: x + y, self.model('file')
                           .download(file, headers=False)())
             spec = json.loads(spec)
