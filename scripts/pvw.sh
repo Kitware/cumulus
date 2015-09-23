@@ -18,7 +18,6 @@ VISUALIZER="${PARAVIEW_DIR}/${APPS_DIR}/pv_web_visualizer.py"
 RC_PORT="54321"
 REVERSE="--reverse-connect-port ${RC_PORT}"
 
-# TODO fetch this from the web server
 PROXIES="config/defaultProxies.json"
 DATA="{{ data_dir if data_dir else '$HOME/%s/data/' % job._id }}"
 
@@ -31,7 +30,7 @@ fi
 
 # Create proxy entry
 BODY='{"host": "'$IPADDRESS'", "clusterId": "{{ cluster._id }}", "port": 8080, "jobId": "{{ job._id }}"}'
-curl --silent --show-error -o /dev/null -X POST -d "$BODY"  --header "Content-Type: application/json" {{ base_url }}/proxy
+curl --silent --show-error -o /dev/null -X POST -d "$BODY"  --header "Content-Type: application/json" {{ baseUrl }}/proxy
 
 export LD_LIBRARY_PATH=${PARAVIEW_DIR}/lib/${LIB_VERSION_DIR}
 export DISPLAY=:0
