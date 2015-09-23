@@ -12,4 +12,4 @@ HYDRA="{{ hydraExecutablePath if hydraExecutablePath else '${HYDRA_DIR}/bin/hydr
 MPIPROG="mpiexec"
 mkdir output
 ${MPIPROG} {{ '-n %d' % numberOfSlots if numberOfSlots }} ${HYDRA} -i input/{{mesh.name}} -c input/hydra.cntl -p output/results.exo -o output/log.txt -g output/stat.txt
-rm -rf -rf input/{{mesh.name}}
+rm -rf input/{{mesh.name}}

@@ -39,7 +39,7 @@ def _put_script(ssh, script_commands):
 
 def _job_dir(job):
     job_dir = './%s' % job['_id']
-    output_root = parse('params.job_output_path').find(job)
+    output_root = parse('params.jobOutputDir').find(job)
 
     if output_root:
         output_root = output_root[0].value

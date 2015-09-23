@@ -105,7 +105,8 @@
                             },
                             "hydraExecutablePath": "{{ hydraExecutablePath }}",
                             "numberOfSlots": "{{ numberOfSlots }}",
-                            "parallelEnvironment": "{{ parallelEnvironment }}"
+                            "parallelEnvironment": "{{ parallelEnvironment }}",
+                            "jobOutputDir": "{{ jobOutputDir }}"
                         }
                   },
                   "log": "/jobs/{{hydra_job._id}}/log",
