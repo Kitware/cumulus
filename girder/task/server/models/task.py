@@ -27,6 +27,6 @@ class Task(AccessControlledModel):
                 '_id': task_id,
                 'status': new_status
             }
-            create_status_notifications('task', notification, task)
+            create_status_notifications('task', notification, current_task)
 
         return self.save(task)

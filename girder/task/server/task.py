@@ -219,7 +219,7 @@ class Task(BaseResource):
         if not task:
             raise RestException('Task not found.', code=404)
 
-        body = getBodyJson()
+        body = cherrypy.request.body.read()
         body = body.replace('$ref', Task.DOLLAR_REF)
 
         if not body:

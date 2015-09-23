@@ -24,10 +24,10 @@ class Cluster(BaseModel):
                           fields=('_id', 'status', 'name', 'config', 'template',
                                   'type'))
 
-    def filter(self, cluster, user):
+    def filter(self, cluster, user, passphrase=True):
         cluster = super(Cluster, self).filter(doc=cluster, user=user)
 
-        if parse('config.ssh.passphrase').find(cluster):
+        if parse('config.ssh.passphrase').find(cluster) and passphrase:
             try:
                 check_group_membership(user, cumulus.config.girder.group)
             except RestException:
