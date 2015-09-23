@@ -456,7 +456,7 @@ class JobTestCase(unittest.TestCase):
             'commands': ['ls'],
             'output': [{'tail': True,  'path': 'dummy/file/path'}],
             'params': {
-                'parallel_environment': 'mype'
+                'parallelEnvironment': 'mype'
             }
         }
 
@@ -521,7 +521,7 @@ class JobTestCase(unittest.TestCase):
             'commands': ['ls'],
             'output': [{'tail': True,  'path': 'dummy/file/path'}],
             'params': {
-                'parallel_environment': 'mype'
+                'parallelEnvironment': 'mype'
             }
         }
 
@@ -534,4 +534,4 @@ class JobTestCase(unittest.TestCase):
                            girder_token='girder_token')
 
         self.assertEqual(instance.execute.call_args_list[0], mock.call('qconf -sp mype'))
-        self.assertEqual(job_model['params']['number_of_slots'], 10)
+        self.assertEqual(job_model['params']['numberOfSlots'], 10)
