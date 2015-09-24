@@ -154,7 +154,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
     try:
         # Write out script to upload to master
 
-        (fd, script_filepath) = tempfile.mkstemp()
+        (_, script_filepath) = tempfile.mkstemp()
         script_name = job['name']
         script_filepath = os.path.join(tempfile.gettempdir(), script_name)
 
@@ -192,7 +192,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
 
             ssh.mkdir(job_dir, ignore_failure=True)
             # put the script to master
-            ssh.put(script_filepath, job_id)
+            ssh.put(script_filepath, job_dir)
             # Now submit the job
 
             if slots > -1:
@@ -463,7 +463,7 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
 
         # First put girder client on master
         path = inspect.getsourcefile(cumulus.girderclient)
-        ssh.put(path)
+        ssh.put(path, os.path.normpath(os.path.join(job_dir, '..')))
 
         log.info('Uploading output for "%s"' % job_name)
 
@@ -474,6 +474,8 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
                         cumulus.config.girder.baseUrl, job['_id'])
 
         upload_output = '%s.upload.out' % job_id
+        upload_output_path = os.path.normpath(os.path.join(job_dir, '..',
+                                                           upload_output))
         cmds.append('nohup %s  &> ../%s  &\n' % (upload_cmd, upload_output))
 
         upload_cmd = _put_script(ssh, '\n'.join(cmds))
@@ -500,7 +502,7 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
                 args=(cluster,), kwargs={'log_write_url': cluster_log_url,
                                          'girder_token': girder_token})
 
-        monitor_process.delay(cluster, job, pid, upload_output,
+        monitor_process.delay(cluster, job, pid, upload_output_path,
                               log_write_url=log_write_url,
                               on_complete=on_complete,
                               girder_token=girder_token)
@@ -514,7 +516,7 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
 
 @monitor.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
-def monitor_process(task, cluster, job, pid, nohup_out,
+def monitor_process(task, cluster, job, pid, nohup_out_path,
                     log_write_url=None, on_complete=None,
                     output_message='Job download/upload error: %s',
                     girder_token=None):
@@ -537,9 +539,10 @@ def monitor_process(task, cluster, job, pid, nohup_out,
             task.retry(throw=False, countdown=5)
         else:
             try:
-                ssh.get(nohup_out)
+                nohup_out_file_name = os.path.basename(nohup_out_path)
+                ssh.get(nohup_out_path)
                 # Log the output
-                with open(nohup_out, 'r') as fp:
+                with open(nohup_out_file_name, 'r') as fp:
                     output = fp.read()
                     if output.strip():
                         log.error(output_message % output)
@@ -550,8 +553,8 @@ def monitor_process(task, cluster, job, pid, nohup_out,
                         check_status(r)
                         return
             finally:
-                if nohup_out and os.path.exists(nohup_out):
-                    os.remove(nohup_out)
+                if nohup_out_file_name and os.path.exists(nohup_out_file_name):
+                    os.remove(nohup_out_file_name)
 
             # Fire off the on_compete task if we have one
             if on_complete:
