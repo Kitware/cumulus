@@ -651,3 +651,14 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
     finally:
         if script_filepath and os.path.exists(script_filepath):
             os.remove(script_filepath)
+
+
+@command.task(bind=True, max_retries=5)
+def remove_output(task, cluster, job, girder_token):
+    try:
+        ssh = get_ssh_connection(girder_token, cluster)
+        rm_cmd = 'rm -rf %s' % _job_dir(job)
+        ssh.execute(rm_cmd)
+    except EOFError:
+        # Try again
+        task.retry(countdown=5)
