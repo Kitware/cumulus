@@ -40,7 +40,8 @@ def create_profile(user, params):
     profile = model.create_profile(user['_id'], body['name'],
                                    body['accessKeyId'],
                                    body['secretAccessKey'], body['regionName'],
-                                   body['availabilityZone'])
+                                   body['availabilityZone'],
+                                   body.get('publicIPs', False))
 
     # Now fire of a task to create a key pair for this profile
     try:
@@ -130,7 +131,8 @@ delete_profile.description = (
            level=AccessType.WRITE)
 def update_profile(user, profile, params):
     body = getBodyJson()
-    properties = ['accessKeyId', 'secretAccessKey', 'status', 'errorMessage']
+    properties = ['accessKeyId', 'secretAccessKey', 'status', 'errorMessage',
+                  'publicIPs']
     for prop in properties:
         if prop in body:
             profile[prop] = body[prop]

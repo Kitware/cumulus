@@ -194,7 +194,8 @@ class StarclusterconfigTestCase(base.TestCase):
             'accessKeyId': 'mykeyId',
             'secretAccessKey': 'mysecret',
             'regionName': 'cornwall',
-            'availabilityZone': test_availability_zone
+            'availabilityZone': test_availability_zone,
+            'publicIPs': True
         }
 
         # Create a profile to use
@@ -256,6 +257,23 @@ class StarclusterconfigTestCase(base.TestCase):
 
         self.assertEqual(r.json['aws'], expected_aws,
                          'aws property not as expected')
+
+        expected_default_cluster = [{
+            u'default_cluster': {
+                u'plugins': u'requests-installer',
+                u'availability_zone': u'cornwall-2b',
+                u'master_instance_type': u't1.micro',
+                u'cluster_user': u'ubuntu',
+                u'public_ips': u'True',
+                u'keyname': u'cjh',
+                u'cluster_size': u'2',
+                u'node_image_id': u'ami-b2badb82',
+                u'node_instance_type': u't1.micro',
+                u'permissions': u'ssh, http, paraview, http8080'
+            }
+        }]
+
+        self.assertEquals(r.json['cluster'], expected_default_cluster)
 
         expected_key = [{
             u'testKey': {
