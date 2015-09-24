@@ -399,6 +399,20 @@ class Job(BaseResource):
         if not job:
             raise RestException('Job not found.', code=404)
 
+        # Clean up any job output
+
+        if 'clusterId' in job:
+            cluster_model = self.model('cluster', 'cumulus')
+            cluster = cluster_model.load(job['clusterId'], user=user,
+                                         level=AccessType.READ)
+            cluster = cluster_model.filter(cluster, user)
+
+            # Only try to clean up if cluster is still running
+            if cluster['status'] == 'running':
+                girder_token = self.get_task_token()['_id']
+                tasks.job.remove_output.delay(cluster, self._clean(job.copy()),
+                                              girder_token=girder_token)
+
         self._model.remove(job)
 
     delete.description = (
