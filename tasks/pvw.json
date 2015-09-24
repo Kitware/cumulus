@@ -94,8 +94,8 @@
                   "type": "http",
                   "params": {
                        "url": "/clusters/{{cluster._id}}/job/{{pvw_job._id}}/submit",
-                        "method": "PUT"
-                        "body": {
+                      "method": "PUT",
+                      "body": {
                             "numberOfSlots": "{{ numberOfSlots }}",
                             "parallelEnvironment": "{{ parallelEnvironment }}",
                             "jobOutputDir": "{{ jobOutputDir }}"
