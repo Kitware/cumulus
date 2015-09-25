@@ -557,4 +557,42 @@ class AwsTestCase(base.TestCase):
 
         self.assertEqual(r.json, [profile1, profile2], 'Check profiles where returned')
 
+    @mock.patch('girder.plugins.cumulus.aws.get_easy_ec2')
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
+    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
+    def test_running_instances(self, EasyEC2, generate_key_pair, get_easy_ec2):
+        region_host = 'cornwall.ec2.amazon.com'
+        instance = EasyEC2.return_value
+        instance.get_region.return_value = EasyDict({'endpoint': region_host})
+
+        profile = {
+            'name': 'myprof1',
+            'accessKeyId': 'mykeyId',
+            'secretAccessKey': 'mysecret',
+            'regionName': 'cornwall',
+            'regionHost': 'cornwall.ec2.amazon.com',
+            'availabilityZone': 'cornwall-2b',
+            'status': 'creating',
+            'publicIPs': False
+        }
+
+        create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
+        r = self.request(create_url, method='POST',
+                         type='application/json', body=json.dumps(profile),
+                         user=self._user)
+        self.assertStatus(r, 201)
+        profile_id = r.json['_id']
+
+        get_easy_ec2.return_value.get_running_instance_count.return_value = 10
+
+        running_instances_url = '/user/%s/aws/profiles/%s/runninginstances' % \
+            (str(self._user['_id']), str(profile_id))
+        r = self.request(running_instances_url, method='GET', user=self._user)
+        self.assertStatusOk(r)
+        expected = {
+            u'runninginstances': 10
+        }
+        self.assertEqual(expected, r.json, 'Unexpected response')
+
+
 
