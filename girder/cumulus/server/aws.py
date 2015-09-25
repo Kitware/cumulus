@@ -185,6 +185,7 @@ get_profiles.description = (
     Description('Get the AWS profiles for a user')
     .param('id', 'The id of the user', required=True, paramType='path'))
 
+
 @access.user
 @loadmodel(model='user', level=AccessType.READ)
 @loadmodel(model='aws', plugin='cumulus',  map={'profileId': 'profile'},
@@ -227,7 +228,7 @@ addModel('AwsProfileRunningInstances', {
     'id': 'AwsProfileRunningInstances',
     'required': ['runninginstances'],
     'properties': {
-        'runninginstances': {'type': 'integer' }
+        'runninginstances': {'type': 'integer'}
     }
 }, 'user')
 
@@ -238,6 +239,35 @@ running_instances.description = (
            paramType='path')
     .responseClass('AwsProfileRunningInstances'))
 
+
+@access.user
+@loadmodel(model='user', level=AccessType.READ)
+@loadmodel(model='aws', plugin='cumulus',  map={'profileId': 'profile'},
+           level=AccessType.WRITE)
+def max_instances(user, profile, params):
+    ec2 = get_easy_ec2(profile)
+    count = ec2.get_max_instances()
+
+    return {
+        'maxinstances': count
+    }
+
+addModel('AwsProfileMaxInstances', {
+    'id': 'AwsProfileRunningInstances',
+    'required': ['runninginstances'],
+    'properties': {
+        'maxinstances': {'type': 'integer'}
+    }
+}, 'user')
+
+max_instances.description = (
+    Description('Get the maximum number of instance this account can run')
+    .param('id', 'The id of the user', paramType='path')
+    .param('profileId', 'The id of the profile to update', required=True,
+           paramType='path')
+    .responseClass('AwsProfileMaxInstances'))
+
+
 def load(apiRoot):
     apiRoot.user.route('POST', (':id', 'aws', 'profiles'), create_profile)
     apiRoot.user.route('DELETE', (':id', 'aws', 'profiles', ':profileId'),
@@ -247,4 +277,7 @@ def load(apiRoot):
     apiRoot.user.route('GET', (':id', 'aws', 'profiles'), get_profiles)
     apiRoot.user.route('GET', (':id', 'aws', 'profiles', ':profileId',
                                'status'), status)
-    apiRoot.user.route('GET', (':id', 'aws', 'profiles', ':profileId', 'runninginstances'), running_instances)
+    apiRoot.user.route('GET', (':id', 'aws', 'profiles', ':profileId',
+                               'runninginstances'), running_instances)
+    apiRoot.user.route('GET', (':id', 'aws', 'profiles', ':profileId',
+                               'maxinstances'), max_instances)
