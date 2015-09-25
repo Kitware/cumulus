@@ -148,7 +148,8 @@ class AwsTestCase(base.TestCase):
             u'accessKeyId': u'mykeyId',
             u'secretAccessKey': u'mysecret',
             u'regionName': u'cornwall',
-            u'status': 'creating'
+            u'status': 'creating',
+            u'publicIPs': False
         }
 
         profile = self.model('aws', 'cumulus').load(profile_id, force=True)
@@ -165,6 +166,55 @@ class AwsTestCase(base.TestCase):
                          type='application/json', body=json.dumps(body),
                          user=self._user)
         self.assertStatus(r, 400)
+
+    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
+    def test_create_public_ips(self, generate_key_pair, EasyEC2):
+
+        instance = EasyEC2.return_value
+
+        body = {
+            'name': 'myprof',
+            'accessKeyId': 'mykeyId',
+            'secretAccessKey': 'mysecret',
+            'regionName': 'cornwall',
+            'availabilityZone': 'cornwall-2b',
+            'publicIPs': 'True'
+        }
+
+        # Check we handle invalid credentials
+        create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
+        instance.get_region.return_value = EasyDict({'endpoint': 'cornwall.ec2.amazon.com'})
+
+        r = self.request(create_url, method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatus(r, 400)
+        body['publicIPs'] = True
+
+        r = self.request(create_url, method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatus(r, 201)
+        profile_id = str(r.json['_id'])
+
+        expected = {
+            u'availabilityZone': u'cornwall-2b',
+            u'name': u'myprof',
+            u'regionHost': u'cornwall.ec2.amazon.com',
+            u'accessKeyId': u'mykeyId',
+            u'secretAccessKey': u'mysecret',
+            u'regionName': u'cornwall',
+            u'status': 'creating',
+            u'publicIPs': True
+        }
+
+        profile = self.model('aws', 'cumulus').load(profile_id, force=True)
+        del profile['_id']
+        del profile['access']
+        del profile['userId']
+        self.assertEqual(profile, expected, 'User aws property not updated as expected')
+
 
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
@@ -236,7 +286,8 @@ class AwsTestCase(base.TestCase):
             'regionName': 'cornwall',
             'regionHost': region_host,
             'availabilityZone': 'cornwall-2b',
-            'status': 'creating'
+            'status': 'creating',
+            'publicIPs': False
         }
 
         self.assertEqual(profile, expected, 'Profile values not updated')
@@ -269,7 +320,8 @@ class AwsTestCase(base.TestCase):
             u'errorMessage': u'some message',
             u'accessKeyId': u'cchange ...',
             u'secretAccessKey': u'cchange ...',
-            u'regionName': u'cornwall'
+            u'regionName': u'cornwall',
+            u'publicIPs': False
         }
         self.assertEqual(profile, expected, 'Profile values not updated')
 
@@ -288,6 +340,34 @@ class AwsTestCase(base.TestCase):
             u'_id': profile_id
         }
         self.assertEqual(data, expected, 'Unexpected notification data')
+
+        # Test update public ips
+        body = {
+            'publicIPs': True
+        }
+        update_url = '/user/%s/aws/profiles/%s' % (str(self._user['_id']), profile_id)
+        r = self.request(update_url, method='PATCH',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatusOk(r)
+        profile = self.model('aws', 'cumulus').load(profile_id, user=self._user)
+        del profile['access']
+        del profile['userId']
+        del profile['_id']
+
+        expected = {
+            u'status': u'error',
+            u'availabilityZone': u'cornwall-2b',
+            u'name': u'myprof',
+            u'regionHost': u'cornwall.ec2.amazon.com',
+            u'errorMessage': u'some message',
+            u'accessKeyId': u'cchange ...',
+            u'secretAccessKey': u'cchange ...',
+            u'regionName': u'cornwall',
+            u'publicIPs': True
+        }
+        self.assertEqual(profile, expected, 'Profile values not updated')
+
 
 
     @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
@@ -435,7 +515,8 @@ class AwsTestCase(base.TestCase):
             'regionName': 'cornwall',
             'regionHost': 'cornwall.ec2.amazon.com',
             'availabilityZone': 'cornwall-2b',
-            'status': 'creating'
+            'status': 'creating',
+            'publicIPs': False
         }
 
         create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
@@ -452,7 +533,8 @@ class AwsTestCase(base.TestCase):
             'regionName': 'cornwall',
             'regionHost': 'cornwall.ec2.amazon.com',
             'availabilityZone': 'cornwall-2b',
-            'status': 'creating'
+            'status': 'creating',
+            'publicIPs': False
         }
 
         create_url = '/user/%s/aws/profiles' % str(self._user['_id'])

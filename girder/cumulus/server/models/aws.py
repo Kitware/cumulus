@@ -20,10 +20,14 @@ class Aws(BaseModel):
         self.ensureIndices(['userId', 'name'])
         self.exposeFields(level=AccessType.READ, fields=(
             '_id', 'name', 'accessKeyId', 'regionName', 'regionHost',
-            'availabilityZone', 'status', 'errorMessage'))
+            'availabilityZone', 'status', 'errorMessage', 'publicIPs'))
 
     def validate(self, doc):
         name = doc['name']
+
+        if type(doc['publicIPs']) != bool:
+            raise ValidationException('Value must be of type boolean',
+                                      'publicIPs')
 
         if not name:
             raise ValidationException('A name must be provided', 'name')
@@ -61,7 +65,7 @@ class Aws(BaseModel):
         return doc
 
     def create_profile(self, userId, name, access_key_id, secret_access_key,
-                       region_name, availability_zone):
+                       region_name, availability_zone, public_ips):
 
         user = getCurrentUser()
         profile = {
@@ -71,7 +75,8 @@ class Aws(BaseModel):
             'regionName': region_name,
             'availabilityZone': availability_zone,
             'userId': userId,
-            'status': 'creating'
+            'status': 'creating',
+            'publicIPs': public_ips
         }
 
         profile = self.setUserAccess(profile, user, level=AccessType.ADMIN,
