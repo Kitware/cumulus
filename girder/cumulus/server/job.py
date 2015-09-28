@@ -176,17 +176,13 @@ class Job(BaseResource):
         if not job:
             raise RestException('Job not found.', code=404)
 
-        cluster = self.model('cluster', 'cumulus') \
-            .load(job['clusterId'], user=user, level=AccessType.ADMIN)
+        cluster_model = self.model('cluster', 'cumulus')
+        cluster = cluster_model.load(job['clusterId'], user=user,
+                                     level=AccessType.ADMIN)
 
-        # Clean up cluster ( this should be moving into a utility function )
-        del cluster['access']
-        del cluster['log']
-        cluster['_id'] = str(cluster['_id'])
-        cluster['config']['_id'] = str(cluster['config']['_id'])
-
+        cluster = cluster_model.filter(cluster, user)
         base_url = getApiUrl()
-        self.model.update_status(id, 'terminating')
+        self._model.update_status(user, id, 'terminating')
 
         log_url = '%s/jobs/%s/log' % (base_url, id)
 
