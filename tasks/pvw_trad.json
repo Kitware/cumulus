@@ -30,10 +30,6 @@
                             {
                               "itemId": "{{defaults.pvw.proxyItem}}",
                               "path": "config"
-                            },
-                            {
-                              "itemId": "{{input.item.id}}",
-                              "path": "data"
                             }
                           ]
                         },
