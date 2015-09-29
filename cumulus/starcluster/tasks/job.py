@@ -104,7 +104,7 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
                               on_complete=on_complete,
                               girder_token=girder_token)
 
-    except starcluster.exception.RemoteCommandFailed as ex:
+    except Exception as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
         check_status(r)
