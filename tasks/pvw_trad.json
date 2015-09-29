@@ -46,6 +46,7 @@
                             "numberOfSlots": "{{ cluster.config.numberOfSlots }}",
                             "parallelEnvironment": "{{ cluster.config.parallelEnvironment }}",
                             "jobOutputDir": "{{ cluster.config.jobOutputDir }}"
+                            "dataDir": "{{ dataDir }}"
                         }
                   },
                   "log": "/jobs/{{pvw_job._id}}/log",
