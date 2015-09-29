@@ -77,17 +77,12 @@ class Cluster(BaseModel):
 
         return self._create(user, cluster)
 
-    def create_traditional(self, user, name, hostname, username):
+    def create_traditional(self, user, name, config):
         cluster = {
             'name': name,
             'log': [],
             'status': 'creating',
-            'config': {
-                'host': hostname,
-                'ssh': {
-                    'user': username
-                }
-            },
+            'config': config,
             'type': ClusterType.TRADITIONAL
         }
 

@@ -14,6 +14,7 @@ from cumulus.constants import ClusterType
 from .utility.cluster_adapters import get_cluster_adapter
 import cumulus.starcluster.tasks.job
 from cumulus.ssh.tasks.key import generate_key_pair
+from cumulus.common import update_dict
 
 
 class Cluster(BaseResource):
@@ -149,10 +150,8 @@ class Cluster(BaseResource):
         name = body['name']
         config = body['config']
         user = self.getCurrentUser()
-        hostname = config['host']
-        username = config['ssh']['user']
 
-        cluster = self._model.create_traditional(user, name, hostname, username)
+        cluster = self._model.create_traditional(user, name, config)
         cluster = self._model.filter(cluster, user)
 
         # Fire off job to create key pair for cluster
@@ -310,6 +309,16 @@ class Cluster(BaseResource):
                 cluster['timings'].update(body['timings'])
             else:
                 cluster['timings'] = body['timings']
+
+        if 'config' in body:
+            # Need to check we aren't try to update immutable fields
+            immutable_paths = ['_id', 'ssh.user', 'host']
+            for path in immutable_paths:
+                if parse(path).find(body['config']):
+                    raise RestException("The '%s' field can't be updated"
+                                        % path)
+
+            update_dict(cluster['config'], body['config'])
 
         cluster = self._model.update_cluster(user, cluster)
 
