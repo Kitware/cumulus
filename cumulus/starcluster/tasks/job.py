@@ -111,10 +111,12 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
         _log_exception(ex)
 
 
-def _get_parallel_env(cluster, job_params):
+def _get_parallel_env(cluster, job):
     parallel_env = None
-    if 'parallelEnvironment' in job_params:
-        parallel_env = job_params['parallelEnvironment']
+    if 'parallelEnvironment' in job.get('params', {}):
+        parallel_env = job['params']['parallelEnvironment']
+    elif 'parallelEnvironment' in cluster['config']:
+        parallel_env = cluster['config']['parallelEnvironment']
 
     # if this is a ec2 cluster then we can default to orte
     if not parallel_env and cluster['type'] == ClusterType.EC2:
@@ -169,14 +171,14 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
             if 'params' in job:
                 job_params = job['params']
 
-            parallel_env = _get_parallel_env(cluster, job_params)
+            parallel_env = _get_parallel_env(cluster, job)
             if parallel_env:
                 job_params['parallelEnvironment'] = parallel_env
 
             slots = -1
             # If the number of slots has not been provided we will get the
             # number of slots from the parallel environment
-            if ('numberOfSlots' not in job_params) and parallel_env:
+            if ('numberOfSlots' not in cluster['config']) and parallel_env:
                 slots = _get_number_of_slots(ssh, parallel_env)
                 if slots > 0:
                     job_params['numberOfSlots'] = int(slots)
