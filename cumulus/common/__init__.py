@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import sys
 import urllib2
+import collections
 
 
 def check_status(request):
@@ -24,3 +25,14 @@ def create_config_request(girder_token, base_url, config_id):
     config_request = urllib2.Request(config_url, headers=headers)
 
     return config_request
+
+
+def update_dict(d, u):
+    for k, v in u.iteritems():
+        if isinstance(v, collections.Mapping):
+            r = update_dict(d.get(k, {}), v)
+            d[k] = r
+        else:
+            d[k] = u[k]
+
+    return d

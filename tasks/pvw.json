@@ -141,9 +141,9 @@
                        "url": "/clusters/{{cluster._id}}/job/{{pvserver_job._id}}/submit",
                         "method": "PUT",
                         "body": {
-                            "numberOfSlots": "{{ numberOfSlots }}",
-                            "parallelEnvironment": "{{ parallelEnvironment }}",
-                            "jobOutputDir": "{{ jobOutputDir }}"
+                            "numberOfSlots": "{{ cluster.config.numberOfSlots }}",
+                            "parallelEnvironment": "{{ cluster.config.parallelEnvironment }}",
+                            "jobOutputDir": "{{ cluster.config.jobOutputDir }}"
                         }
                   },
                   "log": "/jobs/{{pvserver_job._id}}/log",
