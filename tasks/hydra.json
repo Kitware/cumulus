@@ -47,7 +47,7 @@
                       "url": "/clusters/{{cluster._id}}/start",
                       "method": "PUT"
                   },
-                  "log": "clusters/{{cluster._id}}/log",
+                  "log": "/clusters/{{cluster._id}}/log",
                   "terminate": "/clusters/{{cluster._id}}/terminate",
                   "delete": "/clusters/{{cluster._id}}"
               },
