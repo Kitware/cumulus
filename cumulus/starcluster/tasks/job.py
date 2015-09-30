@@ -340,7 +340,7 @@ def _handle_queued_or_running(task, job, state):
     return status, timings
 
 
-def _handle_complete(cluster, job, log_write_url, girder_token, status):
+def _handle_complete(ssh, cluster, job, log_write_url, girder_token, status):
     log = starcluster.logger.get_starcluster_logger()
     job_name = job['name']
     job_dir = _job_dir(job)
@@ -351,10 +351,24 @@ def _handle_complete(cluster, job, log_write_url, girder_token, status):
         timings = {'running': int(round(running_time * 1000))}
         del job['runningTime']
 
+    # See if we have anything in stderr, if so we will mark the job as errored
+    try:
+        stderr_filename = '%s.e%s' % (job['name'], job['sgeId'])
+        stderr_path = os.path.join(job_dir, stderr_filename)
+        stat_attrs = ssh.stat(stderr_path)
+        print stat_attrs.st_size
+        if stat_attrs.st_size > 0:
+            status = 'error'
+    except IOError:
+        pass
+
     # Fire off task to upload the output
     log.info('Job "%s" complete' % job_name)
     if 'output' in job and len(job['output']) > 0:
-        status = 'uploading'
+        if status == 'error':
+            status = 'error_uploading'
+        else:
+            status = 'uploading'
         job['status'] = status
         upload_job_output.delay(cluster, job, log_write_url=log_write_url,
                                 job_dir=job_dir, girder_token=girder_token)
@@ -421,7 +435,7 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
         if state and current_status != 'terminating':
             status, timings = _handle_queued_or_running(task, job, state)
         elif status == 'complete':
-            status, timings = _handle_complete(cluster, job, log_write_url,
+            status, timings = _handle_complete(ssh, cluster, job, log_write_url,
                                                girder_token, status)
 
         output_updated = _tail_output(job, ssh)
@@ -566,6 +580,10 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
             if job['status'] == 'uploading':
                 r = requests.patch(status_url, headers=headers,
                                    json={'status': 'complete'})
+                check_status(r)
+            elif job['status'] == 'error_uploading':
+                r = requests.patch(status_url, headers=headers,
+                                   json={'status': 'error'})
                 check_status(r)
 
     except EOFError:

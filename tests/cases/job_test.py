@@ -126,10 +126,14 @@ class JobTestCase(unittest.TestCase):
         self.assertTrue(self._get_status_called, 'Expect get status endpoint to be hit')
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
 
-    @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
+    @mock.patch('starcluster.config.StarClusterConfig')
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    def test_monitor_job_complete(self, logging,logger):
+    def test_monitor_job_complete(self, logging,logger, StarClusterConfig):
+
+        StarClusterConfig.return_value.get_cluster_manager.return_value \
+            .get_cluster.return_value \
+            .master_node.ssh.stat.return_value.st_size = 0
 
         job_id = 'dummy'
         cluster = {
