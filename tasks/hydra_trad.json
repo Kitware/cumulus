@@ -60,7 +60,7 @@
                             "jobOutputDir": "{{ cluster.config.jobOutputDir }}"
                         }
                   },
-                  "log": "/jobs/{{hydra_job._id}}/log",
+                  "log": "jobs/{{hydra_job._id}}/log",
                   "terminate": "/jobs/{{hydra_job._id}}/terminate",
                   "delete": "/jobs/{{hydra_job._id}}"
               },

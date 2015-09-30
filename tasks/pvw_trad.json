@@ -52,7 +52,7 @@
                             "jobOutputDir": "{{ cluster.config.jobOutputDir }}"
                         }
                   },
-                  "log": "/jobs/{{pvw_job._id}}/log",
+                  "log": "jobs/{{pvw_job._id}}/log",
                   "terminate": "/jobs/{{pvw_job._id}}/terminate",
                   "delete": "/jobs/{{pvw_job._id}}"
               },

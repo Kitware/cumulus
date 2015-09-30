@@ -47,7 +47,7 @@
                       "url": "/clusters/{{cluster._id}}/start",
                       "method": "PUT"
                   },
-                  "log": "/cluster/{{cluster._id}}/log",
+                  "log": "clusters/{{cluster._id}}/log",
                   "terminate": "/clusters/{{cluster._id}}/terminate",
                   "delete": "/clusters/{{cluster._id}}"
               },
@@ -101,7 +101,7 @@
                             "jobOutputDir": "{{ jobOutputDir }}"
                         }
                   },
-                  "log": "/jobs/{{pvw_job._id}}/log",
+                  "log": "jobs/{{pvw_job._id}}/log",
                   "terminate": "/jobs/{{pvw_job._id}}/terminate",
                   "delete": "/jobs/{{pvw_job._id}}"
               },
@@ -146,7 +146,7 @@
                             "jobOutputDir": "{{ cluster.config.jobOutputDir }}"
                         }
                   },
-                  "log": "/jobs/{{pvserver_job._id}}/log",
+                  "log": "jobs/{{pvserver_job._id}}/log",
                   "terminate": "/jobs/{{pvserver_job._id}}/terminate",
                   "delete": "/jobs/{{pvserver_job._id}}"
               },
