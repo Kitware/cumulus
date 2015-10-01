@@ -142,6 +142,25 @@ def _get_number_of_slots(ssh, parallel_env):
     return slots
 
 
+def _is_terminating(job, girder_token):
+    headers = {'Girder-Token':  girder_token}
+    status_url = '%s/jobs/%s/status' % (cumulus.config.girder.baseUrl,
+                                        job['_id'])
+    r = requests.get(status_url, headers=headers)
+    check_status(r)
+    current_status = r.json()['status']
+
+    return current_status in ['terminated', 'terminating']
+
+
+def _generate_script_template(job):
+    script_template = StringIO.StringIO()
+    for c in job['commands']:
+        script_template.write('%s\n' % c)
+
+    return script_template
+
+
 @command.task
 @cumulus.starcluster.logging.capture
 def submit_job(cluster, job, log_write_url=None, girder_token=None):
@@ -152,17 +171,17 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
     job_id = job['_id']
     job_dir = _job_dir(job)
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
-
     try:
-        # Write out script to upload to master
+        # if terminating break out
+        if _is_terminating(job, girder_token):
+            return
 
+        # Write out script to upload to master
         (_, script_filepath) = tempfile.mkstemp()
         script_name = job['name']
         script_filepath = os.path.join(tempfile.gettempdir(), script_name)
 
-        script_template = StringIO.StringIO()
-        for c in job['commands']:
-            script_template.write('%s\n' % c)
+        script_template = _generate_script_template(job)
 
         with logstdout():
             ssh = get_ssh_connection(girder_token, cluster)
@@ -340,7 +359,7 @@ def _handle_queued_or_running(task, job, state):
     return status, timings
 
 
-def _handle_complete(cluster, job, log_write_url, girder_token, status):
+def _handle_complete(ssh, cluster, job, log_write_url, girder_token, status):
     log = starcluster.logger.get_starcluster_logger()
     job_name = job['name']
     job_dir = _job_dir(job)
@@ -351,10 +370,24 @@ def _handle_complete(cluster, job, log_write_url, girder_token, status):
         timings = {'running': int(round(running_time * 1000))}
         del job['runningTime']
 
+    # See if we have anything in stderr, if so we will mark the job as errored
+    try:
+        stderr_filename = '%s.e%s' % (job['name'], job['sgeId'])
+        stderr_path = os.path.join(job_dir, stderr_filename)
+        stat_attrs = ssh.stat(stderr_path)
+        print stat_attrs.st_size
+        if stat_attrs.st_size > 0:
+            status = 'error'
+    except IOError:
+        pass
+
     # Fire off task to upload the output
     log.info('Job "%s" complete' % job_name)
     if 'output' in job and len(job['output']) > 0:
-        status = 'uploading'
+        if status == 'error':
+            status = 'error_uploading'
+        else:
+            status = 'uploading'
         job['status'] = status
         upload_job_output.delay(cluster, job, log_write_url=log_write_url,
                                 job_dir=job_dir, girder_token=girder_token)
@@ -398,6 +431,9 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
 
         current_status = r.json()['status']
 
+        if current_status == 'terminated':
+            return
+
         try:
             state = _job_state(ssh, sge_id)
         except EOFError:
@@ -421,7 +457,7 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
         if state and current_status != 'terminating':
             status, timings = _handle_queued_or_running(task, job, state)
         elif status == 'complete':
-            status, timings = _handle_complete(cluster, job, log_write_url,
+            status, timings = _handle_complete(ssh, cluster, job, log_write_url,
                                                girder_token, status)
 
         output_updated = _tail_output(job, ssh)
@@ -461,6 +497,10 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
     job_name = job['name']
 
     try:
+        # if terminating break out
+        if _is_terminating(job, girder_token):
+            return
+
         ssh = get_ssh_connection(girder_token, cluster)
 
         # First put girder client on master
@@ -528,6 +568,10 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
 
     try:
+        # if terminating break out
+        if _is_terminating(job, girder_token):
+            return
+
         ssh = get_ssh_connection(girder_token, cluster)
 
         # See if the process is still running
@@ -567,6 +611,10 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
                 r = requests.patch(status_url, headers=headers,
                                    json={'status': 'complete'})
                 check_status(r)
+            elif job['status'] == 'error_uploading':
+                r = requests.patch(status_url, headers=headers,
+                                   json={'status': 'error'})
+                check_status(r)
 
     except EOFError:
         # Try again
@@ -597,11 +645,12 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
         with logstdout():
             ssh = get_ssh_connection(girder_token, cluster)
 
-            if 'sgeId' not in job:
-                raise Exception('Job doesn\'t have a sge id')
-
-            # First get number of slots available
-            output = ssh.execute('qdel %s' % job['sgeId'])
+            if 'sgeId' in job:
+                output = ssh.execute('qdel %s' % job['sgeId'])
+            else:
+                r = requests.patch(status_url, headers=headers,
+                                   json={'status': 'terminated'})
+                check_status(r)
 
             if 'onTerminate' in job:
                 commands = '\n'.join(job['onTerminate']['commands']) + '\n'
