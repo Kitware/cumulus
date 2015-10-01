@@ -1,5 +1,0 @@
-{
-"name": "Cumulus Mock plugin for Girder",
-"description": "Mock plugin for testing against UI without hitting AWS",
-"dependencies": ["cumulus"]
-}
