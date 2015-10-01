@@ -21,7 +21,7 @@
                        "method": "POST",
                        "body": {
                           "name": "myjob",
-                          "scriptId": "55c3ac27f6571011a48d49f4",
+                          "scriptId": "{{defaults.hydra.script.id}}",
                           "output": [{
                             "itemId": "{{output.item.id}}",
                             "path": "."
