@@ -19,7 +19,7 @@ RC_PORT="54321"
 REVERSE="--reverse-connect-port ${RC_PORT}"
 
 PROXIES="config/defaultProxies.json"
-DATA="{{ data_dir if data_dir else '$HOME/%s/data/' % job._id }}"
+DATA="{{ dataDir if dataDir else '$HOME/%s/data/' % job._id }}"
 
 # Get the private ip of this host
 IPADDRESS=`curl -s http://169.254.169.254/latest/meta-data/local-ipv4`
