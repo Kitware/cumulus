@@ -1,5 +1,0 @@
-{
-"name": "Mock task plugin for girder",
-"description": "Mocks out calls to celery",
-"dependencies": ["task"]
-}
