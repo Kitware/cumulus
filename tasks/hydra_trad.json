@@ -24,7 +24,8 @@
                           "scriptId": "{{defaults.hydra.script.id}}",
                           "output": [{
                             "itemId": "{{output.item.id}}",
-                            "path": "."
+                            "path": ".",
+                            "exclude": "^output/.*\\.exo$"
                           },
                           {
                              "path": "output/stat.txt",
