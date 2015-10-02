@@ -9,6 +9,7 @@ import tempfile
 import shutil
 import errno
 import time
+import re
 
 max_chunk_size = 1024 * 1024 * 64
 
@@ -49,7 +50,8 @@ class DirectoryUploader(GirderBase):
             if 'itemId' in i and 'path' in i:
                 item_id = i['itemId']
                 path_spec = i['path']
-                self._upload(item_id, path_spec)
+                exclude_regex = i.get('exclude', None)
+                self._upload(item_id, path_spec, exclude_regex=exclude_regex)
 
         end = time.time()
 
@@ -111,7 +113,7 @@ class DirectoryUploader(GirderBase):
 
                 uploaded += chunk_size
 
-    def _upload(self, parent_id, path, pattern=None):
+    def _upload(self, parent_id, path, exclude_regex=None):
         if os.path.isdir(path):
             for root, _, file_list in os.walk(path):
                 for filename in file_list:
@@ -120,6 +122,9 @@ class DirectoryUploader(GirderBase):
                     name = file_path
                     if not path.startswith('/'):
                         name = os.path.relpath(file_path, os.getcwd())
+
+                    if exclude_regex and re.compile(exclude_regex).match(name):
+                        continue
 
                     self._upload_file(name, file_path, parent_id)
         else:
