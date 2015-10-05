@@ -6,12 +6,13 @@
 ###   run.sh
 ###
 #$ -S /bin/bash
-#$ -q all.q@master
+### TODO template this out for trad
+###$ -q all.q@master
 
 # Set up cluster-specific variables
 PARAVIEW_DIR={{paraview_dir if paraview_dir else "/opt/paraview/install"}}
 PV_PYTHON="${PARAVIEW_DIR}/bin/pvpython"
-LIB_VERSION_DIR=`ls ${PARAVIEW_DIR}/lib`
+LIB_VERSION_DIR=`ls ${PARAVIEW_DIR}/lib | grep paraview`
 APPS_DIR="lib/${LIB_VERSION_DIR}/site-packages/paraview/web"
 VISUALIZER="${PARAVIEW_DIR}/${APPS_DIR}/pv_web_visualizer.py"
 
@@ -22,9 +23,9 @@ PROXIES="config/defaultProxies.json"
 DATA="{{ dataDir if dataDir else '$HOME/%s/data/' % job._id }}"
 
 # Get the private ip of this host
-IPADDRESS=`curl -s http://169.254.169.254/latest/meta-data/local-ipv4`
+IPADDRESS=`curl -s --connect-timeout 2 http://169.254.169.254/latest/meta-data/local-ipv4`
 
-if [ -z "$IPADDRESS" ];
+if [ -z "$IPADDRESS" ]; then
 IPADDRESS=${HOSTNAME}
 fi
 
