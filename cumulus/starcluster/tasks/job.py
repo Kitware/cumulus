@@ -205,7 +205,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
             # Now we can template submission script
             script = Template(script_template.getvalue()) \
                 .render(cluster=cluster,
-                        job=job, base_url=cumulus.config.girder.baseUrl,
+                        job=job, baseUrl=cumulus.config.girder.baseUrl,
                         **job_params)
 
             with open(script_filepath, 'w') as fp:
