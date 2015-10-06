@@ -47,7 +47,8 @@
                             "numberOfSlots": "{{ cluster.config.numberOfSlots }}",
                             "jobOutputDir": "{{ cluster.config.jobOutputDir }}",
                             "paraviewInstallDir": "{{ cluster.config.paraview.installDir }}",
-                            "dataDir": "{{ dataDir }}"
+                            "dataDir": "{{ dataDir }}",
+                            "simulationJobId": "{{ simulationJobId }}"
                         }
                   },
                   "log": "/jobs/{{pvw_job._id}}/log",
@@ -94,7 +95,8 @@
                             "numberOfSlots": "{{ cluster.config.numberOfSlots }}",
                             "jobOutputDir": "{{ cluster.config.jobOutputDir }}",
                             "paraviewInstallDir": "{{ cluster.config.paraview.installDir }}",
-                            "dataDir": "{{ dataDir }}"
+                            "dataDir": "{{ dataDir }}",
+                            "pvwJobId": "{{ pvw_job._id }}"
                         }
                   },
                   "log": "/jobs/{{pvserver_job._id}}/log",
