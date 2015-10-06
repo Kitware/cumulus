@@ -22,10 +22,10 @@ def test_connection(cluster, log_write_url=None, girder_token=None):
         check_status(r)
         cluster = r.json()
 
-        ssh = get_ssh_connection(girder_token, cluster)
-        status = 'running'
-        # For simply test can we can connect to cluster and qsub is installed
-        output = ssh.execute('command -v qsub')
+        with get_ssh_connection(girder_token, cluster) as ssh:
+            status = 'running'
+            # For simply test can we can connect to cluster and qsub is installed
+            output = ssh.execute('command -v qsub')
         if len(output) < 1:
             log.error('Unable to find qsub on cluster')
             status = 'error'

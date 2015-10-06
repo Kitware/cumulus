@@ -58,34 +58,33 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
     job_name = job['name']
 
     try:
-        ssh = get_ssh_connection(girder_token, cluster)
+        with get_ssh_connection(girder_token, cluster) as ssh:
+            # First put girder client on master
+            path = inspect.getsourcefile(cumulus.girderclient)
+            ssh.put(path)
 
-        # First put girder client on master
-        path = inspect.getsourcefile(cumulus.girderclient)
-        ssh.put(path)
+            # Create job directory
+            ssh.mkdir(_job_dir(job))
 
-        # Create job directory
-        ssh.mkdir(_job_dir(job))
+            log.info('Downloading input for "%s"' % job_name)
 
-        log.info('Downloading input for "%s"' % job_name)
+            r = requests.patch(status_url, json={'status': 'downloading'},
+                               headers=headers)
+            check_status(r)
 
-        r = requests.patch(status_url, json={'status': 'downloading'},
-                           headers=headers)
-        check_status(r)
+            download_cmd = 'python girderclient.py --token %s --url "%s" ' \
+                           'download --dir %s  --job %s' \
+                % (girder_token, cumulus.config.girder.baseUrl,
+                   _job_dir(job), job_id)
 
-        download_cmd = 'python girderclient.py --token %s --url "%s" ' \
-                       'download --dir %s  --job %s' \
-            % (girder_token, cumulus.config.girder.baseUrl,
-               _job_dir(job), job_id)
+            download_output = '%s.download.out' % job_id
+            download_cmd = 'nohup %s  &> %s  &\n' % (download_cmd, download_output)
 
-        download_output = '%s.download.out' % job_id
-        download_cmd = 'nohup %s  &> %s  &\n' % (download_cmd, download_output)
+            download_cmd = _put_script(ssh, download_cmd)
+            output = ssh.execute(download_cmd)
 
-        download_cmd = _put_script(ssh, download_cmd)
-        output = ssh.execute(download_cmd)
-
-        # Remove download script
-        ssh.unlink(download_cmd)
+            # Remove download script
+            ssh.unlink(download_cmd)
 
         if len(output) != 1:
             raise Exception('PID not returned by execute command')
@@ -184,45 +183,44 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
         script_template = _generate_script_template(job)
 
         with logstdout():
-            ssh = get_ssh_connection(girder_token, cluster)
+            with get_ssh_connection(girder_token, cluster) as ssh:
+                job_params = {}
+                if 'params' in job:
+                    job_params = job['params']
 
-            job_params = {}
-            if 'params' in job:
-                job_params = job['params']
+                parallel_env = _get_parallel_env(cluster, job)
+                if parallel_env:
+                    job_params['parallelEnvironment'] = parallel_env
 
-            parallel_env = _get_parallel_env(cluster, job)
-            if parallel_env:
-                job_params['parallelEnvironment'] = parallel_env
+                slots = -1
+                # If the number of slots has not been provided we will get the
+                # number of slots from the parallel environment
+                if ('numberOfSlots' not in cluster['config']) and parallel_env:
+                    slots = _get_number_of_slots(ssh, parallel_env)
+                    if slots > 0:
+                        job_params['numberOfSlots'] = int(slots)
 
-            slots = -1
-            # If the number of slots has not been provided we will get the
-            # number of slots from the parallel environment
-            if ('numberOfSlots' not in cluster['config']) and parallel_env:
-                slots = _get_number_of_slots(ssh, parallel_env)
-                if slots > 0:
-                    job_params['numberOfSlots'] = int(slots)
+                # Now we can template submission script
+                script = Template(script_template.getvalue()) \
+                    .render(cluster=cluster,
+                            job=job, baseUrl=cumulus.config.girder.baseUrl,
+                            **job_params)
 
-            # Now we can template submission script
-            script = Template(script_template.getvalue()) \
-                .render(cluster=cluster,
-                        job=job, baseUrl=cumulus.config.girder.baseUrl,
-                        **job_params)
+                with open(script_filepath, 'w') as fp:
+                    fp.write('%s\n' % script)
 
-            with open(script_filepath, 'w') as fp:
-                fp.write('%s\n' % script)
+                ssh.mkdir(job_dir, ignore_failure=True)
+                # put the script to master
+                ssh.put(script_filepath, job_dir)
+                # Now submit the job
 
-            ssh.mkdir(job_dir, ignore_failure=True)
-            # put the script to master
-            ssh.put(script_filepath, job_dir)
-            # Now submit the job
+                if slots > -1:
+                    log.info('We have %s slots available' % slots)
 
-            if slots > -1:
-                log.info('We have %s slots available' % slots)
+                cmd = 'cd %s && qsub -cwd ./%s' \
+                    % (job_dir, script_name)
 
-            cmd = 'cd %s && qsub -cwd ./%s' \
-                % (job_dir, script_name)
-
-            output = ssh.execute(cmd)
+                output = ssh.execute(cmd)
 
             if len(output) != 1:
                 raise Exception('Unexpected output: %s' % output)
@@ -424,43 +422,43 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
     status_url = '%s/jobs/%s/status' % (cumulus.config.girder.baseUrl, job_id)
 
     try:
-        ssh = get_ssh_connection(girder_token, cluster)
-        # First get the current status
-        r = requests.get(status_url, headers=headers)
-        check_status(r)
+        with get_ssh_connection(girder_token, cluster) as ssh:
+            # First get the current status
+            r = requests.get(status_url, headers=headers)
+            check_status(r)
 
-        current_status = r.json()['status']
+            current_status = r.json()['status']
 
-        if current_status == 'terminated':
-            return
+            if current_status == 'terminated':
+                return
 
-        try:
-            state = _job_state(ssh, sge_id)
-        except EOFError:
-            # Try again
-            task.retry(throw=False, countdown=5)
-            return
-        except starcluster.exception.SSHConnectionError as ex:
-            # Try again
-            task.retry(throw=False, countdown=5)
-            return
+            try:
+                state = _job_state(ssh, sge_id)
+            except EOFError:
+                # Try again
+                task.retry(throw=False, countdown=5)
+                return
+            except starcluster.exception.SSHConnectionError as ex:
+                # Try again
+                task.retry(throw=False, countdown=5)
+                return
 
-        # If not in queue and we are terminating then move to terminated
-        if current_status == 'terminating':
-            status = 'terminated'
-        # Otherwise we are complete
-        else:
-            status = 'complete'
+            # If not in queue and we are terminating then move to terminated
+            if current_status == 'terminating':
+                status = 'terminated'
+            # Otherwise we are complete
+            else:
+                status = 'complete'
 
-        timings = {}
+            timings = {}
 
-        if state and current_status != 'terminating':
-            status, timings = _handle_queued_or_running(task, job, state)
-        elif status == 'complete':
-            status, timings = _handle_complete(ssh, cluster, job, log_write_url,
-                                               girder_token, status)
+            if state and current_status != 'terminating':
+                status, timings = _handle_queued_or_running(task, job, state)
+            elif status == 'complete':
+                status, timings = _handle_complete(ssh, cluster, job, log_write_url,
+                                                   girder_token, status)
 
-        output_updated = _tail_output(job, ssh)
+            output_updated = _tail_output(job, ssh)
 
         json = {
             'status': status,
@@ -501,30 +499,29 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
         if _is_terminating(job, girder_token):
             return
 
-        ssh = get_ssh_connection(girder_token, cluster)
+        with get_ssh_connection(girder_token, cluster) as ssh:
+            # First put girder client on master
+            path = inspect.getsourcefile(cumulus.girderclient)
+            ssh.put(path, os.path.normpath(os.path.join(job_dir, '..')))
 
-        # First put girder client on master
-        path = inspect.getsourcefile(cumulus.girderclient)
-        ssh.put(path, os.path.normpath(os.path.join(job_dir, '..')))
+            log.info('Uploading output for "%s"' % job_name)
 
-        log.info('Uploading output for "%s"' % job_name)
+            cmds = ['cd %s' % job_dir]
+            upload_cmd = 'python ../girderclient.py --token %s --url "%s" ' \
+                         'upload --job %s' \
+                         % (girder_token,
+                            cumulus.config.girder.baseUrl, job['_id'])
 
-        cmds = ['cd %s' % job_dir]
-        upload_cmd = 'python ../girderclient.py --token %s --url "%s" ' \
-                     'upload --job %s' \
-                     % (girder_token,
-                        cumulus.config.girder.baseUrl, job['_id'])
+            upload_output = '%s.upload.out' % job_id
+            upload_output_path = os.path.normpath(os.path.join(job_dir, '..',
+                                                               upload_output))
+            cmds.append('nohup %s  &> ../%s  &\n' % (upload_cmd, upload_output))
 
-        upload_output = '%s.upload.out' % job_id
-        upload_output_path = os.path.normpath(os.path.join(job_dir, '..',
-                                                           upload_output))
-        cmds.append('nohup %s  &> ../%s  &\n' % (upload_cmd, upload_output))
+            upload_cmd = _put_script(ssh, '\n'.join(cmds))
+            output = ssh.execute(upload_cmd)
 
-        upload_cmd = _put_script(ssh, '\n'.join(cmds))
-        output = ssh.execute(upload_cmd)
-
-        # Remove upload script
-        ssh.unlink(upload_cmd)
+            # Remove upload script
+            ssh.unlink(upload_cmd)
 
         if len(output) != 1:
             raise Exception('PID not returned by execute command')
@@ -572,49 +569,48 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
         if _is_terminating(job, girder_token):
             return
 
-        ssh = get_ssh_connection(girder_token, cluster)
+        with get_ssh_connection(girder_token, cluster) as ssh:
+            # See if the process is still running
+            output = ssh.execute('ps %s | grep %s' % (pid, pid),
+                                 ignore_exit_status=True,
+                                 source_profile=False)
 
-        # See if the process is still running
-        output = ssh.execute('ps %s | grep %s' % (pid, pid),
-                             ignore_exit_status=True,
-                             source_profile=False)
+            if len(output) > 0:
+                # Process is still running so schedule self again in about 5 secs
+                # N.B. throw=False to prevent Retry exception being raised
+                task.retry(throw=False, countdown=5)
+            else:
+                try:
+                    nohup_out_file_name = os.path.basename(nohup_out_path)
+                    ssh.get(nohup_out_path)
+                    # Log the output
+                    with open(nohup_out_file_name, 'r') as fp:
+                        output = fp.read()
+                        if output.strip():
+                            log.error(output_message % output)
+                            # If we have output then set the error state on the
+                            # job and return
+                            r = requests.patch(status_url, headers=headers,
+                                               json={'status': 'error'})
+                            check_status(r)
+                            return
+                finally:
+                    if nohup_out_file_name and os.path.exists(nohup_out_file_name):
+                        os.remove(nohup_out_file_name)
 
-        if len(output) > 0:
-            # Process is still running so schedule self again in about 5 secs
-            # N.B. throw=False to prevent Retry exception being raised
-            task.retry(throw=False, countdown=5)
-        else:
-            try:
-                nohup_out_file_name = os.path.basename(nohup_out_path)
-                ssh.get(nohup_out_path)
-                # Log the output
-                with open(nohup_out_file_name, 'r') as fp:
-                    output = fp.read()
-                    if output.strip():
-                        log.error(output_message % output)
-                        # If we have output then set the error state on the
-                        # job and return
-                        r = requests.patch(status_url, headers=headers,
-                                           json={'status': 'error'})
-                        check_status(r)
-                        return
-            finally:
-                if nohup_out_file_name and os.path.exists(nohup_out_file_name):
-                    os.remove(nohup_out_file_name)
+                # Fire off the on_compete task if we have one
+                if on_complete:
+                    signature(on_complete).delay()
 
-            # Fire off the on_compete task if we have one
-            if on_complete:
-                signature(on_complete).delay()
-
-            # If we where uploading move job into complete state
-            if job['status'] == 'uploading':
-                r = requests.patch(status_url, headers=headers,
-                                   json={'status': 'complete'})
-                check_status(r)
-            elif job['status'] == 'error_uploading':
-                r = requests.patch(status_url, headers=headers,
-                                   json={'status': 'error'})
-                check_status(r)
+                # If we where uploading move job into complete state
+                if job['status'] == 'uploading':
+                    r = requests.patch(status_url, headers=headers,
+                                       json={'status': 'complete'})
+                    check_status(r)
+                elif job['status'] == 'error_uploading':
+                    r = requests.patch(status_url, headers=headers,
+                                       json={'status': 'error'})
+                    check_status(r)
 
     except EOFError:
         # Try again
@@ -643,32 +639,31 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
     try:
 
         with logstdout():
-            ssh = get_ssh_connection(girder_token, cluster)
+            with get_ssh_connection(girder_token, cluster) as ssh:
+                if 'sgeId' in job:
+                    output = ssh.execute('qdel %s' % job['sgeId'])
+                else:
+                    r = requests.patch(status_url, headers=headers,
+                                       json={'status': 'terminated'})
+                    check_status(r)
 
-            if 'sgeId' in job:
-                output = ssh.execute('qdel %s' % job['sgeId'])
-            else:
-                r = requests.patch(status_url, headers=headers,
-                                   json={'status': 'terminated'})
-                check_status(r)
+                if 'onTerminate' in job:
+                    commands = '\n'.join(job['onTerminate']['commands']) + '\n'
+                    commands = Template(commands) \
+                        .render(cluster=cluster,
+                                job=job,
+                                base_url=cumulus.config.girder.baseUrl)
 
-            if 'onTerminate' in job:
-                commands = '\n'.join(job['onTerminate']['commands']) + '\n'
-                commands = Template(commands) \
-                    .render(cluster=cluster,
-                            job=job,
-                            base_url=cumulus.config.girder.baseUrl)
+                    on_terminate = _put_script(ssh, commands + '\n')
 
-                on_terminate = _put_script(ssh, commands + '\n')
+                    terminate_output = '%s.terminate.out' % job_id
+                    terminate_cmd = 'nohup %s  &> %s  &\n' % (on_terminate,
+                                                              terminate_output)
+                    terminate_cmd = _put_script(ssh, terminate_cmd)
+                    output = ssh.execute(terminate_cmd)
 
-                terminate_output = '%s.terminate.out' % job_id
-                terminate_cmd = 'nohup %s  &> %s  &\n' % (on_terminate,
-                                                          terminate_output)
-                terminate_cmd = _put_script(ssh, terminate_cmd)
-                output = ssh.execute(terminate_cmd)
-
-                ssh.unlink(on_terminate)
-                ssh.unlink(terminate_cmd)
+                    ssh.unlink(on_terminate)
+                    ssh.unlink(terminate_cmd)
 
                 if len(output) != 1:
                     raise Exception('PID not returned by execute command')
@@ -707,9 +702,9 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
 @command.task(bind=True, max_retries=5)
 def remove_output(task, cluster, job, girder_token):
     try:
-        ssh = get_ssh_connection(girder_token, cluster)
-        rm_cmd = 'rm -rf %s' % _job_dir(job)
-        ssh.execute(rm_cmd)
+        with get_ssh_connection(girder_token, cluster) as ssh:
+            rm_cmd = 'rm -rf %s' % _job_dir(job)
+            ssh.execute(rm_cmd)
     except EOFError:
         # Try again
         task.retry(countdown=5)
