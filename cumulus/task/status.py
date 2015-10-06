@@ -38,7 +38,7 @@ def monitor_status(celery_task, token, task, spec, step, variables):
             timeout = int(params['timeout'])
             max_retries = timeout % sleep_interval
 
-        url = '%s/%s' % (cumulus.config.girder.baseUrl, params['url'])
+        url = '%s%s' % (cumulus.config.girder.baseUrl, params['url'])
         status = requests.get(url, headers=headers)
         check_status(status)
         status = status.json()
