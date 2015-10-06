@@ -10,7 +10,7 @@
 ###$ -q all.q@master
 
 # Set up cluster-specific variables
-PARAVIEW_DIR={{paraview_dir if paraview_dir else "/opt/paraview/install"}}
+PARAVIEW_DIR={{paraviewInstallDir if paraviewInstallDir else "/opt/paraview/install"}}
 PV_PYTHON="${PARAVIEW_DIR}/bin/pvpython"
 LIB_VERSION_DIR=`ls ${PARAVIEW_DIR}/lib | grep paraview`
 APPS_DIR="lib/${LIB_VERSION_DIR}/site-packages/paraview/web"
@@ -31,17 +31,17 @@ if [ -z "$IPADDRESS" ]; then
 IPADDRESS=${HOSTNAME}
 fi
 
+WEBSOCKET_PORT=`python -c "${GET_PORT_PYTHON_CMD}"`
+
 # Create proxy entry
-BODY='{"host": "'$IPADDRESS'", "clusterId": "{{ cluster._id }}", "port": 8080, "jobId": "{{ job._id }}"}'
+BODY='{"host": "'$IPADDRESS'", "clusterId": "{{ cluster._id }}", "port": '${WEBSOCKET_PORT}', "jobId": "{{ simulationJobId }}"}'
 curl --silent --show-error -o /dev/null -X POST -d "$BODY"  --header "Content-Type: application/json" {{ baseUrl }}/proxy
 
 export LD_LIBRARY_PATH=${PARAVIEW_DIR}/lib/${LIB_VERSION_DIR}
 export DISPLAY=:0
 
-WEBSOCKET_PORT=`python -c "${GET_PORT_PYTHON_CMD}"`
-
 # First run pvpython with the reverse connect port
 ${PV_PYTHON} ${VISUALIZER} --timeout 999999 --host $IPADDRESS --port ${WEBSOCKET_PORT} --proxies ${PROXIES} ${REVERSE} --data-dir ${DATA} --group-regex ""
 
 # Remove proxy entry
-curl --silent --show-error -o /dev/null -X DELETE {{ baseUrl }}/proxy/{{ cluster._id }}/{{ job._id }}
+curl --silent --show-error -o /dev/null -X DELETE {{ baseUrl }}/proxy/{{ cluster._id }}/{{ simulationJobId }}
