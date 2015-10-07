@@ -6,8 +6,10 @@
 ###   run.sh
 ###
 #$ -S /bin/bash
-### TODO template this out for trad
-###$ -q all.q@master
+{% if cluster.type == 'ec2' -%}
+#$ -q all.q@master
+{% endif -%}
+
 
 # Set up cluster-specific variables
 PARAVIEW_DIR={{paraviewInstallDir if paraviewInstallDir else "/opt/paraview/install"}}
