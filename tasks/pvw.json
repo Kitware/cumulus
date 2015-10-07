@@ -98,7 +98,8 @@
                       "body": {
                             "numberOfSlots": "{{ numberOfSlots }}",
                             "parallelEnvironment": "{{ parallelEnvironment }}",
-                            "jobOutputDir": "{{ jobOutputDir }}"
+                            "jobOutputDir": "{{ jobOutputDir }}",
+                            "simulationJobId": "{{ simulationJobId }}
                         }
                   },
                   "log": "/jobs/{{pvw_job._id}}/log",
@@ -143,7 +144,8 @@
                         "body": {
                             "numberOfSlots": "{{ cluster.config.numberOfSlots }}",
                             "parallelEnvironment": "{{ cluster.config.parallelEnvironment }}",
-                            "jobOutputDir": "{{ cluster.config.jobOutputDir }}"
+                            "jobOutputDir": "{{ cluster.config.jobOutputDir }}",
+                            "pvwJobId": "{{ pvw_job._id }}"
                         }
                   },
                   "log": "/jobs/{{pvserver_job._id}}/log",
@@ -170,6 +172,14 @@
                       "selector": "status",
                       "success": ["terminated"],
                       "failure": ["error"]
+                  }
+              },
+              {
+                  "name": "Clean up proxy entry",
+                  "type": "http",
+                  "params": {
+                      "url": "/proxy/{{ cluster._id }}/{{ simulationJobId }}",
+                      "method": "DELETE"
                   }
               }
               ]
