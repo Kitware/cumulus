@@ -161,6 +161,16 @@
                       "success": ["running"],
                       "failure": ["error", "terminated"]
                   }
+              },
+              {
+                  "name": "Wait until we are terminated",
+                  "type": "status",
+                  "params": {
+                      "url": "/jobs/{{pvw_job._id}}/status",
+                      "selector": "status",
+                      "success": ["terminated"],
+                      "failure": ["error"]
+                  }
               }
               ]
 }
