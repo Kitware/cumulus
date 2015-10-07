@@ -1,6 +1,7 @@
 import json
 import cumulus
 from jinja2 import Environment
+from jinja2.exceptions import UndefinedError
 import requests
 import sys
 from cumulus.celery import monitor
@@ -120,6 +121,10 @@ def run(token, task, spec, variables, start_step=0):
 
     except requests.HTTPError as e:
         _log_http_error(token, task, e)
+        update['status'] = 'error'
+        raise
+    except UndefinedError as e:
+        update['status'] = 'error'
         raise
     finally:
         # Update the state of the task if necessary

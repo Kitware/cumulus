@@ -124,6 +124,14 @@
                       "success": ["terminated"],
                       "failure": ["error"]
                   }
+              },
+              {
+                  "name": "Clean up proxy entry",
+                  "type": "http",
+                  "params": {
+                      "url": "/proxy/{{ cluster._id }}/{{ simulationJobId }}",
+                      "method": "DELETE"
+                  }
               }
               ]
 }
