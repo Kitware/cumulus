@@ -6,6 +6,7 @@ from starcluster.sshutils import SSHClient
 import os
 import traceback
 from jsonpath_rw import parse
+from contextlib import contextmanager
 
 import cumulus
 from cumulus.constants import ClusterType
@@ -17,20 +18,27 @@ def _log_exception(ex):
     log.error(traceback.format_exc())
 
 
+@contextmanager
 def get_ssh_connection(girder_token, cluster):
     conn = None
     if cluster['type'] == ClusterType.TRADITIONAL:
-        username = parse('config.ssh.user').find(cluster)[0].value
-        hostname = parse('config.host').find(cluster)[0].value
-        passphrase = parse('config.ssh.passphrase').find(cluster)[0].value
+        try:
+            username = parse('config.ssh.user').find(cluster)[0].value
+            hostname = parse('config.host').find(cluster)[0].value
+            passphrase = parse('config.ssh.passphrase').find(cluster)[0].value
 
-        key_path = os.path.join(cumulus.config.ssh.keyStore, cluster['_id'])
+            key_path = os.path.join(cumulus.config.ssh.keyStore, cluster['_id'])
 
-        conn = SSHClient(host=hostname, username=username, private_key=key_path,
-                         private_key_pass=passphrase, timeout=5)
+            conn = SSHClient(host=hostname, username=username,
+                             private_key=key_path, private_key_pass=passphrase,
+                             timeout=5)
 
-        conn.connect()
+            conn.connect()
 
+            yield conn
+        finally:
+            if conn:
+                conn.close()
     else:
         cluster_id = cluster['_id']
         config_id = cluster['config']['_id']
@@ -46,7 +54,7 @@ def get_ssh_connection(girder_token, cluster):
         master.user = sc.cluster_user
         conn = master.ssh
 
-    return conn
+        yield conn
 
 
 def get_easy_ec2(profile):

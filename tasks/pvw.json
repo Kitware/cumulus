@@ -69,7 +69,7 @@
                        "url": "/jobs",
                        "method": "POST",
                        "body": {
-                          "name": "myjob",
+                          "name": "pvw",
                           "scriptId": "{{defaults.pvw.script.id}}",
                           "output": [{
                             "itemId": "{{output.item.id}}",
@@ -124,7 +124,7 @@
                        "url": "/jobs",
                        "method": "POST",
                        "body": {
-                          "name": "myjob",
+                          "name": "pvserver",
                           "scriptId": "{{defaults.pvserver.script.id}}",
                           "output": [{
                             "itemId": "{{output.item.id}}",
@@ -160,6 +160,16 @@
 
                       "success": ["running"],
                       "failure": ["error", "terminated"]
+                  }
+              },
+              {
+                  "name": "Wait until we are terminated",
+                  "type": "status",
+                  "params": {
+                      "url": "/jobs/{{pvw_job._id}}/status",
+                      "selector": "status",
+                      "success": ["terminated"],
+                      "failure": ["error"]
                   }
               }
               ]

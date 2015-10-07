@@ -29,7 +29,7 @@ class TradClusterTestCase(unittest.TestCase):
 
     @mock.patch('cumulus.starcluster.logging.StarClusterLogHandler')
     @mock.patch('cumulus.trad.tasks.cluster.get_ssh_connection')
-    def test_test_connection(self, get_ssh_connection, StarClusterLogHandler):
+    def test_connection(self, get_ssh_connection, StarClusterLogHandler):
 
         def valid(self):
             return True
@@ -94,7 +94,7 @@ class TradClusterTestCase(unittest.TestCase):
             path=r'^%s$' % cluster_url, method='GET')(_get_cluster)
 
 
-        ssh = get_ssh_connection.return_value
+        ssh = get_ssh_connection.return_value.__enter__.return_value
         ssh.execute.return_value = ['/usr/bin/qsub']
         self._expected_status = 'running'
         with httmock.HTTMock(set_status, get_cluster):

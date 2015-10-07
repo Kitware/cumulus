@@ -20,7 +20,7 @@
                        "url": "/jobs",
                        "method": "POST",
                        "body": {
-                          "name": "myjob",
+                          "name": "pvw",
                           "scriptId": "{{defaults.pvw.script.id}}",
                           "output": [{
                             "itemId": "{{output.item.id}}",
@@ -47,7 +47,8 @@
                             "numberOfSlots": "{{ cluster.config.numberOfSlots }}",
                             "jobOutputDir": "{{ cluster.config.jobOutputDir }}",
                             "paraviewInstallDir": "{{ cluster.config.paraview.installDir }}",
-                            "dataDir": "{{ dataDir }}"
+                            "dataDir": "{{ dataDir }}",
+                            "simulationJobId": "{{ simulationJobId }}"
                         }
                   },
                   "log": "/jobs/{{pvw_job._id}}/log",
@@ -73,7 +74,7 @@
                        "url": "/jobs",
                        "method": "POST",
                        "body": {
-                          "name": "myjob",
+                          "name": "pvserver",
                           "scriptId": "{{defaults.pvserver.script.id}}",
                           "output": [{
                             "itemId": "{{output.item.id}}",
@@ -94,7 +95,8 @@
                             "numberOfSlots": "{{ cluster.config.numberOfSlots }}",
                             "jobOutputDir": "{{ cluster.config.jobOutputDir }}",
                             "paraviewInstallDir": "{{ cluster.config.paraview.installDir }}",
-                            "dataDir": "{{ dataDir }}"
+                            "dataDir": "{{ dataDir }}",
+                            "pvwJobId": "{{ pvw_job._id }}"
                         }
                   },
                   "log": "/jobs/{{pvserver_job._id}}/log",
@@ -111,6 +113,16 @@
 
                       "success": ["running"],
                       "failure": ["error", "terminated"]
+                  }
+              },
+              {
+                  "name": "Wait until we are terminated",
+                  "type": "status",
+                  "params": {
+                      "url": "/jobs/{{pvw_job._id}}/status",
+                      "selector": "status",
+                      "success": ["terminated"],
+                      "failure": ["error"]
                   }
               }
               ]
