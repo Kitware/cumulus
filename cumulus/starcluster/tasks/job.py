@@ -78,7 +78,8 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
                    _job_dir(job), job_id)
 
             download_output = '%s.download.out' % job_id
-            download_cmd = 'nohup %s  &> %s  &\n' % (download_cmd, download_output)
+            download_cmd = 'nohup %s  &> %s  &\n' % (download_cmd,
+                                                     download_output)
 
             download_cmd = _put_script(ssh, download_cmd)
             output = ssh.execute(download_cmd)
@@ -455,7 +456,8 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
             if state and current_status != 'terminating':
                 status, timings = _handle_queued_or_running(task, job, state)
             elif status == 'complete':
-                status, timings = _handle_complete(ssh, cluster, job, log_write_url,
+                status, timings = _handle_complete(ssh, cluster, job,
+                                                   log_write_url,
                                                    girder_token, status)
 
             output_updated = _tail_output(job, ssh)
@@ -576,7 +578,8 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
                                  source_profile=False)
 
             if len(output) > 0:
-                # Process is still running so schedule self again in about 5 secs
+                # Process is still running so schedule self again in about 5
+                # secs
                 # N.B. throw=False to prevent Retry exception being raised
                 task.retry(throw=False, countdown=5)
             else:
@@ -595,7 +598,8 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
                             check_status(r)
                             return
                 finally:
-                    if nohup_out_file_name and os.path.exists(nohup_out_file_name):
+                    if nohup_out_file_name and \
+                       os.path.exists(nohup_out_file_name):
                         os.remove(nohup_out_file_name)
 
                 # Fire off the on_compete task if we have one
@@ -671,11 +675,13 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
                     try:
                         pid = int(output[0])
                     except ValueError:
-                        raise Exception('Unable to extract PID from: %s' % output)
+                        raise Exception('Unable to extract PID from: %s'
+                                        % output)
 
+                    output_message = 'onTerminate error: %s'
                     monitor_process.delay(cluster, job, pid, terminate_output,
                                           log_write_url=log_write_url,
-                                          output_message='onTerminate error: %s',
+                                          output_message=output_message,
                                           girder_token=girder_token)
 
     except starcluster.exception.RemoteCommandFailed as ex:

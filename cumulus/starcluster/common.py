@@ -17,6 +17,7 @@ def _log_exception(ex):
     log = starcluster.logger.get_starcluster_logger()
     log.error(traceback.format_exc())
 
+
 @contextmanager
 def get_ssh_connection(girder_token, cluster):
     conn = None
@@ -28,8 +29,9 @@ def get_ssh_connection(girder_token, cluster):
 
             key_path = os.path.join(cumulus.config.ssh.keyStore, cluster['_id'])
 
-            conn = SSHClient(host=hostname, username=username, private_key=key_path,
-                             private_key_pass=passphrase, timeout=5)
+            conn = SSHClient(host=hostname, username=username,
+                             private_key=key_path, private_key_pass=passphrase,
+                             timeout=5)
 
             conn.connect()
 

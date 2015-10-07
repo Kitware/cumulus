@@ -36,7 +36,8 @@ class CommonTestCase(unittest.TestCase):
             'type': 'trad'
         }
 
-        get_ssh_connection('girder_token', cluster)
+        with get_ssh_connection('girder_token', cluster) as ssh:
+            pass
 
     @mock.patch('cumulus.starcluster.common.create_config_request')
     @mock.patch('starcluster.config.StarClusterConfig')
@@ -51,7 +52,9 @@ class CommonTestCase(unittest.TestCase):
             'name': 'mycluster'
         }
 
-        get_ssh_connection('girder_token', cluster)
+        with get_ssh_connection('girder_token', cluster) as ssh:
+            pass
+
         self.assertEqual(len(create_config_request.call_args_list),
                          1, 'The cluster configuration was not fetched')
 
