@@ -665,18 +665,18 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
                     ssh.unlink(on_terminate)
                     ssh.unlink(terminate_cmd)
 
-                if len(output) != 1:
-                    raise Exception('PID not returned by execute command')
+                    if len(output) != 1:
+                        raise Exception('PID not returned by execute command')
 
-                try:
-                    pid = int(output[0])
-                except ValueError:
-                    raise Exception('Unable to extract PID from: %s' % output)
+                    try:
+                        pid = int(output[0])
+                    except ValueError:
+                        raise Exception('Unable to extract PID from: %s' % output)
 
-                monitor_process.delay(cluster, job, pid, terminate_output,
-                                      log_write_url=log_write_url,
-                                      output_message='onTerminate error: %s',
-                                      girder_token=girder_token)
+                    monitor_process.delay(cluster, job, pid, terminate_output,
+                                          log_write_url=log_write_url,
+                                          output_message='onTerminate error: %s',
+                                          girder_token=girder_token)
 
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers,
