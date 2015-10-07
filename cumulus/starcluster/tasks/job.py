@@ -348,7 +348,7 @@ def _handle_queued_or_running(task, job, state):
     elif state in queued_state:
         status = 'queued'
     else:
-        raise Exception('Unrecognized SGE state')
+        raise Exception('Unrecognized SGE state: %s' % state)
 
     # Job is still active so schedule self again in about 5 secs
     # N.B. throw=False to prevent Retry exception being raised
