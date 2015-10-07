@@ -99,7 +99,7 @@
                             "numberOfSlots": "{{ numberOfSlots }}",
                             "parallelEnvironment": "{{ parallelEnvironment }}",
                             "jobOutputDir": "{{ jobOutputDir }}",
-                            "simulationJobId": "{{ simulationJobId }}
+                            "simulationJobId": "{{ simulationJobId }}"
                         }
                   },
                   "log": "/jobs/{{pvw_job._id}}/log",
