@@ -34,7 +34,7 @@ export LD_LIBRARY_PATH=${PARAVIEW_DIR}/lib/${LIB_VERSION_DIR}
 export DISPLAY=:0
 
 # First run pvpython with the reverse connect port
-${PV_PYTHON} ${VISUALIZER} --timeout 300 --host $IPADDRESS --port ${WEBSOCKET_PORT} -f --token {{girderToken}} --url {{ baseUrl }} --file {{ fileId }}
+${PV_PYTHON} ${VISUALIZER} --timeout 300 --host $IPADDRESS --port ${WEBSOCKET_PORT} -f --token {{girderToken}} --url {{ baseUrl }} --file {{ fileId }} --item {{ itemId }}
 
 # Remove proxy entry
 curl --silent --show-error -o /dev/null -X DELETE {{ baseUrl }}/proxy/{{ cluster._id }}/{{ jobId }}
