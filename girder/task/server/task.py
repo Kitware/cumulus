@@ -103,8 +103,11 @@ class Task(BaseResource):
                           .download(file, headers=False)())
             spec = json.loads(spec)
 
+            variables['task'] = self._clean(task)
+
             # Create token for user runnig this task
             token = self.model('token').createToken(user=user, days=7)
+            variables['girderToken'] = token['_id']
 
             runner.run(token['_id'], self._clean(task), spec, variables)
         except requests.HTTPError as err:

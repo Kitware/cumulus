@@ -1,0 +1,85 @@
+{
+    "name": "Run cluster job",
+
+    "steps": [
+              {
+                  "name": "Wait for cluster",
+                  "type": "status",
+                  "timeout": 600,
+                  "params": {
+                      "url": "/clusters/{{cluster._id}}/status",
+                      "selector": "status",
+                      "success": ["running"],
+                      "failure": ["error"]
+                  }
+              },
+              {
+                  "name": "create mesh tagger job",
+                  "type": "http",
+                  "params": {
+                       "url": "/jobs",
+                       "method": "POST",
+                       "body": {
+                          "name": "meshtagger",
+                          "scriptId": "{{defaults.meshtagger.script.id}}",
+                          "output": [{
+                            "itemId": "{{output.item.id}}",
+                            "path": "."
+                          }]
+                        },
+                        "output": "meshtagger_job"
+                  }
+              },
+              {
+                  "name": "submit mesh tagger job",
+                  "type": "http",
+                  "params": {
+                       "url": "/clusters/{{cluster._id}}/job/{{meshtagger_job._id}}/submit",
+                        "method": "PUT",
+                        "body": {
+                            "parallelEnvironment": "{{ cluster.config.parallelEnvironment }}",
+                            "numberOfSlots": "{{ cluster.config.numberOfSlots }}",
+                            "jobOutputDir": "{{ cluster.config.jobOutputDir }}",
+                            "paraviewInstallDir": "{{ cluster.config.paraview.installDir }}",
+                            "girderToken": "{{ girderToken }}",
+                            "baseUrl": "{{ baseUrl }}",
+                            "fileId": "{{ fileId }}",
+                            "jobId": "{{ task._id }}"
+                        }
+                  },
+                  "log": "/jobs/{{meshtagger_job._id}}/log",
+                  "terminate": "/jobs/{{meshtagger_job._id}}/terminate",
+                  "delete": "/jobs/{{meshtagger_job._id}}"
+              },
+              {
+                  "name": "Wait for job to be running",
+                  "type": "status",
+                  "timeout": 300,
+                  "params": {
+                      "url": "/jobs/{{meshtagger_job._id}}/status",
+                      "selector": "status",
+
+                      "success": ["running"],
+                      "failure": ["error", "terminated"]
+                  }
+              },
+              {
+                  "name": "Wait until we complete",
+                  "type": "status",
+                  "params": {
+                      "url": "/jobs/{{meshtagger_job._id}}/status",
+                      "selector": "status",
+                      "success": ["complete"],
+                      "failure": ["error", "terminated"]
+                  }
+              },
+              {
+                  "name": "Clean up proxy entry",
+                  "type": "http",
+                  "params": {
+                      "url": "/proxy/{{ cluster._id }}/{{ meshtagger_job._id }}",
+                      "method": "DELETE"
+                  }
+              }
+              ]
+}
