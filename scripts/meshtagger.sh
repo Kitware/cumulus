@@ -24,6 +24,7 @@ if [ -z "$IPADDRESS" ]; then
 IPADDRESS=${HOSTNAME}
 fi
 
+GET_PORT_PYTHON_CMD='import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()'
 WEBSOCKET_PORT=`python -c "${GET_PORT_PYTHON_CMD}"`
 
 # Create proxy entry
