@@ -15,7 +15,7 @@ PARAVIEW_DIR={{paraviewInstallDir if paraviewInstallDir else "/opt/paraview/inst
 PV_PYTHON="${PARAVIEW_DIR}/bin/pvpython"
 LIB_VERSION_DIR=`ls ${PARAVIEW_DIR}/lib | grep paraview`
 APPS_DIR="lib/${LIB_VERSION_DIR}/site-packages/paraview/web"
-VISUALIZER="/opt/hpccloud/hpccloud/scripts/hydra-th/pv_mesh_viewer.py"
+VISUALIZER="pv_mesh_viewer.py"
 
 # Get the private ip of this host
 IPADDRESS=`curl -s --connect-timeout 2 http://169.254.169.254/latest/meta-data/local-ipv4`

@@ -25,7 +25,13 @@
                           "output": [{
                             "itemId": "{{output.item.id}}",
                             "path": "."
-                          }]
+                          }],
+                          "input": [
+                            {
+                              "itemId": "{{defaults.meshtagger}}",
+                              "path": "."
+                            }
+                          ]
                         },
                         "output": "meshtagger_job"
                   }
