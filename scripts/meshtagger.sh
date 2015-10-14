@@ -28,7 +28,8 @@ GET_PORT_PYTHON_CMD='import socket; s=socket.socket(); s.bind(("", 0)); print(s.
 WEBSOCKET_PORT=`python -c "${GET_PORT_PYTHON_CMD}"`
 
 # Create proxy entry
-BODY='{"host": "'$IPADDRESS'", "clusterId": "{{ cluster._id }}", "port": '${WEBSOCKET_PORT}', "jobId": "{{ jobId }}"}'
+KEY="{{ cluster._id + '%2F' + jobId }}"
+BODY='{"host": "'$IPADDRESS'", "port": '${WEBSOCKET_PORT}', "key": "'$KEY'"}'
 curl --silent --show-error -o /dev/null -X POST -d "$BODY"  --header "Content-Type: application/json" {{ baseUrl }}/proxy
 
 export LD_LIBRARY_PATH=${PARAVIEW_DIR}/lib/${LIB_VERSION_DIR}
@@ -38,4 +39,4 @@ export DISPLAY=:0
 ${PV_PYTHON} ${VISUALIZER} --timeout 300 --host $IPADDRESS --port ${WEBSOCKET_PORT} -f --token {{girderToken}} --url {{ baseUrl }} --file {{ fileId }} --item {{ itemId }}
 
 # Remove proxy entry
-curl --silent --show-error -o /dev/null -X DELETE {{ baseUrl }}/proxy/{{ cluster._id }}/{{ jobId }}
+curl --silent --show-error -o /dev/null -X DELETE "{{ baseUrl }}/proxy/${KEY}"
