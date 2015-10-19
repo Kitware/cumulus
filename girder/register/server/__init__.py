@@ -7,7 +7,9 @@ def user_saved(event):
             'name': 'hydra-th-members'
         }
         group = ModelImporter.model('group').findOne(query=query)
-        ModelImporter.model('group').addUser(group, event.info)
+
+        if group:
+            ModelImporter.model('group').addUser(group, event.info)
 
 def load(info):
     events.bind('model.user.save.after', 'test', user_saved)
