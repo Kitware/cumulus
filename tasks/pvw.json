@@ -96,10 +96,10 @@
                        "url": "/clusters/{{cluster._id}}/job/{{pvw_job._id}}/submit",
                       "method": "PUT",
                       "body": {
-                            "numberOfSlots": "{{ numberOfSlots }}",
-                            "parallelEnvironment": "{{ parallelEnvironment }}",
-                            "jobOutputDir": "{{ jobOutputDir }}",
-                            "simulationJobId": "{{ simulationJobId }}"
+                            "numberOfSlots": "{{ cluster.config.numberOfSlots if cluster.config.numberOfSlots }}",
+                            "parallelEnvironment": "{{ cluster.config.parallelEnvironment if cluster.config.parallelEnvironment }}",
+                            "jobOutputDir": "{{ cluster.config.jobOutputDir if cluster.config.jobOutputDir }}",
+                            "simulationJobId": "{{ simulationJobId if simulationJobId }}"
                         }
                   },
                   "log": "/jobs/{{pvw_job._id}}/log",
@@ -142,9 +142,9 @@
                        "url": "/clusters/{{cluster._id}}/job/{{pvserver_job._id}}/submit",
                         "method": "PUT",
                         "body": {
-                            "numberOfSlots": "{{ cluster.config.numberOfSlots }}",
-                            "parallelEnvironment": "{{ cluster.config.parallelEnvironment }}",
-                            "jobOutputDir": "{{ cluster.config.jobOutputDir }}",
+                            "numberOfSlots": "{{ cluster.config.numberOfSlots if cluster.config.numberOfSlots }}",
+                            "parallelEnvironment": "{{ cluster.config.parallelEnvironment if cluster.config.parallelEnvironment}}",
+                            "jobOutputDir": "{{ cluster.config.jobOutputDir if  cluster.config.jobOutputDir}}",
                             "pvwJobId": "{{ pvw_job._id }}"
                         }
                   },

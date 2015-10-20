@@ -55,10 +55,10 @@
                             "mesh": {
                                 "name":  "{{mesh.name}}"
                             },
-                            "hydraExecutablePath": "{{ cluster.config.hydra.executablePath }}",
-                            "numberOfSlots": "{{ cluster.config.numberOfSlots }}",
-                            "parallelEnvironment": "{{ cluster.config.parallelEnvironment }}",
-                            "jobOutputDir": "{{ cluster.config.jobOutputDir }}"
+                            "hydraExecutablePath": "{{ cluster.config.hydra.executablePath if cluster.config.hydra.executablePath }}",
+                            "numberOfSlots": "{{ cluster.config.numberOfSlots if cluster.config.numberOfSlots}}",
+                            "parallelEnvironment": "{{ cluster.config.parallelEnvironment if cluster.config.parallelEnvironment }}",
+                            "jobOutputDir": "{{ cluster.config.jobOutputDir if cluster.config.jobOutputDir }}"
                         }
                   },
                   "log": "/jobs/{{hydra_job._id}}/log",
