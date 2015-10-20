@@ -25,7 +25,8 @@
                           "output": [{
                             "itemId": "{{output.item.id}}",
                             "path": ".",
-                            "exclude": "^output/.*\\.exo$"
+                            "exclude": "^output/.*\\.exo$",
+                            "exclude": "^input/.*\\.exo$"
                           },
                           {
                              "path": "output/stat.txt",
