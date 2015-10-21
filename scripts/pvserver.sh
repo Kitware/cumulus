@@ -12,15 +12,19 @@
 
 # Set up cluster-specific variables
 PARAVIEW_DIR={{paraviewInstallDir if paraviewInstallDir else "/opt/paraview/install"}}
-PV_PYTHON="${PARAVIEW_DIR}/bin/pvpython"
-LIB_VERSION_DIR=`ls ${PARAVIEW_DIR}/lib | grep paraview`
-APPS_DIR="lib/${LIB_VERSION_DIR}/site-packages/paraview/web"
 # This file will be written by the pvw.sh script
 RC_PORT=`cat /tmp/{{pvwJobId}}.rc_port`
 
 # Run in MPI mode
 MPIPROG="mpiexec"
 PV_SERVER="${PARAVIEW_DIR}/bin/pvserver"
+
+# Need to adjust paths for Mac application install
+if [[ "${PARAVIEW_DIR}" == *paraview.app ]]
+then
+   PV_SERVER="${PARAVIEW_DIR}/Contents/bin/pvserver"
+fi
+
 # Wait for pvpython
 while ! nc -z ${SGE_O_HOST} ${RC_PORT}; do sleep 1; done
 # Now run pvserver and tell it to reverse connect
