@@ -23,6 +23,7 @@ PV_SERVER="${PARAVIEW_DIR}/bin/pvserver"
 if [[ "${PARAVIEW_DIR}" == *paraview.app ]]
 then
    PV_SERVER="${PARAVIEW_DIR}/Contents/bin/pvserver"
+   MPIPROG="${PARAVIEW_DIR}/Contents/MacOS/mpiexec"
 fi
 
 # Wait for pvpython
