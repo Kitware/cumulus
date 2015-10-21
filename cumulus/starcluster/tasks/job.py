@@ -370,15 +370,18 @@ def _handle_complete(ssh, cluster, job, log_write_url, girder_token, status):
         del job['runningTime']
 
     # See if we have anything in stderr, if so we will mark the job as errored
-    try:
-        stderr_filename = '%s.e%s' % (job['name'], job['sgeId'])
-        stderr_path = os.path.join(job_dir, stderr_filename)
-        stat_attrs = ssh.stat(stderr_path)
-        print stat_attrs.st_size
-        if stat_attrs.st_size > 0:
-            status = 'error'
-    except IOError:
-        pass
+    # The exception is the pvw job as it writes stuff to stderr during normal
+    # operation. This is a horrible special case and should be fixed.
+    if job_name != 'pvw':
+        try:
+            stderr_filename = '%s.e%s' % (job['name'], job['sgeId'])
+            stderr_path = os.path.join(job_dir, stderr_filename)
+            stat_attrs = ssh.stat(stderr_path)
+            print stat_attrs.st_size
+            if stat_attrs.st_size > 0:
+                status = 'error'
+        except IOError:
+            pass
 
     # Fire off task to upload the output
     log.info('Job "%s" complete' % job_name)
