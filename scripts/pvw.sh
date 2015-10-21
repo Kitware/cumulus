@@ -21,6 +21,13 @@ GET_PORT_PYTHON_CMD='import socket; s=socket.socket(); s.bind(("", 0)); print(s.
 RC_PORT=`python -c "${GET_PORT_PYTHON_CMD}"`
 echo ${RC_PORT} > /tmp/{{job._id}}.rc_port
 
+# Need to adjust paths for Mac application install
+if [[ "${PARAVIEW_DIR}" == *paraview.app ]]
+then
+   PV_PYTHON="${PARAVIEW_DIR}/Contents/bin/pvpython"
+   VISUALIZER="${PARAVIEW_DIR}/Contents/Python/paraview/web/pv_web_visualizer.py"
+fi
+
 REVERSE="--reverse-connect-port ${RC_PORT}"
 
 PROXIES="config/defaultProxies.json"
