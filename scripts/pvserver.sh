@@ -29,6 +29,6 @@ fi
 # Wait for pvpython
 while ! nc -z ${SGE_O_HOST} ${RC_PORT}; do sleep 1; done
 # Now run pvserver and tell it to reverse connect
-${MPIPROG} {{ '-n %d' % numberOfSlots-1 if numberOfSlots }} ${PV_SERVER} --client-host=${SGE_O_HOST} -rc --server-port=${RC_PORT}
+${MPIPROG} {{ '-n %d' % ((numberOfSlots|int)-1) if numberOfSlots }} ${PV_SERVER} --client-host=${SGE_O_HOST} -rc --server-port=${RC_PORT}
 # Clean up port file
 rm /tmp/{{pvwJobId}}.rc_port
