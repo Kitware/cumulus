@@ -31,11 +31,8 @@ fi
 REVERSE="--reverse-connect-port ${RC_PORT}"
 
 PROXIES="config/defaultProxies.json"
-DATA="{{ dataDir if dataDir else '$HOME/%s/data/' % job._id }}"
-# If data directory is relative make it relative to $HOME
-if [ "${DATA:0:1}" != "/" ]; then
-DATA="${HOME}/${DATA}"
-fi
+JOB_OUTPUT_DIR="{{ cluster.config.jobOutputDir if cluster.config.jobOutputDir else '$HOME'}}"
+DATA="${JOB_OUTPUT_DIR}/{{simulationJobId}}"
 
 # Get the private ip of this host
 IPADDRESS=`curl -s --connect-timeout 2 http://169.254.169.254/latest/meta-data/local-ipv4`
