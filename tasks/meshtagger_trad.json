@@ -84,7 +84,7 @@
                   "name": "Clean up proxy entry",
                   "type": "http",
                   "params": {
-                      "url": "/proxy/{{ cluster._id }}/{{ meshtagger_job._id }}",
+                      "url": "/proxy/{{ cluster._id }}%2F{{ meshtagger_job._id }}",
                       "method": "DELETE"
                   }
               }
