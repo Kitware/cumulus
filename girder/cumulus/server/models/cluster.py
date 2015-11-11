@@ -22,9 +22,10 @@ from jsonpath_rw import parse
 from girder.models.model_base import ValidationException
 from bson.objectid import ObjectId
 from girder.constants import AccessType
-from girder.api.rest import RestException
+from girder.api.rest import RestException, getCurrentUser
 from .base import BaseModel
-from cumulus.constants import ClusterType, QueueType
+from cumulus.constants import ClusterType, ClusterStatus, QueueType
+
 from ..utility.cluster_adapters import get_cluster_adapter
 from cumulus.common.girder import create_status_notifications, \
     check_group_membership
@@ -40,8 +41,23 @@ class Cluster(BaseModel):
         self.name = 'clusters'
 
         self.exposeFields(level=AccessType.READ,
-                          fields=('_id', 'status', 'name', 'config', 'template',
-                                  'type', 'userId', 'assetstoreId'))
+                          fields=('_id', 'status', 'name', 'config',
+                                  'template', 'profile', 'type',
+                                  'userId', 'assetstoreId'))
+
+    def load(self, id, level=AccessType.ADMIN, user=None, objectId=True,
+             force=False, fields=None, exc=False):
+        model = super(Cluster, self).load(id, level=level, user=user,
+                                          objectId=objectId, force=force,
+                                          fields=fields, exc=exc)
+        # Convert model status into enum
+        try:
+            model['status'] = ClusterStatus(int(model['status']))
+        except ValueError:
+            # Assume 'old style' string status
+            pass
+
+        return model
 
     def filter(self, cluster, user, passphrase=True):
         cluster = super(Cluster, self).filter(doc=cluster, user=user)

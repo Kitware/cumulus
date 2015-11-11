@@ -18,6 +18,9 @@
 ###############################################################################
 
 
+from enum import IntEnum
+
+
 class ClusterType:
     EC2 = 'ec2'
     ANSIBLE = 'ansible'
@@ -58,3 +61,18 @@ class JobQueueState:
     RUNNING = 'running'
     COMPLETE = 'complete'
     ERROR = 'error'
+
+
+class ClusterStatus(IntEnum):
+    error = -1
+    creating = 0
+    created = 10
+    deploying = 20
+    deployed = 30
+    provisioning = 40
+    provisioned = 50
+    stopped = 101
+    running = 102
+
+    def __str__(self):
+        return str(self.value)
