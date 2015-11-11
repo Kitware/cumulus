@@ -28,10 +28,11 @@ from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, getCurrentUser
 from girder.models.model_base import ValidationException
 from .base import BaseResource
-from cumulus.constants import ClusterType
+from cumulus.constants import ClusterType, ClusterStatus, QueueType
 from .utility.cluster_adapters import get_cluster_adapter
 from cumulus.ssh.tasks.key import generate_key_pair
 from cumulus.common import update_dict
+
 
 class Cluster(BaseResource):
 
@@ -42,6 +43,8 @@ class Cluster(BaseResource):
         self.route('POST', (':id', 'log'), self.handle_log_record)
         self.route('GET', (':id', 'log'), self.log)
         self.route('PUT', (':id', 'start'), self.start)
+        self.route('PUT', (':id', 'deploy'), self.deploy)
+        self.route('PUT', (':id', 'provision'), self.provision)
         self.route('PATCH', (':id',), self.update)
         self.route('GET', (':id', 'status'), self.status)
         self.route('PUT', (':id', 'terminate'), self.terminate)
@@ -112,9 +115,8 @@ class Cluster(BaseResource):
                 if profile_id:
                     profile_id = profile_id[0].value
                     # Check this a valid profile
-                    profile = \
-                        self.model('aws', 'cumulus').load(profile_id,
-                                                          user=getCurrentUser())
+                    profile = self.model('aws', 'cumulus')\
+                                  .load(profile_id, user=getCurrentUser())
 
                     if not profile:
                         raise ValidationException('Invalid profile id')
@@ -175,7 +177,6 @@ class Cluster(BaseResource):
 
         return cluster
 
-
     def _create_traditional(self, params, body):
 
         self.requireParams(['name', 'config'], body)
@@ -226,6 +227,18 @@ class Cluster(BaseResource):
         elif cluster_type == ClusterType.ANSIBLE:
             cluster = self._create_ansible(params, body)
         elif cluster_type == ClusterType.TRADITIONAL:
+            scheduler_type = parse('config.scheduler.type').find(body)
+            if scheduler_type:
+                scheduler_type = scheduler_type[0].value
+            else:
+                scheduler_type = QueueType.SGE
+                config = body.setdefault('config', {})
+                scheduler = config.setdefault('scheduler', {})
+                scheduler['type'] = scheduler_type
+
+            if not QueueType.is_valid_type(scheduler_type):
+                raise RestException('Unsupported scheduler.', code=400)
+
             cluster = self._create_traditional(params, body)
         elif cluster_type == ClusterType.NEWT:
             cluster = self._create_newt(params, body)
@@ -345,6 +358,49 @@ class Cluster(BaseResource):
             dataType='ClusterStartParams', required=False))
 
     @access.user
+    def deploy(self, id, params):
+        return self._process_or_deploy("deploy", id, params)
+
+    deploy.description = (Description(
+        'Start a cluster with ansible'
+    ).param(
+        'id',
+        'The cluster id to start.', paramType='path', required=True))
+
+    @access.user
+    def provision(self, id, params):
+        return self._process_or_deploy("provision", id, params)
+
+    provision.description = (Description(
+        'Provision a cluster with ansible'
+    ).param(
+        'id',
+        'The cluster id to provision.', paramType='path', required=True
+    ).param(
+        'body', 'Parameter used when starting cluster', paramType='body',
+        dataType='list', required=False))
+
+    def _process_or_deploy(self, process, id, params):
+        assert process in ["deploy", "provision"]
+        body = {}
+
+        if cherrypy.request.body:
+            request_body = cherrypy.request.body.read().decode('utf8')
+            if request_body:
+                body = json.loads(request_body)
+
+        user = self.getCurrentUser()
+        cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+
+        if not cluster:
+            raise RestException('Cluster not found.', code=404)
+
+        cluster = self._model.filter(cluster, user, passphrase=False)
+        adapter = get_cluster_adapter(cluster)
+
+        return getattr(adapter, process)(**body)
+
+    @access.user
     def update(self, id, params):
         body = getBodyJson()
         user = self.getCurrentUser()
@@ -358,7 +414,10 @@ class Cluster(BaseResource):
             cluster['assetstoreId'] = body['assetstoreId']
 
         if 'status' in body:
-            cluster['status'] = body['status']
+            try:
+                cluster['status'] = ClusterStatus[body['status']]
+            except ValueError:
+                cluster['status'] = body['status']
 
         if 'timings' in body:
             if 'timings' in cluster:
@@ -411,8 +470,10 @@ class Cluster(BaseResource):
 
         if not cluster:
             raise RestException('Cluster not found.', code=404)
-
-        return {'status': cluster['status']}
+        try:
+            return {'status': cluster['status'].name}
+        except AttributeError:
+            return {'status': cluster['status']}
 
     addModel('ClusterStatus', {
         'id': 'ClusterStatus',
@@ -500,11 +561,7 @@ class Cluster(BaseResource):
         if body:
             job['params'] = json.loads(body)
 
-        job = job_model.save(job)
-        del job['access']
-        del job['log']
-        job['_id'] = str(job['_id'])
-        job['userId'] = str(job['userId'])
+        job_model.save(job)
 
         cluster_adapter = get_cluster_adapter(cluster)
         cluster_adapter.submit_job(job)

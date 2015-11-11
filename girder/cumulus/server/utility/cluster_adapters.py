@@ -24,7 +24,7 @@ from girder.utility.model_importer import ModelImporter
 from girder.models.model_base import ValidationException
 from girder.api.rest import RestException, getApiUrl, getCurrentUser
 
-from cumulus.constants import ClusterType
+from cumulus.constants import ClusterType, ClusterStatus
 from cumulus.common.girder import get_task_token
 import cumulus.starcluster.tasks.cluster
 
@@ -35,6 +35,10 @@ class AbstractClusterAdapter(ModelImporter):
     """
     def __init__(self, cluster):
         self.cluster = cluster
+        self._model = self.model('cluster', 'cumulus')
+
+    def update_status(self, status):
+        self.cluster = self._model.update_status(self.cluster, status)
 
     def validate(self):
         """
@@ -87,6 +91,68 @@ class AbstractClusterAdapter(ModelImporter):
         girder_token = get_task_token()['_id']
         cumulus.starcluster.tasks.job.submit(girder_token, self.cluster, job,
                                              log_url)
+
+
+class AnsibleClusterAdapter(AbstractClusterAdapter):
+    """
+    This defines the interface to be used by all cluster adapters.
+    """
+
+    def update_status(self, status):
+        assert type(status) is ClusterStatus, \
+            "%s must be a ClusterStatus type" % status
+
+        super(AnsibleClusterAdapter, self).update_status(status)
+
+    def validate(self):
+        """
+        Adapters may implement this if they need to perform any validation
+        steps whenever the cluster info is saved to the database. It should
+        return the document with any necessary alterations in the success case,
+        or throw an exception if validation fails.
+        """
+        return self.cluster
+
+    def deploy(self, **kwargs):
+        # if id is None // Exception
+        self.update_status(ClusterStatus.deploying)
+
+        # Do celery/ansible stuff here
+
+        return self.cluster
+
+    def provision(self, request_body):
+        pass
+
+    def start(self, request_body):
+        """
+        Adapters may implement this if they support a start operation.
+        """
+        if self.cluster['status'] == 'running':
+            raise RestException('Cluster already running.', code=400)
+
+        self.deploy(request_body)
+        self.provision(request_body)
+
+#     def terminate(self):
+#         """
+#         Adapters may implement this if they support a terminate operation.
+#         """
+#         raise ValidationException(
+#             'This cluster type does not support a terminate operation')
+#
+#     def update(self, request_body):
+#         """
+#         Adapters may implement this if they support a update operation.
+#         """
+#         raise ValidationException(
+#             'This cluster type does not support a update operation')
+#
+#     def delete(self):
+#         """
+#         Adapters may implement this if they support a delete operation.
+#         """
+#         pass
 
 
 class Ec2ClusterAdapter(AbstractClusterAdapter):
@@ -310,6 +376,7 @@ class NewtClusterAdapter(AbstractClusterAdapter):
 
 type_to_adapter = {
     ClusterType.EC2: Ec2ClusterAdapter,
+    ClusterType.ANSIBLE: AnsibleClusterAdapter,
     ClusterType.TRADITIONAL: TraditionClusterAdapter,
     ClusterType.NEWT: NewtClusterAdapter
 }

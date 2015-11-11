@@ -20,7 +20,7 @@
 import json
 from jsonpath_rw import parse
 from girder.models.model_base import ValidationException
-from bson.objectid import ObjectId
+from bson.objectid import ObjectId, InvalidId
 from girder.constants import AccessType
 from girder.api.rest import RestException, getCurrentUser
 from .base import BaseModel
@@ -30,7 +30,7 @@ from ..utility.cluster_adapters import get_cluster_adapter
 from cumulus.common.girder import create_status_notifications, \
     check_group_membership
 import cumulus
-from bson.objectid import ObjectId, InvalidId
+
 
 class Cluster(BaseModel):
 
@@ -121,7 +121,7 @@ class Cluster(BaseModel):
             'template': template,
             'profile': profile["_id"],
             'log': [],
-            'status': 'created',
+            'status': ClusterStatus.created,
             'type': ClusterType.ANSIBLE
         }
 
@@ -174,6 +174,13 @@ class Cluster(BaseModel):
         # Load first to force access check
         self.load(id, user=user, level=AccessType.WRITE)
         self.update({'_id': ObjectId(id)}, {'$push': {'log': record}})
+
+    def update_status(self, cluster, status, user=None):
+        if user is None:
+            user = getCurrentUser()
+
+        cluster['status'] = status
+        return self.update_cluster(user, cluster)
 
     def update_cluster(self, user, cluster):
         # Load first to force access check

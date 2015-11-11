@@ -75,4 +75,4 @@ class ClusterStatus(IntEnum):
     running = 102
 
     def __str__(self):
-        return str(self.value)
+        return '"' + self.name + '"'
