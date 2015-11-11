@@ -20,13 +20,17 @@
 
 class ClusterType:
     EC2 = 'ec2'
+    ANSIBLE = 'ansible'
     TRADITIONAL = 'trad'
     NEWT = 'newt'
 
     @staticmethod
     def is_valid_type(type):
-        return type == ClusterType.EC2 or type == ClusterType.TRADITIONAL or \
+        return type == ClusterType.EC2 or \
+            type == ClusterType.TRADITIONAL or \
+            type == ClusterType.ANSIBLE or \
             type == ClusterType.NEWT
+
 
 
 class VolumeType:

@@ -29,8 +29,7 @@ from ..utility.cluster_adapters import get_cluster_adapter
 from cumulus.common.girder import create_status_notifications, \
     check_group_membership
 import cumulus
-from cumulus import queue
-
+from bson.objectid import ObjectId, InvalidId
 
 class Cluster(BaseModel):
 
@@ -65,18 +64,6 @@ class Cluster(BaseModel):
         if not cluster['type']:
             raise ValidationException('Type must not be empty.', 'type')
 
-        scheduler_type = parse('config.scheduler.type').find(cluster)
-        if scheduler_type:
-            scheduler_type = scheduler_type[0].value
-        else:
-            scheduler_type = QueueType.SGE
-            config = cluster.setdefault('config', {})
-            scheduler = config.setdefault('scheduler', {})
-            scheduler['type'] = scheduler_type
-
-        if not queue.is_valid_type(scheduler_type):
-            raise ValidationException('Unsupported scheduler.', 'type')
-
         adapter = get_cluster_adapter(cluster)
 
         return adapter.validate()
@@ -94,6 +81,35 @@ class Cluster(BaseModel):
         self.save(cluster)
 
         return cluster
+
+    def create_ansible(self, user, name, template, profile):
+
+        try:
+            query = {
+                "userId": user['_id'],
+                "_id":  ObjectId(profile)}
+        except InvalidId:
+            query = {
+                "userId": user['_id'],
+                "name": profile}
+
+        profile = self.model("aws", "cumulus").findOne(query)
+
+        if profile is None:
+            raise ValidationException("Profile must be specified!")
+
+        # Should do some template validation here
+
+        cluster = {
+            'name': name,
+            'template': template,
+            'profile': profile["_id"],
+            'log': [],
+            'status': 'created',
+            'type': ClusterType.ANSIBLE
+        }
+
+        return self._create(user, cluster)
 
     def create_ec2(self, user, config_id, name, template):
         cluster = {

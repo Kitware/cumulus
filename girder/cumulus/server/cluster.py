@@ -33,7 +33,6 @@ from .utility.cluster_adapters import get_cluster_adapter
 from cumulus.ssh.tasks.key import generate_key_pair
 from cumulus.common import update_dict
 
-
 class Cluster(BaseResource):
 
     def __init__(self):
@@ -160,6 +159,23 @@ class Cluster(BaseResource):
 
         return cluster
 
+    def _create_ansible(self, params, body):
+
+        self.requireParams(['name', 'template', 'profile'], body)
+
+        name = body['name']
+        template = body['template']
+        profile = body['profile']
+        # Create some configuration item here
+        # config_id = self._create_config(config)
+        user = self.getCurrentUser()
+
+        cluster = self._model.create_ansible(user, name, template, profile)
+        cluster = self._model.filter(cluster, user)
+
+        return cluster
+
+
     def _create_traditional(self, params, body):
 
         self.requireParams(['name', 'config'], body)
@@ -207,6 +223,8 @@ class Cluster(BaseResource):
 
         if cluster_type == ClusterType.EC2:
             cluster = self._create_ec2(params, body)
+        elif cluster_type == ClusterType.ANSIBLE:
+            cluster = self._create_ansible(params, body)
         elif cluster_type == ClusterType.TRADITIONAL:
             cluster = self._create_traditional(params, body)
         elif cluster_type == ClusterType.NEWT:
