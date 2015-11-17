@@ -8,6 +8,7 @@ from cumulus.celery import command, monitor
 import cumulus
 import cumulus.girderclient
 from cumulus.constants import ClusterType
+from cumulus.queue import get_queue_adapter
 import starcluster.config
 import starcluster.logger
 import starcluster.exception
@@ -218,25 +219,24 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
                 if slots > -1:
                     log.info('We have %s slots available' % slots)
 
-                cmd = 'cd %s && qsub -cwd ./%s' \
-                    % (job_dir, script_name)
+                submit_cmd \
+                    = get_queue_adapter(cluster).submit_job_command(script_name)
+                cmd = 'cd %s && %s' \
+                    % (job_dir, submit_cmd)
 
                 output = ssh.execute(cmd)
 
             if len(output) != 1:
                 raise Exception('Unexpected output: %s' % output)
 
-            m = re.match('^[Yy]our job (\\d+)', output[0])
-            if not m:
-                raise Exception('Unable to extraction job id from: %s'
-                                % output[0])
-
-            sge_id = m.group(1)
+            queue_adapter = get_queue_adapter(cluster)
+            queue_job_id = queue_adapter.parse_job_id(output)
 
             # Update the state and sge id
 
             r = requests.patch(status_url, headers=headers,
-                               json={'status': 'queued', 'sgeId': sge_id})
+                               json={'status': 'queued',
+                                     queue_adapter.QUEUE_JOB_ID: queue_job_id})
             check_status(r)
             job = r.json()
 
@@ -283,12 +283,6 @@ def submit(girder_token, cluster, job, log_url):
         submit_job.delay(cluster, job, log_write_url=log_url,
                          girder_token=girder_token)
 
-# Running states
-running_state = ['r', 'd', 'e']
-
-# Queued states
-queued_state = ['qw', 'q', 'w', 's', 'h', 't']
-
 
 def _tail_output(job, ssh):
     log = starcluster.logger.get_starcluster_logger()
@@ -322,31 +316,26 @@ def _tail_output(job, ssh):
     return output_updated
 
 
-def _job_state(ssh, sge_id):
-    state = None
-    # TODO Work out how to pass a job id to qstat
-    output = ssh.execute('qstat')
+def _job_state(ssh, cluster, job):
+    queue_adapter = get_queue_adapter(cluster)
+    status_command = queue_adapter.job_status_command(job)
+    output = ssh.execute(status_command)
 
-    # Extract the state from the output
-    for line in output:
-        m = re.match('^\\s*(\\d+)\\s+\\S+\\s+\\S+\\s+\\S+\\s+(\\w+)',
-                     line)
-        if m and m.group(1) == sge_id:
-            state = m.group(2)
-
-    return state
+    return queue_adapter.extract_job_status(output, job)
 
 
-def _handle_queued_or_running(task, job, state):
+def _handle_queued_or_running(task, cluster, job, state):
     timings = {}
-    if state in running_state:
+    queue_adapter = get_queue_adapter(cluster)
+
+    if queue_adapter.is_running(state):
         status = 'running'
         if 'queuedTime' in job:
             queued_time = time.time() - job['queuedTime']
             timings = {'queued': int(round(queued_time * 1000))}
             del job['queuedTime']
             job['runningTime'] = time.time()
-    elif state in queued_state:
+    elif queue_adapter.is_queued(state):
         status = 'queued'
     else:
         raise Exception('Unrecognized SGE state: %s' % state)
@@ -374,7 +363,7 @@ def _handle_complete(ssh, cluster, job, log_write_url, girder_token, status):
     # operation. This is a horrible special case and should be fixed.
     if job_name != 'pvw':
         try:
-            stderr_filename = '%s.e%s' % (job['name'], job['sgeId'])
+            stderr_filename = '%s.e%s' % (job['name'], job['queueJobId'])
             stderr_path = os.path.join(job_dir, stderr_filename)
             stat_attrs = ssh.stat(stderr_path)
             print stat_attrs.st_size
@@ -420,7 +409,6 @@ def _get_on_complete(job):
 def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
-    sge_id = job['sgeId']
 
     status_update_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
     status_url = '%s/jobs/%s/status' % (cumulus.config.girder.baseUrl, job_id)
@@ -437,7 +425,7 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
                 return
 
             try:
-                state = _job_state(ssh, sge_id)
+                state = _job_state(ssh, cluster, job)
             except EOFError:
                 # Try again
                 task.retry(throw=False, countdown=5)
@@ -457,7 +445,8 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
             timings = {}
 
             if state and current_status != 'terminating':
-                status, timings = _handle_queued_or_running(task, job, state)
+                status, timings = _handle_queued_or_running(task, cluster,
+                                                            job, state)
             elif status == 'complete':
                 status, timings = _handle_complete(ssh, cluster, job,
                                                    log_write_url,
@@ -647,8 +636,10 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
 
         with logstdout():
             with get_ssh_connection(girder_token, cluster) as ssh:
-                if 'sgeId' in job:
-                    output = ssh.execute('qdel %s' % job['sgeId'])
+                queue_adapter = get_queue_adapter(cluster)
+                if queue_adapter.QUEUE_JOB_ID in job:
+                    terminate_command = queue_adapter.terminate_job_command(job)
+                    output = ssh.execute(terminate_command)
                 else:
                     r = requests.patch(status_url, headers=headers,
                                        json={'status': 'terminated'})

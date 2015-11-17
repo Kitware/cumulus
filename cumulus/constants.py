@@ -18,3 +18,7 @@ class VolumeType:
 class VolumeState:
     AVAILABLE = 'available'
     INUSE = 'in-use'
+
+
+class QueueType:
+    SGE = 'sge'
