@@ -9,12 +9,13 @@ class SgeQueueAdapter(AbstractQueueAdapter):
     # Queued states
     QUEUED_STATE = ['qw', 'q', 'w', 's', 'h', 't']
 
-    @classmethod
-    def terminate_job_command(cls, job):
-        return 'qdel %s' % job['queueJobId']
+    def terminate_job(self, job):
+        command = 'qdel %s' % job['queueJobId']
+        output = self._cluster_connection.execute(command)
 
-    @classmethod
-    def parse_job_id(cls, submit_output):
+        return output
+
+    def _parse_job_id(self, submit_output):
         m = re.match('^[Yy]our job (\\d+)', submit_output[0])
         if not m:
             raise Exception('Unable to extraction job id from: %s'
@@ -23,18 +24,23 @@ class SgeQueueAdapter(AbstractQueueAdapter):
 
         return sge_id
 
-    @classmethod
-    def submit_job_command(cls, job_script):
-        return 'qsub -cwd ./%s' % job_script
+    def submit_job(self, job, job_script):
+        command = 'cd %s && qsub -cwd ./%s' % (job['dir'], job_script)
+        output = self._cluster_connection.execute(command)
 
-    @classmethod
-    def job_status_command(cls, job):
-        return 'qstat'
+        if len(output) != 1:
+            raise Exception('Unexpected qsub output: %s' % output)
 
-    @classmethod
-    def extract_job_status(cls, job_status_output, job):
+        return self._parse_job_id(output)
+
+    def job_status(self, job):
+        output = self._cluster_connection.execute('qstat')
+
+        return self._extract_job_status(output, job)
+
+    def _extract_job_status(self, job_status_output, job):
         state = None
-        job_id = job[cls.QUEUE_JOB_ID]
+        job_id = job[AbstractQueueAdapter.QUEUE_JOB_ID]
         for line in job_status_output:
             m = re.match('^\\s*(\\d+)\\s+\\S+\\s+\\S+\\s+\\S+\\s+(\\w+)',
                          line)
@@ -43,10 +49,8 @@ class SgeQueueAdapter(AbstractQueueAdapter):
 
         return state
 
-    @classmethod
-    def is_running(cls, state):
-        return state in cls.RUNNING_STATE
+    def is_running(self, state):
+        return state in SgeQueueAdapter.RUNNING_STATE
 
-    @classmethod
-    def is_queued(cls, state):
-        return state in cls.QUEUED_STATE
+    def is_queued(self, state):
+        return state in SgeQueueAdapter.QUEUED_STATE

@@ -8,7 +8,7 @@ type_to_adapter = {
 }
 
 
-def get_queue_adapter(cluster):
+def get_queue_adapter(cluster, cluster_connection=None):
     global type_to_adapter
 
     system = parse('queue.system').find(cluster)
@@ -21,4 +21,4 @@ def get_queue_adapter(cluster):
     if system not in type_to_adapter:
         raise Exception('Unsupported queuing system: %s' % system)
 
-    return type_to_adapter[system]
+    return type_to_adapter[system](cluster, cluster_connection)

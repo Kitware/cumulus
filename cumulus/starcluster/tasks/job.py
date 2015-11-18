@@ -9,6 +9,7 @@ import cumulus
 import cumulus.girderclient
 from cumulus.constants import ClusterType
 from cumulus.queue import get_queue_adapter
+from cumulus.queue.abstract import AbstractQueueAdapter
 import starcluster.config
 import starcluster.logger
 import starcluster.exception
@@ -171,6 +172,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
     job_dir = _job_dir(job)
+    job['dir'] = job_dir
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
     try:
         # if terminating break out
@@ -219,27 +221,19 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
                 if slots > -1:
                     log.info('We have %s slots available' % slots)
 
-                submit_cmd \
-                    = get_queue_adapter(cluster).submit_job_command(script_name)
-                cmd = 'cd %s && %s' \
-                    % (job_dir, submit_cmd)
+                queue_job_id \
+                    = get_queue_adapter(cluster, ssh).submit_job(job,
+                                                                 script_name)
 
-                output = ssh.execute(cmd)
+            # Update the state and queue job id
+            patch_data = {
+                'status': 'queued',
+                AbstractQueueAdapter.QUEUE_JOB_ID: queue_job_id
+            }
 
-            if len(output) != 1:
-                raise Exception('Unexpected output: %s' % output)
-
-            queue_adapter = get_queue_adapter(cluster)
-            queue_job_id = queue_adapter.parse_job_id(output)
-
-            # Update the state and sge id
-
-            r = requests.patch(status_url, headers=headers,
-                               json={'status': 'queued',
-                                     queue_adapter.QUEUE_JOB_ID: queue_job_id})
+            r = requests.patch(status_url, headers=headers, json=patch_data)
             check_status(r)
             job = r.json()
-
             job['queuedTime'] = time.time()
 
             # Now monitor the jobs progress
@@ -314,14 +308,6 @@ def _tail_output(job, ssh):
                 _log_exception(ex)
 
     return output_updated
-
-
-def _job_state(ssh, cluster, job):
-    queue_adapter = get_queue_adapter(cluster)
-    status_command = queue_adapter.job_status_command(job)
-    output = ssh.execute(status_command)
-
-    return queue_adapter.extract_job_status(output, job)
 
 
 def _handle_queued_or_running(task, cluster, job, state):
@@ -425,7 +411,7 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
                 return
 
             try:
-                state = _job_state(ssh, cluster, job)
+                state = get_queue_adapter(cluster, ssh).job_status(job)
             except EOFError:
                 # Try again
                 task.retry(throw=False, countdown=5)
@@ -636,10 +622,9 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
 
         with logstdout():
             with get_ssh_connection(girder_token, cluster) as ssh:
-                queue_adapter = get_queue_adapter(cluster)
-                if queue_adapter.QUEUE_JOB_ID in job:
-                    terminate_command = queue_adapter.terminate_job_command(job)
-                    output = ssh.execute(terminate_command)
+                if AbstractQueueAdapter.QUEUE_JOB_ID in job:
+                    queue_adapter = get_queue_adapter(cluster, ssh)
+                    output = queue_adapter.terminate_job(job)
                 else:
                     r = requests.patch(status_url, headers=headers,
                                        json={'status': 'terminated'})
