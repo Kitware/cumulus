@@ -240,7 +240,7 @@ class Job(BaseResource):
                 'description': 'The new status. (optional)'
             },
             'queueJobId': {'type': 'integer',
-                      'description': 'The native queue job id. (optional)'}
+                           'description': 'The native queue job id. (optional)'}
         }
     }, 'jobs')
 
