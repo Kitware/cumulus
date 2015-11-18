@@ -23,6 +23,7 @@ def generate_key_pair(cluster, girder_token=None):
     status_url = '%s/clusters/%s' \
         % (cumulus.config.girder.baseUrl, cluster_id)
     log = starcluster.logger.get_starcluster_logger()
+    headers = {'Girder-Token':  girder_token}
 
     try:
         new_key = RSAKey.generate(bits=4096)
@@ -50,7 +51,6 @@ def generate_key_pair(cluster, girder_token=None):
 
         patch_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
                                         cluster_id)
-        headers = {'Girder-Token':  girder_token}
         request = requests.patch(patch_url, json=config_update, headers=headers)
         check_status(request)
     except Exception as ex:
