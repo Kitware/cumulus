@@ -42,6 +42,9 @@ module_dir = os.path.dirname(os.path
                              .abspath(inspect.getfile(inspect.currentframe())))
 config_path = os.path.join(module_dir, '..', 'config.json')
 
+if not os.path.exists(config_path):
+    config_path = os.path.join(module_dir, '..', 'default_config.json')
+
 with open(config_path, 'r') as fp:
     config = json.load(fp)
 
