@@ -211,8 +211,8 @@ class Job(BaseResource):
         if 'status' in body:
             job['status'] = body['status']
 
-        if 'sgeId' in body:
-            job['sgeId'] = body['sgeId']
+        if 'queueJobId' in body:
+            job['queueJobId'] = body['queueJobId']
 
         if 'output' in body:
             job['output'] = body['output']
@@ -239,8 +239,8 @@ class Job(BaseResource):
                 '$ref': 'JobStatus',
                 'description': 'The new status. (optional)'
             },
-            'sgeId': {'type': 'integer',
-                      'description': 'The SGE job id. (optional)'}
+            'queueJobId': {'type': 'integer',
+                           'description': 'The native queue job id. (optional)'}
         }
     }, 'jobs')
 

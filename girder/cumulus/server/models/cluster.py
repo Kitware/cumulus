@@ -54,14 +54,14 @@ class Cluster(BaseModel):
         group = {
             '_id': ObjectId(self.get_group_id())
         }
-        doc = self.setGroupAccess(cluster, group, level=AccessType.ADMIN)
+        self.setGroupAccess(cluster, group, level=AccessType.ADMIN)
 
         # Add userId field to indicate ownership
-        doc['userId'] = user['_id']
+        cluster['userId'] = user['_id']
 
-        self.save(doc)
+        self.save(cluster)
 
-        return doc
+        return cluster
 
     def create_ec2(self, user, config_id, name, template):
         cluster = {
