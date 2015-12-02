@@ -22,6 +22,7 @@ from celery import Celery
 from cumulus.taskflow.utility import find_taskflow_modules
 
 _includes = [
+    'cumulus.ansible.tasks.cluster',
     'cumulus.starcluster.tasks.cluster',
     'cumulus.starcluster.tasks.job',
     'cumulus.ssh.tasks.key',

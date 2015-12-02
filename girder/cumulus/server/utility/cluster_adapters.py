@@ -27,6 +27,7 @@ from girder.api.rest import RestException, getApiUrl, getCurrentUser
 from cumulus.constants import ClusterType, ClusterStatus
 from cumulus.common.girder import get_task_token
 import cumulus.starcluster.tasks.cluster
+import cumulus.ansible.tasks.cluster
 
 
 class AbstractClusterAdapter(ModelImporter):
@@ -118,10 +119,22 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         self.update_status(ClusterStatus.deploying)
 
         # Do celery/ansible stuff here
+        base_url = getApiUrl()
+        log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
+        girder_token = get_task_token()['_id']
+
+        cumulus.ansible.tasks.cluster.deploy_cluster \
+            .delay(self.cluster, girder_token, log_write_url)
+
 
         return self.cluster
 
     def provision(self, request_body):
+        self.update_status(ClusterStatus.provisioning)
+
+        # Do celery/ansible provisioning here
+
+        self.update_status(ClusterStatus.provisioned)
         pass
 
     def start(self, request_body):
