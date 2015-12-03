@@ -9,3 +9,4 @@ lockfile==0.10.2
 Jinja2==2.7.3
 jsonpath-rw==1.4.0
 enum34==1.0.4
+ansible==1.9.4
