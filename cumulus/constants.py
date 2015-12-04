@@ -71,6 +71,8 @@ class ClusterStatus(IntEnum):
     deployed = 30
     provisioning = 40
     provisioned = 50
+    terminating = 60
+    terminated = 70
     stopped = 101
     running = 102
 

@@ -51,11 +51,13 @@
 
   - name: instances | terminate set | terminate
     ec2:
-        instance_ids: "{{ terminate_set }}"
-        region: "{{ region }}"
-        state: absent
-        wait: yes
-        wait_timeout: 120 # two minutes
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+      instance_ids: "{{ terminate_set }}"
+      region: "{{ region }}"
+      state: absent
+      wait: yes
+      wait_timeout: 120 # two minutes
     ignore_errors: true
     when: (terminate_set|length > 0)|bool
 

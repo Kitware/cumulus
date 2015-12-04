@@ -141,7 +141,6 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         self.update_status(ClusterStatus.deploying)
 
-        # Do celery/ansible stuff here
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
@@ -153,6 +152,19 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
 
         return self.cluster
+
+    def terminate(self):
+        self.update_status(ClusterStatus.terminating)
+
+        base_url = getApiUrl()
+        log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
+        girder_token = get_task_token()['_id']
+
+        profile, secret_key = self._get_profile(self.cluster['profile'])
+
+        cumulus.ansible.tasks.cluster.terminate_cluster \
+            .delay(self.cluster, profile, secret_key, girder_token, log_write_url)
+
 
     def provision(self, request_body):
         self.update_status(ClusterStatus.provisioning)
@@ -172,12 +184,6 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         self.deploy(request_body)
         self.provision(request_body)
 
-#     def terminate(self):
-#         """
-#         Adapters may implement this if they support a terminate operation.
-#         """
-#         raise ValidationException(
-#             'This cluster type does not support a terminate operation')
 #
 #     def update(self, request_body):
 #         """
