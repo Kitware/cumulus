@@ -19,6 +19,8 @@
     set_fact:
         update_lists: >
             {{ name|compute_ec2_update_lists(hosts,
+                                             aws_access_key,
+                                             aws_secret_key,
                                              state,
                                              region,
                                              default_ssh_key,
@@ -37,12 +39,14 @@
 
   - name: security group | create
     ec2_group:
-        name: ec2_pod_{{ name }}
-        description: >
-            security group for ec2 pod: {{ name }}
-        region: "{{ region }}"
-        rules: "{{ rules }}"
-        rules_egress: "{{ rules_egress }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+      name: ec2_pod_{{ name }}
+      description: >
+        security group for ec2 pod: {{ name }}
+      region: "{{ region }}"
+      rules: "{{ rules }}"
+      rules_egress: "{{ rules_egress }}"
     when: do_create|bool
 
   - name: instances | terminate set | terminate
@@ -57,36 +61,41 @@
 
   - name: instances | start set | start
     ec2:
-        instance_ids: "{{ update_lists.start }}"
-        region: "{{ region }}"
-        state: running
-        wait: yes
-        wait_timeout: "{{ EC2_TIMEOUT }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+
+      instance_ids: "{{ update_lists.start }}"
+      region: "{{ region }}"
+      state: running
+      wait: yes
+      wait_timeout: "{{ EC2_TIMEOUT }}"
     when: ((do_create|bool) and (update_lists.start|length) > 0)|bool
 
   - name: instances | create
     ec2:
-        count_tag:
-            Name: >
-                {{ item.value.name|default(
-                    ["ec2_pod", name, item.key]|join("_")) }}
-            ec2_pod: "{{ name }}"
-            ec2_pod_instance_name: "{{ item.key }}"
-        exact_count: "{{ (item.value.count|default(1))|int }}"
-        group: ec2_pod_{{ name }}
-        image: "{{ item.value.image|default(default_image) }}"
-        instance_tags:
-            Name: >
-                {{ item.value.name|default(
-                    ["ec2_pod", name, item.key]|join("_")) }}
-            ec2_pod: "{{ name }}"
-            ec2_pod_instance_name: "{{ item.key }}"
-        instance_type: "{{ item.value.type|default(default_instance_type) }}"
-        key_name: "{{ item.value.ssh_key|default(default_ssh_key) }}"
-        region: "{{ region }}"
-        volumes: "{{ item.value.volumes|default([]) }}"
-        wait: yes
-        wait_timeout: "{{ EC2_TIMEOUT }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+      count_tag:
+        Name: >
+          {{ item.value.name|default(
+            ["ec2_pod", name, item.key]|join("_")) }}
+        ec2_pod: "{{ name }}"
+        ec2_pod_instance_name: "{{ item.key }}"
+      exact_count: "{{ (item.value.count|default(1))|int }}"
+      group: ec2_pod_{{ name }}
+      image: "{{ item.value.image|default(default_image) }}"
+      instance_tags:
+        Name: >
+          {{ item.value.name|default(
+            ["ec2_pod", name, item.key]|join("_")) }}
+        ec2_pod: "{{ name }}"
+        ec2_pod_instance_name: "{{ item.key }}"
+      instance_type: "{{ item.value.type|default(default_instance_type) }}"
+      key_name: "{{ item.value.ssh_key|default(default_ssh_key) }}"
+      region: "{{ region }}"
+      volumes: "{{ item.value.volumes|default([]) }}"
+      wait: yes
+      wait_timeout: "{{ EC2_TIMEOUT }}"
     with_dict: "{{ hosts_spec }}"
     when: do_create|bool
     register: ec2_result
@@ -98,11 +107,13 @@
 
   - name: instances | state | set
     ec2:
-        instance_ids: "{{ instances|get_ec2_hosts }}"
-        region: "{{ region }}"
-        state: "{{ state }}"
-        wait: yes
-        wait_timeout: "{{ EC2_TIMEOUT }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+      instance_ids: "{{ instances|get_ec2_hosts }}"
+      region: "{{ region }}"
+      state: "{{ state }}"
+      wait: yes
+      wait_timeout: "{{ EC2_TIMEOUT }}"
     when: do_create|bool
 
   - name: instances | ansible groups | add
@@ -124,10 +135,12 @@
 
   - name: security group | destroy
     ec2_group:
-        description: >
-            security group for ec2 pod: {{ name }}
-        region: "{{ region }}"
-        name: ec2_pod_{{ name }}
-        state: absent
-    when: do_destroy|bool
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
 
+      description: >
+        security group for ec2 pod: {{ name }}
+      region: "{{ region }}"
+      name: ec2_pod_{{ name }}
+      state: absent
+    when: do_destroy|bool

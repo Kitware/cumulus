@@ -1,4 +1,3 @@
-
 def flatten_ec2_result(ec2_result):
     result = []
     for entry in ec2_result["results"]:
@@ -30,6 +29,8 @@ def process_hosts_spec(hosts_spec, pod_name):
 
 def compute_ec2_update_lists(pod_name,
                              hosts_spec,
+                             aws_access_key,
+                             aws_secret_key,
                              state,
                              region,
                              default_ssh_key,
@@ -40,7 +41,8 @@ def compute_ec2_update_lists(pod_name,
     from itertools import chain
     from boto import ec2
 
-    conn = ec2.connect_to_region(region)
+    conn = ec2.connect_to_region(region, aws_access_key_id=aws_access_key,
+                                 aws_secret_access_key=aws_secret_key)
     if conn is None:
         raise Exception(" ".join((
             "region name:",
@@ -117,4 +119,3 @@ class FilterModule(object):
                 "flatten_ec2_result": flatten_ec2_result,
                 "get_ec2_hosts": get_ec2_hosts,
                 "process_hosts_spec": process_hosts_spec}
-
