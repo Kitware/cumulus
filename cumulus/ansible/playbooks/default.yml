@@ -1,4 +1,4 @@
 - hosts: localhost
   connection: local
   tasks:
-    - debug: msg="FOOBAR"
+    - debug: msg="{{ aws_access_key }}"

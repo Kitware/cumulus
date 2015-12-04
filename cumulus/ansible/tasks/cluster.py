@@ -5,13 +5,10 @@ from ansible import callbacks
 from ansible import utils
 import os
 
-def display(msg, color=None, stderr=False, screen_only=False, log_only=False, runner=None):
-    pass
-
-
 
 @command.task
-def deploy_cluster(cluster, girder_token, log_write_url):
+def deploy_cluster(cluster, profile, secret_key, girder_token, log_write_url):
+
     # from pudb.remote import set_trace; set_trace(term_size=(185, 46))
 
     playbook_path = os.path.dirname(__file__) + "/../playbooks/default.yml"
@@ -27,7 +24,9 @@ def deploy_cluster(cluster, girder_token, log_write_url):
 
     extra_vars = {
         "girder_token": girder_token,
-        "log_write_url": log_write_url
+        "log_write_url": log_write_url,
+        "aws_access_key": profile['accessKeyId'],
+        "aws_secret_key": secret_key
     }
 
     pb = ansible.playbook.PlayBook(

@@ -23,6 +23,7 @@ from jsonpath_rw import parse
 from girder.utility.model_importer import ModelImporter
 from girder.models.model_base import ValidationException
 from girder.api.rest import RestException, getApiUrl, getCurrentUser
+from bson.objectid import ObjectId, InvalidId
 
 from cumulus.constants import ClusterType, ClusterStatus
 from cumulus.common.girder import get_task_token
@@ -114,8 +115,30 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         """
         return self.cluster
 
+    def _get_profile(self, profile_id):
+        user = getCurrentUser()
+        query = {"userId": user['_id']}
+        try:
+            query["_id"] = ObjectId(profile_id)
+        except InvalidId:
+            query["name"] = profile_id
+
+        profile = self.model("aws", "cumulus").findOne(query)
+        secret = profile['secretAccessKey']
+
+        profile = self.model("aws", "cumulus").filter(profile, user)
+
+        if profile is None:
+            raise ValidationException("Profile must be specified!")
+
+        profile['_id'] = str(profile['_id'])
+
+        return profile, secret
+
+
     def deploy(self, **kwargs):
         # if id is None // Exception
+
         self.update_status(ClusterStatus.deploying)
 
         # Do celery/ansible stuff here
@@ -123,8 +146,10 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
 
+        profile, secret_key = self._get_profile(self.cluster['profile'])
+
         cumulus.ansible.tasks.cluster.deploy_cluster \
-            .delay(self.cluster, girder_token, log_write_url)
+            .delay(self.cluster, profile, secret_key, girder_token, log_write_url)
 
 
         return self.cluster
