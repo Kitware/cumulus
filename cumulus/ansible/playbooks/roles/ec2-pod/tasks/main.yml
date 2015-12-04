@@ -1,0 +1,133 @@
+---
+
+  - name: variables | control | compute
+    set_fact:
+        do_add: >
+            {{ state == "running" }}
+        do_create: >
+            {{ state == "running" or state == "stopped" }}
+        do_destroy: >
+            {{ state == "absent" }}
+        do_wait: >
+            {{ state == "running" }}
+
+  - name: hosts spec | process
+    set_fact:
+        hosts_spec: "{{ hosts|process_hosts_spec(name) }}"
+
+  - name: instances | update lists | compute
+    set_fact:
+        update_lists: >
+            {{ name|compute_ec2_update_lists(hosts,
+                                             state,
+                                             region,
+                                             default_ssh_key,
+                                             default_image,
+                                             default_instance_type) }}
+
+  - name: instances | terminate set | compute
+    set_fact:
+        terminate_set: >
+            {{ (update_lists.terminate
+                if (update_lists.terminate|length > 0)
+                else [])|union(update_lists.start
+                               if ((do_destroy|bool) and
+                                   (update_lists.start|length) > 0)
+                               else []) }}
+
+  - name: security group | create
+    ec2_group:
+        name: ec2_pod_{{ name }}
+        description: >
+            security group for ec2 pod: {{ name }}
+        region: "{{ region }}"
+        rules: "{{ rules }}"
+        rules_egress: "{{ rules_egress }}"
+    when: do_create|bool
+
+  - name: instances | terminate set | terminate
+    ec2:
+        instance_ids: "{{ terminate_set }}"
+        region: "{{ region }}"
+        state: absent
+        wait: yes
+        wait_timeout: 120 # two minutes
+    ignore_errors: true
+    when: (terminate_set|length > 0)|bool
+
+  - name: instances | start set | start
+    ec2:
+        instance_ids: "{{ update_lists.start }}"
+        region: "{{ region }}"
+        state: running
+        wait: yes
+        wait_timeout: "{{ EC2_TIMEOUT }}"
+    when: ((do_create|bool) and (update_lists.start|length) > 0)|bool
+
+  - name: instances | create
+    ec2:
+        count_tag:
+            Name: >
+                {{ item.value.name|default(
+                    ["ec2_pod", name, item.key]|join("_")) }}
+            ec2_pod: "{{ name }}"
+            ec2_pod_instance_name: "{{ item.key }}"
+        exact_count: "{{ (item.value.count|default(1))|int }}"
+        group: ec2_pod_{{ name }}
+        image: "{{ item.value.image|default(default_image) }}"
+        instance_tags:
+            Name: >
+                {{ item.value.name|default(
+                    ["ec2_pod", name, item.key]|join("_")) }}
+            ec2_pod: "{{ name }}"
+            ec2_pod_instance_name: "{{ item.key }}"
+        instance_type: "{{ item.value.type|default(default_instance_type) }}"
+        key_name: "{{ item.value.ssh_key|default(default_ssh_key) }}"
+        region: "{{ region }}"
+        volumes: "{{ item.value.volumes|default([]) }}"
+        wait: yes
+        wait_timeout: "{{ EC2_TIMEOUT }}"
+    with_dict: "{{ hosts_spec }}"
+    when: do_create|bool
+    register: ec2_result
+
+  - name: instances | collection | flatten
+    set_fact:
+        instances: "{{ ec2_result|flatten_ec2_result }}"
+    when: do_create|bool
+
+  - name: instances | state | set
+    ec2:
+        instance_ids: "{{ instances|get_ec2_hosts }}"
+        region: "{{ region }}"
+        state: "{{ state }}"
+        wait: yes
+        wait_timeout: "{{ EC2_TIMEOUT }}"
+    when: do_create|bool
+
+  - name: instances | ansible groups | add
+    add_host:
+        hostname: "{{ item.hostname }}"
+        groups: >
+            {{ item.groups|join(",") }}
+    with_items: "{{ instances|default([None]) }}"
+    when: do_add|bool
+
+  - name: instances | ssh | wait
+    wait_for:
+        host: "{{ item.hostname }}"
+        port: 22
+        timeout: "{{ SSH_TIMEOUT }}"
+        state: started
+    with_items: "{{ instances|default([None]) }}"
+    when: do_wait|bool
+
+  - name: security group | destroy
+    ec2_group:
+        description: >
+            security group for ec2 pod: {{ name }}
+        region: "{{ region }}"
+        name: ec2_pod_{{ name }}
+        state: absent
+    when: do_destroy|bool
+

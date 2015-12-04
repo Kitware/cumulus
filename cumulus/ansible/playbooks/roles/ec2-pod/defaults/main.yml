@@ -1,0 +1,26 @@
+---
+
+    name: pod
+
+    region: us-east-1
+
+    default_public_key: ec2
+    default_image: ami-d05e75b8
+    default_instance_type: t2.medium
+
+    rules:
+        - proto: all
+          from_port: all
+          to_port: all
+          cidr_ip: 0.0.0.0/0
+
+    rules_egress:
+        - proto: all
+          from_port: all
+          to_port: all
+          cidr_ip: 0.0.0.0/0
+
+    hosts: {}
+
+    state: running
+
