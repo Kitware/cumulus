@@ -9,7 +9,7 @@ import os
 @command.task
 def deploy_cluster(cluster, profile, secret_key, girder_token, log_write_url):
 
-    # from pudb.remote import set_trace; set_trace(term_size=(185, 46))
+
 
     playbook_path = os.path.dirname(__file__) + "/../playbooks/default.yml"
 
@@ -25,6 +25,8 @@ def deploy_cluster(cluster, profile, secret_key, girder_token, log_write_url):
     extra_vars = {
         "girder_token": girder_token,
         "log_write_url": log_write_url,
+        "cluster_region": profile['regionName'],
+        "cluster_state": "running",
         "aws_access_key": profile['accessKeyId'],
         "aws_secret_key": secret_key
     }
