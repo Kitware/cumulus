@@ -67,8 +67,8 @@ class ClusterStatus(IntEnum):
     error = -1
     creating = 0
     created = 10
-    deploying = 20
-    deployed = 30
+    launching = 20
+    launched = 30
     provisioning = 40
     provisioned = 50
     terminating = 60

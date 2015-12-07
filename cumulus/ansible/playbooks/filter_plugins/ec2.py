@@ -8,6 +8,7 @@ def flatten_ec2_result(ec2_result):
 
     return result
 
+
 def process_hosts_spec(hosts_spec, pod_name):
     result = {}
     for key, value in hosts_spec.items():
@@ -26,6 +27,7 @@ def process_hosts_spec(hosts_spec, pod_name):
         result[key] = value
 
     return result
+
 
 def compute_ec2_update_lists(pod_name,
                              hosts_spec,
@@ -94,7 +96,7 @@ def compute_ec2_update_lists(pod_name,
         stopped_list = list(sets["stopped"])
 
         num_running = len(running_list)
-        num_stopped = len(stopped_list)
+        # num_stopped = len(stopped_list)
 
         num_wanted = host_counter_table.get(composite_key, 0)
 
@@ -106,12 +108,13 @@ def compute_ec2_update_lists(pod_name,
         terminate_set |= set(stopped_list[num_to_start:])
         terminate_set |= set(running_list[num_to_keep:])
 
-    import pprint
     return {"start": list(start_set), "terminate": list(terminate_set)}
+
 
 def get_ec2_hosts(instance_table):
     import operator as op
     return map(op.itemgetter("id"), instance_table)
+
 
 class FilterModule(object):
     def filters(self):

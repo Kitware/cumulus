@@ -1,13 +1,11 @@
 from cumulus.celery import command
 import ansible.playbook
-from ansible import errors
 from ansible import callbacks
-from ansible import utils
 import os
 
 
 @command.task
-def deploy_cluster(cluster, profile, secret_key, girder_token, log_write_url):
+def launch_cluster(cluster, profile, secret_key, girder_token, log_write_url):
 
     playbook_path = os.path.dirname(__file__) + "/../playbooks/default.yml"
     stats = callbacks.AggregateStats()
@@ -37,7 +35,8 @@ def deploy_cluster(cluster, profile, secret_key, girder_token, log_write_url):
 
 
 @command.task
-def terminate_cluster(cluster, profile, secret_key, girder_token, log_write_url):
+def terminate_cluster(cluster, profile, secret_key,
+                      girder_token, log_write_url):
 
     playbook_path = os.path.dirname(__file__) + "/../playbooks/default.yml"
     stats = callbacks.AggregateStats()

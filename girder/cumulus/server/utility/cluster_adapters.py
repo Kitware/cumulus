@@ -136,10 +136,10 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         return profile, secret
 
 
-    def deploy(self, **kwargs):
+    def launch(self, **kwargs):
         # if id is None // Exception
 
-        self.update_status(ClusterStatus.deploying)
+        self.update_status(ClusterStatus.launching)
 
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
@@ -147,7 +147,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         profile, secret_key = self._get_profile(self.cluster['profile'])
 
-        cumulus.ansible.tasks.cluster.deploy_cluster \
+        cumulus.ansible.tasks.cluster.launch_cluster \
             .delay(self.cluster, profile, secret_key, girder_token, log_write_url)
 
 
@@ -181,7 +181,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         if self.cluster['status'] == 'running':
             raise RestException('Cluster already running.', code=400)
 
-        self.deploy(request_body)
+        self.launch(request_body)
         self.provision(request_body)
 
 #

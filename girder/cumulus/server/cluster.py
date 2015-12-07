@@ -43,7 +43,7 @@ class Cluster(BaseResource):
         self.route('POST', (':id', 'log'), self.handle_log_record)
         self.route('GET', (':id', 'log'), self.log)
         self.route('PUT', (':id', 'start'), self.start)
-        self.route('PUT', (':id', 'deploy'), self.deploy)
+        self.route('PUT', (':id', 'launch'), self.launch)
         self.route('PUT', (':id', 'provision'), self.provision)
         self.route('PATCH', (':id',), self.update)
         self.route('GET', (':id', 'status'), self.status)
@@ -358,10 +358,10 @@ class Cluster(BaseResource):
             dataType='ClusterStartParams', required=False))
 
     @access.user
-    def deploy(self, id, params):
-        return self._process_or_deploy("deploy", id, params)
+    def launch(self, id, params):
+        return self._launch_or_provision("launch", id, params)
 
-    deploy.description = (Description(
+    launch.description = (Description(
         'Start a cluster with ansible'
     ).param(
         'id',
@@ -369,7 +369,7 @@ class Cluster(BaseResource):
 
     @access.user
     def provision(self, id, params):
-        return self._process_or_deploy("provision", id, params)
+        return self._launch_or_provision("provision", id, params)
 
     provision.description = (Description(
         'Provision a cluster with ansible'
@@ -380,8 +380,8 @@ class Cluster(BaseResource):
         'body', 'Parameter used when starting cluster', paramType='body',
         dataType='list', required=False))
 
-    def _process_or_deploy(self, process, id, params):
-        assert process in ["deploy", "provision"]
+    def _launch_or_provision(self, process, id, params):
+        assert process in ["launch", "provision"]
         body = {}
 
         if cherrypy.request.body:
