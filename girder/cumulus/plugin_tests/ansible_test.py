@@ -4,7 +4,6 @@ import cherrypy
 from tests import base
 from cumulus.constants import ClusterStatus
 
-
 def setUpModule():
     base.enabledPlugins.append('cumulus')
     cherrypy.server.socket_port = 8081
@@ -48,7 +47,7 @@ class AnsibleTestCase(base.TestCase):
         self.assertTrue("provisioning" in names)
         self.assertTrue("provisioned" in names)
         self.assertTrue("terminating" in names)
-        self.assertTrue("termindated" in names)
+        self.assertTrue("terminated" in names)
         self.assertTrue("stopped" in names)
         self.assertTrue("running" in names)
 

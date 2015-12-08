@@ -53,7 +53,7 @@ class Cluster(BaseModel):
         # Convert model status into enum
         try:
             model['status'] = ClusterStatus(int(model['status']))
-        except ValueError:
+        except (ValueError, AssertionError, TypeError):
             # Assume 'old style' string status
             pass
 

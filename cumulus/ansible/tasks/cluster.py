@@ -1,11 +1,15 @@
 from cumulus.celery import command
 import ansible.playbook
 from ansible import callbacks
+from cumulus.common import check_status
+import cumulus
+import requests
 import os
 
 
 @command.task
 def launch_cluster(cluster, profile, secret_key, girder_token, log_write_url):
+
 
     playbook_path = os.path.dirname(__file__) + "/../playbooks/default.yml"
     stats = callbacks.AggregateStats()
@@ -32,6 +36,17 @@ def launch_cluster(cluster, profile, secret_key, girder_token, log_write_url):
     # to girder_token after this point
 
     pb.run()
+
+    cluster_id = cluster['_id']
+    status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl, cluster_id)
+    headers = {'Girder-Token':  girder_token}
+    updates = {
+        "status": "launched"
+    }
+
+    r = requests.patch(status_url, headers=headers, json=updates)
+    check_status(r)
+
 
 
 @command.task
