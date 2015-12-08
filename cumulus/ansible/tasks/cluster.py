@@ -10,8 +10,9 @@ import os
 @command.task
 def launch_cluster(cluster, profile, secret_key, girder_token, log_write_url):
 
+    playbook_path = os.path.dirname(__file__) + \
+        "/../playbooks/default.yml"
 
-    playbook_path = os.path.dirname(__file__) + "/../playbooks/default.yml"
     stats = callbacks.AggregateStats()
 
     extra_vars = {
@@ -48,12 +49,13 @@ def launch_cluster(cluster, profile, secret_key, girder_token, log_write_url):
     check_status(r)
 
 
-
 @command.task
 def terminate_cluster(cluster, profile, secret_key,
                       girder_token, log_write_url):
 
-    playbook_path = os.path.dirname(__file__) + "/../playbooks/default.yml"
+    playbook_path = os.path.dirname(__file__) + \
+        "/../playbooks/default.yml"
+
     stats = callbacks.AggregateStats()
 
     extra_vars = {
