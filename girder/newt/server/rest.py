@@ -1,4 +1,5 @@
 import requests
+import cherrypy
 
 from girder.api.describe import Description
 from girder.api.rest import Resource, RestException
@@ -9,6 +10,7 @@ newt_base_url = 'https://newt.nersc.gov/newt'
 
 class Newt(Resource):
     def __init__(self):
+        super(Newt, self).__init__()
         self.resourceName = 'newt'
 
         self.route('PUT', ('authenticate', ':sessionId'), self.authenticate)
@@ -65,11 +67,16 @@ class Newt(Resource):
 
         return user
 
+    def send_cookies(self, user, sessionId):
+        super(Newt, self).sendAuthTokenCookie(user)
+        cookie = cherrypy.response.cookie
+        cookie['newt_sessionid'] = sessionId
 
     @access.public
     def authenticate(self, sessionId, params):
         status_url = '%s/login' % newt_base_url
         cookies = dict(newt_sessionid=sessionId)
+
         r = requests.get(status_url, cookies=cookies)
         json_resp = r.json()
 
@@ -96,7 +103,7 @@ class Newt(Resource):
         user = self._create_or_reuse_user(user_id, username, email, firstname,
                                           lastname)
 
-        self.sendAuthTokenCookie(user)
+        self.send_cookies(user, sessionId)
 
         return user
 
