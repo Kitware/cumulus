@@ -20,7 +20,8 @@ def updateAssetstore(event):
 
     if assetstore['type'] == AssetstoreType.NEWT:
         assetstore['newt'] = {
-            'machine': params.get('machine', assetstore['newt']['machine'])
+            'machine': params.get('machine', assetstore['newt']['machine']),
+            'baseUrl': params.get('baseUrl', assetstore['newt']['baseUrl'])
         }
 
 
