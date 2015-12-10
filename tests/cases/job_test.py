@@ -4,6 +4,7 @@ import httmock
 import cumulus
 import json
 import re
+import os
 from cumulus.starcluster.tasks import job
 from celery.app import task
 
@@ -81,7 +82,10 @@ class JobTestCase(unittest.TestCase):
             'type': 'ec2',
             'name': 'dummy',
             'config': {
-                '_id': 'dummy'
+                '_id': 'dummy',
+                'scheduler': {
+                    'type': 'sge'
+                }
             }
         }
         job_model = {
@@ -141,7 +145,10 @@ class JobTestCase(unittest.TestCase):
             'type': 'ec2',
             'name': 'dummy',
              'config': {
-                '_id': 'dummy'
+                '_id': 'dummy',
+                'scheduler': {
+                    'type': 'sge'
+                }
             }
         }
         job_model = {
@@ -187,7 +194,7 @@ class JobTestCase(unittest.TestCase):
 
         self.assertTrue(self._get_status_called, 'Expect get status endpoint to be hit')
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
-        expected_calls = [[[{u'config': {u'_id': u'dummy'}, u'name': u'dummy', u'type': u'ec2', u'_id': u'dummy'}, {u'status': u'uploading', u'output': [{u'itemId': u'dummy'}], u'_id': u'dummy', u'queueJobId': u'dummy', u'name': u'dummy'}], {u'girder_token': u's', u'log_write_url': 1, u'job_dir': u'./dummy'}]]
+        expected_calls = [[[{u'config': {u'_id': u'dummy', u'scheduler': {u'type': u'sge'}}, u'name': u'dummy', u'type': u'ec2', u'_id': u'dummy'}, {u'status': u'uploading', u'output': [{u'itemId': u'dummy'}], u'_id': u'dummy', u'queueJobId': u'dummy', u'name': u'dummy'}], {u'girder_token': u's', u'log_write_url': 1, u'job_dir': u'./dummy'}]]
         self.assertCalls(self._upload_job_output.call_args_list, expected_calls)
 
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
@@ -201,7 +208,10 @@ class JobTestCase(unittest.TestCase):
             'type': 'ec2',
             'name': 'dummy',
             'config': {
-                '_id': 'dummy'
+                '_id': 'dummy',
+                'scheduler': {
+                    'type': 'sge'
+                }
             }
         }
         job_model = {
@@ -263,7 +273,10 @@ class JobTestCase(unittest.TestCase):
             'type': 'ec2',
             'name': 'dummy',
             'config': {
-                '_id': 'dummy'
+                '_id': 'dummy',
+                'scheduler': {
+                    'type': 'sge'
+                }
             }
         }
         job_model = {
@@ -322,7 +335,10 @@ class JobTestCase(unittest.TestCase):
             'type': 'ec2',
             'name': 'dummy',
             'config': {
-                '_id': 'dummy'
+                '_id': 'dummy',
+                'scheduler': {
+                    'type': 'sge'
+                }
             }
         }
         job_model = {
@@ -385,8 +401,12 @@ class JobTestCase(unittest.TestCase):
             'type': 'ec2',
             'name': 'dummy',
             'config': {
-                '_id': 'dummy'
-            }
+                '_id': 'dummy',
+                'scheduler': {
+                    'type': 'sge'
+                }
+            },
+
         }
         job_id = 'dummy'
         job_model = {
@@ -482,6 +502,9 @@ class JobTestCase(unittest.TestCase):
                 'ssh': {
                     'user': 'dummy',
                     'passphrase': 'its a secret'
+                },
+                'scheduler': {
+                    'type': 'sge'
                 }
             }
         }
@@ -514,6 +537,9 @@ class JobTestCase(unittest.TestCase):
                 'ssh': {
                     'user': 'dummy',
                     'passphrase': 'its a secret'
+                },
+                'scheduler': {
+                    'type': 'sge'
                 }
             }
         }
@@ -539,3 +565,100 @@ class JobTestCase(unittest.TestCase):
 
         self.assertEqual(instance.execute.call_args_list[0], mock.call('qconf -sp mype'))
         self.assertEqual(job_model['params']['numberOfSlots'], 10)
+
+    def test_submission_template_sge(self):
+        cluster = {
+            '_id': 'dummy',
+            'type': 'trad',
+            'name': 'dummy',
+            'config': {
+                'host': 'dummy',
+                'ssh': {
+                    'user': 'dummy',
+                    'passphrase': 'its a secret'
+                },
+                'scheduler': {
+                    'type': 'sge'
+                }
+            }
+        }
+        job_id = '123432423'
+        job_model = {
+            '_id': job_id,
+            'queueJobId': '1',
+            'name': 'dummy',
+            'commands': ['ls', 'sleep 20', 'mpirun -n 1000000 parallel'],
+            'output': [{'tail': True,  'path': 'dummy/file/path'}]
+        }
+
+        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                            'fixtures',
+                                            'job',
+                                            'sge_submission_script1.sh'))
+        with open(path, 'r') as fp:
+            expected = fp.read()
+
+        script = job._generate_submission_script(job_model, cluster, {})
+        self.assertEqual(script, expected)
+
+        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                    'fixtures',
+                                    'job',
+                                    'sge_submission_script2.sh'))
+        with open(path, 'r') as fp:
+            expected = fp.read()
+
+        job_params = {
+            'parallelEnvironment': 'big',
+            'numberOfSlots': 12312312
+        }
+        script = job._generate_submission_script(job_model, cluster, job_params)
+        self.assertEqual(script, expected)
+
+    def test_submission_template_pbs(self):
+        cluster = {
+            '_id': 'dummy',
+            'type': 'trad',
+            'name': 'dummy',
+            'config': {
+                'host': 'dummy',
+                'ssh': {
+                    'user': 'dummy',
+                    'passphrase': 'its a secret'
+                },
+                'scheduler': {
+                    'type': 'pbs'
+                }
+            }
+        }
+        job_id = '123432423'
+        job_model = {
+            '_id': job_id,
+            'queueJobId': '1',
+            'name': 'dummy',
+            'commands': ['ls', 'sleep 20', 'mpirun -n 1000000 parallel'],
+            'output': [{'tail': True,  'path': 'dummy/file/path'}]
+        }
+
+        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                            'fixtures',
+                                            'job',
+                                            'pbs_submission_script1.sh'))
+        with open(path, 'r') as fp:
+            expected = fp.read()
+
+        script = job._generate_submission_script(job_model, cluster, {})
+        self.assertEqual(script, expected)
+
+        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                    'fixtures',
+                                    'job',
+                                    'pbs_submission_script2.sh'))
+        with open(path, 'r') as fp:
+            expected = fp.read()
+
+        job_params = {
+            'numberOfSlots': 12312312
+        }
+        script = job._generate_submission_script(job_model, cluster, job_params)
+        self.assertEqual(script, expected)

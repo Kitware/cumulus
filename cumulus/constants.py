@@ -22,3 +22,8 @@ class VolumeState:
 
 class QueueType:
     SGE = 'sge'
+    PBS = 'pbs'
+
+    @staticmethod
+    def is_valid_type(type):
+        return type == QueueType.SGE or type == QueueType.PBS

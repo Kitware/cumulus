@@ -1,11 +1,3 @@
-#!/bin/bash
-
-###
-### Run this script with:
-###
-###   run.sh
-###
-#$ -S /bin/bash
 {% if cluster.type == 'ec2' -%}
 #$ -q all.q@master
 {% endif -%}
