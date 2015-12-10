@@ -1,15 +1,3 @@
-#!/bin/bash
-
-###
-### Run this script with:
-###
-###   run.sh
-###
-#$ -S /bin/bash
-{% if parallelEnvironment -%}
-#$ -pe {{ parallelEnvironment }} {{ numberOfSlots-1 }}
-{% endif -%}
-
 # Set up cluster-specific variables
 PARAVIEW_DIR={{paraviewInstallDir if paraviewInstallDir else "/opt/paraview/install"}}
 # This file will be written by the pvw.sh script

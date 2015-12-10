@@ -70,7 +70,10 @@ class Cluster(BaseModel):
             'log': [],
             'status': 'created',
             'config': {
-                '_id': config_id
+                '_id': config_id,
+                'scheduler': {
+                    'type': 'sge'
+                }
             },
             'type': ClusterType.EC2
         }

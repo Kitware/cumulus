@@ -20,8 +20,7 @@ import re
 import inspect
 import time
 from celery import signature
-import StringIO
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader, Template
 from jsonpath_rw import parse
 
 
@@ -154,13 +153,26 @@ def _is_terminating(job, girder_token):
 
     return current_status in ['terminated', 'terminating']
 
+script_dir = os.path.abspath(
+    os.path.join(
+        os.path.dirname(
+            os.path.abspath(cumulus.__file__)), '..', 'scripts'))
 
-def _generate_script_template(job):
-    script_template = StringIO.StringIO()
-    for c in job['commands']:
-        script_template.write('%s\n' % c)
 
-    return script_template
+def _generate_submission_script(job, cluster, job_params):
+    env = Environment(loader=FileSystemLoader(script_dir))
+    template = env.get_template('template.sh')
+    script = template.render(cluster=cluster, job=job,
+                             baseUrl=cumulus.config.girder.baseUrl,
+                             **job_params)
+
+    # We now render again to ensure any template variable in the jobs
+    # commands are filled out.
+    script = Template(script).render(cluster=cluster, job=job,
+                                     baseUrl=cumulus.config.girder.baseUrl,
+                                     **job_params)
+
+    return script
 
 
 @command.task
@@ -184,8 +196,6 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
         script_name = job['name']
         script_filepath = os.path.join(tempfile.gettempdir(), script_name)
 
-        script_template = _generate_script_template(job)
-
         with logstdout():
             with get_ssh_connection(girder_token, cluster) as ssh:
                 job_params = {}
@@ -204,14 +214,10 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
                     if slots > 0:
                         job_params['numberOfSlots'] = int(slots)
 
-                # Now we can template submission script
-                script = Template(script_template.getvalue()) \
-                    .render(cluster=cluster,
-                            job=job, baseUrl=cumulus.config.girder.baseUrl,
-                            **job_params)
+                script = _generate_submission_script(job, cluster, job_params)
 
                 with open(script_filepath, 'w') as fp:
-                    fp.write('%s\n' % script)
+                    fp.write('%s' % script)
 
                 ssh.mkdir(job_dir, ignore_failure=True)
                 # put the script to master

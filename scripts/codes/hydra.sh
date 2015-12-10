@@ -1,12 +1,3 @@
-#!/bin/bash
-
-###
-#$ -S /bin/bash
-{% if parallelEnvironment -%}
-#$ -pe {{ parallelEnvironment }} {{ numberOfSlots }}
-{% endif -%}
-###
-
 HYDRA_DIR="/opt/hydra"
 HYDRA="{{ hydraExecutablePath if hydraExecutablePath else '${HYDRA_DIR}/bin/hydra' }}"
 MPIPROG="mpiexec"
