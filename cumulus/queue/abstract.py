@@ -13,9 +13,3 @@ class AbstractQueueAdapter(object):
 
     def job_status(self, job):
         raise NotImplementedError('Subclasses should implement this')
-
-    def is_running(self, state):
-        raise NotImplementedError('Subclasses should implement this')
-
-    def is_queued(self, state):
-        raise NotImplementedError('Subclasses should implement this')

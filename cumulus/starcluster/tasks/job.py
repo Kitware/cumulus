@@ -434,7 +434,7 @@ class Complete(JobState):
 
 class Terminating(JobState):
     def next(self, job_queue_status):
-        if not job_queue_status:
+        if not job_queue_status or job_queue_status == JobQueueState.COMPLETE:
             return Terminated(self)
         else:
             return self
