@@ -27,3 +27,15 @@ class QueueType:
     @staticmethod
     def is_valid_type(type):
         return type == QueueType.SGE or type == QueueType.PBS
+
+
+class JobState:
+    CREATED = 'created'
+    QUEUED = 'queued'
+    RUNNING = 'running'
+    ERROR = 'error'
+    COMPLETE = 'complete'
+    TERMINATING = 'terminating'
+    TERMINATED = 'terminated'
+    UPLOADING = 'uploading'
+    ERROR_UPLOADING = 'error_uploading'
