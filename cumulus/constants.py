@@ -29,13 +29,8 @@ class QueueType:
         return type == QueueType.SGE or type == QueueType.PBS
 
 
-class JobState:
-    CREATED = 'created'
+class JobQueueState:
     QUEUED = 'queued'
     RUNNING = 'running'
-    ERROR = 'error'
     COMPLETE = 'complete'
-    TERMINATING = 'terminating'
-    TERMINATED = 'terminated'
-    UPLOADING = 'uploading'
-    ERROR_UPLOADING = 'error_uploading'
+    ERROR = 'error'

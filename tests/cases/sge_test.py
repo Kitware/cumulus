@@ -63,7 +63,7 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
         self._cluster_connection.execute.return_value = job_status_output
         status = self._adapter.job_status(job)
         self.assertEqual(self._cluster_connection.execute.call_args_list, expected_calls)
-        self.assertEqual(status, 'r')
+        self.assertEqual(status, 'running')
 
     def test_unsupported(self):
         with self.assertRaises(Exception) as cm:
