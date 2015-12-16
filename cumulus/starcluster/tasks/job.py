@@ -310,6 +310,7 @@ class JobState(object):
         if previous:
             for key in previous._keys:
                 setattr(self, key, getattr(previous, key))
+            self._keys = previous._keys
         else:
             self._keys = kwargs.keys()
             for key, value in kwargs.items():
@@ -419,6 +420,45 @@ class Running(JobState):
 
 class Complete(JobState):
     def next(self, job_queue_status):
+
+        error = False
+        for output in self.job.get('output', []):
+            if 'errorRegEx' in output and output['errorRegEx']:
+                print "we have a regex"
+                stdout_file = '%s-%s.o%s' % (self.job['name'],
+                                             self.job['_id'],
+                                             self.job['queueJobId'])
+
+                stderr_file = '%s-%s.o%s' % (self.job['name'],
+                                             self.job['_id'],
+                                             self.job['queueJobId'])
+                variables = {
+                    'stdout': stdout_file,
+                    'stderr': stderr_file
+                }
+
+                tmp_path = None
+                try:
+                    path = Template(output['path']).render(**variables)
+                    tmp_path = os.path.join(tempfile.tempdir, path)
+                    path = os.path.join(_job_dir(self.job), path)
+                    self.ssh.get(path, localpath=tmp_path)
+                    error_regex = re.compile(output['errorRegEx'])
+                    with open(tmp_path, 'r') as fp:
+                        for line in fp:
+                            if error_regex.match(line):
+                                error = True
+                                break
+                finally:
+                    if tmp_path and os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+
+            if error:
+                break
+
+        if error:
+            return Error(self)
+
         return self
 
     def run(self):
@@ -455,8 +495,6 @@ class Uploading(JobState):
     def next(self, job_queue_status):
         log = starcluster.logger.get_starcluster_logger()
         job_name = self.job['name']
-        job_dir = _job_dir(self.job)
-        status = self
 
         if 'runningTime' in self.job:
             running_time = time.time() - self.job['runningTime']
@@ -464,45 +502,25 @@ class Uploading(JobState):
                 = int(round(running_time * 1000))
             del self.job['runningTime']
 
-        # See if we have anything in stderr, if so we will mark the job as
-        # errored. The exception is the pvw job as it writes stuff to stderr
-        # during normal operation. This is a horrible special case and should
-        # be fixed.
-        if job_name != 'pvw':
-            try:
-                stderr_filename \
-                    = '%s.e%s' % (self.job['name'], self.job['queueJobId'])
-                stderr_path = os.path.join(job_dir, stderr_filename)
-                stat_attrs = self.ssh.stat(stderr_path)
-                print stat_attrs.st_size
-                if stat_attrs.st_size > 0:
-                    status = Error()
-            except IOError:
-                pass
-
         # Fire off task to upload the output
         log.info('Job "%s" complete' % job_name)
-        if 'output' in self.job and len(self.job['output']) > 0:
-            if status == JobState.ERROR:
-                status = ErrorUploading(self)
-        else:
-            status = Complete(self)
 
-        return status
+        if 'output' in self.job and len(self.job['output']) == 0:
+            return Complete(self)
 
-    def run(self):
-        upload_job_output.delay(self.cluster, self.job,
-                                log_write_url=self.log_write_url,
-                                job_dir=_job_dir(self.job),
-                                girder_token=self.girder_token)
-
-
-class Error(JobState):
-    def next(self, job_queue_status):
         return self
 
     def run(self):
-        pass
+        if 'output' in self.job and len(self.job['output']) > 0:
+            upload_job_output.delay(self.cluster, self.job,
+                                    log_write_url=self.log_write_url,
+                                    job_dir=_job_dir(self.job),
+                                    girder_token=self.girder_token)
+
+
+class Error(Complete):
+    def next(self, job_queue_status):
+        return self
 
 
 class ErrorUploading(Uploading):
@@ -721,14 +739,17 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
                 if on_complete:
                     signature(on_complete).delay()
 
-                # If we where uploading move job into complete state
+                # If we where uploading move job to the complete state
                 if job['status'] == JobState.UPLOADING:
+                    job_status = from_string(job['status'], task=task,
+                                             cluster=cluster, job=job,
+                                             log_write_url=log_write_url,
+                                             girder_token=girder_token, ssh=ssh)
+                    job_status = Complete(job_status)
+                    job_status = job_status.next(JobQueueState.COMPLETE)
+                    job_status.run()
                     r = requests.patch(status_url, headers=headers,
-                                       json={'status': JobState.COMPLETE})
-                    check_status(r)
-                elif job['status'] == JobState.ERROR_UPLOADING:
-                    r = requests.patch(status_url, headers=headers,
-                                       json={'status': JobState.ERROR})
+                                       json={'status': str(job_status)})
                     check_status(r)
 
     except EOFError:

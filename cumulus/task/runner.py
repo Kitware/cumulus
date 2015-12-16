@@ -35,8 +35,22 @@ def _remove_empty(d):
 def _template_dict(d, variables):
     env = Environment()
     json_str = json.dumps(d)
+
+    # List of templated variables that we want to survive the templating
+    # process, these will be resolved later. So we replace them with themselves!
+    save = [
+        'stdout', 'stderr'
+    ]
+
+    template_vars = {}
+
+    for v in save:
+        template_vars[v] = '{{%s}}' % v
+
+    template_vars.update(variables)
+
     json_str = env.from_string(json_str).render(
-        amis=cumulus.config.amis, **variables)
+        amis=cumulus.config.amis, **template_vars)
 
     d = json.loads(json_str)
     d = _remove_empty(d)
