@@ -3,14 +3,16 @@ from cumulus.queue.abstract import AbstractQueueAdapter
 from cumulus.constants import JobQueueState
 
 
-class SgeQueueAdapter(AbstractQueueAdapter):
+class PbsQueueAdapter(AbstractQueueAdapter):
     # Running states
-    RUNNING_STATE = ['r', 'd']
+    RUNNING_STATE = ['r']
 
     ERROR_STATE = ['e']
 
+    COMPLETE_STATE = ['c']
+
     # Queued states
-    QUEUED_STATE = ['qw', 'q', 'w', 's', 'h', 't']
+    QUEUED_STATE = ['q', 'h', 't', 'w', 's']
 
     def terminate_job(self, job):
         command = 'qdel %s' % job['queueJobId']
@@ -19,7 +21,7 @@ class SgeQueueAdapter(AbstractQueueAdapter):
         return output
 
     def _parse_job_id(self, submit_output):
-        m = re.match('^[Yy]our job (\\d+)', submit_output[0])
+        m = re.match('^(\\d+)\..*', submit_output[0])
         if not m:
             raise Exception('Unable to extraction job id from: %s'
                             % submit_output[0])
@@ -28,7 +30,7 @@ class SgeQueueAdapter(AbstractQueueAdapter):
         return sge_id
 
     def submit_job(self, job, job_script):
-        command = 'cd %s && qsub -cwd ./%s' % (job['dir'], job_script)
+        command = 'cd %s && qsub ./%s' % (job['dir'], job_script)
         output = self._cluster_connection.execute(command)
 
         if len(output) != 1:
@@ -40,15 +42,17 @@ class SgeQueueAdapter(AbstractQueueAdapter):
         output = self._cluster_connection.execute('qstat')
 
         state = None
-        sge_state = self._extract_job_status(output, job)
+        pbs_state = self._extract_job_status(output, job)
 
-        if sge_state:
-            if sge_state in SgeQueueAdapter.RUNNING_STATE:
+        if pbs_state:
+            if pbs_state in PbsQueueAdapter.RUNNING_STATE:
                 state = JobQueueState.RUNNING
-            elif sge_state in SgeQueueAdapter.ERROR_STATE:
+            elif pbs_state in PbsQueueAdapter.ERROR_STATE:
                 state = JobQueueState.ERROR
-            elif sge_state in SgeQueueAdapter.QUEUED_STATE:
+            elif pbs_state in PbsQueueAdapter.QUEUED_STATE:
                 state = JobQueueState.QUEUED
+            elif pbs_state in PbsQueueAdapter.COMPLETE_STATE:
+                state = JobQueueState.COMPLETE
 
         return state
 
@@ -56,9 +60,10 @@ class SgeQueueAdapter(AbstractQueueAdapter):
         state = None
         job_id = job[AbstractQueueAdapter.QUEUE_JOB_ID]
         for line in job_status_output:
-            m = re.match('^\\s*(\\d+)\\s+\\S+\\s+\\S+\\s+\\S+\\s+(\\w+)',
+            m = re.match('^\\s*(\\d+)\\S*\\s+\\S+\\s+\\S+\\s+\\S+\\s+(\\w+)',
                          line)
+
             if m and m.group(1) == job_id:
                 state = m.group(2)
 
-        return state
+        return state.lower()

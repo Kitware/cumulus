@@ -12,7 +12,7 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
         self._adapter = get_queue_adapter({
             'config': {
                 'scheduler': {
-                    'type': QueueType.SGE
+                    'type': QueueType.PBS
                 }
             }
         }, self._cluster_connection)
@@ -30,13 +30,13 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
 
     def test_submit_job(self):
         job_id = '123'
-        test_output = ['Your job %s ("test.sh") has been submitted' % job_id]
+        test_output = ['%s.ulex.kitware.com' % job_id]
         job_script = 'script.sh'
         job = {
             AbstractQueueAdapter.QUEUE_JOB_ID: job_id,
             'dir': '/tmp'
         }
-        expected_calls = [mock.call('cd /tmp && qsub -cwd ./%s' % job_script)]
+        expected_calls = [mock.call('cd /tmp && qsub ./%s' % job_script)]
 
         self._cluster_connection.execute.return_value = test_output
         actual_job_id = self._adapter.submit_job(job, job_script)
@@ -57,24 +57,13 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
             AbstractQueueAdapter.QUEUE_JOB_ID: job_id
         }
         job_status_output = [
-            'job-ID  prior   name       user         state submit/start at     queue                          slots ja-task-ID',
-            '-----------------------------------------------------------------------------------------------------------------',
-            '1126 0.50000 test.sh    cjh          r     11/18/2015 13:18:09 main.q@ulmus.kitware.com           1'
+            'Job id                    Name             User            Time Use S Queue',
+            '------------------------- ---------------- --------------- -------- - -----',
+            '%s.ulex                    sleep.sh         cjh             00:00:00 C batch' % job_id,
+            '2.ulex                    sleep.sh         cjh             00:00:00 C batch'
         ]
         expected_calls = [mock.call('qstat')]
         self._cluster_connection.execute.return_value = job_status_output
         status = self._adapter.job_status(job)
         self.assertEqual(self._cluster_connection.execute.call_args_list, expected_calls)
-        self.assertEqual(status, 'running')
-
-    def test_unsupported(self):
-        with self.assertRaises(Exception) as cm:
-            get_queue_adapter({
-                'config': {
-                    'scheduler': {
-                        'type': 'foo'
-                    }
-                }
-            }, None)
-
-        self.assertIsNotNone(cm.exception)
+        self.assertEqual(status, 'complete')
