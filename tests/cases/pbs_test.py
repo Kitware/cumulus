@@ -10,8 +10,10 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
     def setUp(self):
         self._cluster_connection = mock.MagicMock()
         self._adapter = get_queue_adapter({
-            'queue': {
-                'system': QueueType.PBS
+            'config': {
+                'scheduler': {
+                    'type': QueueType.PBS
+                }
             }
         }, self._cluster_connection)
 
@@ -65,13 +67,3 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
         status = self._adapter.job_status(job)
         self.assertEqual(self._cluster_connection.execute.call_args_list, expected_calls)
         self.assertEqual(status, 'complete')
-
-    def test_unsupported(self):
-        with self.assertRaises(Exception) as cm:
-            get_queue_adapter({
-                'queue': {
-                    'system': 'foo'
-                }
-            }, None)
-
-        self.assertIsNotNone(cm.exception)

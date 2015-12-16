@@ -10,8 +10,10 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
     def setUp(self):
         self._cluster_connection = mock.MagicMock()
         self._adapter = get_queue_adapter({
-            'queue': {
-                'system': QueueType.SGE
+            'config': {
+                'scheduler': {
+                    'type': QueueType.SGE
+                }
             }
         }, self._cluster_connection)
 
@@ -68,8 +70,10 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
     def test_unsupported(self):
         with self.assertRaises(Exception) as cm:
             get_queue_adapter({
-                'queue': {
-                    'system': 'foo'
+                'config': {
+                    'scheduler': {
+                        'type': 'foo'
+                    }
                 }
             }, None)
 

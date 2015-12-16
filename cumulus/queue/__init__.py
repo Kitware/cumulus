@@ -13,7 +13,7 @@ type_to_adapter = {
 def get_queue_adapter(cluster, cluster_connection=None):
     global type_to_adapter
 
-    system = parse('queue.system').find(cluster)
+    system = parse('config.scheduler.type').find(cluster)
     if system:
         system = system[0].value
     # Default to SGE
