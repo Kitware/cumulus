@@ -347,7 +347,8 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
     @mock.patch('cumulus.celery.monitor.Task.retry')
-    def test_monitor_job_tail_output(self, retry, *args):
+    @mock.patch('cumulus.starcluster.tasks.job.get_connection', autospec=True)
+    def test_monitor_job_tail_output(self, get_connection, retry, *args):
 
         job_id = 'dummy'
         cluster = {
@@ -368,7 +369,8 @@ class JobTestCase(unittest.TestCase):
             'output': [{'tail': True,  'path': 'dummy/file/path'}]
         }
 
-        MockMaster.execute_stack = [[ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
+        conn = get_connection.return_value.__enter__.return_value
+        conn.execute.side_effect = [[ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
                              '-----------------------------------------------------------------------------------------',
                              '1 0.00000 hostname   sgeadmin     r     09/09/2009 14:58:14                1'], ['i have a tail', 'asdfas'] ]
 
@@ -413,8 +415,8 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('cumulus.starcluster.logging')
     @mock.patch('cumulus.celery.monitor.Task.retry')
     @mock.patch('cumulus.starcluster.tasks.job.monitor_job')
-    @mock.patch('cumulus.starcluster.common.SSHClient', autospec=True)
-    def test_submit_job(self, ssh_client, *args):
+    @mock.patch('cumulus.starcluster.tasks.job.get_connection', autospec=True)
+    def test_submit_job(self, get_connection, *args):
 
         cluster = {
             '_id': 'bob',
@@ -451,7 +453,8 @@ class JobTestCase(unittest.TestCase):
 
         qsub_output = ['Your job 74 ("test.sh") has been submitted']
 
-        MockMaster.execute_stack = [qconf_output, qsub_output]
+        conn = get_connection.return_value.__enter__.return_value
+        conn.execute.side_effect = [qconf_output, qsub_output]
 
         def _get_status(url, request):
             content = {
@@ -474,6 +477,7 @@ class JobTestCase(unittest.TestCase):
                 'content-length': len(content),
                 'content-type': 'application/json'
             }
+
             return httmock.response(200, content, headers, request=request)
 
         status_url = '/api/v1/jobs/%s/status' % job_id
@@ -488,7 +492,7 @@ class JobTestCase(unittest.TestCase):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
 
-        self.assertEqual(MockMaster.instance.ssh.execute.call_args_list[0],
+        self.assertEqual(conn.execute.call_args_list[0],
                          mock.call('qconf -sp orte'), 'Unexpected qconf command: %s' %
                          str(MockMaster.instance.ssh.execute.call_args_list[0]))
 
@@ -504,13 +508,27 @@ class JobTestCase(unittest.TestCase):
             }
         }
 
+        qconf_output = ['pe_name            mype',
+                        'slots              10\n',
+                        'user_lists         NONE',
+                        'xuser_lists        NONE',
+                        'start_proc_args    /bin/true',
+                        'stop_proc_args     /bin/true',
+                        'allocation_rule    $pe_slots',
+                        'control_slaves     FALSE',
+                        'job_is_first_task  TRUE',
+                        'urgency_slots      min',
+                        'accounting_summary FALSE']
+
+        conn.reset_mock()
+        conn.execute.side_effect = [qconf_output, qsub_output]
+
         with httmock.HTTMock(get_status, set_status):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
-
-        self.assertEqual(MockMaster.instance.ssh.execute.call_args_list[0],
+        self.assertEqual(conn.execute.call_args_list[0],
                          mock.call('qconf -sp mype'), 'Unexpected qconf command: %s' %
-                         str(MockMaster.instance.ssh.execute.call_args_list[0]))
+                         str(conn.execute.call_args_list[0]))
 
         # For traditional clusters we shouldn't try to extract slot from orte
         cluster = {
@@ -537,15 +555,15 @@ class JobTestCase(unittest.TestCase):
             'output': [{'tail': True,  'path': 'dummy/file/path'}]
         }
 
-        instance = ssh_client.return_value
-        instance.execute.return_value = ['Your job 74 ("test.sh") has been submitted']
+        conn.reset_mock()
+        conn.execute.side_effect = [['Your job 74 ("test.sh") has been submitted']]
 
         with httmock.HTTMock(get_status, set_status):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
 
         # Assert that we don't try and get the number of slots
-        self.assertFalse('qconf' in str(instance.execute.call_args_list), 'qconf should not be called')
+        self.assertFalse('qconf' in str(conn.execute.call_args_list), 'qconf should not be called')
 
         # For traditional clusters define a parallel env
         cluster = {
@@ -575,15 +593,14 @@ class JobTestCase(unittest.TestCase):
             }
         }
 
-        ssh_client.reset_mock()
-        instance = ssh_client.return_value
-        instance.execute.side_effect = [qconf_output, ['Your job 74 ("test.sh") has been submitted']]
+        conn.reset_mock()
+        conn.execute.side_effect = [qconf_output, ['Your job 74 ("test.sh") has been submitted']]
 
         with httmock.HTTMock(get_status, set_status):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
 
-        self.assertEqual(instance.execute.call_args_list[0], mock.call('qconf -sp mype'))
+        self.assertEqual(conn.execute.call_args_list[0], mock.call('qconf -sp mype'))
         self.assertEqual(job_model['params']['numberOfSlots'], 10)
 
 

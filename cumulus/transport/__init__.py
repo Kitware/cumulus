@@ -17,23 +17,14 @@
 #  limitations under the License.
 ###############################################################################
 
-import starcluster.logger
-from starcluster.awsutils import EasyEC2
-import traceback
+
+from .ssh import SshClusterConnection
+
+ssh_cluster = ['trad', 'ec2']
 
 
-def _log_exception(ex):
-    log = starcluster.logger.get_starcluster_logger()
-    log.error(traceback.format_exc())
-
-
-def get_easy_ec2(profile):
-    aws_access_key_id = profile['accessKeyId']
-    aws_secret_access_key = profile['secretAccessKey']
-    aws_region_name = profile['regionName']
-    aws_region_host = profile['regionHost']
-    ec2 = EasyEC2(aws_access_key_id, aws_secret_access_key,
-                  aws_region_name=aws_region_name,
-                  aws_region_host=aws_region_host)
-
-    return ec2
+def get_connection(girder_token, cluster):
+    if cluster['type'] in ssh_cluster:
+        return SshClusterConnection(girder_token, cluster)
+    else:
+        raise Exception('Unsupported cluster type')

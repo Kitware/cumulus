@@ -17,23 +17,26 @@
 #  limitations under the License.
 ###############################################################################
 
-import starcluster.logger
-from starcluster.awsutils import EasyEC2
-import traceback
 
+class AbstractConnection(object):
 
-def _log_exception(ex):
-    log = starcluster.logger.get_starcluster_logger()
-    log.error(traceback.format_exc())
+    def execute(self, command):
+        raise NotImplementedError('Implemented by subclass')
 
+    def get(self, remote_path):
+        raise NotImplementedError('Implemented by subclass')
 
-def get_easy_ec2(profile):
-    aws_access_key_id = profile['accessKeyId']
-    aws_secret_access_key = profile['secretAccessKey']
-    aws_region_name = profile['regionName']
-    aws_region_host = profile['regionHost']
-    ec2 = EasyEC2(aws_access_key_id, aws_secret_access_key,
-                  aws_region_name=aws_region_name,
-                  aws_region_host=aws_region_host)
+    def isfile(self, remote_path):
+        raise NotImplementedError('Implemented by subclass')
 
-    return ec2
+    def mkdir(self, path, ignore_failure=False):
+        raise NotImplementedError('Implemented by subclass')
+
+    def put(self, local_path, remote_path):
+        raise NotImplementedError('Implemented by subclass')
+
+    def stat(self):
+        raise NotImplementedError('Implemented by subclass')
+
+    def remove(self, remote_path):
+        raise NotImplementedError('Implemented by subclass')

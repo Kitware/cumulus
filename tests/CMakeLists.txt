@@ -10,7 +10,7 @@ add_python_style_test(python_static_analysis_cumulus "${PROJECT_SOURCE_DIR}/cumu
 add_python_test(job)
 add_python_test(cluster)
 add_python_test(key)
-add_python_test(common)
+add_python_test(transport)
 add_python_test(aws_key)
 add_python_test(trad_cluster)
 add_python_test(sge)

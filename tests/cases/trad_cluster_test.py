@@ -47,8 +47,8 @@ class TradClusterTestCase(unittest.TestCase):
 
 
     @mock.patch('cumulus.starcluster.logging.StarClusterLogHandler')
-    @mock.patch('cumulus.trad.tasks.cluster.get_ssh_connection')
-    def test_connection(self, get_ssh_connection, StarClusterLogHandler):
+    @mock.patch('cumulus.trad.tasks.cluster.get_connection')
+    def test_connection(self, get_connection, StarClusterLogHandler):
 
         def valid(self):
             return True
@@ -58,7 +58,7 @@ class TradClusterTestCase(unittest.TestCase):
             'type': 'trad',
             'name': 'my trad cluster',
             'config': {
-                'ssh': {
+                'conn': {
                     'user': 'bob'
                 },
                 'host': 'myhost'
@@ -87,14 +87,14 @@ class TradClusterTestCase(unittest.TestCase):
                         'Set status endpoint called in incorrect content: %s'
                             % self._set_status_request)
 
-        # Mock our ssh calls and try again
+        # Mock our conn calls and try again
         def _get_cluster(url, request):
             content =   {
                 "_id": "55ef53bff657104278e8b185",
                 "config": {
                     "host": "ulmus",
-                    "ssh": {
-                        "publicKey": "ssh-rsa dummy",
+                    "conn": {
+                        "publicKey": "conn-rsa dummy",
                         'passphrase': 'dummy',
                         "user": "test"
                     }
@@ -113,8 +113,8 @@ class TradClusterTestCase(unittest.TestCase):
             path=r'^%s$' % cluster_url, method='GET')(_get_cluster)
 
 
-        ssh = get_ssh_connection.return_value.__enter__.return_value
-        ssh.execute.return_value = ['/usr/bin/qsub']
+        conn = get_connection.return_value.__enter__.return_value
+        conn.execute.return_value = ['/usr/bin/qsub']
         self._expected_status = 'running'
         with httmock.HTTMock(set_status, get_cluster):
             cluster.test_connection(cluster_model, **{'girder_token': 's', 'log_write_url': 'http://localhost/log'})

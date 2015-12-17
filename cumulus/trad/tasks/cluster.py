@@ -21,7 +21,7 @@ import requests
 
 import cumulus.starcluster.logging
 from cumulus.common import check_status
-from cumulus.starcluster.common import get_ssh_connection
+from cumulus.transport import get_connection
 from cumulus.celery import command
 import starcluster.logger
 
@@ -41,7 +41,7 @@ def test_connection(cluster, log_write_url=None, girder_token=None):
         check_status(r)
         cluster = r.json()
 
-        with get_ssh_connection(girder_token, cluster) as ssh:
+        with get_connection(girder_token, cluster) as ssh:
             status = 'running'
             # For simply test can we can connect to cluster and
             # qsub is installed
