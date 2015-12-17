@@ -34,7 +34,6 @@ import starcluster.config
 import starcluster.logger
 import starcluster.exception
 import requests
-import tempfile
 import os
 import re
 import inspect
@@ -273,9 +272,6 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
         check_status(r)
         _log_exception(ex)
         raise
-    finally:
-        if script_filepath and os.path.exists(script_filepath):
-            os.remove(script_filepath)
 
 
 def submit(girder_token, cluster, job, log_url):
