@@ -106,7 +106,7 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
             output = conn.execute(download_cmd)
 
             # Remove download script
-            conn.unlink(download_cmd)
+            conn.remove(download_cmd)
 
         if len(output) != 1:
             raise Exception('PID not returned by execute command')
@@ -659,7 +659,7 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
             output = conn.execute(upload_cmd)
 
             # Remove upload script
-            conn.unlink(upload_cmd)
+            conn.remove(upload_cmd)
 
         if len(output) != 1:
             raise Exception('PID not returned by execute command')
@@ -806,8 +806,8 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
                     terminate_cmd = _put_script(conn, terminate_cmd)
                     output = conn.execute(terminate_cmd)
 
-                    conn.unlink(on_terminate)
-                    conn.unlink(terminate_cmd)
+                    conn.remove(on_terminate)
+                    conn.remove(terminate_cmd)
 
                     if len(output) != 1:
                         raise Exception('PID not returned by execute command')
