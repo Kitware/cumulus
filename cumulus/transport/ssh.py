@@ -79,7 +79,7 @@ class SshClusterConnection(AbstractConnection):
         sftp = None
         file = None
         try:
-            sftp = self._conn.open_sftp()
+            sftp = self._conn.transport.open_sftp_client()
             file = sftp.open(remote_path)
             yield file
         finally:
@@ -89,7 +89,7 @@ class SshClusterConnection(AbstractConnection):
 
     def isfile(self, remote_path):
 
-        with self._conn.open_sftp() as sftp:
+        with self._conn.transport.open_sftp_client() as sftp:
             try:
                 s = sftp.stat(remote_path)
             except IOError:
@@ -98,7 +98,7 @@ class SshClusterConnection(AbstractConnection):
             return stat.S_ISDIR(s.st_mode)
 
     def mkdir(self, remote_path, ignore_failure=False):
-        with self._conn.open_sftp() as sftp:
+        with self._conn.transport.open_sftp_client() as sftp:
             try:
                 sftp.mkdir(remote_path)
             except IOError:
@@ -106,13 +106,13 @@ class SshClusterConnection(AbstractConnection):
                     raise
 
     def put(self, stream, remote_path):
-        with self._conn.open_sftp() as sftp:
+        with self._conn.transport.open_sftp_client() as sftp:
             sftp.putfo(stream, remote_path)
 
     def stat(self, remote_path):
-        with self._conn.open_sftp() as sftp:
+        with self._conn.transport.open_sftp_client() as sftp:
             return sftp.stat(remote_path)
 
     def remove(self, remote_path):
-        with self._conn.open_sftp() as sftp:
+        with self._conn.transport.open_sftp_client() as sftp:
             return sftp.remove(remote_path)
