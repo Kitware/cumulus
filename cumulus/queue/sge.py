@@ -19,11 +19,14 @@
 
 import re
 from cumulus.queue.abstract import AbstractQueueAdapter
+from cumulus.constants import JobQueueState
 
 
 class SgeQueueAdapter(AbstractQueueAdapter):
     # Running states
-    RUNNING_STATE = ['r', 'd', 'e']
+    RUNNING_STATE = ['r', 'd']
+
+    ERROR_STATE = ['e']
 
     # Queued states
     QUEUED_STATE = ['qw', 'q', 'w', 's', 'h', 't']
@@ -55,7 +58,18 @@ class SgeQueueAdapter(AbstractQueueAdapter):
     def job_status(self, job):
         output = self._cluster_connection.execute('qstat')
 
-        return self._extract_job_status(output, job)
+        state = None
+        sge_state = self._extract_job_status(output, job)
+
+        if sge_state:
+            if sge_state in SgeQueueAdapter.RUNNING_STATE:
+                state = JobQueueState.RUNNING
+            elif sge_state in SgeQueueAdapter.ERROR_STATE:
+                state = JobQueueState.ERROR
+            elif sge_state in SgeQueueAdapter.QUEUED_STATE:
+                state = JobQueueState.QUEUED
+
+        return state
 
     def _extract_job_status(self, job_status_output, job):
         state = None
@@ -67,9 +81,3 @@ class SgeQueueAdapter(AbstractQueueAdapter):
                 state = m.group(2)
 
         return state
-
-    def is_running(self, state):
-        return state in SgeQueueAdapter.RUNNING_STATE
-
-    def is_queued(self, state):
-        return state in SgeQueueAdapter.QUEUED_STATE

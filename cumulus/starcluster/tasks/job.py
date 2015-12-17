@@ -26,7 +26,7 @@ from cumulus.starcluster.common import _log_exception, get_ssh_connection
 from cumulus.celery import command, monitor
 import cumulus
 import cumulus.girderclient
-from cumulus.constants import ClusterType
+from cumulus.constants import ClusterType, JobQueueState
 from cumulus.queue import get_queue_adapter
 from cumulus.queue.abstract import AbstractQueueAdapter
 import starcluster.config
@@ -170,7 +170,7 @@ def _is_terminating(job, girder_token):
     check_status(r)
     current_status = r.json()['status']
 
-    return current_status in ['terminated', 'terminating']
+    return current_status in [JobState.TERMINATED, JobState.TERMINATING]
 
 script_dir = os.path.abspath(
     os.path.join(
@@ -194,10 +194,20 @@ def _generate_submission_script(job, cluster, job_params):
     return script
 
 
+def _get_on_complete(job):
+    on_complete = parse('onComplete.cluster').find(job)
+
+    if on_complete:
+        on_complete = on_complete[0].value
+    else:
+        on_complete = None
+
+    return on_complete
+
+
 @command.task
 @cumulus.starcluster.logging.capture
 def submit_job(cluster, job, log_write_url=None, girder_token=None):
-
     log = starcluster.logger.get_starcluster_logger()
     script_filepath = None
     headers = {'Girder-Token':  girder_token}
@@ -252,7 +262,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
 
             # Update the state and queue job id
             patch_data = {
-                'status': 'queued',
+                'status': JobState.QUEUED,
                 AbstractQueueAdapter.QUEUE_JOB_ID: queue_job_id
             }
 
@@ -268,22 +278,22 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
         # Now update the status of the cluster
         headers = {'Girder-Token':  girder_token}
         r = requests.patch(status_url, headers=headers,
-                           json={'status': 'queued'})
+                           json={'status': JobState.QUEUED})
         check_status(r)
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers,
-                           json={'status': 'error'})
+                           json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
         _log_exception(ex)
     except starcluster.exception.ClusterDoesNotExist as ex:
         r = requests.patch(status_url, headers=headers,
-                           json={'status': 'error'})
+                           json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
         _log_exception(ex)
     except Exception as ex:
         traceback.print_exc()
         r = requests.patch(status_url, headers=headers,
-                           json={'status': 'error'})
+                           json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
         _log_exception(ex)
         raise
@@ -303,116 +313,250 @@ def submit(girder_token, cluster, job, log_url):
                          girder_token=girder_token)
 
 
-def _tail_output(job, ssh):
-    log = starcluster.logger.get_starcluster_logger()
+class JobState(object):
+    CREATED = 'created'
+    RUNNING = 'running'
+    TERMINATED = 'terminated'
+    TERMINATING = 'terminating'
+    UNEXPECTEDERROR = 'unexpectederror'
+    QUEUED = 'queued'
+    ERROR = 'error'
+    UPLOADING = 'uploading'
+    ERROR_UPLOADING = 'error_uploading',
+    COMPLETE = 'complete'
 
-    output_updated = False
+    def __init__(self, previous, **kwargs):
+        if previous:
+            for key in previous._keys:
+                setattr(self, key, getattr(previous, key))
+        else:
+            self._keys = kwargs.keys()
+            for key, value in kwargs.items():
+                setattr(self, key, value)
 
-    # Do we need to tail any output files
-    for output in job.get('output', []):
-        if 'tail' in output and output['tail']:
-            path = output['path']
-            offset = 0
-            if 'content' in output:
-                offset = len(output['content'])
-            else:
-                output['content'] = []
-            tail_path = os.path.join(_job_dir(job), path)
-            command = 'tail -n +%d %s' % (offset, tail_path)
-            try:
-                # Only tail if file exists
-                if ssh.isfile(tail_path):
-                    stdout = ssh.execute(command)
-                    output['content'] = output['content'] + stdout
-                    output_updated = True
-                else:
-                    log.info('Skipping tail of %s as file doesn\'t '
-                             'currently exist' %
-                             tail_path)
-            except starcluster.exception.RemoteCommandFailed as ex:
-                _log_exception(ex)
+    def __str__(self):
+        return self.__class__.__name__.lower()
 
-    return output_updated
+    def __cmp__(self, other):
+        return cmp(str(self), str(other))
 
+    def __hash__(self):
+        return hash(str(self))
 
-def _handle_queued_or_running(task, cluster, job, state):
-    timings = {}
-    queue_adapter = get_queue_adapter(cluster)
-
-    if queue_adapter.is_running(state):
-        status = 'running'
+    def _update_queue_time(self, job):
         if 'queuedTime' in job:
             queued_time = time.time() - job['queuedTime']
-            timings = {'queued': int(round(queued_time * 1000))}
+            job['timings'] = {'queued': int(round(queued_time * 1000))}
             del job['queuedTime']
             job['runningTime'] = time.time()
-    elif queue_adapter.is_queued(state):
-        status = 'queued'
-    else:
-        raise Exception('Unrecognized SGE state: %s' % state)
 
-    # Job is still active so schedule self again in about 5 secs
-    # N.B. throw=False to prevent Retry exception being raised
-    task.retry(throw=False, countdown=5)
+    def next(self, job_queue_status):
+        raise NotImplementedError('Should be implemented by subclass')
 
-    return status, timings
+    def run(self):
+        raise NotImplementedError('Should be implemented by subclass')
 
 
-def _handle_complete(ssh, cluster, job, log_write_url, girder_token, status):
-    log = starcluster.logger.get_starcluster_logger()
-    job_name = job['name']
-    job_dir = _job_dir(job)
-    timings = {}
-
-    if 'runningTime' in job:
-        running_time = time.time() - job['runningTime']
-        timings = {'running': int(round(running_time * 1000))}
-        del job['runningTime']
-
-    # See if we have anything in stderr, if so we will mark the job as errored
-    # The exception is the pvw job as it writes stuff to stderr during normal
-    # operation. This is a horrible special case and should be fixed.
-    if job_name != 'pvw':
-        try:
-            stderr_filename = '%s.e%s' % (job['name'], job['queueJobId'])
-            stderr_path = os.path.join(job_dir, stderr_filename)
-            stat_attrs = ssh.stat(stderr_path)
-            print stat_attrs.st_size
-            if stat_attrs.st_size > 0:
-                status = 'error'
-        except IOError:
-            pass
-
-    # Fire off task to upload the output
-    log.info('Job "%s" complete' % job_name)
-    if 'output' in job and len(job['output']) > 0:
-        if status == 'error':
-            status = 'error_uploading'
+class Created(JobState):
+    def next(self, job_queue_status):
+        if not job_queue_status or job_queue_status == JobQueueState.COMPLETE:
+            return Uploading(self)
+        elif job_queue_status == JobQueueState.RUNNING:
+            return Running(self)
+        elif job_queue_status == JobQueueState.QUEUED:
+            return Queued(self)
+        elif job_queue_status == JobQueueState.ERROR:
+            return Error(self)
         else:
-            status = 'uploading'
-        job['status'] = status
-        upload_job_output.delay(cluster, job, log_write_url=log_write_url,
-                                job_dir=job_dir, girder_token=girder_token)
-    elif _get_on_complete(job) == 'terminate':
-        cluster_log_url = '%s/clusters/%s/log' % \
-            (cumulus.config.girder.baseUrl, cluster['_id'])
-        command.send_task('cumulus.starcluster.tasks.cluster.terminate_cluster',
-                          args=(cluster,),
-                          kwargs={'log_write_url': cluster_log_url,
-                                  'girder_token': girder_token})
+            raise Exception('Unrecognized state: %s' % job_queue_status)
 
-    return status, timings
+    def run(self):
+        self.task.retry(throw=False, countdown=5)
+
+        return self
 
 
-def _get_on_complete(job):
-    on_complete = parse('onComplete.cluster').find(job)
+class Queued(JobState):
+    def next(self, job_queue_status):
+        if not job_queue_status or job_queue_status == JobQueueState.COMPLETE:
+            return Uploading(self)
+        elif job_queue_status == JobQueueState.RUNNING:
+            return Running(self)
+        elif job_queue_status == JobQueueState.QUEUED:
+            return self
+        elif job_queue_status == JobQueueState.ERROR:
+            return Error(self)
+        else:
+            raise Exception('Unrecognized state: %s' % job_queue_status)
 
-    if on_complete:
-        on_complete = on_complete[0].value
-    else:
-        on_complete = None
+    def run(self):
+        self.task.retry(throw=False, countdown=5)
 
-    return on_complete
+
+class Running(JobState):
+    def _tail_output(self):
+        log = starcluster.logger.get_starcluster_logger()
+
+        # Do we need to tail any output files
+        for output in self.job.get('output', []):
+            if 'tail' in output and output['tail']:
+                path = output['path']
+                offset = 0
+                if 'content' in output:
+                    offset = len(output['content'])
+                else:
+                    output['content'] = []
+                tail_path = os.path.join(_job_dir(self.job), path)
+                command = 'tail -n +%d %s' % (offset, tail_path)
+                try:
+                    # Only tail if file exists
+                    if self.ssh.isfile(tail_path):
+                        stdout = self.ssh.execute(command)
+                        output['content'] = output['content'] + stdout
+                    else:
+                        log.info('Skipping tail of %s as file doesn\'t '
+                                 'currently exist' %
+                                 tail_path)
+                except starcluster.exception.RemoteCommandFailed as ex:
+                    _log_exception(ex)
+
+    def next(self, job_queue_status):
+        if not job_queue_status or job_queue_status == JobQueueState.COMPLETE:
+            return Uploading(self)
+        elif job_queue_status == JobQueueState.RUNNING:
+            return self
+        elif job_queue_status == JobQueueState.ERROR:
+            return Error(self)
+        else:
+            raise Exception('Unrecognized state: %s' % job_queue_status)
+
+    def run(self):
+        self._update_queue_time(self.job)
+        self._tail_output()
+        self.task.retry(throw=False, countdown=5)
+
+
+class Complete(JobState):
+    def next(self, job_queue_status):
+        return self
+
+    def run(self):
+        if _get_on_complete(self.job) == 'terminate':
+            cluster_log_url = '%s/clusters/%s/log' % \
+                (cumulus.config.girder.baseUrl, self.cluster['_id'])
+            command.send_task(
+                'cumulus.starcluster.tasks.cluster.terminate_cluster',
+                args=(self.cluster,),
+                kwargs={'log_write_url': cluster_log_url,
+                        'girder_token': self.girder_token})
+
+
+class Terminating(JobState):
+    def next(self, job_queue_status):
+        if not job_queue_status or job_queue_status == JobQueueState.COMPLETE:
+            return Terminated(self)
+        else:
+            return self
+
+    def run(self):
+        self.task.retry(throw=False, countdown=5)
+
+
+class Terminated(JobState):
+    def next(self, task, job, job_queue_status):
+        return self
+
+    def run(self):
+        pass
+
+
+class Uploading(JobState):
+    def next(self, job_queue_status):
+        log = starcluster.logger.get_starcluster_logger()
+        job_name = self.job['name']
+        job_dir = _job_dir(self.job)
+        status = self
+
+        if 'runningTime' in self.job:
+            running_time = time.time() - self.job['runningTime']
+            self.job.get('timings', {})['running'] \
+                = int(round(running_time * 1000))
+            del self.job['runningTime']
+
+        # See if we have anything in stderr, if so we will mark the job as
+        # errored. The exception is the pvw job as it writes stuff to stderr
+        # during normal operation. This is a horrible special case and should
+        # be fixed.
+        if job_name != 'pvw':
+            try:
+                stderr_filename \
+                    = '%s.e%s' % (self.job['name'], self.job['queueJobId'])
+                stderr_path = os.path.join(job_dir, stderr_filename)
+                stat_attrs = self.ssh.stat(stderr_path)
+                print stat_attrs.st_size
+                if stat_attrs.st_size > 0:
+                    status = Error()
+            except IOError:
+                pass
+
+        # Fire off task to upload the output
+        log.info('Job "%s" complete' % job_name)
+        if 'output' in self.job and len(self.job['output']) > 0:
+            if status == JobState.ERROR:
+                status = ErrorUploading(self)
+        else:
+            status = Complete(self)
+
+        return status
+
+    def run(self):
+        upload_job_output.delay(self.cluster, self.job,
+                                log_write_url=self.log_write_url,
+                                job_dir=_job_dir(self.job),
+                                girder_token=self.girder_token)
+
+
+class Error(JobState):
+    def next(self, job_queue_status):
+        return self
+
+    def run(self):
+        pass
+
+
+class ErrorUploading(Uploading):
+    def next(self, job_queue_status):
+        return Error(self)
+
+    def run(self):
+        pass
+
+
+class UnexpectedError(JobState):
+    def next(self, job_queue_status):
+        return self
+
+    def run(self):
+        pass
+
+
+state_classes = {
+    JobState.CREATED: Created,
+    JobState.QUEUED: Queued,
+    JobState.RUNNING: Running,
+    JobState.COMPLETE: Complete,
+    JobState.TERMINATING: Terminating,
+    JobState.TERMINATED: Terminated,
+    JobState.UPLOADING: Uploading,
+    JobState.ERROR: Error,
+    JobState.ERROR_UPLOADING: ErrorUploading,
+    JobState.UNEXPECTEDERROR: UnexpectedError
+}
+
+
+def from_string(s, **kwargs):
+    state = state_classes[s](None, **kwargs)
+    return state
 
 
 @monitor.task(bind=True, max_retries=None)
@@ -432,11 +576,19 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
 
             current_status = r.json()['status']
 
-            if current_status == 'terminated':
+            if current_status == JobState.TERMINATED:
                 return
 
             try:
-                state = get_queue_adapter(cluster, ssh).job_status(job)
+                job_queue_state \
+                    = get_queue_adapter(cluster, ssh).job_status(job)
+                job_status = from_string(current_status, task=task,
+                                         cluster=cluster, job=job,
+                                         log_write_url=log_write_url,
+                                         girder_token=girder_token, ssh=ssh)
+                job_status = job_status.next(job_queue_state)
+                job['status'] = str(job_status)
+                job_status.run()
             except EOFError:
                 # Try again
                 task.retry(throw=False, countdown=5)
@@ -446,44 +598,23 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
                 task.retry(throw=False, countdown=5)
                 return
 
-            # If not in queue and we are terminating then move to terminated
-            if current_status == 'terminating':
-                status = 'terminated'
-            # Otherwise we are complete
-            else:
-                status = 'complete'
-
-            timings = {}
-
-            if state and current_status != 'terminating':
-                status, timings = _handle_queued_or_running(task, cluster,
-                                                            job, state)
-            elif status == 'complete':
-                status, timings = _handle_complete(ssh, cluster, job,
-                                                   log_write_url,
-                                                   girder_token, status)
-
-            output_updated = _tail_output(job, ssh)
-
         json = {
-            'status': status,
-            'timings': timings
+            'status': str(job_status),
+            'timings': job.get('timings', {}),
+            'output': job['output']
         }
-
-        if output_updated:
-            json['output'] = job['output']
 
         r = requests.patch(status_update_url, headers=headers, json=json)
         check_status(r)
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_update_url, headers=headers,
-                           json={'status': 'error'})
+                           json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
         _log_exception(ex)
     except Exception as ex:
         traceback.print_exc()
         r = requests.patch(status_update_url, headers=headers,
-                           json={'status': 'error'})
+                           json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
         _log_exception(ex)
         raise
@@ -553,7 +684,7 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
 
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers,
-                           json={'status': 'error'})
+                           json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
         _log_exception(ex)
 
@@ -597,7 +728,7 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
                             # If we have output then set the error state on the
                             # job and return
                             r = requests.patch(status_url, headers=headers,
-                                               json={'status': 'error'})
+                                               json={'status': JobState.ERROR})
                             check_status(r)
                             return
                 finally:
@@ -610,13 +741,13 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
                     signature(on_complete).delay()
 
                 # If we where uploading move job into complete state
-                if job['status'] == 'uploading':
+                if job['status'] == JobState.UPLOADING:
                     r = requests.patch(status_url, headers=headers,
-                                       json={'status': 'complete'})
+                                       json={'status': JobState.COMPLETE})
                     check_status(r)
-                elif job['status'] == 'error_uploading':
+                elif job['status'] == JobState.ERROR_UPLOADING:
                     r = requests.patch(status_url, headers=headers,
-                                       json={'status': 'error'})
+                                       json={'status': JobState.ERROR})
                     check_status(r)
 
     except EOFError:
@@ -624,12 +755,12 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
         task.retry(throw=False, countdown=5)
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers,
-                           json={'status': 'error'})
+                           json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
         _log_exception(ex)
     except Exception as ex:
         r = requests.patch(status_url, headers=headers,
-                           json={'status': 'error'})
+                           json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
         _log_exception(ex)
         raise
@@ -652,7 +783,7 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
                     output = queue_adapter.terminate_job(job)
                 else:
                     r = requests.patch(status_url, headers=headers,
-                                       json={'status': 'terminated'})
+                                       json={'status': JobState.TERMINATED})
                     check_status(r)
 
                 if 'onTerminate' in job:
@@ -690,17 +821,17 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
 
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(status_url, headers=headers,
-                           json={'status': 'error'})
+                           json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
         _log_exception(ex)
     except starcluster.exception.ClusterDoesNotExist as ex:
         r = requests.patch(status_url, headers=headers,
-                           json={'status': 'error'})
+                           json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
         _log_exception(ex)
     except Exception as ex:
         r = requests.patch(status_url, headers=headers,
-                           json={'status': 'error'})
+                           json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
         _log_exception(ex)
         raise

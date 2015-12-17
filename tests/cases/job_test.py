@@ -130,7 +130,8 @@ class JobTestCase(unittest.TestCase):
             return httmock.response(200, content, headers, request=request)
 
         def _set_status(url, request):
-            expected = {u'status': u'terminated', u'timings': {}}
+            expected = {u'status': u'terminated', u'timings': {}, u'output': []}
+
             self._set_status_called = json.loads(request.body) == expected
 
             return httmock.response(200, None, {}, request=request)
@@ -195,7 +196,7 @@ class JobTestCase(unittest.TestCase):
             return httmock.response(200, content, headers, request=request)
 
         def _set_status(url, request):
-            expected = {'status': 'uploading', 'timings': {}}
+            expected = {'status': 'uploading', 'timings': {}, 'output': [{'itemId': u'dummy'}]}
             self._set_status_called = json.loads(request.body) == expected
 
             return httmock.response(200, None, {}, request=request)
@@ -258,7 +259,7 @@ class JobTestCase(unittest.TestCase):
             return httmock.response(200, content, headers, request=request)
 
         def _set_status(url, request):
-            expected = {'status': 'running', 'timings': {}}
+            expected = {'status': 'running', 'timings': {}, 'output': []}
             self._set_status_called = json.loads(request.body) == expected
 
             if not self._set_status_called:
@@ -323,7 +324,7 @@ class JobTestCase(unittest.TestCase):
             return httmock.response(200, content, headers, request=request)
 
         def _set_status(url, request):
-            expected = {'status': 'queued', 'timings': {}}
+            expected = {'status': 'queued', 'timings': {}, 'output': []}
             self._set_status_called = json.loads(request.body) == expected
 
             return httmock.response(200, None, {}, request=request)
