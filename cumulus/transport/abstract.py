@@ -20,7 +20,7 @@
 
 class AbstractConnection(object):
 
-    def execute(self, command):
+    def execute(self, command, ignore_exit_status=False, source_profile=True):
         raise NotImplementedError('Implemented by subclass')
 
     def get(self, remote_path):

@@ -69,8 +69,10 @@ class SshClusterConnection(AbstractConnection):
     def __exit__(self, type, value, traceback):
         self._conn.close()
 
-    def execute(self, command):
-        return self._conn.execute(command)
+    def execute(self, command, ignore_exit_status=False, source_profile=True):
+        return self._conn.execute(command,
+                                  ignore_exit_status=ignore_exit_status,
+                                  source_profile=source_profile)
 
     @contextmanager
     def get(self, remote_path):
