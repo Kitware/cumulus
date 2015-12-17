@@ -39,21 +39,19 @@ import os
 import re
 import inspect
 import time
+import uuid
+from StringIO import StringIO
 from celery import signature
 from jinja2 import Environment, FileSystemLoader, Template
 from jsonpath_rw import parse
 
 
 def _put_script(conn, script_commands):
-    with tempfile.NamedTemporaryFile() as script:
-        script_name = os.path.basename(script.name)
-        script.write(script_commands)
-        script.write('echo $!\n')
-        script.flush()
-        conn.put(script.name)
-
-        cmd = './%s' % script_name
-        conn.execute('chmod 700 %s' % cmd)
+    script_name = uuid.uuid4().hex
+    script = script_commands + 'echo $!\n'
+    conn.put(StringIO(script), script_name)
+    cmd = './%s' % script_name
+    conn.execute('chmod 700 %s' % cmd)
 
     return cmd
 
@@ -82,7 +80,8 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
         with get_connection(girder_token, cluster) as conn:
             # First put girder client on master
             path = inspect.getsourcefile(cumulus.girderclient)
-            conn.put(path)
+            with open(path, 'r') as fp:
+                conn.put(fp, os.path.basename(path))
 
             # Create job directory
             conn.mkdir(_job_dir(job))
@@ -192,7 +191,6 @@ def _get_on_complete(job):
 @cumulus.starcluster.logging.capture
 def submit_job(cluster, job, log_write_url=None, girder_token=None):
     log = starcluster.logger.get_starcluster_logger()
-    script_filepath = None
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
     job_dir = _job_dir(job)
@@ -203,10 +201,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
         if _is_terminating(job, girder_token):
             return
 
-        # Write out script to upload to master
-        (_, script_filepath) = tempfile.mkstemp()
         script_name = job['name']
-        script_filepath = os.path.join(tempfile.gettempdir(), script_name)
 
         with logstdout():
             with get_connection(girder_token, cluster) as conn:
@@ -229,12 +224,9 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
 
                 script = _generate_submission_script(job, cluster, job_params)
 
-                with open(script_filepath, 'w') as fp:
-                    fp.write('%s' % script)
-
                 conn.mkdir(job_dir, ignore_failure=True)
                 # put the script to master
-                conn.put(script_filepath, job_dir)
+                conn.put(StringIO(script), os.path.join(job_dir, script_name))
                 # Now submit the job
 
                 if slots > -1:
@@ -640,7 +632,10 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
         with get_connection(girder_token, cluster) as conn:
             # First put girder client on master
             path = inspect.getsourcefile(cumulus.girderclient)
-            conn.put(path, os.path.normpath(os.path.join(job_dir, '..')))
+            with open(path, 'r') as fp:
+                conn.put(fp,
+                         os.path.normpath(os.path.join(job_dir, '..',
+                                                       os.path.basename(path))))
 
             log.info('Uploading output for "%s"' % job_name)
 
@@ -721,9 +716,9 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
             else:
                 try:
                     nohup_out_file_name = os.path.basename(nohup_out_path)
-                    conn.get(nohup_out_path)
+
                     # Log the output
-                    with open(nohup_out_file_name, 'r') as fp:
+                    with conn.get(nohup_out_path) as fp:
                         output = fp.read()
                         if output.strip():
                             log.error(output_message % output)
