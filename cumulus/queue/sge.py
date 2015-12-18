@@ -81,3 +81,18 @@ class SgeQueueAdapter(AbstractQueueAdapter):
                 state = m.group(2)
 
         return state
+
+    def number_of_slots(self, parallel_env):
+        slots = -1
+        output = self._cluster_connection.execute('qconf -sp %s' % parallel_env)
+
+        for line in output:
+            m = re.match('slots[\s]+(\d+)', line)
+            if m:
+                slots = m.group(1)
+                break
+
+        if slots < 1:
+            raise Exception('Unable to retrieve number of slots')
+
+        return slots

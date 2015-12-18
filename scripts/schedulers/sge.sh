@@ -8,6 +8,10 @@
 {% if maxWallTime -%}
 #$ -l h_rt={{maxWallTime}}
 {% endif -%}
+{% if gpus -%}
+#$ -l gpus={{gpus}}
+{% endif -%}
+
 
 cd $SGE_O_WORKDIR
 

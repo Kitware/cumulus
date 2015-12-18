@@ -145,23 +145,6 @@ def _get_parallel_env(cluster, job):
     return parallel_env
 
 
-def _get_number_of_slots(ssh, parallel_env):
-    slots = -1
-    # First get number of slots available
-    output = ssh.execute('qconf -sp %s' % parallel_env)
-
-    for line in output:
-        m = re.match('slots[\s]+(\d+)', line)
-        if m:
-            slots = m.group(1)
-            break
-
-    if slots < 1:
-        raise Exception('Unable to retrieve number of slots')
-
-    return slots
-
-
 def _is_terminating(job, girder_token):
     headers = {'Girder-Token':  girder_token}
     status_url = '%s/jobs/%s/status' % (cumulus.config.girder.baseUrl,
@@ -231,17 +214,18 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
                 if 'params' in job:
                     job_params = job['params']
 
+                slots = -1
                 parallel_env = _get_parallel_env(cluster, job)
                 if parallel_env:
                     job_params['parallelEnvironment'] = parallel_env
 
-                slots = -1
-                # If the number of slots has not been provided we will get the
-                # number of slots from the parallel environment
-                if ('numberOfSlots' not in cluster['config']) and parallel_env:
-                    slots = _get_number_of_slots(ssh, parallel_env)
-                    if slots > 0:
-                        job_params['numberOfSlots'] = int(slots)
+                    # If the number of slots has not been provided we will get
+                    # the number of slots from the parallel environment
+                    if ('numberOfSlots' not in cluster['config']):
+                        slots = get_queue_adapter(cluster, ssh) \
+                            .number_of_slots(parallel_env)
+                        if slots > 0:
+                            job_params['numberOfSlots'] = int(slots)
 
                 script = _generate_submission_script(job, cluster, job_params)
 
