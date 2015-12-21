@@ -21,11 +21,13 @@ from jsonpath_rw import parse
 
 from . import sge
 from . import pbs
+from . import slurm
 from cumulus.constants import QueueType
 
 type_to_adapter = {
     QueueType.SGE: sge.SgeQueueAdapter,
-    QueueType.PBS: pbs.PbsQueueAdapter
+    QueueType.PBS: pbs.PbsQueueAdapter,
+    QueueType.SLURM: slurm.SlurmQueueAdapter
 }
 
 
