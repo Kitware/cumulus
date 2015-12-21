@@ -5,10 +5,10 @@
 {% elif numberOfNodes -%}
 #SBATCH --nodes={{numberOfNodes}}
 {% endif -%}
-{% if numberOfCoresPerNode -%}
+{% if numberOfNodes and numberOfCoresPerNode -%}
 {{'#SBATCH --cpus-per-task=%s' % numberOfCoresPerNode if numberOfCoresPerNode }}
 {% endif -%}
-{% if numberOfGpusPerNode -%}
+{% if numberOfNodes and numberOfGpusPerNode -%}
 #SBATCH --gres=gpu:{{numberOfGpusPerNode}}
 {% endif -%}
 {% if maxWallTime -%}
