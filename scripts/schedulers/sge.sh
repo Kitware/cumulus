@@ -6,7 +6,7 @@
 #$ -pe {{ parallelEnvironment }} {{ numberOfSlots }}
 {% endif -%}
 {% if maxWallTime -%}
-#$ -l h_rt={{maxWallTime}}
+#$ -l h_rt=walltime={{maxWallTime.hours}}:{{maxWallTime.minutes}}:{{maxWallTime.seconds}}
 {% endif -%}
 {% if gpus -%}
 #$ -l gpus={{gpus}}
