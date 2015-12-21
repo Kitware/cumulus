@@ -54,7 +54,7 @@ class SlurmQueueAdapter(AbstractQueueAdapter):
         output = self._cluster_connection.execute(command)
 
         if len(output) != 1:
-            raise Exception('Unexpected qsub output: %s' % output)
+            raise Exception('Unexpected sbatch output: %s' % output)
 
         return self._parse_job_id(output)
 
