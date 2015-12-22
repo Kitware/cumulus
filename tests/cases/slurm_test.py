@@ -1,22 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-###############################################################################
-#  Copyright 2015 Kitware Inc.
-#
-#  Licensed under the Apache License, Version 2.0 ( the "License" );
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
-###############################################################################
-
 import unittest
 import mock
 import os
@@ -27,14 +8,14 @@ from cumulus.constants import QueueType
 from cumulus.starcluster.tasks import job
 
 
-class SgeQueueAdapterTestCase(unittest.TestCase):
+class SlurmQueueAdapterTestCase(unittest.TestCase):
 
     def setUp(self):
         self._cluster_connection = mock.MagicMock()
         self._adapter = get_queue_adapter({
             'config': {
                 'scheduler': {
-                    'type': QueueType.SGE
+                    'type': QueueType.SLURM
                 }
             }
         }, self._cluster_connection)
@@ -47,18 +28,18 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
         }
 
         self._adapter.terminate_job(job)
-        expected_call = [mock.call('qdel %d' % job_id)]
+        expected_call = [mock.call('scancel %d' % job_id)]
         self.assertEqual(self._cluster_connection.execute.call_args_list, expected_call)
 
     def test_submit_job(self):
         job_id = '123'
-        test_output = ['Your job %s ("test.sh") has been submitted' % job_id]
+        test_output = ['Submitted batch job %s' % job_id]
         job_script = 'script.sh'
         job = {
             AbstractQueueAdapter.QUEUE_JOB_ID: job_id,
             'dir': '/tmp'
         }
-        expected_calls = [mock.call('cd /tmp && qsub -cwd ./%s' % job_script)]
+        expected_calls = [mock.call('cd /tmp && sbatch ./%s' % job_script)]
 
         self._cluster_connection.execute.return_value = test_output
         actual_job_id = self._adapter.submit_job(job, job_script)
@@ -79,29 +60,16 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
             AbstractQueueAdapter.QUEUE_JOB_ID: job_id
         }
         job_status_output = [
-            'job-ID  prior   name       user         state submit/start at     queue                          slots ja-task-ID',
-            '-----------------------------------------------------------------------------------------------------------------',
-            '1126 0.50000 test.sh    cjh          r     11/18/2015 13:18:09 main.q@ulmus.kitware.com           1'
+              'JOBID PARTITION     NAME     USER  ST       TIME  NODES NODELIST(REASON)',
+              '%s general-c      hello_te cdc   R       0:14      2 f16n[10-11]' % job_id
         ]
-        expected_calls = [mock.call('qstat')]
+        expected_calls = [mock.call('squeue -j %s' % job_id)]
         self._cluster_connection.execute.return_value = job_status_output
         status = self._adapter.job_status(job)
         self.assertEqual(self._cluster_connection.execute.call_args_list, expected_calls)
         self.assertEqual(status, 'running')
 
-    def test_unsupported(self):
-        with self.assertRaises(Exception) as cm:
-            get_queue_adapter({
-                'config': {
-                    'scheduler': {
-                        'type': 'foo'
-                    }
-                }
-            }, None)
-
-        self.assertIsNotNone(cm.exception)
-
-    def test_submission_template_sge(self):
+    def test_submission_template(self):
         cluster = {
             '_id': 'dummy',
             'type': 'trad',
@@ -113,7 +81,7 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
                     'passphrase': 'its a secret'
                 },
                 'scheduler': {
-                    'type': 'sge'
+                    'type': 'slurm'
                 }
             }
         }
@@ -129,7 +97,7 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
         path = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                             'fixtures',
                                             'job',
-                                            'sge_submission_script1.sh'))
+                                            'slurm_submission_script.sh'))
         with open(path, 'r') as fp:
             expected = fp.read()
 
@@ -139,18 +107,18 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
         path = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                     'fixtures',
                                     'job',
-                                    'sge_submission_script2.sh'))
+                                    'slurm_submission_script_number_of_slots.sh'))
         with open(path, 'r') as fp:
             expected = fp.read()
 
         job_params = {
-            'parallelEnvironment': 'big',
             'numberOfSlots': 12312312
         }
         script = job._generate_submission_script(job_model, cluster, job_params)
         self.assertEqual(script, expected)
 
-    def test_submission_template_sge_gpus(self):
+
+    def test_submission_template_nodes(self):
         cluster = {
             '_id': 'dummy',
             'type': 'trad',
@@ -162,7 +130,7 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
                     'passphrase': 'its a secret'
                 },
                 'scheduler': {
-                    'type': 'sge'
+                    'type': 'slurm'
                 }
             }
         }
@@ -175,15 +143,72 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
             'output': [{'tail': True,  'path': 'dummy/file/path'}]
         }
 
+        # Just nodes specfied
         path = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                             'fixtures',
                                             'job',
-                                            'sge_submission_script_gpus.sh'))
+                                            'slurm_submission_script_nodes.sh'))
         with open(path, 'r') as fp:
             expected = fp.read()
 
         job_params = {
-            'gpus': 2
+            'numberOfNodes': 12312312
+        }
+        script = job._generate_submission_script(job_model, cluster, job_params)
+        self.assertEqual(script, expected)
+
+        # Nodes with number of cores
+        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                            'fixtures',
+                                            'job',
+                                            'slurm_submission_script_nodes_cores.sh'))
+        with open(path, 'r') as fp:
+            expected = fp.read()
+
+        job_params = {
+            'numberOfNodes': 12312312,
+            'numberOfCoresPerNode': 8
+        }
+        script = job._generate_submission_script(job_model, cluster, job_params)
+        self.assertEqual(script, expected)
+
+
+    def test_submission_template_nodes_gpu(self):
+        cluster = {
+            '_id': 'dummy',
+            'type': 'trad',
+            'name': 'dummy',
+            'config': {
+                'host': 'dummy',
+                'ssh': {
+                    'user': 'dummy',
+                    'passphrase': 'its a secret'
+                },
+                'scheduler': {
+                    'type': 'slurm'
+                }
+            }
+        }
+        job_id = '123432423'
+        job_model = {
+            '_id': job_id,
+            'queueJobId': '1',
+            'name': 'dummy',
+            'commands': ['ls', 'sleep 20', 'mpirun -n 1000000 parallel'],
+            'output': [{'tail': True,  'path': 'dummy/file/path'}]
+        }
+
+        # Nodes with number of gpus
+        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                            'fixtures',
+                                            'job',
+                                            'slurm_submission_script_nodes_gpus.sh'))
+        with open(path, 'r') as fp:
+            expected = fp.read()
+
+        job_params = {
+            'numberOfNodes': 12312312,
+            'numberOfGpusPerNode': 2
         }
         script = job._generate_submission_script(job_model, cluster, job_params)
         self.assertEqual(script, expected)

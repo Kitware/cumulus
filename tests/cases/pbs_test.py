@@ -1,11 +1,13 @@
 import unittest
 import mock
+import os
 
 from cumulus.queue import get_queue_adapter
 from cumulus.queue.abstract import AbstractQueueAdapter
 from cumulus.constants import QueueType
+from cumulus.starcluster.tasks import job
 
-class SgeQueueAdapterTestCase(unittest.TestCase):
+class PbsQueueAdapterTestCase(unittest.TestCase):
 
     def setUp(self):
         self._cluster_connection = mock.MagicMock()
@@ -67,3 +69,137 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
         status = self._adapter.job_status(job)
         self.assertEqual(self._cluster_connection.execute.call_args_list, expected_calls)
         self.assertEqual(status, 'complete')
+
+    def test_submission_template_pbs(self):
+        cluster = {
+            '_id': 'dummy',
+            'type': 'trad',
+            'name': 'dummy',
+            'config': {
+                'host': 'dummy',
+                'ssh': {
+                    'user': 'dummy',
+                    'passphrase': 'its a secret'
+                },
+                'scheduler': {
+                    'type': 'pbs'
+                }
+            }
+        }
+        job_id = '123432423'
+        job_model = {
+            '_id': job_id,
+            'queueJobId': '1',
+            'name': 'dummy',
+            'commands': ['ls', 'sleep 20', 'mpirun -n 1000000 parallel'],
+            'output': [{'tail': True,  'path': 'dummy/file/path'}]
+        }
+
+        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                            'fixtures',
+                                            'job',
+                                            'pbs_submission_script1.sh'))
+        with open(path, 'r') as fp:
+            expected = fp.read()
+
+        script = job._generate_submission_script(job_model, cluster, {})
+        self.assertEqual(script, expected)
+
+        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                    'fixtures',
+                                    'job',
+                                    'pbs_submission_script2.sh'))
+        with open(path, 'r') as fp:
+            expected = fp.read()
+
+        job_params = {
+            'numberOfSlots': 12312312
+        }
+        script = job._generate_submission_script(job_model, cluster, job_params)
+        self.assertEqual(script, expected)
+
+
+    def test_submission_template_pbs_nodes(self):
+        cluster = {
+            '_id': 'dummy',
+            'type': 'trad',
+            'name': 'dummy',
+            'config': {
+                'host': 'dummy',
+                'ssh': {
+                    'user': 'dummy',
+                    'passphrase': 'its a secret'
+                },
+                'scheduler': {
+                    'type': 'pbs'
+                }
+            }
+        }
+        job_id = '123432423'
+        job_model = {
+            '_id': job_id,
+            'queueJobId': '1',
+            'name': 'dummy',
+            'commands': ['ls', 'sleep 20', 'mpirun -n 1000000 parallel'],
+            'output': [{'tail': True,  'path': 'dummy/file/path'}]
+        }
+
+        # Just nodes specfied
+        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                            'fixtures',
+                                            'job',
+                                            'pbs_submission_script_nodes.sh'))
+        with open(path, 'r') as fp:
+            expected = fp.read()
+
+        job_params = {
+            'numberOfNodes': 12312312
+        }
+        script = job._generate_submission_script(job_model, cluster, job_params)
+        self.assertEqual(script, expected)
+
+        # Nodes with number of cores
+        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                            'fixtures',
+                                            'job',
+                                            'pbs_submission_script_nodes_cores.sh'))
+        with open(path, 'r') as fp:
+            expected = fp.read()
+
+        job_params = {
+            'numberOfNodes': 12312312,
+            'numberOfCoresPerNode': 8
+        }
+        script = job._generate_submission_script(job_model, cluster, job_params)
+        self.assertEqual(script, expected)
+
+        # Nodes with number of gpus
+        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                            'fixtures',
+                                            'job',
+                                            'pbs_submission_script_nodes_gpus.sh'))
+        with open(path, 'r') as fp:
+            expected = fp.read()
+
+        job_params = {
+            'numberOfNodes': 12312312,
+            'numberOfGpusPerNode': 8
+        }
+        script = job._generate_submission_script(job_model, cluster, job_params)
+        self.assertEqual(script, expected)
+
+        # Nodes with number of cores and gpus
+        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                            'fixtures',
+                                            'job',
+                                            'pbs_submission_script_nodes_cores_gpus.sh'))
+        with open(path, 'r') as fp:
+            expected = fp.read()
+
+        job_params = {
+            'numberOfNodes': 12312312,
+            'numberOfGpusPerNode': 8,
+            'numberOfCoresPerNode': 8
+        }
+        script = job._generate_submission_script(job_model, cluster, job_params)
+        self.assertEqual(script, expected)

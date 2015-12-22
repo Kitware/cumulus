@@ -43,6 +43,7 @@ class VolumeState:
 class QueueType:
     SGE = 'sge'
     PBS = 'pbs'
+    SLURM = 'slurm'
 
     @staticmethod
     def is_valid_type(type):
