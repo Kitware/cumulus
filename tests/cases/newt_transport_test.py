@@ -117,6 +117,25 @@ class NewtClusterConnectionTestCase(unittest.TestCase):
                 with self.assertRaises(NewtException) as cm:
                     conn.stat(self.test_file_path)
 
+    def test_list(self):
+        with httmock.HTTMock(self.me):
+            with get_connection(self._girder_token, self._cluster) as conn:
+                for path in conn.list(self.test_case_dir):
+                    self.assertEqual(len(path.keys()), 6)
+                    self.assertTrue('name' in path)
+                    self.assertTrue('group' in path)
+                    self.assertTrue('user' in path)
+                    self.assertTrue('mode' in path)
+                    self.assertTrue('date' in path)
+                    self.assertTrue('size' in path)
+
+    def test_perms_to_mode(self):
+        test_perms = 'drwxr-xr-x'
+        with httmock.HTTMock(self.me):
+            with get_connection(self._girder_token, self._cluster) as conn:
+                self.assertEqual(conn._perms_to_mode(test_perms), 16877)
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Run NewtClusterConnectionTestCase')

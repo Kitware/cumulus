@@ -116,3 +116,16 @@ class SshClusterConnection(AbstractConnection):
     def remove(self, remote_path):
         with self._conn.transport.open_sftp_client() as sftp:
             return sftp.remove(remote_path)
+
+    def list(self, remote_path):
+        with self._conn.transport.open_sftp_client() as sftp:
+            for path in sftp.listdir_iter(remote_path):
+                yield {
+                    'name': path.filename,
+                    'user': path.st_uid,
+                    'group': path.st_gid,
+                    'mode': path.st_mode,
+                    # For now just pass mtime through
+                    'date': path.st_mtime,
+                    'size': path.st_size
+                }

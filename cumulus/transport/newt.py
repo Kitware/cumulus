@@ -42,9 +42,34 @@ newt_rm_path ='/bin/rm'
 
 # TODO create map of command to fullpath for NEWT for example ls => /bin/ls ...
 # then do the substiution ...
+
+
 commands = {
     'ls': '/bin/ls',
     'rm': '/bin/rm'
+}
+
+type = {
+    'd': stat.S_IFDIR,
+    'l': stat.S_IFLNK
+}
+
+user = {
+    'r': stat.S_IRUSR,
+    'w': stat.S_IWUSR,
+    'x': stat.S_IXUSR
+}
+
+group = {
+    'r': stat.S_IRGRP,
+    'w': stat.S_IWGRP,
+    'x': stat.S_IXGRP
+}
+
+other = {
+    'r': stat.S_IROTH,
+    'w': stat.S_IWOTH,
+    'x': stat.S_IXOTH
 }
 
 
@@ -162,3 +187,48 @@ class NewtClusterConnection(AbstractConnection):
         command = newt_rm_path + ' %s' % remote_path
 
         return self.execute(command)
+
+    def _perms_to_mode(self, perms):
+        mode = 0
+        index = 0
+        def apply_perms(perms_to_modes, perms):
+            mode = 0
+            for p in perms:
+                if p in perms_to_modes:
+                    mode |= perms_to_modes[p]
+
+            return mode
+
+        # type
+        mode |= apply_perms(type, perms[index:1])
+        index += 1
+
+        # user
+        mode |= apply_perms(user, perms[index: index+3])
+        index += 3
+
+        # group
+        mode |= apply_perms(group, perms[index: index+3])
+        index += 3
+
+        # other
+        mode |= apply_perms(other, perms[index: index+3])
+        index += 3
+
+        return mode
+
+    def list(self, remote_path):
+        url = '%s/file/%s/%s' % (newt_base_url, self._machine, remote_path)
+
+        r = self._session.get(url)
+        check_status(r)
+
+        paths = r.json()
+
+        for path in paths:
+            perms = path['perms']
+            del path['perms']
+            del path['hardlinks']
+
+            path['mode'] = self._perms_to_mode(perms)
+            yield path

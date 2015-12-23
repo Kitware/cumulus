@@ -40,3 +40,18 @@ class AbstractConnection(object):
 
     def remove(self, remote_path):
         raise NotImplementedError('Implemented by subclass')
+
+    def list(self, remove_path):
+        """
+        Returns an array of objects of the form:
+
+        {
+            'name': <name> ,
+            'group': <group>,
+            'user': <user>,
+            'mode': <mode>,
+            'date': <data>,
+            'size': <size>
+        }
+        """
+        raise NotImplementedError('Implemented by subclass')
