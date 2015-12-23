@@ -43,6 +43,7 @@ from StringIO import StringIO
 from celery import signature
 from jinja2 import Environment, FileSystemLoader, Template
 from jsonpath_rw import parse
+import tempfile
 
 
 def _put_script(conn, script_commands):
@@ -142,6 +143,7 @@ def _get_parallel_env(cluster, job):
         parallel_env = 'orte'
 
     return parallel_env
+
 
 def _is_terminating(job, girder_token):
     headers = {'Girder-Token':  girder_token}
@@ -433,7 +435,7 @@ class Complete(JobState):
                     path = Template(output['path']).render(**variables)
                     tmp_path = os.path.join(tempfile.tempdir, path)
                     path = os.path.join(_job_dir(self.job), path)
-                    self.ssh.get(path, localpath=tmp_path)
+                    self.conn.get(path, localpath=tmp_path)
                     error_regex = re.compile(output['errorRegEx'])
                     with open(tmp_path, 'r') as fp:
                         for line in fp:
@@ -738,7 +740,8 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
                     job_status = from_string(job['status'], task=task,
                                              cluster=cluster, job=job,
                                              log_write_url=log_write_url,
-                                             girder_token=girder_token, ssh=ssh)
+                                             girder_token=girder_token,
+                                             conn=conn)
                     job_status = Complete(job_status)
                     job_status = job_status.next(JobQueueState.COMPLETE)
                     job_status.run()

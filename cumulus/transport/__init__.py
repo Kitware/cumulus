@@ -23,6 +23,7 @@ from .newt import NewtClusterConnection
 
 ssh_cluster = ['trad', 'ec2']
 
+
 def get_connection(girder_token, cluster):
     if cluster['type'] in ssh_cluster:
         return SshClusterConnection(girder_token, cluster)

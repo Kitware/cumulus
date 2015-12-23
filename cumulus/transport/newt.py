@@ -25,20 +25,18 @@ import re
 import requests
 from paramiko import SFTPAttributes
 
-from starcluster.sshutils import SSHClient
-import starcluster.config
 from jsonpath_rw import parse
 
 from .abstract import AbstractConnection
-from cumulus.constants import ClusterType
 import cumulus
-from cumulus.common import create_config_request
 from cumulus.common import check_status
 
 newt_base_url = 'https://newt.nersc.gov/newt'
-newt_stat_command = '/bin/stat -c "st_mode=%f,st_ino=%i,st_dev=%d,st_nlink=%h,st_uid=%u,st_gid=%g,st_size=%s,st_atime=%X,st_mtime=%Y,st_ctime=%Z" '
-newt_mkdir_path ='/bin/mkdir'
-newt_rm_path ='/bin/rm'
+newt_stat_command = '/bin/stat -c "st_mode=%f,st_ino=%i,st_dev=%d,' \
+    'st_nlink=%h,st_uid=%u,st_gid=%g,st_size=%s,st_atime=%X,st_mtime=%Y,' \
+    'st_ctime=%Z" '
+newt_mkdir_path = '/bin/mkdir'
+newt_rm_path = '/bin/rm'
 
 # TODO create map of command to fullpath for NEWT for example ls => /bin/ls ...
 # then do the substiution ...
@@ -75,6 +73,7 @@ other = {
 
 class NewtException(Exception):
     pass
+
 
 class NewtClusterConnection(AbstractConnection):
     def __init__(self, girder_token, cluster):
@@ -168,7 +167,6 @@ class NewtClusterConnection(AbstractConnection):
         r = self._session.post(url, files=files)
         check_status(r)
 
-
     def stat(self, remote_path):
         output = self.execute(newt_stat_command + remote_path)
         values = dict(s.split('=') for s in output.split(','))
@@ -191,6 +189,7 @@ class NewtClusterConnection(AbstractConnection):
     def _perms_to_mode(self, perms):
         mode = 0
         index = 0
+
         def apply_perms(perms_to_modes, perms):
             mode = 0
             for p in perms:
