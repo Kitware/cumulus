@@ -8,8 +8,6 @@ from girder.constants import SettingKey
 from girder.constants import AssetstoreType, AccessType
 from girder.api.docs import addModel
 
-newt_base_url = 'https://newt.nersc.gov/newt'
-
 class SftpAssetstoreResource(Resource):
     def __init__(self):
         super(SftpAssetstoreResource, self).__init__()
