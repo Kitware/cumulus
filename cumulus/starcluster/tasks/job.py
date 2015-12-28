@@ -22,37 +22,36 @@ import traceback
 from cumulus.starcluster.logging import logstdout
 import cumulus.starcluster.logging
 from cumulus.common import check_status
-from cumulus.starcluster.common import _log_exception, get_ssh_connection
+from cumulus.starcluster.common import _log_exception
 from cumulus.celery import command, monitor
 import cumulus
 import cumulus.girderclient
 from cumulus.constants import ClusterType, JobQueueState
 from cumulus.queue import get_queue_adapter
 from cumulus.queue.abstract import AbstractQueueAdapter
+from cumulus.transport import get_connection
 import starcluster.config
 import starcluster.logger
 import starcluster.exception
 import requests
-import tempfile
 import os
 import re
 import inspect
 import time
+import uuid
+from StringIO import StringIO
 from celery import signature
 from jinja2 import Environment, FileSystemLoader, Template
 from jsonpath_rw import parse
+import tempfile
 
 
-def _put_script(ssh, script_commands):
-    with tempfile.NamedTemporaryFile() as script:
-        script_name = os.path.basename(script.name)
-        script.write(script_commands)
-        script.write('echo $!\n')
-        script.flush()
-        ssh.put(script.name)
-
-        cmd = './%s' % script_name
-        ssh.execute('chmod 700 %s' % cmd)
+def _put_script(conn, script_commands):
+    script_name = uuid.uuid4().hex
+    script = script_commands + 'echo $!\n'
+    conn.put(StringIO(script), script_name)
+    cmd = './%s' % script_name
+    conn.execute('chmod 700 %s' % cmd)
 
     return cmd
 
@@ -78,13 +77,14 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
     job_name = job['name']
 
     try:
-        with get_ssh_connection(girder_token, cluster) as ssh:
+        with get_connection(girder_token, cluster) as conn:
             # First put girder client on master
             path = inspect.getsourcefile(cumulus.girderclient)
-            ssh.put(path)
+            with open(path, 'r') as fp:
+                conn.put(fp, os.path.basename(path))
 
             # Create job directory
-            ssh.mkdir(_job_dir(job))
+            conn.mkdir(_job_dir(job))
 
             log.info('Downloading input for "%s"' % job_name)
 
@@ -101,11 +101,11 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
             download_cmd = 'nohup %s  &> %s  &\n' % (download_cmd,
                                                      download_output)
 
-            download_cmd = _put_script(ssh, download_cmd)
-            output = ssh.execute(download_cmd)
+            download_cmd = _put_script(conn, download_cmd)
+            output = conn.execute(download_cmd)
 
             # Remove download script
-            ssh.unlink(download_cmd)
+            conn.remove(download_cmd)
 
         if len(output) != 1:
             raise Exception('PID not returned by execute command')
@@ -192,7 +192,6 @@ def _get_on_complete(job):
 @cumulus.starcluster.logging.capture
 def submit_job(cluster, job, log_write_url=None, girder_token=None):
     log = starcluster.logger.get_starcluster_logger()
-    script_filepath = None
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
     job_dir = _job_dir(job)
@@ -203,13 +202,10 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
         if _is_terminating(job, girder_token):
             return
 
-        # Write out script to upload to master
-        (_, script_filepath) = tempfile.mkstemp()
         script_name = job['name']
-        script_filepath = os.path.join(tempfile.gettempdir(), script_name)
 
         with logstdout():
-            with get_ssh_connection(girder_token, cluster) as ssh:
+            with get_connection(girder_token, cluster) as conn:
                 job_params = {}
                 if 'params' in job:
                     job_params = job['params']
@@ -222,27 +218,24 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
                     # If the number of slots has not been provided we will get
                     # the number of slots from the parallel environment
                     if ('numberOfSlots' not in cluster['config']):
-                        slots = get_queue_adapter(cluster, ssh) \
+                        slots = get_queue_adapter(cluster, conn) \
                             .number_of_slots(parallel_env)
                         if slots > 0:
                             job_params['numberOfSlots'] = int(slots)
 
                 script = _generate_submission_script(job, cluster, job_params)
 
-                with open(script_filepath, 'w') as fp:
-                    fp.write('%s' % script)
-
-                ssh.mkdir(job_dir, ignore_failure=True)
+                conn.mkdir(job_dir, ignore_failure=True)
                 # put the script to master
-                ssh.put(script_filepath, job_dir)
+                conn.put(StringIO(script), os.path.join(job_dir, script_name))
                 # Now submit the job
 
                 if slots > -1:
                     log.info('We have %s slots available' % slots)
 
                 queue_job_id \
-                    = get_queue_adapter(cluster, ssh).submit_job(job,
-                                                                 script_name)
+                    = get_queue_adapter(cluster, conn).submit_job(job,
+                                                                  script_name)
 
             # Update the state and queue job id
             patch_data = {
@@ -281,9 +274,6 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
         check_status(r)
         _log_exception(ex)
         raise
-    finally:
-        if script_filepath and os.path.exists(script_filepath):
-            os.remove(script_filepath)
 
 
 def submit(girder_token, cluster, job, log_url):
@@ -395,8 +385,8 @@ class Running(JobState):
                 command = 'tail -n +%d %s' % (offset, tail_path)
                 try:
                     # Only tail if file exists
-                    if self.ssh.isfile(tail_path):
-                        stdout = self.ssh.execute(command)
+                    if self.conn.isfile(tail_path):
+                        stdout = self.conn.execute(command)
                         output['content'] = output['content'] + stdout
                     else:
                         log.info('Skipping tail of %s as file doesn\'t '
@@ -445,7 +435,7 @@ class Complete(JobState):
                     path = Template(output['path']).render(**variables)
                     tmp_path = os.path.join(tempfile.tempdir, path)
                     path = os.path.join(_job_dir(self.job), path)
-                    self.ssh.get(path, localpath=tmp_path)
+                    self.conn.get(path, localpath=tmp_path)
                     error_regex = re.compile(output['errorRegEx'])
                     with open(tmp_path, 'r') as fp:
                         for line in fp:
@@ -571,7 +561,7 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
     status_url = '%s/jobs/%s/status' % (cumulus.config.girder.baseUrl, job_id)
 
     try:
-        with get_ssh_connection(girder_token, cluster) as ssh:
+        with get_connection(girder_token, cluster) as conn:
             # First get the current status
             r = requests.get(status_url, headers=headers)
             check_status(r)
@@ -583,11 +573,11 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
 
             try:
                 job_queue_state \
-                    = get_queue_adapter(cluster, ssh).job_status(job)
+                    = get_queue_adapter(cluster, conn).job_status(job)
                 job_status = from_string(current_status, task=task,
                                          cluster=cluster, job=job,
                                          log_write_url=log_write_url,
-                                         girder_token=girder_token, ssh=ssh)
+                                         girder_token=girder_token, conn=conn)
                 job_status = job_status.next(job_queue_state)
                 job['status'] = str(job_status)
                 job_status.run()
@@ -637,10 +627,13 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
         if _is_terminating(job, girder_token):
             return
 
-        with get_ssh_connection(girder_token, cluster) as ssh:
+        with get_connection(girder_token, cluster) as conn:
             # First put girder client on master
             path = inspect.getsourcefile(cumulus.girderclient)
-            ssh.put(path, os.path.normpath(os.path.join(job_dir, '..')))
+            with open(path, 'r') as fp:
+                conn.put(fp,
+                         os.path.normpath(os.path.join(job_dir, '..',
+                                                       os.path.basename(path))))
 
             log.info('Uploading output for "%s"' % job_name)
 
@@ -655,11 +648,11 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
                                                                upload_output))
             cmds.append('nohup %s  &> ../%s  &\n' % (upload_cmd, upload_output))
 
-            upload_cmd = _put_script(ssh, '\n'.join(cmds))
-            output = ssh.execute(upload_cmd)
+            upload_cmd = _put_script(conn, '\n'.join(cmds))
+            output = conn.execute(upload_cmd)
 
             # Remove upload script
-            ssh.unlink(upload_cmd)
+            conn.remove(upload_cmd)
 
         if len(output) != 1:
             raise Exception('PID not returned by execute command')
@@ -707,11 +700,11 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
         if _is_terminating(job, girder_token):
             return
 
-        with get_ssh_connection(girder_token, cluster) as ssh:
+        with get_connection(girder_token, cluster) as conn:
             # See if the process is still running
-            output = ssh.execute('ps %s | grep %s' % (pid, pid),
-                                 ignore_exit_status=True,
-                                 source_profile=False)
+            output = conn.execute('ps %s | grep %s' % (pid, pid),
+                                  ignore_exit_status=True,
+                                  source_profile=False)
 
             if len(output) > 0:
                 # Process is still running so schedule self again in about 5
@@ -721,9 +714,9 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
             else:
                 try:
                     nohup_out_file_name = os.path.basename(nohup_out_path)
-                    ssh.get(nohup_out_path)
+
                     # Log the output
-                    with open(nohup_out_file_name, 'r') as fp:
+                    with conn.get(nohup_out_path) as fp:
                         output = fp.read()
                         if output.strip():
                             log.error(output_message % output)
@@ -747,7 +740,8 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
                     job_status = from_string(job['status'], task=task,
                                              cluster=cluster, job=job,
                                              log_write_url=log_write_url,
-                                             girder_token=girder_token, ssh=ssh)
+                                             girder_token=girder_token,
+                                             conn=conn)
                     job_status = Complete(job_status)
                     job_status = job_status.next(JobQueueState.COMPLETE)
                     job_status.run()
@@ -782,9 +776,9 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
     try:
 
         with logstdout():
-            with get_ssh_connection(girder_token, cluster) as ssh:
+            with get_connection(girder_token, cluster) as conn:
                 if AbstractQueueAdapter.QUEUE_JOB_ID in job:
-                    queue_adapter = get_queue_adapter(cluster, ssh)
+                    queue_adapter = get_queue_adapter(cluster, conn)
                     output = queue_adapter.terminate_job(job)
                 else:
                     r = requests.patch(status_url, headers=headers,
@@ -798,16 +792,16 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
                                 job=job,
                                 base_url=cumulus.config.girder.baseUrl)
 
-                    on_terminate = _put_script(ssh, commands + '\n')
+                    on_terminate = _put_script(conn, commands + '\n')
 
                     terminate_output = '%s.terminate.out' % job_id
                     terminate_cmd = 'nohup %s  &> %s  &\n' % (on_terminate,
                                                               terminate_output)
-                    terminate_cmd = _put_script(ssh, terminate_cmd)
-                    output = ssh.execute(terminate_cmd)
+                    terminate_cmd = _put_script(conn, terminate_cmd)
+                    output = conn.execute(terminate_cmd)
 
-                    ssh.unlink(on_terminate)
-                    ssh.unlink(terminate_cmd)
+                    conn.remove(on_terminate)
+                    conn.remove(terminate_cmd)
 
                     if len(output) != 1:
                         raise Exception('PID not returned by execute command')
@@ -848,9 +842,9 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
 @command.task(bind=True, max_retries=5)
 def remove_output(task, cluster, job, girder_token):
     try:
-        with get_ssh_connection(girder_token, cluster) as ssh:
+        with get_connection(girder_token, cluster) as conn:
             rm_cmd = 'rm -rf %s' % _job_dir(job)
-            ssh.execute(rm_cmd)
+            conn.execute(rm_cmd)
     except EOFError:
         # Try again
         task.retry(countdown=5)

@@ -26,9 +26,10 @@ from jsonpath_rw import parse
 
 import cumulus
 from cumulus.ssh.tasks import key
-from cumulus.starcluster.common import get_ssh_connection
+from cumulus.transport import get_connection
+from cumulus.transport.ssh import SshClusterConnection
 
-class CommonTestCase(unittest.TestCase):
+class TransportTestCase(unittest.TestCase):
     def setUp(self):
         self._cluster_id = '55c3a698f6571011a48f6817'
         self._key_path = os.path.join(cumulus.config.ssh.keyStore, self._cluster_id)
@@ -55,10 +56,10 @@ class CommonTestCase(unittest.TestCase):
             'type': 'trad'
         }
 
-        with get_ssh_connection('girder_token', cluster) as ssh:
-            pass
+        with get_connection('girder_token', cluster) as ssh:
+            self.assertTrue(isinstance(ssh, SshClusterConnection))
 
-    @mock.patch('cumulus.starcluster.common.create_config_request')
+    @mock.patch('cumulus.transport.ssh.create_config_request')
     @mock.patch('starcluster.config.StarClusterConfig')
     def test_get_ssh_connection_ec2(self, StarClusterConfig,
                                     create_config_request):
@@ -71,8 +72,8 @@ class CommonTestCase(unittest.TestCase):
             'name': 'mycluster'
         }
 
-        with get_ssh_connection('girder_token', cluster) as ssh:
-            pass
+        with get_connection('girder_token', cluster) as ssh:
+            self.assertTrue(isinstance(ssh, SshClusterConnection))
 
         self.assertEqual(len(create_config_request.call_args_list),
                          1, 'The cluster configuration was not fetched')

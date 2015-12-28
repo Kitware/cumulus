@@ -64,6 +64,7 @@ class PbsQueueAdapter(AbstractQueueAdapter):
                          line)
 
             if m and m.group(1) == job_id:
-                state = m.group(2)
+                state = m.group(2).lower()
+                break
 
-        return state.lower()
+        return state
