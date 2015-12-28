@@ -63,16 +63,16 @@ class SlurmQueueAdapter(AbstractQueueAdapter):
                                                   % job['queueJobId'])
 
         state = None
-        pbs_state = self._extract_job_status(output, job)
+        slurm_state = self._extract_job_status(output, job)
 
-        if pbs_state:
-            if pbs_state in SlurmQueueAdapter.RUNNING_STATE:
+        if slurm_state:
+            if slurm_state in SlurmQueueAdapter.RUNNING_STATE:
                 state = JobQueueState.RUNNING
-            elif pbs_state in SlurmQueueAdapter.ERROR_STATE:
+            elif slurm_state in SlurmQueueAdapter.ERROR_STATE:
                 state = JobQueueState.ERROR
-            elif pbs_state in SlurmQueueAdapter.QUEUED_STATE:
+            elif slurm_state in SlurmQueueAdapter.QUEUED_STATE:
                 state = JobQueueState.QUEUED
-            elif pbs_state in SlurmQueueAdapter.COMPLETE_STATE:
+            elif slurm_state in SlurmQueueAdapter.COMPLETE_STATE:
                 state = JobQueueState.COMPLETE
 
         return state
