@@ -83,11 +83,11 @@ class NewtClusterConnection(AbstractConnection):
         # Do we need to get the session id for this user
         if not self._newt_session_id:
             headers = {'Girder-Token':  self._girder_token}
-            url = '%s/user/me' % cumulus.config.girder.baseUrl
+            url = '%s/newt/sessionId' % cumulus.config.girder.baseUrl
             r = requests.get(url, headers=headers)
             check_status(r)
 
-            session_id = parse('newt.sessionId').find(r.json())
+            session_id = parse('sessionId').find(r.json())
 
             if not session_id:
                 raise Exception('No NEWT session ID present')

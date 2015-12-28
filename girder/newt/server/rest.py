@@ -21,7 +21,7 @@ import requests
 import cherrypy
 
 from girder.api.describe import Description
-from girder.api.rest import Resource, RestException
+from girder.api.rest import Resource, RestException, getCurrentUser
 from girder.api import access
 from girder.constants import SettingKey
 
@@ -33,6 +33,7 @@ class Newt(Resource):
         self.resourceName = 'newt'
 
         self.route('PUT', ('authenticate', ':sessionId'), self.authenticate)
+        self.route('GET', ('sessionId',), self.session_id)
 
     def _create_or_reuse_user(self, user_id, user_name, email, first_name,
                               last_name):
@@ -129,5 +130,18 @@ class Newt(Resource):
     authenticate.description = (
         Description('Authenticate with Girder using a NEWT session id.')
         .param('sessionId', 'The NEWT session id', paramType='path'))
+
+    @access.user
+    def session_id(self):
+        user = getCurrentUser()
+
+        return {
+            'sessionId': user.get('newt', {}).get('sessionId')
+        }
+
+    session_id.description = (
+        Description('Returns the NEWT session id for this user'))
+
+
 
 

@@ -32,11 +32,9 @@ newt_base_url = 'https://newt.nersc.gov/newt'
 
 class NewtClusterConnectionTestCase(unittest.TestCase):
 
-    def _me(self, url, request):
+    def _session_id(self, url, request):
         content = {
-            'newt': {
-                'sessionId': self.session_id
-            }
+            'sessionId': self.session_id
         }
         content = json.dumps(content)
         headers = {
@@ -68,12 +66,12 @@ class NewtClusterConnectionTestCase(unittest.TestCase):
         }
         self._girder_token = 'dummy'
 
-        def _me(url, request):
-            return self._me(url, request)
+        def session_id(url, request):
+            return self._session_id(url, request)
 
-        url = '/api/v1/user/me'
+        url = '/api/v1/newt/sessionId'
         self.me = httmock.urlmatch(
-            path=r'^%s$' % url, method='GET')(_me)
+            path=r'^%s$' % url, method='GET')(session_id)
 
         self.scratch_dir = '/global/cscratch1/sd/%s' % NewtClusterConnectionTestCase.USER
         self.test_data = 'nothing to see here!'
