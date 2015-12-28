@@ -78,7 +78,8 @@ class SgeQueueAdapter(AbstractQueueAdapter):
             m = re.match('^\\s*(\\d+)\\s+\\S+\\s+\\S+\\s+\\S+\\s+(\\w+)',
                          line)
             if m and m.group(1) == job_id:
-                state = m.group(2)
+                state = m.group(2).lower()
+                break
 
         return state
 
