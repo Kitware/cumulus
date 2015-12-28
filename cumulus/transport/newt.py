@@ -38,10 +38,6 @@ newt_stat_command = '/bin/stat -c "st_mode=%f,st_ino=%i,st_dev=%d,' \
 newt_mkdir_path = '/bin/mkdir'
 newt_rm_path = '/bin/rm'
 
-# TODO create map of command to fullpath for NEWT for example ls => /bin/ls ...
-# then do the substiution ...
-
-
 commands = {
     'ls': '/bin/ls',
     'rm': '/bin/rm'
