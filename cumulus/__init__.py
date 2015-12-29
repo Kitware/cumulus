@@ -18,7 +18,6 @@
 ###############################################################################
 
 import json
-import inspect
 from jsonschema import validate
 from easydict import EasyDict as edict
 import pkg_resources as pr
