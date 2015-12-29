@@ -2,3 +2,7 @@
 .project
 .pydevproject
 .coverage
+build/
+cumulus.egg-info/
+dist/
+*~

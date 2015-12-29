@@ -20,9 +20,8 @@
 import json
 import inspect
 from jsonschema import validate
-import os
 from easydict import EasyDict as edict
-
+import pkg_resources as pr
 
 config_schema = {
     "type": "object",
@@ -57,15 +56,12 @@ config_schema = {
     }
 }
 
-module_dir = os.path.dirname(os.path
-                             .abspath(inspect.getfile(inspect.currentframe())))
-config_path = os.path.join(module_dir, '..', 'config.json')
-
-if not os.path.exists(config_path):
-    config_path = os.path.join(module_dir, '..', 'default_config.json')
-
-with open(config_path, 'r') as fp:
-    config = json.load(fp)
+if pr.resource_exists(__name__, "conf/config.json"):
+    config = json.loads(
+        pr.resource_string(__name__, "conf/config.json"))
+else:
+    config = json.loads(
+        pr.resource_string(__name__, "conf/default_config.json"))
 
 validate(config, config_schema)
 
