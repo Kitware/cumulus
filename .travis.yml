@@ -23,6 +23,7 @@ before_install:
     - mongod --version
     - export IGNORE_PLUGINS=celery_jobs,geospatial,google_analytics,hdfs_assetstore,jquery_widgets,meta
     - girder/scripts/InstallPythonRequirements.py --mode=dev --ignore-plugins=${IGNORE_PLUGINS}
+    - pip install girder/clients/python
     # Symlink plugin
     - popd
     - pwd
