@@ -126,20 +126,20 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
             'output': [{'tail': True,  'path': 'dummy/file/path'}]
         }
 
-        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                            'fixtures',
-                                            'job',
-                                            'sge_submission_script1.sh'))
+        path = os.path.join(os.environ["CUMULUS_SOURCE_DIRECTORY"],
+                            'tests', 'cases', 'fixtures', 'job',
+                            'sge_submission_script1.sh')
+
         with open(path, 'r') as fp:
             expected = fp.read()
 
         script = job._generate_submission_script(job_model, cluster, {})
         self.assertEqual(script, expected)
 
-        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                    'fixtures',
-                                    'job',
-                                    'sge_submission_script2.sh'))
+        path = os.path.join(os.environ["CUMULUS_SOURCE_DIRECTORY"],
+                            'tests', 'cases', 'fixtures', 'job',
+                            'sge_submission_script2.sh')
+
         with open(path, 'r') as fp:
             expected = fp.read()
 
@@ -175,10 +175,10 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
             'output': [{'tail': True,  'path': 'dummy/file/path'}]
         }
 
-        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                            'fixtures',
-                                            'job',
-                                            'sge_submission_script_gpus.sh'))
+        path = os.path.join(os.environ["CUMULUS_SOURCE_DIRECTORY"],
+                            'tests', 'cases', 'fixtures', 'job',
+                            'sge_submission_script_gpus.sh')
+
         with open(path, 'r') as fp:
             expected = fp.read()
 

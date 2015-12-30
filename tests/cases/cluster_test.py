@@ -38,7 +38,9 @@ class MockEasyEC2():
 
 class MockStarClusterConfig(StarClusterConfig):
     def __init__(self, *args, **kw):
-        path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures', 'config'))
+        path = os.path.join(os.environ["CUMULUS_SOURCE_DIRECTORY"],
+                            'tests', 'cases', 'fixtures', 'config')
+
         super(MockStarClusterConfig, self).__init__(config_file=path)
 
     def get_easy_ec2(self):
@@ -116,6 +118,3 @@ class ClusterTestCase(unittest.TestCase):
 
         with httmock.HTTMock(get_status, set_status):
             cluster.start_cluster(cluster_model, **{'girder_token': 's', 'log_write_url': 1})
-
-
-
