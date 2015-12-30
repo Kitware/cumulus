@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="cumulus",
     version="0.1.0",
-    description="Girder API endpoints for interacting with cloud providers.",
+    description="A RESTful API for the creation & management of HPC clusters",
     author="Chris Haris",
     author_email="chris.harris@kitware.com",
     url="https://github.com/Kitware/cumulus",
