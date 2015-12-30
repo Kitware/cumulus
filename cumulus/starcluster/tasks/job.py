@@ -155,11 +155,6 @@ def _is_terminating(job, girder_token):
 
     return current_status in [JobState.TERMINATED, JobState.TERMINATING]
 
-#script_dir = os.path.abspath(
-#    os.path.join(
-#        os.path.dirname(
-#            os.path.abspath(cumulus.__file__)), '..', 'scripts'))
-
 
 def _generate_submission_script(job, cluster, job_params):
     env = Environment(loader=PackageLoader('cumulus', 'templates'))
