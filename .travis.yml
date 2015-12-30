@@ -39,7 +39,7 @@ install:
     - pwd
     - pip install -U -r requirements.txt
     - pip install -U -r requirements-dev.txt
-    - python setup.py clean install --user
+    - python setup.py clean install
 script:
     - mkdir _girder_build
     - pushd _girder_build
