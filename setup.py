@@ -7,8 +7,9 @@ setup(
     author="Chris Haris",
     author_email="chris.harris@kitware.com",
     url="https://github.com/Kitware/cumulus",
-    packages=find_packages(),
+    packages=find_packages(exclude=["*.tests", "*.tests.*",
+                                    "tests.*", "tests"]),
     package_data={
-        "": ["*.json"],
+        "": ["*.json", "*.sh"],
         "cumulus": ["conf/*.json"],
     })
