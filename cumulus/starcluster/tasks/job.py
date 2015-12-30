@@ -41,7 +41,7 @@ import time
 import uuid
 from StringIO import StringIO
 from celery import signature
-from jinja2 import Environment, FileSystemLoader, Template
+from jinja2 import Environment, Template, PackageLoader
 from jsonpath_rw import parse
 import tempfile
 
@@ -155,14 +155,14 @@ def _is_terminating(job, girder_token):
 
     return current_status in [JobState.TERMINATED, JobState.TERMINATING]
 
-script_dir = os.path.abspath(
-    os.path.join(
-        os.path.dirname(
-            os.path.abspath(cumulus.__file__)), '..', 'scripts'))
+#script_dir = os.path.abspath(
+#    os.path.join(
+#        os.path.dirname(
+#            os.path.abspath(cumulus.__file__)), '..', 'scripts'))
 
 
 def _generate_submission_script(job, cluster, job_params):
-    env = Environment(loader=FileSystemLoader(script_dir))
+    env = Environment(loader=PackageLoader('cumulus', 'templates'))
     template = env.get_template('template.sh')
     script = template.render(cluster=cluster, job=job,
                              baseUrl=cumulus.config.girder.baseUrl,

@@ -11,5 +11,5 @@ setup(
                                     "tests.*", "tests"]),
     package_data={
         "": ["*.json", "*.sh"],
-        "cumulus": ["conf/*.json"],
+        "cumulus": ["conf/*.json", "templates/*.sh", "templates/*/*.sh"],
     })
