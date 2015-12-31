@@ -39,9 +39,8 @@ install:
     - pwd
     - pip install -U -r requirements.txt
     - pip install -U -r requirements-dev.txt
+    - python setup.py clean install
 script:
-    # Update PYTHONPATH to include cumulus module
-    - export PYTHONPATH=`pwd`
     - mkdir _girder_build
     - pushd _girder_build
     - cmake -DBUILD_JAVASCRIPT_TESTS:BOOL=OFF -DPYTHON_COVERAGE:BOOL=ON -DPYTHON_VERSION:STRING=${TRAVIS_PYTHON_VERSION} "${HOME}/build/girder"
@@ -53,6 +52,3 @@ script:
     - cd _cumulus_build
     - cmake -DPYTHON_COVERAGE:BOOL=OFF -DPYTHON_VERSION:STRING=${TRAVIS_PYTHON_VERSION} "${HOME}/build/Kitware/cumulus"
     - ctest -VV
- 
-
-

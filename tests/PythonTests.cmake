@@ -79,15 +79,14 @@ function(add_python_test case)
     set(pythonpath "${PROJECT_SOURCE_DIR}/plugins/${fn_PLUGIN}")
     set(other_covg ",${PROJECT_SOURCE_DIR}/plugins/${fn_PLUGIN}/server")
   else()
-    set(module tests.cases.${case}_test)
-    set(pythonpath "")
+    set(module cases.${case}_test)
+    set(pythonpath "${PROJECT_SOURCE_DIR}/tests")
     set(other_covg "")
   endif()
 
   if(PYTHON_COVERAGE)
     add_test(
       NAME ${name}
-      WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
       COMMAND "${PYTHON_COVERAGE_EXECUTABLE}" run -p --append "--rcfile=${py_coverage_rc}"
               "--source=girder,${PROJECT_SOURCE_DIR}/clients/python/girder_client${other_covg}"
               -m unittest -v ${module}
@@ -95,7 +94,6 @@ function(add_python_test case)
   else()
     add_test(
       NAME ${name}
-      WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
       COMMAND "${PYTHON_EXECUTABLE}" -m unittest -v ${module}
     )
   endif()
@@ -106,6 +104,7 @@ function(add_python_test case)
     "GIRDER_TEST_DB=mongodb://localhost:27017/girder_test_${_db_name}"
     "GIRDER_TEST_ASSETSTORE=${name}"
     "GIRDER_TEST_PORT=${server_port}"
+    "CUMULUS_SOURCE_DIRECTORY=${PROJECT_SOURCE_DIR}"
   )
   set_property(TEST ${name} PROPERTY COST 50)
   if(fn_RESOURCE_LOCKS)

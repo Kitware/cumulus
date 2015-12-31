@@ -95,20 +95,20 @@ class PbsQueueAdapterTestCase(unittest.TestCase):
             'output': [{'tail': True,  'path': 'dummy/file/path'}]
         }
 
-        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                            'fixtures',
-                                            'job',
-                                            'pbs_submission_script1.sh'))
+        path = os.path.join(os.environ["CUMULUS_SOURCE_DIRECTORY"],
+                            'tests', 'cases', 'fixtures', 'job',
+                             'pbs_submission_script1.sh')
+
         with open(path, 'r') as fp:
             expected = fp.read()
 
         script = job._generate_submission_script(job_model, cluster, {})
         self.assertEqual(script, expected)
 
-        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                    'fixtures',
-                                    'job',
-                                    'pbs_submission_script2.sh'))
+        path = os.path.join(os.environ["CUMULUS_SOURCE_DIRECTORY"],
+                            'tests', 'cases', 'fixtures', 'job',
+                            'pbs_submission_script2.sh')
+
         with open(path, 'r') as fp:
             expected = fp.read()
 
@@ -145,10 +145,11 @@ class PbsQueueAdapterTestCase(unittest.TestCase):
         }
 
         # Just nodes specfied
-        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                            'fixtures',
-                                            'job',
-                                            'pbs_submission_script_nodes.sh'))
+
+        path = os.path.join(os.environ["CUMULUS_SOURCE_DIRECTORY"],
+                            'tests', 'cases', 'fixtures', 'job',
+                            'pbs_submission_script_nodes.sh')
+
         with open(path, 'r') as fp:
             expected = fp.read()
 
@@ -159,10 +160,10 @@ class PbsQueueAdapterTestCase(unittest.TestCase):
         self.assertEqual(script, expected)
 
         # Nodes with number of cores
-        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                            'fixtures',
-                                            'job',
-                                            'pbs_submission_script_nodes_cores.sh'))
+        path = os.path.join(os.environ["CUMULUS_SOURCE_DIRECTORY"],
+                            'tests', 'cases', 'fixtures', 'job',
+                             'pbs_submission_script_nodes_cores.sh')
+
         with open(path, 'r') as fp:
             expected = fp.read()
 
@@ -174,10 +175,10 @@ class PbsQueueAdapterTestCase(unittest.TestCase):
         self.assertEqual(script, expected)
 
         # Nodes with number of gpus
-        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                            'fixtures',
-                                            'job',
-                                            'pbs_submission_script_nodes_gpus.sh'))
+        path = os.path.join(os.environ["CUMULUS_SOURCE_DIRECTORY"],
+                            'tests', 'cases', 'fixtures', 'job',
+                             'pbs_submission_script_nodes_gpus.sh')
+
         with open(path, 'r') as fp:
             expected = fp.read()
 
@@ -189,10 +190,10 @@ class PbsQueueAdapterTestCase(unittest.TestCase):
         self.assertEqual(script, expected)
 
         # Nodes with number of cores and gpus
-        path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                            'fixtures',
-                                            'job',
-                                            'pbs_submission_script_nodes_cores_gpus.sh'))
+        path = os.path.join(os.environ["CUMULUS_SOURCE_DIRECTORY"],
+                             'tests', 'cases', 'fixtures', 'job',
+                             'pbs_submission_script_nodes_cores_gpus.sh')
+
         with open(path, 'r') as fp:
             expected = fp.read()
 
