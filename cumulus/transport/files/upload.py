@@ -73,5 +73,6 @@ def _upload_path(cluster_connection, girder_client, folder_id, path):
 def upload_path(cluster_connection, girder_token, folder_id, path):
     girder_client = GirderClient(apiUrl=cumulus.config.girder.baseUrl)
     girder_client.token = girder_token
+    cluster_connection.makedirs(path)
 
     _upload_path(cluster_connection, girder_client, folder_id, path)

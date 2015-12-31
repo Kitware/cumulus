@@ -26,6 +26,9 @@ from contextlib import contextmanager
 from girder.models.model_base import ValidationException
 from girder.utility.abstract_assetstore_adapter import AbstractAssetstoreAdapter
 from girder import events
+from girder.api.rest import RestException
+
+from paramiko.ssh_exception import SSHException
 
 
 BUFFER_SIZE = 32768
@@ -49,9 +52,7 @@ class SftpAssetstoreAdapter(AbstractAssetstoreAdapter):
 
         return doc
 
-    @contextmanager
-    def open_ssh_connection(self):
-        ssh = None
+    def _get_credentials(self):
         private_key=None
         private_key_pass=None
 
@@ -64,6 +65,14 @@ class SftpAssetstoreAdapter(AbstractAssetstoreAdapter):
 
         if len(e.responses) > 0:
             (private_key, private_key_pass) = e.responses[-1]
+
+        return (private_key, private_key_pass)
+
+    @contextmanager
+    def open_ssh_connection(self):
+        ssh = None
+
+        (private_key, private_key_pass) = self._get_credentials()
 
         try:
             ssh = paramiko.SSHClient()

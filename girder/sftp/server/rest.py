@@ -39,7 +39,7 @@ class SftpAssetstoreResource(Resource):
     def create_assetstore(self, params):
         """Create a new SFTP assetstore."""
 
-
+        params = getBodyJson()
         self.requireParams(('name', 'host', 'user'), params)
 
         return self.model('assetstore').save({

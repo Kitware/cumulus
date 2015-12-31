@@ -22,7 +22,7 @@ import traceback
 from cumulus.starcluster.logging import logstdout
 import cumulus.starcluster.logging
 from cumulus.common import check_status
-from cumulus.starcluster.common import _log_exception
+from cumulus.starcluster.common import _log_exception, get_post_logger
 from cumulus.celery import command, monitor
 import cumulus
 import cumulus.girderclient
@@ -30,6 +30,9 @@ from cumulus.constants import ClusterType, JobQueueState
 from cumulus.queue import get_queue_adapter
 from cumulus.queue.abstract import AbstractQueueAdapter
 from cumulus.transport import get_connection
+from cumulus.transport.files.download import download_path
+from cumulus.transport.files.upload import upload_path
+from cumulus.transport.files import get_assetstore_url_base, get_assetstore_id
 import starcluster.config
 import starcluster.logger
 import starcluster.exception
@@ -44,6 +47,7 @@ from celery import signature
 from jinja2 import Environment, Template, PackageLoader
 from jsonpath_rw import parse
 import tempfile
+from girder_client import HttpError
 
 
 def _put_script(conn, script_commands):
@@ -67,14 +71,11 @@ def _job_dir(job):
     return job_dir
 
 
-@command.task
-@cumulus.starcluster.logging.capture
-def download_job_input(cluster, job, log_write_url=None, girder_token=None):
-    log = starcluster.logger.get_starcluster_logger()
+def download_job_input_items(cluster, job, log_write_url=None,
+                             girder_token=None):
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
-    job_name = job['name']
 
     try:
         with get_connection(girder_token, cluster) as conn:
@@ -82,11 +83,6 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
             path = inspect.getsourcefile(cumulus.girderclient)
             with open(path, 'r') as fp:
                 conn.put(fp, os.path.basename(path))
-
-            # Create job directory
-            conn.mkdir(_job_dir(job))
-
-            log.info('Downloading input for "%s"' % job_name)
 
             r = requests.patch(status_url, json={'status': 'downloading'},
                                headers=headers)
@@ -129,6 +125,41 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
                            json={'status': 'error'})
         check_status(r)
         _log_exception(ex)
+
+
+def download_job_input_folders(cluster, job, log_write_url=None,
+                               girder_token=None):
+    job_dir = _job_dir(job)
+
+    with get_connection(girder_token, cluster) as conn:
+        for input in job['input']:
+            if 'folderId' in input and 'path' in input:
+                folder_id = input['folderId']
+                path = input['path']
+                upload_path(conn, girder_token, folder_id,
+                            os.path.join(job_dir, path))
+
+    submit_job.delay(cluster, job, log_write_url=log_write_url,
+                     girder_token=girder_token)
+
+
+@command.task
+@cumulus.starcluster.logging.capture
+def download_job_input(cluster, job, log_write_url=None, girder_token=None):
+    log = starcluster.logger.get_starcluster_logger()
+
+    # Create job directory
+    with get_connection(girder_token, cluster) as conn:
+        conn.mkdir(_job_dir(job))
+
+    log.info('Downloading input for "%s"' % job['name'])
+
+    if parse('input.itemId').find(job):
+        download_job_input_items(cluster, job, log_write_url=log_write_url,
+                                 girder_token=girder_token)
+    else:
+        download_job_input_folders(cluster, job, log_write_url=log_write_url,
+                                   girder_token=girder_token)
 
 
 def _get_parallel_env(cluster, job):
@@ -607,15 +638,11 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
         raise
 
 
-@command.task
-@cumulus.starcluster.logging.capture
-def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
-                      girder_token=None):
-    log = starcluster.logger.get_starcluster_logger()
+def upload_job_output_to_item(cluster, job, log_write_url=None, job_dir=None,
+                              girder_token=None):
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
-    job_name = job['name']
 
     try:
         # if terminating break out
@@ -629,8 +656,6 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
                 conn.put(fp,
                          os.path.normpath(os.path.join(job_dir, '..',
                                                        os.path.basename(path))))
-
-            log.info('Uploading output for "%s"' % job_name)
 
             cmds = ['cd %s' % job_dir]
             upload_cmd = 'python ../girderclient.py --token %s --url "%s" ' \
@@ -677,6 +702,71 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
                            json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
         _log_exception(ex)
+
+
+def upload_job_output_to_folder(cluster, job, log_write_url=None, job_dir=None,
+                                girder_token=None):
+    status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job['_id'])
+    headers = {'Girder-Token':  girder_token}
+    assetstore_base_url = get_assetstore_url_base(cluster)
+    assetstore_id = get_assetstore_id(girder_token, cluster)
+
+    try:
+        with get_connection(girder_token, cluster) as conn:
+            for output in job['output']:
+                if 'folderId' in output and 'path' in output:
+                    folder_id = output['folderId']
+                    path = os.path.join(job_dir, output['path'])
+                    download_path(conn, girder_token, folder_id, path,
+                                  assetstore_base_url, assetstore_id)
+    except HttpError as e:
+        job['status'] = JobState.ERROR
+        url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl, job['_id'])
+        logger = get_post_logger('job', girder_token, url)
+        logger.error(e.responseText)
+        r = requests.patch(status_url, headers=headers,
+                           json={'status': JobState.ERROR})
+        check_status(r)
+
+    if _get_on_complete(job) == 'terminate':
+        cluster_log_url = '%s/clusters/%s/log' % \
+            (cumulus.config.girder.baseUrl, cluster['_id'])
+        command.send_task(
+            'cumulus.starcluster.tasks.cluster.terminate_cluster',
+            args=(cluster,), kwargs={'log_write_url': cluster_log_url,
+                                     'girder_token': girder_token})
+
+    # If we where uploading move job to the complete state
+    if job['status'] == JobState.UPLOADING:
+        job_status = from_string(job['status'], task=None,
+                                 cluster=cluster, job=job,
+                                 log_write_url=log_write_url,
+                                 girder_token=girder_token,
+                                 conn=conn)
+        job_status = Complete(job_status)
+        job_status = job_status.next(JobQueueState.COMPLETE)
+        job_status.run()
+        r = requests.patch(status_url, headers=headers,
+                           json={'status': str(job_status)})
+        check_status(r)
+
+
+@command.task
+@cumulus.starcluster.logging.capture
+def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
+                      girder_token=None):
+
+    job_name = job['name']
+    log = starcluster.logger.get_starcluster_logger()
+
+    log.info('Uploading output for "%s"' % job_name)
+
+    if parse('output.itemId').find(job):
+        upload_job_output_to_item(cluster, job, log_write_url=log_write_url,
+                                  job_dir=job_dir, girder_token=girder_token)
+    else:
+        upload_job_output_to_folder(cluster, job, log_write_url=log_write_url,
+                                    job_dir=job_dir, girder_token=girder_token)
 
 
 @monitor.task(bind=True, max_retries=None)

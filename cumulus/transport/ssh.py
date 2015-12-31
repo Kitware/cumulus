@@ -20,6 +20,7 @@
 import os
 from contextlib import contextmanager
 import stat
+import sys
 
 from starcluster.sshutils import SSHClient
 import starcluster.config
@@ -104,6 +105,22 @@ class SshClusterConnection(AbstractConnection):
             except IOError:
                 if not ignore_failure:
                     raise
+
+    def makedirs(self, remote_path):
+        with self._conn.transport.open_sftp_client() as sftp:
+            current_path = ''
+            if remote_path[0] == '/':
+                current_path = '/'
+
+            for path in remote_path.split("/"):
+                print sys.stderr, "path: %s" % path
+                if not path:
+                    continue
+                current_path = os.path.join(current_path, path)
+                try:
+                    sftp.listdir(current_path)
+                except IOError:
+                    sftp.mkdir(current_path)
 
     def put(self, stream, remote_path):
         with self._conn.transport.open_sftp_client() as sftp:

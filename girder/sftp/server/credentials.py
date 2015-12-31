@@ -32,6 +32,10 @@ def retrieve_credentials(event):
     model = ModelImporter.model('cluster', 'cumulus')
     cluster = model.load(cluster_id, user=getCurrentUser(),
                          level=AccessType.READ)
+    event.stopPropagation()
+
+    if not cluster:
+        return
 
     username = parse('config.ssh.user').find(cluster)[0].value
     key_path = os.path.join(cumulus.config.ssh.keyStore, cluster_id)
@@ -40,5 +44,4 @@ def retrieve_credentials(event):
     if user != username:
         raise Exception('User doesn\'t match cluster user id ')
 
-    event.stopPropagation()
     event.addResponse((key_path, passphrase))

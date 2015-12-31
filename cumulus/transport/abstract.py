@@ -32,6 +32,9 @@ class AbstractConnection(object):
     def mkdir(self, path, ignore_failure=False):
         raise NotImplementedError('Implemented by subclass')
 
+    def makedirs(self, path):
+        raise NotImplementedError('Implemented by subclass')
+
     def put(self, stream, remote_path):
         raise NotImplementedError('Implemented by subclass')
 
