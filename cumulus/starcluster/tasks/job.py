@@ -47,7 +47,6 @@ from celery import signature
 from jinja2 import Environment, Template, PackageLoader
 from jsonpath_rw import parse
 import tempfile
-import sys
 from girder_client import HttpError
 
 
