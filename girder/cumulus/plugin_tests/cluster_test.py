@@ -229,10 +229,12 @@ class ClusterTestCase(base.TestCase):
             u'_id': cluster_id,
             u'name': u'test',
             u'template': u'default_cluster',
-            u'type': u'ec2'
+            u'type': u'ec2',
+            u'userId': str(self._user['_id'])
         }
         config_id = r.json['config']['_id']
         del r.json['config']
+        print r.json
         self.assertEqual(r.json, expected_cluster)
 
         # Ensure user can get full config
@@ -281,7 +283,7 @@ class ClusterTestCase(base.TestCase):
             user=self._cumulus)
 
         self.assertStatusOk(r)
-        expected_cluster = {u'status': u'testing', u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}},
+        expected_cluster = {u'status': u'testing', u'userId': str(self._user['_id']), u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}},
                             u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}
         self.assertEqual(r.json, expected_cluster)
 
@@ -306,7 +308,7 @@ class ClusterTestCase(base.TestCase):
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._user)
         self.assertStatusOk(r)
-        expected_status = {u'status': u'testing', u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}},
+        expected_status = {u'status': u'testing', u'userId': str(self._user['_id']), u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}},
                            u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}
         self.assertEquals(r.json, expected_status)
 
@@ -345,7 +347,7 @@ class ClusterTestCase(base.TestCase):
             user=self._cumulus)
 
         self.assertStatusOk(r)
-        expected = {u'status': u'creating', u'type': u'trad', u'_id': cluster_id, u'config': {u'scheduler': {u'type': u'sge'},
+        expected = {u'status': u'creating', u'userId': str(self._user['_id']),  u'type': u'trad', u'_id': cluster_id, u'config': {u'scheduler': {u'type': u'sge'},
             u'host': u'myhost', u'ssh': {u'user': u'myuser', u'publicKey': self._valid_key}}, u'name': u'test'}
         self.assertEqual(
             self.normalize(expected), self.normalize(r.json), 'Unexpected response')
@@ -353,7 +355,7 @@ class ClusterTestCase(base.TestCase):
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._user)
         self.assertStatusOk(r)
-        expected = {u'status': u'creating', u'type': u'trad', u'_id': cluster_id, u'config': {u'scheduler': {u'type': u'sge'},
+        expected = {u'status': u'creating', u'userId': str(self._user['_id']), u'type': u'trad', u'_id': cluster_id, u'config': {u'scheduler': {u'type': u'sge'},
             u'host': u'myhost', u'ssh': {u'user': u'myuser', u'publicKey': self._valid_key}}, u'name': u'test'}
         self.assertEqual(
             self.normalize(expected), self.normalize(r.json), 'Unexpected response')
@@ -362,7 +364,7 @@ class ClusterTestCase(base.TestCase):
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._cumulus)
         self.assertStatusOk(r)
-        expected = {u'status': u'creating', u'type': u'trad', u'_id': cluster_id, u'config': {u'scheduler': {u'type': u'sge'}, u'host': u'myhost', u'ssh': {
+        expected = {u'status': u'creating', u'userId': str(self._user['_id']), u'type': u'trad', u'_id': cluster_id, u'config': {u'scheduler': {u'type': u'sge'}, u'host': u'myhost', u'ssh': {
             u'user': u'myuser', u'publicKey': self._valid_key, u'passphrase': u'supersecret'}}, u'name': u'test'}
         self.assertEqual(
             self.normalize(expected), self.normalize(r.json), 'Unexpected response')
@@ -456,7 +458,7 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatusOk(r)
 
-        expected_start_call = [[[{u'status': u'created', u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}}, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}], {
+        expected_start_call = [[[{u'status': u'created', u'userId': str(self._user['_id']), u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}}, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}], {
             u'on_start_submit': None, u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % str(cluster_id)}]]
         self.assertCalls(start_cluster.call_args_list, expected_start_call)
 
@@ -531,7 +533,7 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body={}, user=self._user)
         self.assertStatusOk(r)
 
-        expected_submit_call = [[[u'token', {u'status': u'running', u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}}, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}, {u'status': u'created', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'clusterId': cluster_id, u'input': [
+        expected_submit_call = [[[u'token', {u'status': u'running', u'userId': str(self._user['_id']), u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}}, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}, {u'status': u'created', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'clusterId': cluster_id, u'input': [
             {u'itemId': u'546a1844ff34c70456111185', u'path': u''}], u'output': [{u'itemId': u'546a1844ff34c70456111185'}], u'_id': job_id, u'log': []}, u'http://127.0.0.1/api/v1/jobs/%s/log' % job_id], {}]]
         self.assertCalls(submit.call_args_list, expected_submit_call)
 
@@ -567,7 +569,7 @@ class ClusterTestCase(base.TestCase):
 
         self.assertStatusOk(r)
 
-        expected_terminate_call = [[[{u'status': u'created', u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}}, u'_id': str(cluster_id),
+        expected_terminate_call = [[[{u'status': u'created', u'userId': str(self._user['_id']), u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}}, u'_id': str(cluster_id),
                                       u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}], {u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % str(cluster_id)}]]
 
         self.assertCalls(
@@ -653,12 +655,12 @@ class ClusterTestCase(base.TestCase):
 
         self.assertStatus(r, 201)
         cluster_id = r.json['_id']
-        expected = [[[{u'status': u'creating', u'type': u'trad', u'_id': cluster_id, u'config': {
+        expected = [[[{u'status': u'creating', u'userId': str(self._user['_id']), u'type': u'trad', u'_id': cluster_id, u'config': {
             u'host': u'myhost', u'ssh': {u'user': u'bob'}, u'scheduler': {u'type': u'sge'}}, u'name': u'my trad cluster'}, u'token'], {}]]
         self.assertCalls(
             generate_key.call_args_list, expected)
 
-    @mock.patch('cumulus.trad.tasks.cluster.test_connection.delay')
+    @mock.patch('cumulus.starcluster.tasks.cluster.test_connection.delay')
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
     def test_start_trad(self, generate_key, test_connection):
         body = {
@@ -700,7 +702,7 @@ class ClusterTestCase(base.TestCase):
                          user=self._user)
 
         self.assertStatusOk(r)
-        expected = [[[{u'status': u'created', u'config': {u'host': u'myhost', u'ssh': {u'user': u'bob'}, u'scheduler': {u'type': u'sge'}}, u'_id': cluster_id, u'type': u'trad', u'name': u'my trad cluster'}], {u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % cluster_id}]]
+        expected = [[[{u'status': u'created', u'userId': str(self._user['_id']), u'config': {u'host': u'myhost', u'ssh': {u'user': u'bob'}, u'scheduler': {u'type': u'sge'}}, u'_id': cluster_id, u'type': u'trad', u'name': u'my trad cluster'}], {u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % cluster_id}]]
         self.assertEqual(expected, self.normalize(test_connection.call_args_list))
 
 
@@ -779,6 +781,7 @@ class ClusterTestCase(base.TestCase):
         self.assertEqual(len(r.json), 1, 'Only expecting a single cluster')
         expected_cluster = {
             u'status': u'created',
+            u'userId': str(self._user['_id']),
             u'type': u'ec2',
             u'template': u'default_cluster',
             u'_id': ec2_cluster_id,
@@ -802,6 +805,7 @@ class ClusterTestCase(base.TestCase):
         self.assertEqual(len(r.json), 1, 'Only expecting a single cluster')
         expected_cluster = {
             u'status': u'creating',
+            u'userId': str(self._user['_id']),
             u'type': u'trad',
             u'_id': trad_cluster_id,
             u'config': {

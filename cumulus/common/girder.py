@@ -21,21 +21,33 @@ from __future__ import absolute_import
 import datetime
 from bson.objectid import ObjectId
 
-from girder.api.rest import ModelImporter, RestException
+from girder.api.rest import ModelImporter, RestException, getCurrentUser
 from girder.constants import AccessType
 
 import cumulus
+from cumulus.constants import ClusterType
 
 
-def get_task_token():
-    user = ModelImporter.model('user') \
-        .find({'login': cumulus.config.girder.user})
+def get_task_token(cluster=None):
+    """
+    Gets a Girder token to use to access Girder while running a task. By default
+    we create a token using the cumulus girder user ( this user has certain
+    privileges, such as access to passphrases that a regular user doesn't have).
+    However, in the case of a NEWT cluster we need the token to be associated
+    with the logged in user as this is used to look up the NEWT session ID.
+    """
+    print "cluster: %s" % str(cluster)
+    if cluster and cluster['type'] == ClusterType.NEWT:
+        user = getCurrentUser()
+    else:
+        user = ModelImporter.model('user') \
+            .find({'login': cumulus.config.girder.user})
 
-    if user.count() != 1:
-        raise Exception('Unable to load user "%s"' %
-                        cumulus.config.girder.user)
+        if user.count() != 1:
+            raise Exception('Unable to load user "%s"' %
+                            cumulus.config.girder.user)
 
-    user = user.next()
+        user = user.next()
 
     return ModelImporter.model('token').createToken(user=user, days=7)
 

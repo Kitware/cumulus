@@ -21,10 +21,12 @@
 class ClusterType:
     EC2 = 'ec2'
     TRADITIONAL = 'trad'
+    NEWT = 'newt'
 
     @staticmethod
     def is_valid_type(type):
-        return type == ClusterType.EC2 or type == ClusterType.TRADITIONAL
+        return type == ClusterType.EC2 or type == ClusterType.TRADITIONAL or \
+            type == ClusterType.NEWT
 
 
 class VolumeType:
@@ -44,6 +46,7 @@ class QueueType:
     SGE = 'sge'
     PBS = 'pbs'
     SLURM = 'slurm'
+    NEWT = 'newt'
 
     @staticmethod
     def is_valid_type(type):

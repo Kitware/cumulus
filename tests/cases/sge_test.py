@@ -36,7 +36,8 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
                 'scheduler': {
                     'type': QueueType.SGE
                 }
-            }
+            },
+            'type': 'trad'
         }, self._cluster_connection)
 
 

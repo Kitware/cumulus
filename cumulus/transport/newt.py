@@ -31,7 +31,8 @@ from .abstract import AbstractConnection
 import cumulus
 from cumulus.common import check_status
 
-newt_base_url = 'https://newt.nersc.gov/newt'
+NEWT_BASE_URL = 'https://newt.nersc.gov/newt'
+
 newt_stat_command = '/bin/stat -c "st_mode=%f,st_ino=%i,st_dev=%d,' \
     'st_nlink=%h,st_uid=%u,st_gid=%g,st_size=%s,st_atime=%X,st_mtime=%Y,' \
     'st_ctime=%Z" '
@@ -40,7 +41,10 @@ newt_rm_path = '/bin/rm'
 
 commands = {
     'ls': '/bin/ls',
-    'rm': '/bin/rm'
+    'rm': '/bin/rm',
+    'pwd': '/bin/pwd',
+    # This may be very machine dependant!
+    'squeue': '/opt/slurm/default/bin/squeue'
 }
 
 type = {
@@ -102,16 +106,17 @@ class NewtClusterConnection(AbstractConnection):
         pass
 
     def execute(self, command, ignore_exit_status=False, source_profile=True):
-        url = '%s/command/%s' % (newt_base_url, self._machine)
+        url = '%s/command/%s' % (NEWT_BASE_URL, self._machine)
 
         # NEWT requires all commands are issued using a full executable path
         for (name, full_path) in commands.iteritems():
-            command = re.sub(r'^%s ' % name, '%s ' % full_path, command)
+            command = re.sub(r'^%s[ ]*' % name, '%s ' % full_path, command)
 
         data = {
             'executable': command,
             'loginenv': source_profile
         }
+
         r = self._session.post(url, data=data)
         check_status(r)
 
@@ -119,11 +124,11 @@ class NewtClusterConnection(AbstractConnection):
         if json_response['error']:
             raise NewtException(json_response['error'])
 
-        return json_response['output']
+        return json_response['output'].split('\n')
 
     @contextmanager
     def get(self, remote_path):
-        url = '%s/file/%s/%s' % (newt_base_url, self._machine, remote_path)
+        url = '%s/file/%s/%s' % (NEWT_BASE_URL, self._machine, remote_path)
         params = {
             'view': 'read'
         }
@@ -154,25 +159,37 @@ class NewtClusterConnection(AbstractConnection):
             if not ignore_failure:
                 raise
 
-    def makedir(self, remote_path, ignore_failure=False):
+    def makedirs(self, remote_path, ignore_failure=False):
         command = newt_mkdir_path
         command += ' -p %s' % remote_path
 
         return self.execute(command)
 
+    def _home_dir(self):
+        home = self.execute('pwd')[0]
+
+        return home
+
     def put(self, stream, remote_path):
+
         name = os.path.basename(remote_path)
         path = os.path.dirname(remote_path)
+
+        # If not a full path then assume relative to users home
+        print path[0]
+        if path[0] != '/':
+            # Get the users home directory
+            path = os.path.abspath(os.path.join(self._home_dir(), path))
 
         files = {
             'file': (name, stream)
         }
-        url = '%s/file/%s%s' % (newt_base_url, self._machine, path)
+        url = '%s/file/%s%s' % (NEWT_BASE_URL, self._machine, path)
         r = self._session.post(url, files=files)
         check_status(r)
 
     def stat(self, remote_path):
-        output = self.execute(newt_stat_command + remote_path)
+        output = self.execute(newt_stat_command + remote_path)[0]
         values = dict(s.split('=') for s in output.split(','))
         attributes = SFTPAttributes()
         for (key, value) in values.iteritems():
@@ -221,8 +238,12 @@ class NewtClusterConnection(AbstractConnection):
         return mode
 
     def list(self, remote_path):
-        url = '%s/file/%s/%s' % (newt_base_url, self._machine, remote_path)
+        if remote_path[0] != '/':
+            # Get the users home directory
+            remote_path = os.path.abspath(os.path.join(self._home_dir(),
+                                                       remote_path))
 
+        url = '%s/file/%s/%s' % (NEWT_BASE_URL, self._machine, remote_path)
         r = self._session.get(url)
         check_status(r)
 
@@ -235,3 +256,10 @@ class NewtClusterConnection(AbstractConnection):
 
             path['mode'] = self._perms_to_mode(perms)
             yield path
+
+    @property
+    def session_id(self):
+        """
+        Allow access to session id, this is used in the queue adapter
+        """
+        return self._newt_session_id

@@ -22,24 +22,32 @@ from jsonpath_rw import parse
 from . import sge
 from . import pbs
 from . import slurm
+from . import newt
 from cumulus.constants import QueueType
-
+from cumulus.constants import ClusterType
 type_to_adapter = {
     QueueType.SGE: sge.SgeQueueAdapter,
     QueueType.PBS: pbs.PbsQueueAdapter,
-    QueueType.SLURM: slurm.SlurmQueueAdapter
+    QueueType.SLURM: slurm.SlurmQueueAdapter,
+    QueueType.NEWT: newt.NewtQueueAdapter
 }
 
 
 def get_queue_adapter(cluster, cluster_connection=None):
     global type_to_adapter
 
-    system = parse('config.scheduler.type').find(cluster)
-    if system:
-        system = system[0].value
-    # Default to SGE
+    # Special case for nersc clusters. They use SLURM ( at the moment ) but the
+    # submission is done using the NEWT REST API. So the scheduler is set the
+    # SLURM but we want to use the NEWT adapter.
+    if cluster['type'] == ClusterType.NEWT:
+        system = QueueType.NEWT
     else:
-        system = QueueType.SGE
+        system = parse('config.scheduler.type').find(cluster)
+        if system:
+            system = system[0].value
+        # Default to SGE
+        else:
+            system = QueueType.SGE
 
     if system not in type_to_adapter:
         raise Exception('Unsupported queuing system: %s' % system)

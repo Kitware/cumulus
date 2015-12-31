@@ -1,5 +1,8 @@
 #
 #SBATCH --job-name={{job.name}}-{{job._id}}
+#SBATCH --output={{job.name}}-{{job._id}}.o%j
+#SBATCH --error={{job.name}}-{{job._id}}.e%j
+#SBATCH --workdir={{job.dir}}
 {% if numberOfSlots -%}
 #SBATCH --ntasks={{numberOfSlots}}
 {% elif numberOfNodes -%}

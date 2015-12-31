@@ -26,12 +26,10 @@ from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, getCurrentUser
-from girder.api.rest import getApiUrl
 from girder.models.model_base import ValidationException
 from .base import BaseResource
 from cumulus.constants import ClusterType, QueueType
 from .utility.cluster_adapters import get_cluster_adapter
-import cumulus.starcluster.tasks.job
 from cumulus.ssh.tasks.key import generate_key_pair
 from cumulus.common import update_dict
 
@@ -179,6 +177,20 @@ class Cluster(BaseResource):
 
         return cluster
 
+    def _create_newt(self, params, body):
+
+        self.requireParams(['name', 'config'], body)
+        self.requireParams(['host'], body['config'])
+
+        name = body['name']
+        config = body['config']
+        user = self.getCurrentUser()
+
+        cluster = self._model.create_newt(user, name, config)
+        cluster = self._model.filter(cluster, user)
+
+        return cluster
+
     @access.user
     def create(self, params):
         body = getBodyJson()
@@ -207,6 +219,8 @@ class Cluster(BaseResource):
                 raise RestException('Unsupported scheduler.', code=400)
 
             cluster = self._create_traditional(params, body)
+        elif cluster_type == ClusterType.NEWT:
+            cluster = self._create_newt(params, body)
         else:
             raise RestException('Invalid cluster type.', code=400)
 
@@ -466,7 +480,6 @@ class Cluster(BaseResource):
 
         cluster = self._model.filter(cluster, user, passphrase=False)
 
-        base_url = getApiUrl()
         job_model = self.model('job', 'cumulus')
         job = job_model.load(
             job_id, user=user, level=AccessType.ADMIN)
@@ -481,13 +494,8 @@ class Cluster(BaseResource):
 
         job_model.save(job)
 
-        log_url = '%s/jobs/%s/log' % (base_url, job_id)
-        job['_id'] = str(job['_id'])
-        del job['access']
-
-        girder_token = self.get_task_token()['_id']
-        cumulus.starcluster.tasks.job.submit(girder_token, cluster, job,
-                                             log_url)
+        cluster_adapter = get_cluster_adapter(cluster)
+        cluster_adapter.submit_job(job)
 
     submit_job.description = (
         Description('Submit a job to the cluster')

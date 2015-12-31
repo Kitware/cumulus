@@ -26,7 +26,6 @@ from girder.api.rest import RestException, getApiUrl, getCurrentUser
 
 from cumulus.constants import ClusterType
 from cumulus.common.girder import get_task_token
-import cumulus.trad.tasks.cluster
 import cumulus.starcluster.tasks.cluster
 
 
@@ -72,6 +71,15 @@ class AbstractClusterAdapter(ModelImporter):
         Adapters may implement this if they support a delete operation.
         """
         pass
+
+    def submit_job(self, job):
+        log_url = '%s/jobs/%s/log' % (getApiUrl(), job['_id'])
+        job['_id'] = str(job['_id'])
+        del job['access']
+
+        girder_token = get_task_token()['_id']
+        cumulus.starcluster.tasks.job.submit(girder_token, self.cluster, job,
+                                             log_url)
 
 
 class Ec2ClusterAdapter(AbstractClusterAdapter):
@@ -228,7 +236,7 @@ class TraditionClusterAdapter(AbstractClusterAdapter):
         log_write_url = '%s/clusters/%s/log' % (getApiUrl(),
                                                 self.cluster['_id'])
         girder_token = get_task_token()['_id']
-        cumulus.trad.tasks.cluster.test_connection \
+        cumulus.starcluster.tasks.cluster.test_connection \
             .delay(self.cluster,
                    log_write_url=log_write_url,
                    girder_token=girder_token)
@@ -238,9 +246,65 @@ class TraditionClusterAdapter(AbstractClusterAdapter):
         cumulus.ssh.tasks.key.delete_key_pair.delay(self.cluster,
                                                     get_task_token()['_id'])
 
+
+class NewtClusterAdapter(AbstractClusterAdapter):
+    def validate(self):
+        query = {
+            'name': self.cluster['name'],
+            'userId': getCurrentUser()['_id'],
+            'type': 'trad'
+        }
+
+        if '_id' in self.cluster:
+            query['_id'] = {'$ne': self.cluster['_id']}
+
+        duplicate = self.model('cluster', 'cumulus').findOne(query,
+                                                             fields=['_id'])
+        if duplicate:
+            raise ValidationException(
+                'A cluster with that name already exists.', 'name')
+
+        return self.cluster
+
+    def update(self, body):
+
+        # Don't return the access object
+        del self.cluster['access']
+        # Don't return the log
+        del self.cluster['log']
+
+        return self.cluster
+
+    def _generate_girder_token(self):
+        user = self.model('user').load(self.cluster['userId'], force=True)
+        girder_token = self.model('token').createToken(user=user, days=7)
+
+        return girder_token['_id']
+
+    def start(self, request_body):
+        log_write_url = '%s/clusters/%s/log' % (getApiUrl(),
+                                                self.cluster['_id'])
+
+        girder_token = get_task_token(self.cluster)['_id']
+        cumulus.starcluster.tasks.cluster.test_connection \
+            .delay(self.cluster,
+                   log_write_url=log_write_url,
+                   girder_token=girder_token)
+
+    def submit_job(self, job):
+        log_url = '%s/jobs/%s/log' % (getApiUrl(), job['_id'])
+        job['_id'] = str(job['_id'])
+        del job['access']
+
+        girder_token = get_task_token(self.cluster)['_id']
+        cumulus.starcluster.tasks.job.submit(girder_token, self.cluster, job,
+                                             log_url)
+
+
 type_to_adapter = {
     ClusterType.EC2: Ec2ClusterAdapter,
-    ClusterType.TRADITIONAL: TraditionClusterAdapter
+    ClusterType.TRADITIONAL: TraditionClusterAdapter,
+    ClusterType.NEWT: NewtClusterAdapter
 }
 
 

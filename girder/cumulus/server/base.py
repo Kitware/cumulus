@@ -26,5 +26,5 @@ class BaseResource(Resource):
     def check_group_membership(self, user, group):
         return check_group_membership(user, group)
 
-    def get_task_token(self):
-        return get_task_token()
+    def get_task_token(self, cluster=None):
+        return get_task_token(cluster)

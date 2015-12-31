@@ -21,7 +21,7 @@ from .assetstore import NewtAssetstoreAdapter
 from girder import events
 from girder.api import access
 from girder.api.v1.assetstore import Assetstore
-from girder.constants import AssetstoreType
+from girder.constants import AssetstoreType, AccessType
 from girder.utility.model_importer import ModelImporter
 from .rest import Newt, NewtAssetstore, create_assetstore
 from .constants import NEWT_BASE_URL
@@ -57,12 +57,10 @@ def load(info):
     AssetstoreType.NEWT = 'newt'
     events.bind('assetstore.adapter.get', 'newt', getAssetstore)
     events.bind('assetstore.update', 'newt', updateAssetstore)
-    events.bind('rest.post.assetstore.before', 'newt',
-                create_assetstore_from_event)
 
     (Assetstore.createAssetstore.description
         .param('machine', 'The NERSC machine name.', required=False)
         .param('baseUrl', 'The NEWT API base URL.', required=False))
 
     info['apiRoot'].newt = Newt()
-    info['apiRoot'].newt_assetstore = NewtAssetstore()
+    info['apiRoot'].newt_assetstores = NewtAssetstore()
