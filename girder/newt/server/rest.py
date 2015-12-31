@@ -25,7 +25,7 @@ from girder.api.rest import Resource, RestException, getCurrentUser
 from girder.api import access
 from girder.constants import SettingKey
 
-newt_base_url = 'https://newt.nersc.gov/newt'
+from .constants import NEWT_BASE_URL
 
 class Newt(Resource):
     def __init__(self):
@@ -142,6 +142,32 @@ class Newt(Resource):
     session_id.description = (
         Description('Returns the NEWT session id for this user'))
 
+@access.user
+def create_assetstore(params):
+    """Create a new NEWT assetstore."""
 
+    return ModelImporter.model('assetstore').save({
+        'type': AssetstoreType.NEWT,
+        'name': params.get('name'),
+        'newt': {
+            'machine': params.get('machine'),
+            'baseUrl': params.get('baseUrl', newt_base_url)
+        }
+    })
 
+class NewtAssetstore(Resource):
+    def __init__(self):
+        super(NewtAssetstore, self).__init__()
+        self.resourceName = 'newt_assestores'
 
+        self.route('POST', (), self.create)
+
+    def create(self, params):
+        self.requireParams(('name', 'machine'), params)
+
+        return create_assetstore(params)
+
+    create.description = (
+     Description('Create a new NEWT assetstore.')
+    .param('name', 'The name of the assetstore', required=True)
+    .param('machine', 'The machine the files are stored on', required=True))

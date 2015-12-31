@@ -23,7 +23,8 @@ from girder.api import access
 from girder.api.v1.assetstore import Assetstore
 from girder.constants import AssetstoreType
 from girder.utility.model_importer import ModelImporter
-from .rest import Newt
+from .rest import Newt, NewtAssetstore, create_assetstore
+from .constants import NEWT_BASE_URL
 
 
 def getAssetstore(event):
@@ -44,32 +45,24 @@ def updateAssetstore(event):
         }
 
 
-@access.admin
-def createAssetstore(event):
+def create_assetstore_from_event(event):
     params = event.info['params']
-
     if params.get('type') == AssetstoreType.NEWT:
-        event.addResponse(ModelImporter.model('assetstore').save({
-            'type': AssetstoreType.NEWT,
-            'name': params.get('name'),
-            'newt': {
-                'machine': params.get('machine'),
-                'baseUrl': params.get('baseUrl')
-            }
-        }))
+        event.addResponse(create_assetstore(params))
         event.preventDefault()
 
 
 def load(info):
 
     AssetstoreType.NEWT = 'newt'
-    events.bind('assetstore.adapter.get', 'newt_assetstore', getAssetstore)
-    events.bind('assetstore.update', 'newt_assetstore', updateAssetstore)
-    events.bind('rest.post.assetstore.before', 'hdfs_assetstore',
-                createAssetstore)
+    events.bind('assetstore.adapter.get', 'newt', getAssetstore)
+    events.bind('assetstore.update', 'newt', updateAssetstore)
+    events.bind('rest.post.assetstore.before', 'newt',
+                create_assetstore_from_event)
 
     (Assetstore.createAssetstore.description
         .param('machine', 'The NERSC machine name.', required=False)
         .param('baseUrl', 'The NEWT API base URL.', required=False))
 
     info['apiRoot'].newt = Newt()
+    info['apiRoot'].newt_assetstore = NewtAssetstore()

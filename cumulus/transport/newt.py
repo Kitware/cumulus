@@ -146,9 +146,17 @@ class NewtClusterConnection(AbstractConnection):
     # TODO remote_path probably needs to be a full path
     def mkdir(self, remote_path, ignore_failure=False):
         command = newt_mkdir_path
-        if ignore_failure:
-            command += ' -p'
-        command += ' %s' % remote_path
+
+        try:
+            command += ' %s' % remote_path
+            return self.execute(command)
+        except Exception:
+            if not ignore_failure:
+                raise
+
+    def makedir(self, remote_path, ignore_failure=False):
+        command = newt_mkdir_path
+        command += ' -p %s' % remote_path
 
         return self.execute(command)
 

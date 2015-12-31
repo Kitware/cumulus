@@ -17,9 +17,12 @@
 #  limitations under the License.
 ###############################################################################
 
+from __future__ import absolute_import
 import starcluster.logger
 from starcluster.awsutils import EasyEC2
 import traceback
+import logging
+from cumulus.starcluster.logging import StarClusterLogHandler
 
 
 def _log_exception(ex):
@@ -37,3 +40,12 @@ def get_easy_ec2(profile):
                   aws_region_host=aws_region_host)
 
     return ec2
+
+
+def get_post_logger(name, girder_token, post_url):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    handler = StarClusterLogHandler(girder_token, post_url, logging.DEBUG)
+    logger.addHandler(handler)
+
+    return logger

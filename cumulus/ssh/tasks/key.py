@@ -20,6 +20,7 @@
 import random
 import string
 import os
+import stat
 from paramiko.rsakey import RSAKey
 import requests
 import starcluster.logger
@@ -52,6 +53,8 @@ def generate_key_pair(cluster, girder_token=None):
         key_path = os.path.join(cumulus.config.ssh.keyStore, cluster_id)
 
         new_key.write_private_key_file(key_path, password=passphrase)
+        # Allow group read as well
+        os.chmod(key_path, stat.S_IREAD | stat.S_IWRITE | stat.S_IRGRP)
 
         comment = 'cumulus generated access key'
         public_key = '%s %s %s' % (new_key.get_name(), new_key.get_base64(),

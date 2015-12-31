@@ -332,6 +332,9 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
+        if 'assetstoreId' in body:
+            cluster['assetstoreId'] = body['assetstoreId']
+
         if 'status' in body:
             cluster['status'] = body['status']
 

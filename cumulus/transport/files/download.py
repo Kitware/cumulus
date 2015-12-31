@@ -19,6 +19,7 @@
 
 import os
 import stat
+import json
 
 from girder_client import GirderClient
 
@@ -39,9 +40,9 @@ def _import_path(cluster_connection, girder_client, parent, path,
 
             folder = girder_client.createFolder(parent, name,
                                                 parentType=parent_type)
-            _import_path(cluster_connection, girder_client, folder, full_path,
-                         assetstore_url, assetstore_id, upload=upload,
-                         parent_type='folder')
+            _import_path(cluster_connection, girder_client, folder['_id'],
+                         full_path, assetstore_url, assetstore_id,
+                         upload=upload, parent_type='folder')
         else:
             size = p['size']
             item = girder_client.createItem(parent, name, '')
@@ -55,7 +56,7 @@ def _import_path(cluster_connection, girder_client, parent, path,
                     'size': size,
                     'path': full_path
                 }
-                girder_client.post(url, data=body)
+                girder_client.post(url, data=json.dumps(body))
             else:
                 with girder_client.get(path) as stream:
                     girder_client.uploadFile(item['_id'], stream, name, size,
