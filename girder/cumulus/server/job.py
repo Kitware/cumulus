@@ -31,6 +31,7 @@ from cumulus.starcluster import tasks
 
 class Job(BaseResource):
     def __init__(self):
+        super(Job, self).__init__()
         self.resourceName = 'jobs'
         self.route('POST', (), self.create)
         self.route('PATCH', (':id',), self.update)

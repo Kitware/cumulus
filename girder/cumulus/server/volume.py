@@ -41,6 +41,7 @@ from cumulus.starcluster.common import get_easy_ec2
 class Volume(BaseResource):
 
     def __init__(self):
+        super(Volume, self).__init__()
         self.resourceName = 'volumes'
         self.route('POST', (), self.create)
         self.route('GET', (':id', ), self.get)

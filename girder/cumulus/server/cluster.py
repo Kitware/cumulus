@@ -37,6 +37,7 @@ from cumulus.common import update_dict
 class Cluster(BaseResource):
 
     def __init__(self):
+        super(Cluster, self).__init__()
         self.resourceName = 'clusters'
         self.route('POST', (), self.create)
         self.route('POST', (':id', 'log'), self.handle_log_record)
@@ -62,6 +63,7 @@ class Cluster(BaseResource):
 
         return self._model.add_log_record(user, id,
                                           json.load(cherrypy.request.body))
+    handle_log_record.description = None
 
     def _find_section(self, name_to_find, sections):
         for section in sections:

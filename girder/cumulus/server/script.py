@@ -30,6 +30,7 @@ from .base import BaseResource
 class Script(BaseResource):
 
     def __init__(self):
+        super(Script, self).__init__()
         self.resourceName = 'scripts'
         self.route('POST', (), self.create)
         self.route('GET', (':id',), self.get)
