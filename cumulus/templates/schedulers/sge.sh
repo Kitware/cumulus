@@ -11,6 +11,9 @@
 {% if gpus -%}
 #$ -l gpus={{gpus}}
 {% endif -%}
+{% if queue -%}
+#$ -q {{queue}}
+{% endif -%}
 
 
 cd $SGE_O_WORKDIR
