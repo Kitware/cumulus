@@ -8,5 +8,8 @@
 {% if maxWallTime -%}
 #PBS -l walltime={{maxWallTime.hours}}:{{maxWallTime.minutes}}:{{maxWallTime.seconds}}
 {% endif -%}
+{% if queue -%}
+#PBS -q {{queue}}
+{% endif -%}
 cd $PBS_O_WORKDIR
 

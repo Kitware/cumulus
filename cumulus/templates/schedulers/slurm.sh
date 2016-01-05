@@ -17,5 +17,8 @@
 {% if maxWallTime -%}
 #SBATCH --time=={{maxWallTime.hours}}-{{maxWallTime.minutes}}:{{maxWallTime.seconds}}
 {% endif -%}
+{% if queue -%}
+#SBATCH --partition={{queue}}
+{% endif -%}
 
 
