@@ -23,6 +23,7 @@ from cumulus.starcluster.tasks.job import submit
 from cumulus.celery import command
 from cumulus.common import create_config_request, check_status
 import cumulus
+from cumulus.transport import get_connection
 import starcluster.config
 import starcluster.logger
 import starcluster.exception
@@ -153,3 +154,36 @@ def terminate_cluster(cluster, log_write_url=None, girder_token=None):
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'terminated'})
         check_status(r)
+
+
+@command.task
+@cumulus.starcluster.logging.capture
+def test_connection(cluster, log_write_url=None, girder_token=None):
+    cluster_id = cluster['_id']
+    cluster_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl, cluster_id)
+    log = starcluster.logger.get_starcluster_logger()
+    headers = {'Girder-Token':  girder_token}
+
+    try:
+        # First fetch the cluster with this 'admin' token so we get the
+        # passphrase filled out.
+        r = requests.get(cluster_url, headers=headers)
+        check_status(r)
+        cluster = r.json()
+
+        with get_connection(girder_token, cluster) as conn:
+            status = 'running'
+            # Test can we can connect to cluster
+            output = conn.execute('ls')
+        if len(output) < 1:
+            log.error('Unable connect to cluster')
+            status = 'error'
+
+        r = requests.patch(
+            cluster_url, headers=headers, json={'status': status})
+        check_status(r)
+    except Exception as ex:
+        r = requests.patch(cluster_url, headers=headers,
+                           json={'status': 'error'})
+        # Log the error message
+        log.exception(ex)

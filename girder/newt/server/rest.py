@@ -21,9 +21,13 @@ import requests
 import cherrypy
 
 from girder.api.describe import Description
-from girder.api.rest import Resource, RestException, getCurrentUser
+from girder.api.rest import Resource, RestException, getCurrentUser, getBodyJson
+from girder.api.rest import loadmodel
 from girder.api import access
 from girder.constants import SettingKey
+from girder.utility.model_importer import ModelImporter
+from girder.constants import AssetstoreType, AccessType
+from girder.api.docs import addModel
 
 from .constants import NEWT_BASE_URL
 
@@ -36,7 +40,7 @@ class Newt(Resource):
         self.route('GET', ('sessionId',), self.session_id)
 
     def _create_or_reuse_user(self, user_id, user_name, email, first_name,
-                              last_name):
+                              last_name, session_id):
 
         # Try finding by user id
         query = {
@@ -50,7 +54,6 @@ class Newt(Resource):
         if not user:
             user = self.model('user').findOne({'email': email})
 
-        dirty = False
         # Create the user if it's still not found
         if not user:
             policy = self.model('setting').get(SettingKey.REGISTRATION_POLICY)
@@ -76,25 +79,24 @@ class Newt(Resource):
                 dirty = True
 
         if set_id:
-            user.setdefault('newt', []).append(
-                {
-                    'id': user_id
-                })
-            dirty = True
+            user.setdefault('newt', {})['id'] = user_id
 
-        if dirty:
-            user = self.model('user').save(user)
+        user.setdefault('newt', {})['sessionId'] = session_id
+
+        user = self.model('user').save(user)
+
+        print user
 
         return user
 
-    def send_cookies(self, user, sessionId):
+    def send_cookies(self, user, session_id):
         super(Newt, self).sendAuthTokenCookie(user)
         cookie = cherrypy.response.cookie
-        cookie['newt_sessionid'] = sessionId
+        cookie['newt_sessionid'] = session_id
 
     @access.public
     def authenticate(self, sessionId, params):
-        status_url = '%s/login' % newt_base_url
+        status_url = '%s/login' % NEWT_BASE_URL
         cookies = dict(newt_sessionid=sessionId)
 
         r = requests.get(status_url, cookies=cookies)
@@ -107,7 +109,7 @@ class Newt(Resource):
         # Now get the use information so we can lookup the Girder user
         username = json_resp['username']
         r = requests.get('%s/account/user/%s/persons' %
-                         (newt_base_url, username), cookies=cookies)
+                         (NEWT_BASE_URL, username), cookies=cookies)
         json_resp = r.json()
 
         if len(json_resp['items']) != 1:
@@ -121,7 +123,7 @@ class Newt(Resource):
         lastname = user_info['lastname']
 
         user = self._create_or_reuse_user(user_id, username, email, firstname,
-                                          lastname)
+                                          lastname, sessionId)
 
         self.send_cookies(user, sessionId)
 
@@ -132,8 +134,11 @@ class Newt(Resource):
         .param('sessionId', 'The NEWT session id', paramType='path'))
 
     @access.user
-    def session_id(self):
+    def session_id(self, params):
         user = getCurrentUser()
+
+        user = self.model('user').load(user['_id'], fields=['newt'], force=True)
+        print 'user: %s ' % str(user)
 
         return {
             'sessionId': user.get('newt', {}).get('sessionId')
@@ -142,7 +147,6 @@ class Newt(Resource):
     session_id.description = (
         Description('Returns the NEWT session id for this user'))
 
-@access.user
 def create_assetstore(params):
     """Create a new NEWT assetstore."""
 
@@ -151,23 +155,87 @@ def create_assetstore(params):
         'name': params.get('name'),
         'newt': {
             'machine': params.get('machine'),
-            'baseUrl': params.get('baseUrl', newt_base_url)
+            'baseUrl': params.get('baseUrl', NEWT_BASE_URL)
         }
     })
 
 class NewtAssetstore(Resource):
     def __init__(self):
         super(NewtAssetstore, self).__init__()
-        self.resourceName = 'newt_assestores'
+        self.resourceName = 'newt_assetstores'
 
         self.route('POST', (), self.create)
+        self.route('POST', (':id', 'files'), self.create_file)
 
+    @access.user
+    @loadmodel(model='assetstore')
+    def create_file(self, assetstore, params):
+        params = getBodyJson()
+        self.requireParams(('name', 'itemId', 'size', 'path'), params)
+        name = params['name']
+        item_id = params['itemId']
+        size = int(params['size'])
+        path = params['path']
+        user = self.getCurrentUser()
+
+        mime_type = params.get('mimeType')
+        item = self.model('item').load(id=item_id, user=user,
+                                      level=AccessType.WRITE, exc=True)
+
+        file = self.model('file').createFile(
+                        name=name, creator=user, item=item, reuseExisting=True,
+                        assetstore=assetstore, mimeType=mime_type, size=size)
+
+        file['path'] = path
+        file['imported'] = True
+        self.model('file').save(file)
+
+        return self.model('file').filter(file)
+
+    addModel('CreateFileParams', {
+        'id': 'CreateFileParams',
+        'required': ['name', 'itemId', 'size', 'path'],
+        'properties': {
+            'name': {'type': 'string',
+                     'description': 'The name of the file.'},
+            'itemId':  {'type': 'string',
+                          'description': 'The item to attach the file to.'},
+            'size': {'type': 'number',
+                       'description': 'The size of the file.'},
+            'path': {'type': 'string',
+                       'description': 'The full path to the file.'},
+            'mimeType': {'type': 'string',
+                       'description': 'The the mimeType of the file.'},
+
+            }
+        }, 'newt')
+
+    create_file.description = (
+         Description('Create a new file in this assetstore.')
+        .param('id', 'The the assetstore to create the file in', required=True,
+               paramType='path')
+        .param('body', 'The parameter to create the file with.', required=True,
+               paramType='body', dataType='CreateFileParams'))
+
+    @access.user
     def create(self, params):
+        params = getBodyJson()
         self.requireParams(('name', 'machine'), params)
 
         return create_assetstore(params)
 
+    addModel('CreateAssetstoreParams', {
+        'id': 'CreateAssetstoreParams',
+        'required': ['name', 'itemId', 'size', 'path'],
+        'properties': {
+            'name': {'type': 'string',
+                     'description': '.'},
+            'machine':  {'type': 'string',
+                          'description': 'The host where files are stored.'}
+            }
+        }, 'newt')
+
     create.description = (
      Description('Create a new NEWT assetstore.')
-    .param('name', 'The name of the assetstore', required=True)
-    .param('machine', 'The machine the files are stored on', required=True))
+    .param('body', 'The parameter to create the assetstore', required=True,
+               paramType='body', dataType='CreateAssetstoreParams'))

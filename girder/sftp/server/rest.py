@@ -52,12 +52,25 @@ class SftpAssetstoreResource(Resource):
             }
         })
 
+    addModel('CreateAssetstoreParams', {
+        'id': 'CreateAssetstoreParams',
+        'required': ['name', 'itemId', 'size', 'path'],
+        'properties': {
+            'name': {'type': 'string',
+                     'description': '.'},
+            'host':  {'type': 'string',
+                          'description': 'The host where files are stored.'},
+            'user': {'type': 'number',
+                       'description': 'The user to access the files.'},
+            'authKey': {'type': 'string',
+                       'description': 'A key that can be used to lookup authentication credentials.'}
+            }
+        }, 'sftp')
+
     create_assetstore.description = (
          Description('Create a new sftp assetstore.')
-        .param('name', 'The name of the assetstore', required=True)
-        .param('host', 'The host where files are stored', required=True)
-        .param('user', 'The user to access the files', required=True)
-        .param('authKey', 'A key that can be used to lookup authentication credentials', required=False))
+        .param('body', 'The parameter to create the assetstore', required=True,
+               paramType='body', dataType='CreateAssetstoreParams'))
 
 
     @access.user
@@ -67,7 +80,7 @@ class SftpAssetstoreResource(Resource):
         self.requireParams(('name', 'itemId', 'size', 'path'), params)
         name = params['name']
         item_id = params['itemId']
-        size = params['size']
+        size = int(params['size'])
         path = params['path']
         user = self.getCurrentUser()
 

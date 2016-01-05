@@ -24,7 +24,7 @@ from bson.objectid import ObjectId
 from girder.constants import AccessType
 from girder.api.rest import RestException
 from .base import BaseModel
-from cumulus.constants import ClusterType
+from cumulus.constants import ClusterType, QueueType
 from ..utility.cluster_adapters import get_cluster_adapter
 from cumulus.common.girder import create_status_notifications, \
     check_group_membership
@@ -41,7 +41,7 @@ class Cluster(BaseModel):
 
         self.exposeFields(level=AccessType.READ,
                           fields=('_id', 'status', 'name', 'config', 'template',
-                                  'type'))
+                                  'type', 'userId'))
 
     def filter(self, cluster, user, passphrase=True):
         cluster = super(Cluster, self).filter(doc=cluster, user=user)
@@ -106,6 +106,21 @@ class Cluster(BaseModel):
             'status': 'creating',
             'config': config,
             'type': ClusterType.TRADITIONAL
+        }
+
+        return self._create(user, cluster)
+
+    def create_newt(self, user, name, config):
+
+        scheduler = parse('scheduler.type').find(config)
+        if not scheduler:
+            config.setdefault('scheduler', {})['type'] = QueueType.SLURM
+        cluster = {
+            'name': name,
+            'log': [],
+            'status': 'creating',
+            'config': config,
+            'type': ClusterType.NEWT
         }
 
         return self._create(user, cluster)

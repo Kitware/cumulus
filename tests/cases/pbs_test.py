@@ -16,7 +16,8 @@ class PbsQueueAdapterTestCase(unittest.TestCase):
                 'scheduler': {
                     'type': QueueType.PBS
                 }
-            }
+            },
+            'type': 'trad'
         }, self._cluster_connection)
 
 

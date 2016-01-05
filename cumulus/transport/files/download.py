@@ -30,6 +30,12 @@ def _import_path(cluster_connection, girder_client, parent, path,
                  assetstore_url, assetstore_id, upload=False,
                  parent_type='folder'):
 
+    if path[0] != '/':
+        # If we don't have a full path, assume the path is relative to the users
+        # home directory.
+        home = cluster_connection.execute('pwd')[0]
+        path = os.path.abspath(os.path.join(home, path))
+
     for p in cluster_connection.list(path):
         name = p['name']
 

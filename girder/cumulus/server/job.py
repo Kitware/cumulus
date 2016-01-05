@@ -420,11 +420,11 @@ class Job(BaseResource):
             cluster_model = self.model('cluster', 'cumulus')
             cluster = cluster_model.load(job['clusterId'], user=user,
                                          level=AccessType.READ)
-            cluster = cluster_model.filter(cluster, user)
 
             # Only try to clean up if cluster is still running
-            if cluster['status'] == 'running':
-                girder_token = self.get_task_token()['_id']
+            if cluster and cluster['status'] == 'running':
+                cluster = cluster_model.filter(cluster, user)
+                girder_token = self.get_task_token(cluster)['_id']
                 tasks.job.remove_output.delay(cluster, self._clean(job.copy()),
                                               girder_token=girder_token)
 

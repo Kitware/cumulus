@@ -17,7 +17,8 @@ class SlurmQueueAdapterTestCase(unittest.TestCase):
                 'scheduler': {
                     'type': QueueType.SLURM
                 }
-            }
+            },
+            'type': 'trad'
         }, self._cluster_connection)
 
 
