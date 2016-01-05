@@ -63,6 +63,7 @@ class Cluster(BaseResource):
 
         return self._model.add_log_record(user, id,
                                           json.load(cherrypy.request.body))
+    handle_log_record.description = None
 
     def _find_section(self, name_to_find, sections):
         for section in sections:
