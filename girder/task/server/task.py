@@ -38,6 +38,7 @@ class Task(BaseResource):
     DOLLAR_REF = '#dollar-ref#'
 
     def __init__(self):
+        super(Task, self).__init__()
         self.resourceName = 'tasks'
         self.route('POST', (), self.create)
         self.route('PUT', (':id', 'run'), self.run)

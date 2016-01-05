@@ -36,6 +36,7 @@ import cumulus
 class StarClusterConfig(BaseResource):
 
     def __init__(self):
+        super(StarClusterConfig, self).__init__()
         self.resourceName = 'starcluster-configs'
         self.route('POST', (), self.create)
         self.route('GET', (':id',), self.get)
