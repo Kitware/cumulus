@@ -23,9 +23,11 @@ import mock
 import re
 from easydict import EasyDict
 
+from cumulus.transport.files import get_assetstore_url_base
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
+    base.enabledPlugins.append('sftp')
     base.startServer()
 
 
@@ -234,7 +236,6 @@ class ClusterTestCase(base.TestCase):
         }
         config_id = r.json['config']['_id']
         del r.json['config']
-        print r.json
         self.assertEqual(r.json, expected_cluster)
 
         # Ensure user can get full config
@@ -840,4 +841,61 @@ class ClusterTestCase(base.TestCase):
             '/clusters', method='GET', params={}, user=self._another_user)
         self.assertStatusOk(r)
         self.assertEqual(len(r.json), 0, 'Don\'t expect any clusters')
+
+
+    @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
+    def test_delete_assetstore (self, generate_key):
+        body = {
+            'type': 'trad',
+            'name': 'my trad cluster',
+            'config': {
+                'ssh': {
+                    'user': 'bob'
+                },
+                'host': 'myhost'
+            }
+        }
+
+        json_body = json.dumps(body)
+
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 201)
+        cluster = r.json
+        cluster_id = cluster['_id']
+
+        # Create an assetstore for this cluster
+        url_base = get_assetstore_url_base(cluster)
+        create_url = '/%s' % url_base
+        body = {
+            'name': cluster['_id'],
+            'host': cluster['config']['host'],
+            'user': 'bob',
+            'authKey': cluster['_id']
+        }
+        json_body = json.dumps(body)
+
+        r = self.request(create_url, type='application/json', method='POST',
+                         body=json_body, user=self._user)
+        self.assertStatusOk(r)
+        cluster['assetstoreId'] = r.json['_id']
+
+        # Patch the cluster so it is associated with the assetstore
+        patch_cluster = {
+            'assetstoreId': str(r.json['_id'])
+        }
+        r = self.request('/clusters/%s' %
+                         str(cluster_id), type='application/json', method='PATCH', body=json.dumps(patch_cluster), user=self._user)
+        self.assertStatusOk(r)
+
+        r = self.request('/clusters/%s' %
+                         str(cluster_id), method='DELETE', user=self._user)
+        self.assertStatusOk(r)
+
+        r = self.request('/clusters/%s' %
+                         str(cluster_id), method='GET', user=self._user)
+        self.assertStatus(r, 404)
+
+        # Assert that assetstore is gone
+        self.assertIsNone(self.model('assetstore').load(cluster['assetstoreId']))
 

@@ -70,7 +70,16 @@ class AbstractClusterAdapter(ModelImporter):
         """
         Adapters may implement this if they support a delete operation.
         """
-        pass
+        # If an assetstore was created for this cluster then try to remove it
+        if 'assetstoreId' in self.cluster:
+            try:
+                assetstore = self.model('assetstore').load(
+                    self.cluster['assetstoreId'])
+                self.model('assetstore').remove(assetstore)
+            except ValidationException:
+                # If we still have files associated with the assetstore then
+                # leave it.
+                pass
 
     def submit_job(self, job):
         log_url = '%s/jobs/%s/log' % (getApiUrl(), job['_id'])
@@ -162,6 +171,7 @@ class Ec2ClusterAdapter(AbstractClusterAdapter):
         return self.cluster
 
     def delete(self):
+        super(Ec2ClusterAdapter, self).delete()
         if self.cluster['status'] in ['running', 'initializing']:
             raise RestException('Cluster is active', code=400)
 
@@ -242,6 +252,7 @@ class TraditionClusterAdapter(AbstractClusterAdapter):
                    girder_token=girder_token)
 
     def delete(self):
+        super(TraditionClusterAdapter, self).delete()
         # Clean up key associate with cluster
         cumulus.ssh.tasks.key.delete_key_pair.delay(self.cluster,
                                                     get_task_token()['_id'])
