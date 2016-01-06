@@ -41,7 +41,7 @@ class Cluster(BaseModel):
 
         self.exposeFields(level=AccessType.READ,
                           fields=('_id', 'status', 'name', 'config', 'template',
-                                  'type', 'userId'))
+                                  'type', 'userId', 'assetstoreId'))
 
     def filter(self, cluster, user, passphrase=True):
         cluster = super(Cluster, self).filter(doc=cluster, user=user)

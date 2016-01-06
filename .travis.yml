@@ -14,6 +14,9 @@ before_install:
     # First install Girder
     - pushd "${HOME}/build"
     - git clone https://github.com/girder/girder.git
+    - export IGNORE_PLUGINS=celery_jobs,geospatial,google_analytics,hdfs_assetstore,jquery_widgets,meta
+    - girder/scripts/InstallPythonRequirements.py --mode=dev --ignore-plugins=${IGNORE_PLUGINS}
+    - pip install girder/
     - pushd "${HOME}"
     - curl -L "https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-${MONGO_VERSION}.tgz" | gunzip -c | tar x
     - cd mongodb-*/bin && export PATH="${PWD}:${PATH}"
@@ -21,14 +24,12 @@ before_install:
     - mkdir /tmp/db
     - mongod --dbpath=/tmp/db >/dev/null 2>/dev/null &
     - mongod --version
-    - export IGNORE_PLUGINS=celery_jobs,geospatial,google_analytics,hdfs_assetstore,jquery_widgets,meta
-    - girder/scripts/InstallPythonRequirements.py --mode=dev --ignore-plugins=${IGNORE_PLUGINS}
     - pip install girder/clients/python
-    # Symlink plugin
+    # Install plugins
     - popd
-    - pwd
-    - ln -s `pwd`/girder/cumulus "${HOME}/build/girder/plugins/cumulus"
-    - ln -s `pwd`/girder/task "${HOME}/build/girder/plugins/task"
+    - pushd girder
+    - ls | xargs girder-install plugin -s --dev
+    - popd
     # Install CMake
     - pushd "${HOME}"
     - curl -L "http://cmake.org/files/v3.1/cmake-3.1.0-Linux-x86_64.tar.gz" | gunzip -c | tar x

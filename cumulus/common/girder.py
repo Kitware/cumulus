@@ -36,7 +36,6 @@ def get_task_token(cluster=None):
     However, in the case of a NEWT cluster we need the token to be associated
     with the logged in user as this is used to look up the NEWT session ID.
     """
-    print "cluster: %s" % str(cluster)
     if cluster and cluster['type'] == ClusterType.NEWT:
         user = getCurrentUser()
     else:
