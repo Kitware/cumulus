@@ -14,7 +14,9 @@
 {% if queue -%}
 #$ -q {{queue}}
 {% endif -%}
-
+{% if account -%}
+#$ -A {{account}}
+{% endif -%}
 
 cd $SGE_O_WORKDIR
 

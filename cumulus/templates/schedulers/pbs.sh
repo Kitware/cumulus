@@ -11,5 +11,8 @@
 {% if queue -%}
 #PBS -q {{queue}}
 {% endif -%}
+{% if account -%}
+#PBS -A {{account}}
+{% endif -%}
 cd $PBS_O_WORKDIR
 

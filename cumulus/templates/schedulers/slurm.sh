@@ -20,5 +20,7 @@
 {% if queue -%}
 #SBATCH --partition={{queue}}
 {% endif -%}
-
+{% if account -%}
+#SBATCH --account={{account}}
+{% endif -%}
 
