@@ -15,7 +15,7 @@
 #SBATCH --gres=gpu:{{numberOfGpusPerNode}}
 {% endif -%}
 {% if maxWallTime -%}
-#SBATCH --time=={{maxWallTime.hours}}-{{maxWallTime.minutes}}:{{maxWallTime.seconds}}
+#SBATCH --time={{maxWallTime.hours}}:{{maxWallTime.minutes}}:{{maxWallTime.seconds}}
 {% endif -%}
 {% if queue -%}
 #SBATCH --partition={{queue}}
