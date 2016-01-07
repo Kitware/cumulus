@@ -144,7 +144,10 @@ class NewtClusterConnection(AbstractConnection):
                 r.close()
 
     def isfile(self, remote_path):
-        s = self.stat(remote_path)
+        try:
+            s = self.stat(remote_path)
+        except NewtException:
+            return False
 
         return not stat.S_ISDIR(s.st_mode)
 
