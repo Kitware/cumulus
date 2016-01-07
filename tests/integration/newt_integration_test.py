@@ -34,6 +34,7 @@ class NewtIntegrationTest(BaseIntegrationTest):
                  job_timeout=60*5):
         super(NewtIntegrationTest, self).__init__(name, girder_url, girder_user,
                                                   girder_password, job_timeout)
+        self._cluster_id = None
         self._machine = machine
 
     def setUp(self):
@@ -70,11 +71,12 @@ class NewtIntegrationTest(BaseIntegrationTest):
 
     def tearDown(self):
         super(NewtIntegrationTest, self).tearDown()
-        try:
-            url = 'clusters/%s' % self._cluster_id
-            self._client.delete(url)
-        except Exception:
-            traceback.print_exc()
+        if self._cluster_id:
+            try:
+                url = 'clusters/%s' % self._cluster_id
+                self._client.delete(url)
+            except Exception:
+                traceback.print_exc()
 
     def create_cluster(self):
         body = {
