@@ -22,22 +22,20 @@ import unittest
 import json
 import time
 import traceback
-import paramiko
-from jsonpath_rw import parse
-import requests
 from requests import Session
-import hashlib
 
-from base_integration_test import BaseIntegrationTest, base_parser
+from base_integration_test import BaseIntegrationTest
 from girder_client import GirderClient, HttpError
 
 
 class NewtIntegrationTest(BaseIntegrationTest):
 
-    def __init__(self, name):
-        super(NewtIntegrationTest, self).__init__(name,
-                NewtIntegrationTest.GIRDER_URL, NewtIntegrationTest.GIRDER_USER,
-                NewtIntegrationTest.GIRDER_PASSWORD, job_timeout=60*5)
+    def __init__(self, name, girder_url, girder_user, girder_password, machine,
+                 job_timeout=60*5):
+        super(NewtIntegrationTest, self).__init__(name, girder_url, girder_user,
+                                                  girder_password, job_timeout)
+        self._cluster_id = None
+        self._machine = machine
 
     def setUp(self):
 
@@ -45,24 +43,23 @@ class NewtIntegrationTest(BaseIntegrationTest):
         self._session = Session()
         r = self._session.post('https://newt.nersc.gov/newt/auth',
                                {
-                                    'username': NewtIntegrationTest.GIRDER_USER,
-                                    'password': NewtIntegrationTest.GIRDER_PASSWORD})
+                                    'username': self._girder_user,
+                                    'password': self._girder_password})
 
         self.assertEqual(r.status_code, 200)
         print r.json()
         self._newt_session_id = r.json()['newt_sessionid']
 
         # Now authenticate with Girder using the session id
-        url = '%s/api/v1/newt/authenticate/%s' % (self.girder_url, self._newt_session_id)
-        r = self._session.put(url)
-        print r.json()
-        self.assertEqual(r.status_code, 200)
-
-        url = '%s/api/v1/newt/authenticate/%s' % (self.girder_url, self._newt_session_id)
+        url = '%s/api/v1/newt/authenticate/%s' % (self._girder_url, self._newt_session_id)
         r = self._session.put(url)
         self.assertEqual(r.status_code, 200)
 
-        url = '%s/api/v1' % self.girder_url
+        url = '%s/api/v1/newt/authenticate/%s' % (self._girder_url, self._newt_session_id)
+        r = self._session.put(url)
+        self.assertEqual(r.status_code, 200)
+
+        url = '%s/api/v1' % self._girder_url
         self._client = GirderClient(apiUrl=url)
         self._client.token = self._session.cookies['girderToken']
 
@@ -74,16 +71,17 @@ class NewtIntegrationTest(BaseIntegrationTest):
 
     def tearDown(self):
         super(NewtIntegrationTest, self).tearDown()
-        try:
-            url = 'clusters/%s' % self._cluster_id
-            self._client.delete(url)
-        except Exception:
-            traceback.print_exc()
+        if self._cluster_id:
+            try:
+                url = 'clusters/%s' % self._cluster_id
+                self._client.delete(url)
+            except Exception:
+                traceback.print_exc()
 
     def create_cluster(self):
         body = {
             'config': {
-                'host': NewtIntegrationTest.MACHINE
+                'host': self._machine
             },
             'name': 'NewtIntegrationTest',
             'type': 'newt'
@@ -101,6 +99,9 @@ class NewtIntegrationTest(BaseIntegrationTest):
 
             if r['status'] == 'running':
                 break
+            elif r['status'] == 'error':
+                r = self._client.get('clusters/%s/log' % self._cluster_id)
+                self.fail(str(r))
 
             if sleeps > 9:
                 self.fail('Cluster never moved into running state')
@@ -108,7 +109,7 @@ class NewtIntegrationTest(BaseIntegrationTest):
 
     def assert_output(self):
         r = self._client.listItem(self._output_folder_id)
-        self.assertEqual(len(r), 3)
+        self.assertEqual(len(r), 4)
 
         stdout_item = None
         for i in r:
@@ -120,7 +121,7 @@ class NewtIntegrationTest(BaseIntegrationTest):
         r = self._client.get('item/%s/files' % i['_id'])
         self.assertEqual(len(r), 1)
 
-        url =   '%s/api/v1/file/%s/download' % (self.girder_url, r[0]['_id'])
+        url =   '%s/api/v1/file/%s/download' % (self._girder_url, r[0]['_id'])
         r = self._session.get(url)
         self.assertEqual(r.content, self._data)
 
@@ -137,18 +138,13 @@ class NewtIntegrationTest(BaseIntegrationTest):
         except HttpError as error:
             self.fail(error.responseText)
 
+NewtIntegrationTest.parser = argparse.ArgumentParser(parents=[BaseIntegrationTest.parser])
+NewtIntegrationTest.parser.add_argument('-m', '--machine', help='', required=True)
+
 if __name__ == '__main__':
+    args = NewtIntegrationTest.parser.parse_args()
 
-    parser = argparse.ArgumentParser(parents=[base_parser])
-    parser.add_argument('-m', '--machine', help='', required=True)
-
-    args = parser.parse_args()
-
-    NewtIntegrationTest.MACHINE = args.machine
-
-    NewtIntegrationTest.GIRDER_USER = args.girder_user
-    NewtIntegrationTest.GIRDER_PASSWORD = args.girder_password
-    NewtIntegrationTest.GIRDER_URL = args.girder_url
-
-    suite = unittest.TestLoader().loadTestsFromTestCase(NewtIntegrationTest)
+    suite = unittest.TestSuite()
+    suite.addTest(NewtIntegrationTest("test", args.girder_url, args.girder_user,
+        args.girder_password, args.machine))
     unittest.TextTestRunner().run(suite)

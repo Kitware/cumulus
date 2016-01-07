@@ -25,21 +25,23 @@ import traceback
 import paramiko
 from jsonpath_rw import parse
 
-from base_integration_test import BaseIntegrationTest, base_parser
+from base_integration_test import BaseIntegrationTest
 from girder_client import HttpError
 
 class TradIntegrationTest(BaseIntegrationTest):
 
-    def __init__(self, name):
-        super(TradIntegrationTest, self).__init__(name,
-                TradIntegrationTest.GIRDER_URL, TradIntegrationTest.GIRDER_USER,
-                TradIntegrationTest.GIRDER_PASSWORD)
+    def __init__(self, name, girder_url, girder_user, girder_password, user,
+                  host):
+        super(TradIntegrationTest, self).__init__(name, girder_url, girder_user,
+                                                  girder_password)
+        self._user = user
+        self._host = host
 
     def tearDown(self):
         super(TradIntegrationTest, self).tearDown()
         try:
             url = 'clusters/%s' % self._cluster_id
-            r = self._client.delete(url)
+            self._client.delete(url)
         except Exception:
             traceback.print_exc()
 
@@ -47,9 +49,9 @@ class TradIntegrationTest(BaseIntegrationTest):
         body = {
             'config': {
                 'ssh': {
-                    'user': TradIntegrationTest.USER
+                    'user': self._user
                 },
-                'host': TradIntegrationTest.HOST
+                'host': self._host
             },
             'name': 'TradIntegrationTest',
             'type': 'trad'
@@ -76,7 +78,7 @@ class TradIntegrationTest(BaseIntegrationTest):
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.load_system_host_keys()
-        client.connect(TradIntegrationTest.HOST, username=TradIntegrationTest.USER)
+        client.connect(self._host, username=self._user)
         key = parse('config.ssh.publicKey').find(r)
 
         if not key:
@@ -84,7 +86,7 @@ class TradIntegrationTest(BaseIntegrationTest):
 
         key = key[0].value
 
-        stdin, stdout, stderr = client.exec_command('echo "%s" >> ~/.ssh/authorized_keys' % key)
+        _, stdout, stderr = client.exec_command('echo "%s" >> ~/.ssh/authorized_keys' % key)
         self.assertFalse(stdout.read())
         self.assertFalse(stderr.read())
 
@@ -116,18 +118,13 @@ class TradIntegrationTest(BaseIntegrationTest):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(parents=[base_parser])
+    parser = argparse.ArgumentParser(parents=[BaseIntegrationTest.parser])
     parser.add_argument('-n', '--host', help='', required=True)
     parser.add_argument('-u', '--user', help='', required=True)
 
     args = parser.parse_args()
 
-    TradIntegrationTest.USER = args.user
-    TradIntegrationTest.HOST = args.host
-
-    TradIntegrationTest.GIRDER_USER = args.girder_user
-    TradIntegrationTest.GIRDER_PASSWORD = args.girder_password
-    TradIntegrationTest.GIRDER_URL = args.girder_url
-
-    suite = unittest.TestLoader().loadTestsFromTestCase(TradIntegrationTest)
+    suite = unittest.TestSuite()
+    suite.addTest(TradIntegrationTest("test", args.girder_url, args.girder_user,
+        args.girder_password, args.user, args.host))
     unittest.TextTestRunner().run(suite)
