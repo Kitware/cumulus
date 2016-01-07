@@ -43,6 +43,7 @@ commands = {
     'ls': '/bin/ls',
     'rm': '/bin/rm',
     'pwd': '/bin/pwd',
+    'tail': '/usr/bin/tail',
     # This may be very machine dependant!
     'squeue': '/opt/slurm/default/bin/squeue'
 }
