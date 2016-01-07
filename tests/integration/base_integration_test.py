@@ -116,7 +116,7 @@ class BaseIntegrationTest(unittest.TestCase):
         r = self._client.createFolder(self._private_folder_id, folder_name)
         self._output_folder_id = r['_id']
 
-    def create_job(self, job_name='CumulusIntegrationTestJob'):
+    def create_job(self, job_name='CumulusIntegrationTestJob', tail=None):
         body = {
             'name': job_name,
             'scriptId': self._script_id,
@@ -131,6 +131,12 @@ class BaseIntegrationTest(unittest.TestCase):
               }
             ]
         }
+
+        if tail:
+            body['output'].append({
+                "path": tail,
+                "tail": True
+            })
 
         job = self._client.post('jobs', data=json.dumps(body))
         self._job_id = job['_id']
