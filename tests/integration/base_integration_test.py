@@ -31,19 +31,24 @@ from StringIO import StringIO
 from girder_client import GirderClient, HttpError
 
 class BaseIntegrationTest(unittest.TestCase):
-    def __init__(self, name, girder_url, girder_user, girder_password, job_timeout=60):
+    def __init__(self, name, girder_url, girder_user, girder_password, job_timeout=60, cleanup=True):
         super(BaseIntegrationTest, self).__init__(name)
-        self.girder_url = girder_url
-        self.girder_user = girder_user
-        self.girder_password = girder_password
+        self._job_id = None
+        self._script_id = None
+        self._output_folder_id = None
+        self._input_folder_id = None
+        self._girder_url = girder_url
+        self._girder_user = girder_user
+        self._girder_password = girder_password
         self._job_timeout = job_timeout
         self._data = 'Need more input!'
+        self._cleanup = cleanup
 
     def setUp(self):
-        url = '%s/api/v1' % self.girder_url
+        url = '%s/api/v1' % self._girder_url
         self._client = GirderClient(apiUrl=url)
-        self._client.authenticate(self.girder_user,
-                                  self.girder_password)
+        self._client.authenticate(self._girder_user,
+                                  self._girder_password)
 
         user = self._client.get('user/me')
         self._user_id = user['_id']
@@ -52,6 +57,10 @@ class BaseIntegrationTest(unittest.TestCase):
         self._private_folder_id = r[0]['_id']
 
     def tearDown(self):
+
+        if not self._cleanup:
+            return
+
         if self._job_id:
             try:
                 url = 'jobs/%s' % self._job_id
@@ -62,13 +71,6 @@ class BaseIntegrationTest(unittest.TestCase):
         if self._script_id:
             try:
                 url = 'scripts/%s' % self._script_id
-                self._client.delete(url)
-            except Exception:
-                traceback.print_exc()
-
-        if self._item_id:
-            try:
-                url = 'item/%s' % self._item_id
                 self._client.delete(url)
             except Exception:
                 traceback.print_exc()
@@ -87,18 +89,18 @@ class BaseIntegrationTest(unittest.TestCase):
             except Exception:
                 traceback.print_exc()
 
-    def create_script(self):
+    def create_script(self, commands=[
+                'sleep 10', 'cat CumulusIntegrationTestInput'
+            ]):
         body = {
-            'commands': [
-                'sleep 10', 'cat input/CumulusIntegrationTestInput'
-            ],
+            'commands': commands,
             'name': 'CumulusIntegrationTestLob'
         }
 
         r = self._client.post('scripts', data=json.dumps(body))
         self._script_id = r['_id']
 
-    def create_input(self):
+    def create_input(self, folder_name='CumulusInput'):
 
         r = self._client.createFolder(self._private_folder_id, 'CumulusInput')
         self._input_folder_id = r['_id']
@@ -110,13 +112,13 @@ class BaseIntegrationTest(unittest.TestCase):
 
         self._item_id = item['itemId']
 
-    def create_output_folder(self):
-        r = self._client.createFolder(self._private_folder_id, 'CumulusOutput')
+    def create_output_folder(self, folder_name='CumulusOutput'):
+        r = self._client.createFolder(self._private_folder_id, folder_name)
         self._output_folder_id = r['_id']
 
-    def create_job(self):
+    def create_job(self, job_name='CumulusIntegrationTestJob'):
         body = {
-            'name': 'CumulusIntegrationTestJob',
+            'name': job_name,
             'scriptId': self._script_id,
             'output': [{
               'folderId': self._output_folder_id,
@@ -125,7 +127,7 @@ class BaseIntegrationTest(unittest.TestCase):
             'input': [
               {
                 'folderId': self._input_folder_id,
-                'path': 'input'
+                'path': '.'
               }
             ]
         }
@@ -133,15 +135,16 @@ class BaseIntegrationTest(unittest.TestCase):
         job = self._client.post('jobs', data=json.dumps(body))
         self._job_id = job['_id']
 
-    def submit_job(self):
+    def submit_job(self, job_params={}):
         url = 'clusters/%s/job/%s/submit' % (self._cluster_id, self._job_id)
-        self._client.put(url)
+
+        self._client.put(url, data=json.dumps(job_params))
         start = time.time()
         while True:
             time.sleep(1)
             r = self._client.get('jobs/%s' % self._job_id)
 
-            if r['status'] == 'error':
+            if r['status'] in ['error', 'unexpectederror']:
                 r = self._client.get('jobs/%s/log' % self._job_id)
                 self.fail(str(r))
             elif r['status'] == 'complete':
@@ -152,7 +155,7 @@ class BaseIntegrationTest(unittest.TestCase):
 
     def assert_output(self):
         r = self._client.listItem(self._output_folder_id)
-        self.assertEqual(len(r), 3)
+        self.assertEqual(len(r), 4)
 
         stdout_item = None
         for i in r:
@@ -174,11 +177,11 @@ class BaseIntegrationTest(unittest.TestCase):
             if os.path.exists(path):
                 os.remove(path)
 
-base_parser = argparse.ArgumentParser(description='Run integration test',
+BaseIntegrationTest.parser = argparse.ArgumentParser(description='Run integration test',
                                       add_help=False)
-base_parser.add_argument('-g', '--girder_user', help='', required=True)
-base_parser.add_argument('-p', '--girder_password', help='', required=True)
-base_parser.add_argument('-r', '--girder_url', help='', required=True)
+BaseIntegrationTest.parser.add_argument('-g', '--girder_user', help='', required=True)
+BaseIntegrationTest.parser.add_argument('-p', '--girder_password', help='', required=True)
+BaseIntegrationTest.parser.add_argument('-r', '--girder_url', help='', required=True)
 
 
 
