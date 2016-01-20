@@ -1,0 +1,5 @@
+{
+"name": "TaskFlow",
+"description": "REST based creation/management of clusters in EC2",
+"dependencies": []
+}

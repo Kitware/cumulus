@@ -1,0 +1,86 @@
+{
+    "name": "Run cluster job",
+
+    "steps": [
+              {
+                  "name": "createcluster",
+                  "type": "http",
+                  "params": {
+                      "url": "/clusters",
+                      "method": "POST",
+                      "output": "cluster",
+                      "body": {
+                          "config": [
+                                     {
+                                         "_id": "{{config.id}}"
+                                     }
+                                     ],
+                          "name": "test_cluster",
+                          "template": "default_cluster"
+                      }
+                  }
+              },
+              {
+                  "name": "start cluster",
+                  "type": "http",
+                  "params": {
+                      "url": "/clusters/{{cluster._id}}/start",
+                      "method": "PUT"
+                  },
+                  "body": {
+
+                  }
+              },
+              {
+                  "name": "Wait for cluster",
+                  "type": "status",
+                  "params": {
+                      "url": "/clusters/{{cluster._id}}/status",
+                      "selector": "status",
+                      "success": ["running"],
+                      "failure": ["error"]
+                  }
+              },
+              {
+                  "name": "create job",
+                  "type": "http",
+                  "params": {
+                       "url": "/jobs",
+                       "method": "POST",
+                       "body": {
+                          "name": "myjob",
+                          "scriptId": "script_id",
+                          "output": {
+                            "itemId": "{{output.item.id}}"
+                          },
+                          "input": [
+                            {
+                              "itemId": "{{input.item.id}}",
+                              "path": "{{input.path}}"
+                            }
+                          ]
+                        },
+                        "output": "job"
+                  }
+              },
+              {
+                  "name": "submit job",
+                  "type": "http",
+                  "params": {
+                       "url": "/clusters/{{cluster._id}}/job/{{job._id}}/submit",
+                        "method": "PUT"
+                  }
+              },
+              {
+                  "name": "Wait for job to complete",
+                  "type": "status",
+                  "params": {
+                      "url": "/clusters/{{cluster._id}}/status",
+                      "selector": "status",
+
+                      "success": ["complete", "terminated"],
+                      "failure": ["error"]
+                  }
+              }
+              ]
+}
