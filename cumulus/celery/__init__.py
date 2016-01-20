@@ -26,7 +26,7 @@ _includes = (
     'cumulus.task.status',
     'cumulus.ssh.tasks.key',
     'cumulus.aws.ec2.tasks.key',
-    'cumulus.mytaskflow'
+    'cumulus.mytaskflows'
 )
 
 # Route short tasks to their own queue

@@ -131,14 +131,13 @@ class TaskFlows(BaseResource):
         task_status = [t['status'] for t in tasks]
         task_status = set(task_status)
 
-        print task_status
-
         status = 'created'
         if len(task_status) ==  1:
             status = task_status.pop()
         elif 'error' in task_status:
             status = 'error'
-        elif 'running' in task_status:
+        elif 'running' in task_status or \
+             ('complete'in task_status and 'created' in task_status):
             status = 'running'
 
         return {'status': status}
