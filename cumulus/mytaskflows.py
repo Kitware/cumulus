@@ -1,3 +1,22 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+###############################################################################
+#  Copyright 2016 Kitware Inc.
+#
+#  Licensed under the Apache License, Version 2.0 ( the "License" );
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+###############################################################################
+
 from __future__ import absolute_import
 
 import time
@@ -6,6 +25,10 @@ from cumulus import taskflow
 from celery import chord
 
 class SimpleTaskFlow(taskflow.TaskFlow):
+    """
+    This is a simple linear taskflow, chain together 6 task. Notice that
+    simple_task3 "fans" out the flow, by scheduling 10 copies of simple_task4.
+    """
     def start(self):
         simple_task1.delay(self)
 
@@ -30,7 +53,6 @@ def simple_task3(workflow, *args, **kwargs):
 
 @taskflow.task
 def simple_task4(workflow, *args, **kwargs):
-    #raise Exception('task4')
     print 'simple_task4'
     time.sleep(2)
 
@@ -47,7 +69,9 @@ def simple_task6(workflow, *args, **kwargs):
 
 
 class ChordTaskFlow(taskflow.TaskFlow):
-    # State methods
+    """
+    This taskflow has a "fanout" an also a chord, at task4
+    """
     def start(self):
         task1.delay(self)
 
@@ -73,7 +97,6 @@ def task3(workflow, *args, **kwargs):
 
 @taskflow.task
 def task4(workflow, *args, **kwargs):
-    #raise Exception('task4')
     print 'task4'
     time.sleep(2)
 
