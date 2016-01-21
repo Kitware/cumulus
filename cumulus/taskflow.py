@@ -27,6 +27,7 @@ from girder_client import GirderClient, HttpError
 
 import celery
 from celery.signals import before_task_publish, task_postrun, task_prerun
+from celery.canvas import maybe_signature
 from celery import current_task
 
 from cumulus.celery import command
@@ -94,14 +95,15 @@ class TaskFlow(dict):
     utility methods can be added for example to update data/results associated
     with the taskflow.
     """
-    def __init__(self, id=None, girder_token=None, girder_api_url=None):
+    def __init__(self, id=None, girder_token=None, girder_api_url=None,
+                **kwargs):
         """
         Constructs a new TaskFlow instance
         """
         super(TaskFlow, self).__init__(
             girder_api_url=girder_api_url,
             girder_token=girder_token,
-            id=id)
+            id=id, **kwargs)
 
     @property
     def id(self):
@@ -130,6 +132,55 @@ class TaskFlow(dict):
 
     def run(self):
         self.start()
+
+    class _on_complete_instance(object):
+        """
+        Private utility class to enable the on_complete syntax
+        """
+        def __init__(self, taskflow, task):
+            self._taskflow = taskflow
+            self._completed_task = task.name
+
+        def run(self, task_to_run):
+            """
+            Called with the follow on task
+            """
+            # Register the callback with the taskflow
+            self._taskflow._register_on_complete(self._completed_task,
+                                                 task_to_run )
+
+    def _register_on_complete(self, complete_task, task_to_run):
+        """
+        Private utility method to register an on complete callback
+        """
+        on_complete_map = self.setdefault('_on_complete_map', {})
+        on_complete_map[complete_task] = task_to_run
+
+    def _on_complete_lookup(self, completed_task_name):
+        """
+        Private utility method to lookup can callback that may be registered
+        for a give completed task.
+        """
+        on_complete_map = self.setdefault('_on_complete_map', {})
+        to_run = on_complete_map.get(completed_task_name)
+
+        if to_run:
+            # Convert back to celery signature object
+            to_run = maybe_signature(to_run)
+
+        return to_run
+
+    def on_complete(self, task):
+        """
+        The method allow a follow on task to register, that will be run when
+        an certain task is complete.
+
+        The syntax is a follows:
+
+        taskflow.on_complete(completed_task).run(task_to_run.s())
+        """
+        return TaskFlow._on_complete_instance(self, task)
+
 
 @task_prerun.connect
 def task_prerun_handler(task_id=None, task=None, args=None, **kwargs):
@@ -256,6 +307,11 @@ def task_success_handler(taskflow, taskflow_task_id, celery_task, state=None,
     """
     Success handler
     """
+    # See if we have any follow on tasks
+    to_run = taskflow._on_complete_lookup(celery_task.name)
+    if to_run:
+        to_run.delay()
+
     # Update the status
     _update_task_status(taskflow, taskflow_task_id, TaskState.COMPLETE)
 

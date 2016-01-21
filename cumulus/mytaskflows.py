@@ -34,38 +34,38 @@ class SimpleTaskFlow(taskflow.TaskFlow):
 
 @taskflow.task
 def simple_task1(workflow, *args, **kwargs):
-    print 'simple_task1'
+    print ('simple_task1')
     simple_task2.delay()
 
 @taskflow.task
 def simple_task2(workflow, *args, **kwargs):
-    print 'simple_task2'
+    print ('simple_task2')
     time.sleep(3)
 
     simple_task3.delay()
 
 @taskflow.task
 def simple_task3(workflow, *args, **kwargs):
-    print 'simple_task3'
+    print ('simple_task3')
 
     for i in range(0, 10):
         simple_task4.delay()
 
 @taskflow.task
 def simple_task4(workflow, *args, **kwargs):
-    print 'simple_task4'
+    print ('simple_task4')
     time.sleep(2)
 
     simple_task5.delay()
 
 @taskflow.task
 def simple_task5(workflow, *args, **kwargs):
-    print 'simple_task5'
+    print ('simple_task5')
     simple_task6.delay()
 
 @taskflow.task
 def simple_task6(workflow, *args, **kwargs):
-    print 'simple_task6 and done'
+    print ('simple_task6 and done')
 
 
 class ChordTaskFlow(taskflow.TaskFlow):
@@ -77,27 +77,26 @@ class ChordTaskFlow(taskflow.TaskFlow):
 
 @taskflow.task
 def task1(workflow, *args, **kwargs):
-    print 'task1'
-    print workflow
+    print ('task1')
     task2.delay()
 
 @taskflow.task
 def task2(workflow, *args, **kwargs):
-    print 'task2'
+    print ('task2')
     time.sleep(3)
 
     task3.delay()
 
 @taskflow.task
 def task3(workflow, *args, **kwargs):
-    print 'task3'
+    print ('task3')
 
     for i in range(0, 10):
         task4.delay()
 
 @taskflow.task
 def task4(workflow, *args, **kwargs):
-    print 'task4'
+    print ('task4')
     time.sleep(2)
 
     header = [task5.s() for i in range(10)]
@@ -105,10 +104,61 @@ def task4(workflow, *args, **kwargs):
 
 @taskflow.task
 def task5(workflow, *args, **kwargs):
-    print 'task5'
+    print ('task5')
 
 @taskflow.task
 def task6(workflow, chord_result, *args, **kwargs):
     print 'task6 and done'
 
+
+# Example that connects to sequence of tasks together, to allow reuse of sub
+# flows.
+
+@taskflow.task
+def part1_start(workflow, *args, **kwargs):
+    print ('part1 - task1')
+    part1_task2.delay()
+
+@taskflow.task
+def part1_task2(workflow, *args, **kwargs):
+    print ('part1 - task2')
+    time.sleep(3)
+    part1_task3.delay()
+
+@taskflow.task
+def part1_task3(workflow, *args, **kwargs):
+    print ('part1 - task3')
+
+
+@taskflow.task
+def part2_start(workflow, *args, **kwargs):
+    print ('part2 - task1')
+    part2_task2.delay()
+
+@taskflow.task
+def part2_task2(workflow, *args, **kwargs):
+    print ('part2 - task2')
+    time.sleep(3)
+    part2_task3.delay()
+
+@taskflow.task
+def part2_task3(workflow, *args, **kwargs):
+    print ('part2 - task3')
+    time.sleep(3)
+
+
+class ConnectTwoTaskFlow(taskflow.TaskFlow):
+    """
+    This taskflow connects two sequences of task together.
+    """
+    def __init__(self, *args, **kwargs):
+        super(ConnectTwoTaskFlow, self).__init__(*args, **kwargs)
+
+        # This is where we make the connection
+        # when part1_task3 is complete run part2_start
+        # Not sure about the syntax?
+        self.on_complete(part1_task3).run(part2_start.s())
+
+    def start(self):
+        part1_start.delay(self)
 

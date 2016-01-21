@@ -73,6 +73,19 @@ def main(config):
 
         # Wait for it to complete
         wait_for_complete(client, taskflow_id)
+
+        # Now try a workflow that is the two connected together
+        print ('Running taskflow that connects to parts together ...')
+        taskflow_id = create_taskflow(
+            client, 'cumulus.mytaskflows.ConnectTwoTaskFlow')
+
+        # Start the task flow
+        url = 'taskflows/%s/start' % (taskflow_id)
+        client.put(url)
+
+        # Wait for it to complete
+        wait_for_complete(client, taskflow_id)
+
     except HttpError as ex:
         print( ex.responseText)
 
