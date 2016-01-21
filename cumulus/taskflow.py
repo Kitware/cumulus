@@ -185,7 +185,7 @@ class TaskFlow(dict):
 @task_prerun.connect
 def task_prerun_handler(task_id=None, task=None, args=None, **kwargs):
     """
-    This is called before a task it run. We use it the save the current task
+    This is called before a task is run. We use it the save the current task
     being run in thread local storage. We need this when celery uses built in
     tasks, such as 'celery.group', we want the 'user task'.
 
