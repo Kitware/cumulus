@@ -21,7 +21,7 @@ import cherrypy
 
 from girder.api import access
 from girder.api.describe import Description
-from girder.constants import AccessType
+from girder.constants import AccessType, SortDir
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, getApiUrl
 from .base import BaseResource
@@ -42,6 +42,7 @@ class Job(BaseResource):
         self.route('GET', (':id', 'output'), self.output)
         self.route('DELETE', (':id', ), self.delete)
         self.route('GET', (':id',), self.get)
+        self.route('GET', (), self.find)
 
         self._model = self.model('job', 'cumulus')
 
@@ -57,6 +58,8 @@ class Job(BaseResource):
         user = self.getCurrentUser()
 
         body = getBodyJson()
+
+        self.requireParams(['name'], body)
 
         if 'commands' not in body and 'scriptId' not in body:
             raise RestException('command or scriptId must be provided',
@@ -436,3 +439,30 @@ class Job(BaseResource):
         .param(
             'id',
             'The job id.', paramType='path', required=True))
+
+    @access.user
+    def find(self, params):
+        user = self.getCurrentUser()
+
+        query = {
+            'userId': user['_id']
+        }
+
+        limit = int(params.get('limit', 0))
+        offset = int(params.get('offset', 0))
+
+        jobs = self._model.find(
+            query=query, offset=offset, limit=limit,
+            sort=[('name', SortDir.ASCENDING)])
+
+        return [self._clean(job) for job in jobs]
+
+    find.description = (
+        Description('List all jobs for a given user')
+        .param(
+            'offset',
+            'The offset into the results', paramType='query', required=False)
+        .param(
+            'limit',
+            'Maximum number of jobs to return', paramType='query',
+            required=False))

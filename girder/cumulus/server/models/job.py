@@ -31,6 +31,7 @@ class Job(BaseModel):
 
     def initialize(self):
         self.name = 'jobs'
+        self.ensureIndices(['userId'])
 
     def validate(self, doc):
         if not doc['name']:
@@ -48,6 +49,9 @@ class Job(BaseModel):
             '_id': ObjectId(self.get_group_id())
         }
         doc = self.setGroupAccess(job, group, level=AccessType.ADMIN)
+
+        # Add the user id of the creator to indicate ownership
+        job['userId'] = user['_id']
 
         self.save(job)
 
