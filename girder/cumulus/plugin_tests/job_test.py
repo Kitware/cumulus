@@ -97,7 +97,7 @@ class JobTestCase(base.TestCase):
         self.assertStatus(r, 201)
         del r.json['_id']
 
-        expected_job = {u'status': u'created', u'commands': [u''], u'name': u'testing', u'onComplete': {u'cluster': u'terminate'}, u'output': [{
+        expected_job = {u'status': u'created', u'userId': str(self._user['_id']),  u'commands': [u''], u'name': u'testing', u'onComplete': {u'cluster': u'terminate'}, u'output': [{
             u'itemId': u'546a1844ff34c70456111185'}], u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}]}
         self.assertEqual(r.json, expected_job)
 
@@ -173,7 +173,7 @@ class JobTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._cumulus)
 
         self.assertStatus(r, 201)
-        expected_job = {u'status': u'created', u'commands': [u'echo "test"'], u'name': u'test', u'onComplete': {u'cluster': u'terminate'},  u'onTerminate': {'commands': [u'echo "test"']}, u'output': [{
+        expected_job = {u'status': u'created', u'userId': str(self._cumulus['_id']), u'commands': [u'echo "test"'], u'name': u'test', u'onComplete': {u'cluster': u'terminate'},  u'onTerminate': {'commands': [u'echo "test"']}, u'output': [{
             u'itemId': u'546a1844ff34c70456111185'}], u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}]}
         del r.json['_id']
         self.assertEquals(r.json, expected_job)
@@ -260,7 +260,7 @@ class JobTestCase(base.TestCase):
         r = self.request('/jobs/%s' %
                          str(job_id), method='GET', user=self._cumulus)
         self.assertStatusOk(r)
-        expected_job = {u'status': u'created', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'output': [{
+        expected_job = {u'status': u'created', u'userId': str(self._user['_id']), u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'output': [{
             u'itemId': u'546a1844ff34c70456111185'}], u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}],
             '_id': str(job_id)}
         self.assertEquals(r.json, expected_job)
@@ -307,7 +307,7 @@ class JobTestCase(base.TestCase):
                          type='application/json', body=json.dumps(status_body),
                          user=self._cumulus)
         self.assertStatusOk(r)
-        expected_job = {u'status': u'testing', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'output': [{
+        expected_job = {u'status': u'testing', u'userId': str(self._user['_id']), u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'output': [{
             u'itemId': u'546a1844ff34c70456111185'}], u'input': [{u'itemId': u'546a1844ff34c70456111185', u'path': u''}],
             '_id': str(job_id)}
         self.assertEquals(r.json, expected_job)
@@ -455,3 +455,71 @@ class JobTestCase(base.TestCase):
         r = self.request('/jobs/%s' %
                          str(job_id), method='GET', user=self._cumulus)
         self.assertStatus(r, 404)
+
+    def test_list(self):
+        def create_job(user, name):
+            body = {
+                'onComplete': {
+                    'cluster': 'terminate'
+                },
+                'input': [
+                    {
+                        'itemId': '546a1844ff34c70456111185',
+                        'path': ''
+                    }
+                ],
+                'commands': [
+                    ''
+                ],
+                'name': name,
+                'output': [{
+                    'itemId': '546a1844ff34c70456111185'
+                }]
+            }
+
+            json_body = json.dumps(body)
+            r = self.request('/jobs', method='POST',
+                             type='application/json', body=json_body, user=user)
+
+            self.assertStatus(r, 201)
+
+            return r.json
+
+        create_job(self._user, 'test0')
+        job1 = create_job(self._another_user, 'test1')
+        job2 = create_job(self._another_user, 'test2')
+
+        r = self.request('/jobs', method='GET',
+                         type='application/json', user=self._another_user)
+
+        self.assertStatus(r, 200)
+        self.assertEqual(len(r.json), 2)
+        print r.json
+        job_ids = [job['_id'] for job in r.json]
+        self.assertTrue(job1['_id'] in job_ids)
+        self.assertTrue(job2['_id'] in job_ids)
+
+        # Now test limit
+        params = {
+            'limit': 1
+        }
+        r = self.request('/jobs', method='GET',
+                         type='application/json', params=params,
+                         user=self._another_user)
+
+        self.assertStatus(r, 200)
+        self.assertEqual(len(r.json), 1)
+        self.assertEqual(r.json[0]['_id'], job1['_id'])
+
+
+        # Now test offset
+        params = {
+            'offset': 1
+        }
+        r = self.request('/jobs', method='GET',
+                         type='application/json', params=params,
+                         user=self._another_user)
+
+        self.assertStatus(r, 200)
+        self.assertEqual(len(r.json), 1)
+        self.assertEqual(r.json[0]['_id'], job2['_id'])
