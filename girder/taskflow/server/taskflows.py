@@ -78,7 +78,7 @@ class TaskFlows(BaseResource):
             load_class(taskflow['taskFlowClass'])
         except:
             raise RestException(
-                    'Unable to taskflow task: %s' % taskflow['taskFlowClass'])
+                    'Unable to load taskflow class: %s' % taskflow['taskFlowClass'])
         taskflow = self._model.create(user, taskflow)
 
         cherrypy.response.status = 201
