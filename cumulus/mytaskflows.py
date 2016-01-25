@@ -34,6 +34,7 @@ class SimpleTaskFlow(taskflow.TaskFlow):
 
 @taskflow.task
 def simple_task1(workflow, *args, **kwargs):
+    workflow.logger.info('Starting simple_task1')
     print ('simple_task1')
     simple_task2.delay()
 

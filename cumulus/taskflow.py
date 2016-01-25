@@ -16,12 +16,14 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ###############################################################################
-
 from __future__ import absolute_import
+import logging
 
 from functools import wraps
 import json
 import threading
+
+import requests
 
 from girder_client import GirderClient, HttpError
 
@@ -89,6 +91,18 @@ def to_taskflow(taskflow):
 
     return taskflow
 
+class TaskFlowLogHandler(logging.Handler):
+
+    def __init__(self, girder_token, url):
+        super(TaskFlowLogHandler, self).__init__()
+        self._url = url
+        self._headers = {'Girder-Token':  girder_token}
+
+    def emit(self, record):
+        json_str = json.dumps(record.__dict__, default=str)
+        r = requests.post(self._url, headers=self._headers, data=json_str)
+        r.raise_for_status()
+
 class TaskFlow(dict):
     """
     This is the base class users derive that taskflows from. In the future more
@@ -104,6 +118,11 @@ class TaskFlow(dict):
             girder_api_url=girder_api_url,
             girder_token=girder_token,
             id=id, **kwargs)
+
+        self.logger = logging.getLogger('taskflow.%s' % id)
+        self.logger.setLevel(logging.INFO)
+        url = '%s/taskflows/%s/log' % (girder_api_url, id)
+        self.logger.addHandler(TaskFlowLogHandler(girder_token, url))
 
     @property
     def id(self):

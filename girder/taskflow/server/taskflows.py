@@ -66,9 +66,6 @@ class TaskFlows(BaseResource):
             print >> sys.stderr, request.content
             request.raise_for_status()
 
-
-
-
     @access.user
     def create(self, params):
         user = self.getCurrentUser()
@@ -168,21 +165,14 @@ class TaskFlows(BaseResource):
             required=True, paramType='path'))
 
     @access.user
-    def log(self, id, params):
-        user = self.getCurrentUser()
-
-        task = self._model.load(id, user=user, level=AccessType.WRITE)
-
-        if not task:
-            raise RestException('Task not found.', code=404)
-
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
+    def log(self, taskflow, params):
         body = cherrypy.request.body.read()
-
         if not body:
             raise RestException('Log entry must be provided', code=400)
 
-        task['log'].append(json.loads(body))
-        self._model.update_task(user, task)
+        taskflow.setdefault('log', []).append(json.loads(body))
+        self._model.save(taskflow)
 
     log.description = None
 
