@@ -50,6 +50,7 @@ class Job(BaseResource):
         del job['access']
         del job['log']
         job['_id'] = str(job['_id'])
+        job['userId'] = str(job['userId'])
 
         return job
 

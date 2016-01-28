@@ -494,7 +494,11 @@ class Cluster(BaseResource):
         if body:
             job['params'] = json.loads(body)
 
-        job_model.save(job)
+        job = job_model.save(job)
+        del job['access']
+        del job['log']
+        job['_id'] = str(job['_id'])
+        job['userId'] = str(job['userId'])
 
         cluster_adapter = get_cluster_adapter(cluster)
         cluster_adapter.submit_job(job)
