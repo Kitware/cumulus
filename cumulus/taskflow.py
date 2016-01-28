@@ -306,8 +306,6 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
 
     # If this is a retry then we have already create a task get it from
     # the current tasks headers.
-    # This has been resolved in the 3.1 branch, so should make it into a
-    # release soon.
     if body['retries'] > 0:
         taskflow_task_id = current_task.request.headers[TASKFLOW_TASK_ID_HEADER]
     else:
