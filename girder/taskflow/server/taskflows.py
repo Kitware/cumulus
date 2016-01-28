@@ -21,6 +21,7 @@ import cherrypy
 import json
 import time
 import traceback
+from pymongo import ReturnDocument
 
 from girder.api.rest import RestException, getBodyJson, loadmodel,\
     getCurrentUser, getApiUrl
@@ -34,7 +35,7 @@ import sys
 from cumulus.task import runner
 from bson.objectid import ObjectId
 
-from .utility import load_class
+from cumulus.taskflow import load_class
 
 
 class TaskFlows(BaseResource):
@@ -52,6 +53,7 @@ class TaskFlows(BaseResource):
         self.route('POST', (':id', 'tasks'), self.create_task)
         self.route('DELETE', (':id',), self.delete)
         self.route('GET', (':id','tasks'), self.tasks)
+        self.route('PUT', (':id','tasks', ':taskId', 'finished'), self.task_finished)
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('taskflow', 'taskflow')
 
@@ -233,8 +235,14 @@ class TaskFlows(BaseResource):
     @access.user
     def tasks(self, id, params):
         user = getCurrentUser()
+
+        states = params.get('states')
+        if states:
+            states = json.loads(states)
+
         cursor = self.model('task', 'taskflow').find_by_taskflow_id(
-                                                    user, ObjectId(id))
+                                                    user, ObjectId(id),
+                                                    states=states)
 
         return [self._clean(task) for task in cursor]
 
@@ -252,4 +260,19 @@ class TaskFlows(BaseResource):
         cherrypy.response.headers['Location'] = '/tasks/%s' % task['_id']
 
         return self._clean(task)
+
+    @access.user
+    def task_finished(self, id, taskId, params):
+        # decrement the number of active tasks
+        query = {
+            '_id': ObjectId(id)
+        }
+        update = {
+            '$inc': {
+                'activeTaskCount': -1
+            }
+        }
+
+        return self._model.collection.find_one_and_update(
+            query, update, return_document=ReturnDocument.AFTER)
 

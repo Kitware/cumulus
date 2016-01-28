@@ -86,6 +86,18 @@ def main(config):
         # Wait for it to complete
         wait_for_complete(client, taskflow_id)
 
+        # Now try a composite workflow approach ...
+        print ('Running taskflow that is a composite ...')
+        taskflow_id = create_taskflow(
+            client, 'cumulus.mytaskflows.MyCompositeTaskFlow')
+
+        # Start the task flow
+        url = 'taskflows/%s/start' % (taskflow_id)
+        client.put(url)
+
+        # Wait for it to complete
+        wait_for_complete(client, taskflow_id)
+
     except HttpError as ex:
         print( ex.responseText)
 

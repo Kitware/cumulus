@@ -17,21 +17,4 @@
 #  limitations under the License.
 ###############################################################################
 
-import importlib
-
-def load_class(class_name):
-    module, cls = class_name.rsplit('.', 1)
-    print module
-    try:
-        imported = importlib.import_module(module)
-    except ImportError:
-        raise
-
-    try:
-        constructor = getattr(imported, cls)
-    except AttributeError:
-        raise
-
-    return constructor
-
 

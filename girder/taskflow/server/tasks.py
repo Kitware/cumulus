@@ -35,7 +35,6 @@ class Tasks(BaseResource):
     def __init__(self):
         super(Tasks, self).__init__()
         self.resourceName = 'tasks'
-        self.route('POST', (), self.create)
         self.route('PATCH', (':id',), self.update)
         self.route('GET', (':id', 'status'), self.status)
         self.route('GET', (':id',), self.get)
@@ -56,47 +55,6 @@ class Tasks(BaseResource):
         if request.status_code != 200:
             print >> sys.stderr, request.content
             request.raise_for_status()
-
-    @access.user
-    def create(self, params):
-        user = self.getCurrentUser()
-
-        try:
-            task = getBodyJson()
-        except RestException:
-            task = {}
-
-        if 'taskFlowId' in task:
-            task['taskFlowId']= ObjectId(task['taskFlowId'])
-            # If a taskFlowId was provided then add this task to that flow.
-            model = self.model('taskflow', 'taskflow')
-            taskflow = model.load(task['taskFlowId'])
-            taskflow.setdefault('tasks', []).append(task['_id'])
-            model.save(taskflow)
-
-        task['status'] = 'created'
-        task = self._model.create(user, task)
-
-        cherrypy.response.status = 201
-        cherrypy.response.headers['Location'] = '/tasks/%s' % task['_id']
-
-        return self._clean(task)
-
-    addModel('TaskIdParam', {
-        'id': 'TaskIdParam',
-        'properties': {
-            'taskSpecId': {
-                'type': 'string'
-            }
-        }
-    }, 'tasks')
-
-    create.description = (
-        Description('Create task from a spec file id')
-        .param(
-            'body',
-            'The JSON parameters',
-            required=True, paramType='body', dataType='TaskIdParam'))
 
     @access.user
     def update(self, id, params):

@@ -147,6 +147,38 @@ def part2_task3(workflow, *args, **kwargs):
     print ('part2 - task3')
     time.sleep(3)
 
+@taskflow.task
+def part3_start(workflow, *args, **kwargs):
+    print ('part3 - start')
+    time.sleep(3)
+
+class Part1TaskFlow(taskflow.TaskFlow):
+    def start(self):
+        part1_start.delay(self)
+
+class Part2TaskFlow(taskflow.TaskFlow):
+    def start(self):
+        part2_start.delay(self)
+
+class Part3TaskFlow(taskflow.TaskFlow):
+    def start(self):
+        part3_start.delay(self)
+
+
+
+# This syntax is a little messy I think. It would be nice not the have to create
+# this extra taskflow class, we need it at the moment to support the creation of
+# the taskflow via the REST endpoint.
+class MyCompositeTaskFlow(taskflow.CompositeTaskFlow):
+
+    def __init__(self, *args, **kwargs):
+        super(MyCompositeTaskFlow, self).__init__(*args, **kwargs)
+
+        self.add(Part1TaskFlow(*args, **kwargs))
+        self.add(Part2TaskFlow(*args, **kwargs))
+        self.add(Part3TaskFlow(*args, **kwargs))
+
+
 
 class ConnectTwoTaskFlow(taskflow.TaskFlow):
     """

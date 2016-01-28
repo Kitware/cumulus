@@ -18,6 +18,7 @@
 ###############################################################################
 from __future__ import absolute_import
 import logging
+import importlib
 
 from functools import wraps
 import json
@@ -80,6 +81,20 @@ def task(func):
 
     return celery_task
 
+def load_class(class_name):
+    module, cls = class_name.rsplit('.', 1)
+    try:
+        imported = importlib.import_module(module)
+    except ImportError:
+        raise
+
+    try:
+        constructor = getattr(imported, cls)
+    except AttributeError:
+        raise
+
+    return constructor
+
 def to_taskflow(taskflow):
     """
     Utility method to ensure we have a taskflow instance rather than a simple
@@ -87,7 +102,8 @@ def to_taskflow(taskflow):
     """
     if taskflow is not None:
         if isinstance(taskflow, dict):
-            taskflow = TaskFlow(**taskflow)
+            constr = load_class(taskflow['_type'])
+            taskflow = constr(**taskflow)
 
     return taskflow
 
@@ -118,6 +134,8 @@ class TaskFlow(dict):
             girder_api_url=girder_api_url,
             girder_token=girder_token,
             id=id, **kwargs)
+        cls = self.__class__
+        self['_type'] = '%s.%s' % (cls.__module__, cls.__name__)
 
         self.logger = logging.getLogger('taskflow.%s' % id)
         self.logger.setLevel(logging.INFO)
@@ -191,7 +209,7 @@ class TaskFlow(dict):
 
     def on_complete(self, task):
         """
-        The method allow a follow on task to register, that will be run when
+        This method allow a follow on task to register, that will be run when
         an certain task is complete.
 
         The syntax is a follows:
@@ -200,6 +218,34 @@ class TaskFlow(dict):
         """
         return TaskFlow._on_complete_instance(self, task)
 
+    def connect(self, taskflow):
+        """
+        This method allow two taskflow to be connected together to form a
+        composite flow.
+        """
+        self.setdefault(['_next'], []).append(taskflow)
+
+class CompositeTaskFlow(TaskFlow):
+    TASKFLOWS = '_taskflows'
+    def add(self, taskflow):
+        taskflows = self.setdefault(CompositeTaskFlow.TASKFLOWS, [])
+        taskflows.append(taskflow)
+
+    def start(self):
+        taskflow = self[CompositeTaskFlow.TASKFLOWS].pop(0)
+        taskflow[CompositeTaskFlow.TASKFLOWS] = self[CompositeTaskFlow.TASKFLOWS]
+
+        taskflow.start()
+
+def _taskflow_task_finished(taskflow, taskflow_task_id):
+    girder_token = taskflow['girder_token']
+    girder_api_url = taskflow['girder_api_url']
+
+    client = GirderClient(apiUrl=girder_api_url)
+    client.token = girder_token
+    url = 'taskflows/%s/tasks/%s/finished' % (taskflow.id, taskflow_task_id)
+
+    return client.put(url)
 
 @task_prerun.connect
 def task_prerun_handler(task_id=None, task=None, args=None, **kwargs):
@@ -317,6 +363,7 @@ def task_failure_handler(taskflow, taskflow_task_id, celery_task,
     """
     Failure handler
     """
+    _taskflow_task_finished(taskflow, taskflow_task_id)
     # TODO to exception information
 
     # Now update the status
@@ -332,6 +379,24 @@ def task_success_handler(taskflow, taskflow_task_id, celery_task, state=None,
     to_run = taskflow._on_complete_lookup(celery_task.name)
     if to_run:
         to_run.delay()
+
+    # Is the completion of this task going to complete the flow?
+    # Signal to the taskflow that we are finished and see what the active
+    # task count is. As the decrement of the activeTaskCount property is
+    # atomic everything should be in sync. If the count has dropped to zero
+    # we know that this task finishes this flow so if we have a connected
+    # flow we should start it.
+    r = _taskflow_task_finished(taskflow, taskflow_task_id)
+    if r['activeTaskCount'] == 0 and CompositeTaskFlow.TASKFLOWS in taskflow:
+
+        if taskflow[CompositeTaskFlow.TASKFLOWS]:
+            taskflows = taskflow[CompositeTaskFlow.TASKFLOWS]
+            next_taskflow = to_taskflow(taskflows.pop(0))
+            # Only run each flow once ...
+            celery_task.request.headers[TASKFLOW_HEADER][CompositeTaskFlow.TASKFLOWS] = taskflows
+            # Also update the taskflow type to match the new flow
+            celery_task.request.headers[TASKFLOW_HEADER]['_type'] = next_taskflow['_type']
+            next_taskflow.start()
 
     # Update the status
     _update_task_status(taskflow, taskflow_task_id, TaskState.COMPLETE)

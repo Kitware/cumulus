@@ -22,6 +22,8 @@ import six
 from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
 
+from cumulus.taskflow import load_class
+
 class Task(AccessControlledModel):
 
     def initialize(self):
@@ -42,6 +44,20 @@ class Task(AccessControlledModel):
 
         task['taskFlowId'] = taskflow['_id']
         task['status'] = 'created'
+
+        model = self.model('taskflow', 'taskflow')
+
+        # increment the number of active tasks
+        query = {
+            '_id': taskflow['_id']
+        }
+        update = {
+            '$inc': {
+                'activeTaskCount': 1
+            }
+        }
+        model.update(query, update, multi=False)
+
         doc = self.setUserAccess(task, user, level=AccessType.ADMIN, save=True)
 
         return doc
@@ -66,16 +82,24 @@ class Task(AccessControlledModel):
 
         return task
 
-    def find_by_taskflow_id(self, user, taskflow_id, fields=None):
+    def find_by_taskflow_id(self, user, taskflow_id, states=None, fields=None):
         """
         Lookup all tasks associated with a taskflow
 
         :param user: The user to user for access
         :param taskflow_id: The taskflow id.
+        :param states: Only return task in one of these given states
+        :param fields: The fields to return for each task
         """
         query = {
             'taskFlowId': taskflow_id
         }
+
+        if states:
+            query['status'] = {
+                '$in': states
+            }
+
         return  self.find(query=query, fields=fields)
 
     def update_task(self, user, task):
