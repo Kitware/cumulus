@@ -29,6 +29,7 @@ from ..utility.cluster_adapters import get_cluster_adapter
 from cumulus.common.girder import create_status_notifications, \
     check_group_membership
 import cumulus
+from cumulus import queue
 
 
 class Cluster(BaseModel):
@@ -63,6 +64,18 @@ class Cluster(BaseModel):
 
         if not cluster['type']:
             raise ValidationException('Type must not be empty.', 'type')
+
+        scheduler_type = parse('config.scheduler.type').find(cluster)
+        if scheduler_type:
+            scheduler_type = scheduler_type[0].value
+        else:
+            scheduler_type = QueueType.SGE
+            config = cluster.setdefault('config', {})
+            scheduler = config.setdefault('scheduler', {})
+            scheduler['type'] = scheduler_type
+
+        if not queue.is_valid_type(scheduler_type):
+            raise ValidationException('Unsupported scheduler.', 'type')
 
         adapter = get_cluster_adapter(cluster)
 

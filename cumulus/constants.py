@@ -48,10 +48,6 @@ class QueueType:
     SLURM = 'slurm'
     NEWT = 'newt'
 
-    @staticmethod
-    def is_valid_type(type):
-        return type == QueueType.SGE or type == QueueType.PBS
-
 
 class JobQueueState:
     QUEUED = 'queued'

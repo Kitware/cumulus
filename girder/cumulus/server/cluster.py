@@ -28,7 +28,7 @@ from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, getCurrentUser
 from girder.models.model_base import ValidationException
 from .base import BaseResource
-from cumulus.constants import ClusterType, QueueType
+from cumulus.constants import ClusterType
 from .utility.cluster_adapters import get_cluster_adapter
 from cumulus.ssh.tasks.key import generate_key_pair
 from cumulus.common import update_dict
@@ -208,18 +208,6 @@ class Cluster(BaseResource):
         if cluster_type == ClusterType.EC2:
             cluster = self._create_ec2(params, body)
         elif cluster_type == ClusterType.TRADITIONAL:
-            scheduler_type = parse('config.scheduler.type').find(body)
-            if scheduler_type:
-                scheduler_type = scheduler_type[0].value
-            else:
-                scheduler_type = QueueType.SGE
-                config = body.setdefault('config', {})
-                scheduler = config.setdefault('scheduler', {})
-                scheduler['type'] = scheduler_type
-
-            if not QueueType.is_valid_type(scheduler_type):
-                raise RestException('Unsupported scheduler.', code=400)
-
             cluster = self._create_traditional(params, body)
         elif cluster_type == ClusterType.NEWT:
             cluster = self._create_newt(params, body)
