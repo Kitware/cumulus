@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-#  Copyright 2015 Kitware Inc.
+#  Copyright 2016 Kitware Inc.
 #
 #  Licensed under the Apache License, Version 2.0 ( the "License" );
 #  you may not use this file except in compliance with the License.
@@ -36,3 +36,67 @@ class Taskflow(AccessControlledModel):
 
         return taskflow
 
+    def append_to_log(self, taskflow, log):
+        # This needs to be done in the database to prevent lost updates
+        query = {
+            '_id': taskflow['_id']
+        }
+        update = {
+            '$push': {
+                'log': log
+            }
+        }
+
+        return self.update(query, update, multi=False)
+
+    def _to_paths(self, d, path=''):
+        """
+        Utility method to convert and dictionary into 'path' 'value' pairs
+        that can be passed to $set operator
+        """
+        for k, v in d.iteritems():
+            if isinstance(v, dict):
+                if not path:
+                    new_path = k
+                else:
+                    new_path = '%s.%s' % (path, k)
+
+                for path_value in self._to_paths(v, new_path):
+                    yield path_value
+            else:
+                if not path:
+                    yield (k, v)
+                else:
+                    yield ('%s.%s' % (path, k), v)
+
+    def update_taskflow(self, user, taskflow, updates):
+        """
+        Use $set operator to update values on taskflow, we need to use $set
+        to prevent lot update ...
+        """
+        query = {
+            '_id': taskflow['_id']
+        }
+        update = {
+            '$set': { }
+        }
+
+        for (path, value) in self._to_paths(updates):
+            update['$set'][path] = value
+
+        self.update(query, update, multi=False)
+
+        return self.load(taskflow['_id'], user=user)
+
+    def get_path(self, taskflow, path):
+        """
+        Get the value at a particular 'path' on the taskflow.
+        """
+        query = {
+            '_id': taskflow['_id']
+        }
+        projection = {
+            path: 1
+        }
+
+        return self.findOne(query=query, fields=projection)

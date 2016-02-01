@@ -35,6 +35,7 @@ class SimpleTaskFlow(taskflow.TaskFlow):
 @taskflow.task
 def simple_task1(workflow, *args, **kwargs):
     workflow.logger.info('Starting simple_task1')
+    workflow.set('test', {'nested': 'value'})
     print ('simple_task1')
     simple_task2.delay()
 
@@ -42,7 +43,7 @@ def simple_task1(workflow, *args, **kwargs):
 def simple_task2(workflow, *args, **kwargs):
     print ('simple_task2')
     time.sleep(3)
-
+    workflow.set('test', {'nested2': 'value'})
     simple_task3.delay()
 
 @taskflow.task

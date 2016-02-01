@@ -88,33 +88,35 @@ class TaskFlows(BaseResource):
 
         return self._clean(taskflow)
 
+    create.description = (
+        Description('Create the taskflow')
+        .param(
+            'updates',
+            'The properties to update',
+            required=False, paramType='body'))
+
     @access.user
-    def update(self, id, params):
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
+    def update(self, taskflow, params):
         user = self.getCurrentUser()
-
-        body = cherrypy.request.body.read()
-
-        if not body:
+        immutable = ['access', '_id', 'taskFlowClass', 'log', 'activeTaskCount']
+        updates = getBodyJson()
+        if not updates:
             raise RestException('A body must be provided', code=400)
 
-        updates = json.loads(body)
+        for p in updates:
+            if p in immutable:
+                raise RestException('\'%s\' is an immutable property' % p, 400)
 
-        task = self._model.load(id, user=user, level=AccessType.WRITE)
-        if not task:
-            raise RestException('Task not found.', code=404)
+        taskflow = self._model.update_taskflow(user, taskflow, updates)
 
-        if 'status' in updates:
-            task['status'] = updates['status']
-
-        self._model.update_task(user, task)
-
-        return self._clean(task)
+        return self._clean(taskflow)
 
     update.description = (
-        Description('Update the task')
+        Description('Update the taskflow')
         .param(
             'id',
-            'The id of task',
+            'The id of taskflow',
             required=True, paramType='path')
         .param(
             'updates',
@@ -149,22 +151,25 @@ class TaskFlows(BaseResource):
             required=True, paramType='path'))
 
     @access.user
-    def get(self, id, params):
-        user = self.getCurrentUser()
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
+    def get(self, taskflow, params):
 
-        task = self._model.load(id, user=user, level=AccessType.READ)
+        if 'path' in params:
+            taskflow = self._model.get_path(taskflow, params['path'])
 
-        if not task:
-            raise RestException('Task not found.', code=404)
-
-        return self._clean(task)
+        return self._clean(taskflow)
 
     get.description = (
         Description('Get the task ')
         .param(
             'id',
             'The id of task',
-            required=True, paramType='path'))
+            required=True, paramType='path')
+        .param(
+            'path',
+            'Option path to a particular property',
+            required=False, paramType='query'))
+
 
     @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
@@ -173,8 +178,7 @@ class TaskFlows(BaseResource):
         if not body:
             raise RestException('Log entry must be provided', code=400)
 
-        taskflow.setdefault('log', []).append(json.loads(body))
-        self._model.save(taskflow)
+        self._model.append_to_log(taskflow, json.loads(body))
 
     log.description = None
 
@@ -275,4 +279,10 @@ class TaskFlows(BaseResource):
 
         return self._model.collection.find_one_and_update(
             query, update, return_document=ReturnDocument.AFTER)
+
+    @access.user
+
+    def get_path(self, taskflow, path):
+
+        return self._model.get_path(taskflow, path)
 

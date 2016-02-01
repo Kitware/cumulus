@@ -170,6 +170,25 @@ class TaskFlow(dict):
     def run(self):
         self.start()
 
+    def set(self, key, value):
+        """
+        Set a value on the taskflow. This can be used to save results or other
+        output.
+
+        :params key: The value key.
+        :params value: The value.
+        """
+        girder_token = self['girder_token']
+        girder_api_url = self['girder_api_url']
+
+        client = GirderClient(apiUrl=girder_api_url)
+        client.token = girder_token
+        url = 'taskflows/%s' % self.id
+        body = {
+            key: value
+        }
+        client.patch(url, data=json.dumps(body))
+
     class _on_complete_instance(object):
         """
         Private utility class to enable the on_complete syntax
