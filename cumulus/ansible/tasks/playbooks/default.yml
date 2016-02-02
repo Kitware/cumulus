@@ -5,8 +5,26 @@
   vars:
     cluster_state: running
     cluster_region: us-west-2
-  pre_tasks:
-    - include: pod_config.yml
+    instance_type: t2.medium
+    ec2_pod_spec:
+      key: kotfic-NEX
+      rules:
+
+        - proto: tcp # ssh
+          from_port: 22
+          to_port: 22
+          cidr_ip: 0.0.0.0/0
+
+        - proto: all
+          group_name: ec2_pod_default
+
+      hosts:
+        head:
+          type: "{{ instace_type }}"
+
+        data:
+          type: "{{ instance_type }}"
+          count: "{{ instance_count }}"
   roles:
     - role: ec2-pod
       default_ssh_key: "{{ ec2_pod_spec.key }}"
