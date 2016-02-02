@@ -139,8 +139,10 @@ class TaskFlow(dict):
 
         self.logger = logging.getLogger('taskflow.%s' % id)
         self.logger.setLevel(logging.INFO)
-        url = '%s/taskflows/%s/log' % (girder_api_url, id)
-        self.logger.addHandler(TaskFlowLogHandler(girder_token, url))
+        # Only add new new handler if we don't already have one.
+        if not self.logger.handlers:
+            url = '%s/taskflows/%s/log' % (girder_api_url, id)
+            self.logger.addHandler(TaskFlowLogHandler(girder_token, url))
 
     @property
     def id(self):
