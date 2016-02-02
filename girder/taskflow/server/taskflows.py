@@ -126,6 +126,14 @@ class TaskFlows(BaseResource):
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     def status(self, taskflow, params):
         user = self.getCurrentUser()
+
+        if 'status' in taskflow:
+            if taskflow['status'] == 'terminating' and \
+                taskflow['activeTaskCount'] == 0:
+                return {'status': 'terminated'}
+            else:
+                return {'status': taskflow['status']}
+
         tasks = self.model('task', 'taskflow').find_by_taskflow_id(
             user, taskflow['_id'])
 
@@ -183,14 +191,23 @@ class TaskFlows(BaseResource):
     log.description = None
 
     @access.user
-    def terminate(self, id, params):
-        user = self.getCurrentUser()
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
+    def terminate(self, taskflow, params):
+        user = getCurrentUser()
+        taskflow['status'] = 'terminating'
 
-        task = self._model.load(id, user=user, level=AccessType.WRITE)
+        self._model.save(taskflow)
+        constructor = load_class(taskflow['taskFlowClass'])
+        token = self.model('token').createToken(user=user, days=7)
+        taskflow = constructor(
+            id=str(taskflow['_id']),
+            girder_token=token['_id'],
+            girder_api_url=getApiUrl())
 
-        if not task:
-            raise RestException('Task not found.', code=404)
+        # Mark the taskflow as being used to termination
+        taskflow['terminate'] = True
 
+        taskflow.terminate()
 
     terminate.description = (
         Description('Terminate the task ')

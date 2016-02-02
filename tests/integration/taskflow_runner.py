@@ -23,17 +23,25 @@ import json
 import argparse
 from girder_client import GirderClient, HttpError
 
-def wait_for_complete(client, taskflow_id):
-    status = None
+def wait_for_status(client, taskflow_id, status):
+    current_status = None
     status_url = 'taskflows/%s/status' % (taskflow_id)
     tasks_url = 'taskflows/%s/tasks' % (taskflow_id)
-    while status != 'complete':
+    while current_status != status:
         r = client.get(status_url)
-        status = r['status']
-        print('Taskflow status: %s' % status)
+        current_status = r['status']
+        print('Taskflow status: %s' % current_status)
         r = client.get(tasks_url)
         print('Tasks in flow: %d' % len(r))
         time.sleep(1)
+
+
+def wait_for_complete(client, taskflow_id):
+    wait_for_status(client, taskflow_id, 'complete')
+
+def wait_for_terminated(client, taskflow_id):
+    wait_for_status(client, taskflow_id, 'terminated')
+
 
 def create_taskflow(client, cls_name):
     url = 'taskflows'
@@ -61,6 +69,25 @@ def main(config):
 
         # Wait for it to complete
         wait_for_complete(client, taskflow_id)
+
+
+        # Test terminating a simple flow
+        print ('Running simple taskflow ...')
+        taskflow_id = create_taskflow(
+            client, 'cumulus.mytaskflows.SimpleTaskFlow')
+
+        # Start the task flow
+        url = 'taskflows/%s/start' % (taskflow_id)
+        client.put(url)
+
+        time.sleep(4)
+
+        print ('Terminate the taskflow')
+        url = 'taskflows/%s/terminate' % (taskflow_id)
+        client.put(url)
+
+        # Wait for it to terminate
+        wait_for_terminated(client, taskflow_id)
 
         # Now try something with a chord
         print ('Running taskflow containing a chord ...')

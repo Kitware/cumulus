@@ -62,11 +62,20 @@ def task(func):
         taskflow = celery_task.request.headers[TASKFLOW_HEADER]
         taskflow = to_taskflow(taskflow)
 
-        # Patch task state to 'running'
         client = GirderClient(apiUrl=taskflow.girder_api_url)
         client.token = taskflow.girder_token
-
         task_id = celery_task.request.headers[TASKFLOW_TASK_ID_HEADER]
+
+        # Get the current state of the taskflow so we know if we are terminating
+        # Only do this if this task is not associated with termination ...
+        if 'terminate' not in taskflow or not taskflow['terminate']:
+            url = 'taskflows/%s/status' % taskflow.id
+            r = client.get(url)
+
+            if r['status'] == 'terminating':
+                return
+
+        # Patch task state to 'running'
         body = {
             'status': TaskState.RUNNING
         }
@@ -409,13 +418,23 @@ def task_success_handler(taskflow, taskflow_task_id, celery_task, state=None,
     if r['activeTaskCount'] == 0 and CompositeTaskFlow.TASKFLOWS in taskflow:
 
         if taskflow[CompositeTaskFlow.TASKFLOWS]:
-            taskflows = taskflow[CompositeTaskFlow.TASKFLOWS]
-            next_taskflow = to_taskflow(taskflows.pop(0))
-            # Only run each flow once ...
-            celery_task.request.headers[TASKFLOW_HEADER][CompositeTaskFlow.TASKFLOWS] = taskflows
-            # Also update the taskflow type to match the new flow
-            celery_task.request.headers[TASKFLOW_HEADER]['_type'] = next_taskflow['_type']
-            next_taskflow.start()
+
+            girder_token = taskflow['girder_token']
+            girder_api_url = taskflow['girder_api_url']
+
+            client = GirderClient(apiUrl=girder_api_url)
+            client.token = girder_token
+            url = 'taskflows/%s/status' % taskflow.id
+            r = client.get(url)
+
+            if r['status'] != 'terminating':
+                taskflows = taskflow[CompositeTaskFlow.TASKFLOWS]
+                next_taskflow = to_taskflow(taskflows.pop(0))
+                # Only run each flow once ...
+                celery_task.request.headers[TASKFLOW_HEADER][CompositeTaskFlow.TASKFLOWS] = taskflows
+                # Also update the taskflow type to match the new flow
+                celery_task.request.headers[TASKFLOW_HEADER]['_type'] = next_taskflow['_type']
+                next_taskflow.start()
 
     # Update the status
     _update_task_status(taskflow, taskflow_task_id, TaskState.COMPLETE)

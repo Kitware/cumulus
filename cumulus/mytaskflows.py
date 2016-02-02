@@ -32,6 +32,14 @@ class SimpleTaskFlow(taskflow.TaskFlow):
     def start(self):
         simple_task1.delay(self)
 
+    def terminate(self):
+        simple_terminate.delay(self)
+
+@taskflow.task
+def simple_terminate(workflow, *args, **kwargs):
+    workflow.logger.info('Terminating flow')
+    time.sleep(3)
+
 @taskflow.task
 def simple_task1(workflow, *args, **kwargs):
     workflow.logger.info('Starting simple_task1')
