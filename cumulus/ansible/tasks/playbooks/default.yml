@@ -7,7 +7,7 @@
     cluster_region: us-west-2
     instance_type: t2.medium
     ec2_pod_spec:
-      key: kotfic-NEX
+      key: "{{ aws_keyname }}"
       rules:
 
         - proto: tcp # ssh
@@ -20,7 +20,7 @@
 
       hosts:
         head:
-          type: "{{ instace_type }}"
+          type: "{{ instance_type }}"
 
         data:
           type: "{{ instance_type }}"

@@ -137,6 +137,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
     def launch(self, **kwargs):
         # if id is None // Exception
+        # TODO: add assert if status > launching, error
 
         self.update_status(ClusterStatus.launching)
 
@@ -183,14 +184,13 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         self.launch(request_body)
         self.provision(request_body)
 
-#
-#     def update(self, request_body):
-#         """
-#         Adapters may implement this if they support a update operation.
-#         """
-#         raise ValidationException(
-#             'This cluster type does not support a update operation')
-#
+
+    def update(self, request_body):
+        """
+        Adapters may implement this if they support a update operation.
+        """
+        self.update_status(ClusterStatus[request_body['status']])
+
 #     def delete(self):
 #         """
 #         Adapters may implement this if they support a delete operation.

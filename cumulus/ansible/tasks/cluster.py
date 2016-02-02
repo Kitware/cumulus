@@ -6,13 +6,11 @@ import cumulus
 import requests
 import os
 
+DEFAULT_PLAYBOOK = os.path.join(os.path.dirname(__file__),
+                                "playbooks/default.yml")
 
 @command.task
 def launch_cluster(cluster, profile, secret_key, girder_token, log_write_url):
-
-    playbook_path = os.path.dirname(__file__) + \
-        "/../playbooks/default.yml"
-
     stats = callbacks.AggregateStats()
 
     extra_vars = {
@@ -24,8 +22,10 @@ def launch_cluster(cluster, profile, secret_key, girder_token, log_write_url):
         "aws_secret_key": secret_key
     }
 
+    extra_vars.update(cluster.get('template', {}))
+
     pb = ansible.playbook.PlayBook(
-        playbook=playbook_path,
+        playbook=DEFAULT_PLAYBOOK,
         inventory=ansible.inventory.Inventory(['localhost']),
         callbacks=callbacks.PlaybookCallbacks(verbose=1),
         runner_callbacks=callbacks.PlaybookRunnerCallbacks(stats, verbose=1),
@@ -52,10 +52,6 @@ def launch_cluster(cluster, profile, secret_key, girder_token, log_write_url):
 @command.task
 def terminate_cluster(cluster, profile, secret_key,
                       girder_token, log_write_url):
-
-    playbook_path = os.path.dirname(__file__) + \
-        "/../playbooks/default.yml"
-
     stats = callbacks.AggregateStats()
 
     extra_vars = {
@@ -67,8 +63,10 @@ def terminate_cluster(cluster, profile, secret_key,
         "aws_secret_key": secret_key
     }
 
+    extra_vars.update(cluster.get('template', {}))
+
     pb = ansible.playbook.PlayBook(
-        playbook=playbook_path,
+        playbook=DEFAULT_PLAYBOOK,
         inventory=ansible.inventory.Inventory(['localhost']),
         callbacks=callbacks.PlaybookCallbacks(verbose=1),
         runner_callbacks=callbacks.PlaybookRunnerCallbacks(stats, verbose=1),
