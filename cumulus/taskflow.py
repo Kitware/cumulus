@@ -39,7 +39,7 @@ from cumulus.celery import command
 # current_task is not always what we need.
 thread_local = threading.local()
 
-# These key we use to store our taskflow data in the celery headers
+# These key we used to store our taskflow data in the celery headers
 TASKFLOW_HEADER = 'taskflow'
 TASKFLOW_TASK_ID_HEADER = 'taskflow_task_id'
 
@@ -59,6 +59,12 @@ def _get_task_logger(id, girder_api_url, girder_token):
 
     return logger
 
+def _create_girder_client(girder_api_url, girder_token):
+    client = GirderClient(apiUrl=girder_api_url)
+    client.token = girder_token
+
+    return client
+
 def task(func):
     """
     Taskflow decortator used to inject the taskflow object as the first
@@ -72,25 +78,16 @@ def task(func):
         taskflow = celery_task.request.headers[TASKFLOW_HEADER]
         taskflow = to_taskflow(taskflow)
 
-        client = GirderClient(apiUrl=taskflow.girder_api_url)
-        client.token = taskflow.girder_token
         task_id = celery_task.request.headers[TASKFLOW_TASK_ID_HEADER]
 
         # Get the current state of the taskflow so we know if we are terminating
         # Only do this if this task is not associated with termination ...
         if 'terminate' not in taskflow or not taskflow['terminate']:
-            url = 'taskflows/%s/status' % taskflow.id
-            r = client.get(url)
-
-            if r['status'] == 'terminating':
+            if taskflow.status() == 'terminating':
                 return
 
         # Patch task state to 'running'
-        body = {
-            'status': TaskState.RUNNING
-        }
-        url = 'tasks/%s' % task_id
-        client.patch(url, data=json.dumps(body))
+        _update_task_status(taskflow, task_id, TaskState.RUNNING)
 
         setattr(celery_task, 'taskflow', taskflow)
         setattr(celery_task, 'logger', _get_task_logger(
@@ -206,8 +203,7 @@ class TaskFlow(dict):
         girder_token = self['girder_token']
         girder_api_url = self['girder_api_url']
 
-        client = GirderClient(apiUrl=girder_api_url)
-        client.token = girder_token
+        client = _create_girder_client(girder_api_url, girder_token)
         url = 'taskflows/%s' % self.id
         body = {
             key: value
@@ -268,6 +264,19 @@ class TaskFlow(dict):
         composite flow.
         """
         self.setdefault(['_next'], []).append(taskflow)
+
+    def status(self):
+        """
+        Return the current status of this taskflow
+        """
+        girder_token = self['girder_token']
+        girder_api_url = self['girder_api_url']
+        client = _create_girder_client(girder_api_url, girder_token)
+        url = 'taskflows/%s/status' % self.id
+        r = client.get(url)
+
+        return r['status']
+
 
 class CompositeTaskFlow(TaskFlow):
     TASKFLOWS = '_taskflows'
@@ -345,8 +354,7 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
     girder_token = taskflow['girder_token']
     girder_api_url = taskflow['girder_api_url']
 
-    client = GirderClient(apiUrl=girder_api_url)
-    client.token = girder_token
+    client = _create_girder_client(girder_api_url, girder_token)
 
     # If this is a retry then we have already create a task get it from
     # the current tasks headers.
@@ -374,8 +382,7 @@ def _update_task_status(taskflow, task_id, status):
     girder_api_url = taskflow['girder_api_url']
 
     url = 'tasks/%s' % task_id
-    client = GirderClient(apiUrl=girder_api_url)
-    client.token = girder_token
+    client = _create_girder_client(girder_api_url, girder_token)
     body = {
         'status': status
     }
@@ -431,19 +438,14 @@ def task_success_handler(taskflow, taskflow_task_id, celery_task, state=None,
     deleted = False
     r = _taskflow_task_finished(taskflow, taskflow_task_id)
     if r['activeTaskCount'] == 0:
+        taskflow = to_taskflow(taskflow)
 
-        girder_token = taskflow['girder_token']
-        girder_api_url = taskflow['girder_api_url']
-
-        client = GirderClient(apiUrl=girder_api_url)
-        client.token = girder_token
-        url = 'taskflows/%s/status' % taskflow.id
-        r = client.get(url)
+        status = taskflow.status()
 
         if CompositeTaskFlow.TASKFLOWS in taskflow and \
             taskflow[CompositeTaskFlow.TASKFLOWS]:
 
-            if r['status'] != 'terminating':
+            if status != 'terminating':
                 taskflows = taskflow[CompositeTaskFlow.TASKFLOWS]
                 next_taskflow = to_taskflow(taskflows.pop(0))
                 # Only run each flow once ...
@@ -453,7 +455,9 @@ def task_success_handler(taskflow, taskflow_task_id, celery_task, state=None,
                 next_taskflow.start()
 
         # If we are finished deleting, do the final clean up
-        if r['status'] == 'deleting':
+        if status == 'deleting':
+            client = _create_girder_client(
+                taskflow.girder_api_url, taskflow.girder_token)
             url = 'taskflows/%s/delete' % taskflow.id
             r = client.put(url)
             deleted = True
