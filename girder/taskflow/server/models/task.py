@@ -17,12 +17,8 @@
 #  limitations under the License.
 ###############################################################################
 
-import six
-
 from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
-
-from cumulus.taskflow import load_class
 
 class Task(AccessControlledModel):
 
@@ -47,18 +43,13 @@ class Task(AccessControlledModel):
 
         model = self.model('taskflow', 'taskflow')
 
+
+        doc = self.setUserAccess(task, user, level=AccessType.ADMIN, save=True)
         # increment the number of active tasks
         query = {
             '_id': taskflow['_id']
         }
-        update = {
-            '$inc': {
-                'activeTaskCount': 1
-            }
-        }
-        model.update(query, update, multi=False)
-
-        doc = self.setUserAccess(task, user, level=AccessType.ADMIN, save=True)
+        model.increment(query, 'activeTaskCount', 1)
 
         return doc
 
