@@ -20,7 +20,7 @@
 import cherrypy
 import json
 
-from girder.api.rest import RestException, getBodyJson
+from girder.api.rest import RestException, getBodyJson, loadmodel
 from girder.api import access
 from girder.api.describe import Description
 from girder.api.docs import addModel
@@ -123,21 +123,14 @@ class Tasks(BaseResource):
             required=True, paramType='path'))
 
     @access.user
-    def log(self, id, params):
-        user = self.getCurrentUser()
-
-        task = self._model.load(id, user=user, level=AccessType.WRITE)
-
-        if not task:
-            raise RestException('Task not found.', code=404)
-
+    @loadmodel(model='task', plugin='taskflow', level=AccessType.WRITE)
+    def log(self, task, params):
         body = cherrypy.request.body.read()
 
         if not body:
             raise RestException('Log entry must be provided', code=400)
 
-        task['log'].append(json.loads(body))
-        self._model.update_task(user, task)
+        self._model.append_to_log(task, json.loads(body))
 
     log.description = None
 

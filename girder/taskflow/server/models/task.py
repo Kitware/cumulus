@@ -104,3 +104,16 @@ class Task(AccessControlledModel):
 
     def update_task(self, user, task):
         return self.save(task)
+
+    def append_to_log(self, task, log):
+        # This needs to be done in the database to prevent lost updates
+        query = {
+            '_id': task['_id']
+        }
+        update = {
+            '$push': {
+                'log': log
+            }
+        }
+
+        return self.update(query, update, multi=False)

@@ -49,6 +49,16 @@ class TaskState:
     ERROR = 'error'
     COMPLETE = 'complete'
 
+def _get_task_logger(id, girder_api_url, girder_token):
+    logger = logging.getLogger('task.%s' % id)
+    logger.setLevel(logging.INFO)
+    # Only add new new handler if we don't already have one.
+    if not logger.handlers:
+        url = '%s/tasks/%s/log' % (girder_api_url, id)
+        logger.addHandler(TaskFlowLogHandler(girder_token, url))
+
+    return logger
+
 def task(func):
     """
     Taskflow decortator used to inject the taskflow object as the first
@@ -83,6 +93,8 @@ def task(func):
         client.patch(url, data=json.dumps(body))
 
         setattr(celery_task, 'taskflow', taskflow)
+        setattr(celery_task, 'logger', _get_task_logger(
+            task_id, taskflow.girder_api_url, taskflow.girder_token))
 
         # Now run the user task function
         return func(celery_task, *args, **kwargs)

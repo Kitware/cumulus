@@ -52,6 +52,7 @@ def simple_delete(task, *args, **kwargs):
 @taskflow.task
 def simple_task1(task, *args, **kwargs):
     task.taskflow.logger.info('Starting simple_task1')
+    task.logger.info('Task level logging')
     task.taskflow.set('test', {'nested': 'value'})
     print ('simple_task1')
     simple_task2.delay()
