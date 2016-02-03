@@ -40,50 +40,50 @@ class SimpleTaskFlow(taskflow.TaskFlow):
 
 
 @taskflow.task
-def simple_terminate(workflow, *args, **kwargs):
-    workflow.logger.info('Terminating flow')
+def simple_terminate(task, *args, **kwargs):
+    task.taskflow.logger.info('Terminating flow')
     time.sleep(3)
 
 @taskflow.task
-def simple_delete(workflow, *args, **kwargs):
-    workflow.logger.info('Deleting flow')
+def simple_delete(task, *args, **kwargs):
+    task.taskflow.logger.info('Deleting flow')
     time.sleep(3)
 
 @taskflow.task
-def simple_task1(workflow, *args, **kwargs):
-    workflow.logger.info('Starting simple_task1')
-    workflow.set('test', {'nested': 'value'})
+def simple_task1(task, *args, **kwargs):
+    task.taskflow.logger.info('Starting simple_task1')
+    task.taskflow.set('test', {'nested': 'value'})
     print ('simple_task1')
     simple_task2.delay()
 
 @taskflow.task
-def simple_task2(workflow, *args, **kwargs):
+def simple_task2(task, *args, **kwargs):
     print ('simple_task2')
     time.sleep(3)
-    workflow.set('test', {'nested2': 'value'})
+    task.taskflow.set('test', {'nested2': 'value'})
     simple_task3.delay()
 
 @taskflow.task
-def simple_task3(workflow, *args, **kwargs):
+def simple_task3(task, *args, **kwargs):
     print ('simple_task3')
 
     for i in range(0, 10):
         simple_task4.delay()
 
 @taskflow.task
-def simple_task4(workflow, *args, **kwargs):
+def simple_task4(task, *args, **kwargs):
     print ('simple_task4')
     time.sleep(2)
 
     simple_task5.delay()
 
 @taskflow.task
-def simple_task5(workflow, *args, **kwargs):
+def simple_task5(task, *args, **kwargs):
     print ('simple_task5')
     simple_task6.delay()
 
 @taskflow.task
-def simple_task6(workflow, *args, **kwargs):
+def simple_task6(task, *args, **kwargs):
     print ('simple_task6 and done')
 
 
@@ -95,26 +95,26 @@ class ChordTaskFlow(taskflow.TaskFlow):
         task1.delay(self)
 
 @taskflow.task
-def task1(workflow, *args, **kwargs):
+def task1(task, *args, **kwargs):
     print ('task1')
     task2.delay()
 
 @taskflow.task
-def task2(workflow, *args, **kwargs):
+def task2(task, *args, **kwargs):
     print ('task2')
     time.sleep(3)
 
     task3.delay()
 
 @taskflow.task
-def task3(workflow, *args, **kwargs):
+def task3(task, *args, **kwargs):
     print ('task3')
 
     for i in range(0, 10):
         task4.delay()
 
 @taskflow.task
-def task4(workflow, *args, **kwargs):
+def task4(task, *args, **kwargs):
     print ('task4')
     time.sleep(2)
 
@@ -122,11 +122,11 @@ def task4(workflow, *args, **kwargs):
     chord(header)(task6.s())
 
 @taskflow.task
-def task5(workflow, *args, **kwargs):
+def task5(task, *args, **kwargs):
     print ('task5')
 
 @taskflow.task
-def task6(workflow, chord_result, *args, **kwargs):
+def task6(task, chord_result, *args, **kwargs):
     print 'task6 and done'
 
 
@@ -134,39 +134,39 @@ def task6(workflow, chord_result, *args, **kwargs):
 # flows.
 
 @taskflow.task
-def part1_start(workflow, *args, **kwargs):
+def part1_start(task, *args, **kwargs):
     print ('part1 - task1')
     part1_task2.delay()
 
 @taskflow.task
-def part1_task2(workflow, *args, **kwargs):
+def part1_task2(task, *args, **kwargs):
     print ('part1 - task2')
     time.sleep(3)
     part1_task3.delay()
 
 @taskflow.task
-def part1_task3(workflow, *args, **kwargs):
+def part1_task3(task, *args, **kwargs):
     print ('part1 - task3')
 
 
 @taskflow.task
-def part2_start(workflow, *args, **kwargs):
+def part2_start(task, *args, **kwargs):
     print ('part2 - task1')
     part2_task2.delay()
 
 @taskflow.task
-def part2_task2(workflow, *args, **kwargs):
+def part2_task2(task, *args, **kwargs):
     print ('part2 - task2')
     time.sleep(3)
     part2_task3.delay()
 
 @taskflow.task
-def part2_task3(workflow, *args, **kwargs):
+def part2_task3(task, *args, **kwargs):
     print ('part2 - task3')
     time.sleep(3)
 
 @taskflow.task
-def part3_start(workflow, *args, **kwargs):
+def part3_start(task, *args, **kwargs):
     print ('part3 - start')
     time.sleep(3)
 

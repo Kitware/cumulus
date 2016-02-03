@@ -82,8 +82,10 @@ def task(func):
         url = 'tasks/%s' % task_id
         client.patch(url, data=json.dumps(body))
 
+        setattr(celery_task, 'taskflow', taskflow)
+
         # Now run the user task function
-        return func(taskflow, *args, **kwargs)
+        return func(celery_task, *args, **kwargs)
 
     # Now apply the celery decorator
     celery_task = command.task(wrapped, bind=True)
