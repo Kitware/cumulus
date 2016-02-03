@@ -42,6 +42,13 @@ def wait_for_complete(client, taskflow_id):
 def wait_for_terminated(client, taskflow_id):
     wait_for_status(client, taskflow_id, 'terminated')
 
+def wait_for_deletion(client, taskflow_id):
+    try:
+        wait_for_status(client, taskflow_id, 'deleted')
+    except HttpError as ex:
+        pass
+
+
 
 def create_taskflow(client, cls_name):
     url = 'taskflows'
@@ -70,7 +77,6 @@ def main(config):
         # Wait for it to complete
         wait_for_complete(client, taskflow_id)
 
-
         # Test terminating a simple flow
         print ('Running simple taskflow ...')
         taskflow_id = create_taskflow(
@@ -88,6 +94,19 @@ def main(config):
 
         # Wait for it to terminate
         wait_for_terminated(client, taskflow_id)
+
+        # Now delete it
+        print ('Delete the taskflow')
+        url = 'taskflows/%s' % (taskflow_id)
+        try:
+            client.delete(url)
+        except HttpError as ex:
+            if ex.status != 202:
+                raise
+
+        # Wait for it to terminate
+        wait_for_deletion(client, taskflow_id)
+
 
         # Now try something with a chord
         print ('Running taskflow containing a chord ...')

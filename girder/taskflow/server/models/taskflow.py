@@ -99,3 +99,14 @@ class Taskflow(AccessControlledModel):
         }
 
         return self.findOne(query=query, fields=projection)
+
+    def delete(self, taskflow):
+        """
+        Delete a taskflow and its associated tasks.
+        """
+        query = {
+            'taskFlowId': taskflow['_id']
+        }
+
+        self.model('task', 'taskflow').removeWithQuery(query)
+        self.remove(taskflow)

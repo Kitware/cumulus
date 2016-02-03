@@ -414,18 +414,20 @@ def task_success_handler(taskflow, taskflow_task_id, celery_task, state=None,
     # atomic everything should be in sync. If the count has dropped to zero
     # we know that this task finishes this flow so if we have a connected
     # flow we should start it.
+    deleted = False
     r = _taskflow_task_finished(taskflow, taskflow_task_id)
-    if r['activeTaskCount'] == 0 and CompositeTaskFlow.TASKFLOWS in taskflow:
+    if r['activeTaskCount'] == 0:
 
-        if taskflow[CompositeTaskFlow.TASKFLOWS]:
+        girder_token = taskflow['girder_token']
+        girder_api_url = taskflow['girder_api_url']
 
-            girder_token = taskflow['girder_token']
-            girder_api_url = taskflow['girder_api_url']
+        client = GirderClient(apiUrl=girder_api_url)
+        client.token = girder_token
+        url = 'taskflows/%s/status' % taskflow.id
+        r = client.get(url)
 
-            client = GirderClient(apiUrl=girder_api_url)
-            client.token = girder_token
-            url = 'taskflows/%s/status' % taskflow.id
-            r = client.get(url)
+        if CompositeTaskFlow.TASKFLOWS in taskflow and \
+            taskflow[CompositeTaskFlow.TASKFLOWS]:
 
             if r['status'] != 'terminating':
                 taskflows = taskflow[CompositeTaskFlow.TASKFLOWS]
@@ -436,6 +438,13 @@ def task_success_handler(taskflow, taskflow_task_id, celery_task, state=None,
                 celery_task.request.headers[TASKFLOW_HEADER]['_type'] = next_taskflow['_type']
                 next_taskflow.start()
 
+        # If we are finished deleting, do the final clean up
+        if r['status'] == 'deleting':
+            url = 'taskflows/%s/delete' % taskflow.id
+            r = client.put(url)
+            deleted = True
+
     # Update the status
-    _update_task_status(taskflow, taskflow_task_id, TaskState.COMPLETE)
+    if not deleted:
+        _update_task_status(taskflow, taskflow_task_id, TaskState.COMPLETE)
 

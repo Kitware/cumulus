@@ -52,6 +52,7 @@ class TaskFlows(BaseResource):
         self.route('PUT', (':id', 'start'), self.start)
         self.route('POST', (':id', 'tasks'), self.create_task)
         self.route('DELETE', (':id',), self.delete)
+        self.route('PUT', (':id', 'delete'), self.delete_finished)
         self.route('GET', (':id','tasks'), self.tasks)
         self.route('PUT', (':id','tasks', ':taskId', 'finished'), self.task_finished)
         # TODO Findout how to get plugin name rather than hardcoding it
@@ -123,16 +124,13 @@ class TaskFlows(BaseResource):
             'The properties to update',
             required=False, paramType='body'))
 
-    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
-    def status(self, taskflow, params):
-        user = self.getCurrentUser()
-
+    def _status(self, user, taskflow):
         if 'status' in taskflow:
             if taskflow['status'] == 'terminating' and \
                 taskflow['activeTaskCount'] == 0:
-                return {'status': 'terminated'}
+                return 'terminated'
             else:
-                return {'status': taskflow['status']}
+                return taskflow['status']
 
         tasks = self.model('task', 'taskflow').find_by_taskflow_id(
             user, taskflow['_id'])
@@ -149,7 +147,13 @@ class TaskFlows(BaseResource):
              ('complete'in task_status and 'created' in task_status):
             status = 'running'
 
-        return {'status': status}
+        return status
+
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
+    def status(self, taskflow, params):
+        user = self.getCurrentUser()
+
+        return {'status': self._status(user, taskflow)}
 
     status.description = (
         Description('Get the task status')
@@ -240,18 +244,48 @@ class TaskFlows(BaseResource):
             required=True, paramType='path'))
 
     @access.user
-    def delete(self, id, params):
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+    def delete(self, taskflow, params):
         user = self.getCurrentUser()
 
-        task = self._model.load(id, user=user, level=AccessType.WRITE)
+        if self._status == 'running':
+            raise RestException('Taskflow is running', 400)
+
+        constructor = load_class(taskflow['taskFlowClass'])
+        token = self.model('token').createToken(user=user, days=7)
+
+        if taskflow['status'] != 'deleting':
+
+            taskflow['status'] = 'deleting'
+            self._model.save(taskflow)
+
+            workflow = constructor(
+                id=str(taskflow['_id']),
+                girder_token=token['_id'],
+                girder_api_url=getApiUrl())
+
+            workflow.delete()
+
+            # Check if we have any active tasks, it not then we are done and
+            # can delete the tasks and taskflows
+            taskflow = self._model.load(taskflow['_id'], user=user,
+                                        level=AccessType.ADMIN)
+            if taskflow['activeTaskCount'] == 0:
+                self._model.delete(taskflow)
+                cherrypy.response.status = 200
+                taskflow['status'] = 'deleted'
+
+                return taskflow
+
+        cherrypy.response.status = 202
+        return taskflow
 
     delete.description = (
-        Description('Delete the task ')
+        Description('Delete the taskflow')
         .param(
             'id',
-            'The id of task',
+            'The id of taskflow',
             required=True, paramType='path'))
-
 
     @access.user
     def tasks(self, id, params):
@@ -298,7 +332,11 @@ class TaskFlows(BaseResource):
             query, update, return_document=ReturnDocument.AFTER)
 
     @access.user
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+    def delete_finished(self, taskflow, params):
+        self._model.delete(taskflow)
 
+    @access.user
     def get_path(self, taskflow, path):
 
         return self._model.get_path(taskflow, path)
