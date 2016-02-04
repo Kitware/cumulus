@@ -23,6 +23,7 @@ from cumulus import taskflow
 
 from celery import chord
 
+
 class SimpleTaskFlow(taskflow.TaskFlow):
     """
     This is a simple linear taskflow, chain together 6 task. Notice that
@@ -43,10 +44,12 @@ def simple_terminate(task, *args, **kwargs):
     task.taskflow.logger.info('Terminating flow')
     time.sleep(3)
 
+
 @taskflow.task
 def simple_delete(task, *args, **kwargs):
     task.taskflow.logger.info('Deleting flow')
     time.sleep(3)
+
 
 @taskflow.task
 def simple_task1(task, *args, **kwargs):
@@ -56,12 +59,14 @@ def simple_task1(task, *args, **kwargs):
     print ('simple_task1')
     simple_task2.delay()
 
+
 @taskflow.task
 def simple_task2(task, *args, **kwargs):
     print ('simple_task2')
     time.sleep(3)
     task.taskflow.set('test', {'nested2': 'value'})
     simple_task3.delay()
+
 
 @taskflow.task
 def simple_task3(task, *args, **kwargs):
@@ -70,6 +75,7 @@ def simple_task3(task, *args, **kwargs):
     for i in range(0, 10):
         simple_task4.delay()
 
+
 @taskflow.task
 def simple_task4(task, *args, **kwargs):
     print ('simple_task4')
@@ -77,10 +83,12 @@ def simple_task4(task, *args, **kwargs):
 
     simple_task5.delay()
 
+
 @taskflow.task
 def simple_task5(task, *args, **kwargs):
     print ('simple_task5')
     simple_task6.delay()
+
 
 @taskflow.task
 def simple_task6(task, *args, **kwargs):
@@ -94,10 +102,12 @@ class ChordTaskFlow(taskflow.TaskFlow):
     def start(self):
         task1.delay(self)
 
+
 @taskflow.task
 def task1(task, *args, **kwargs):
     print ('task1')
     task2.delay()
+
 
 @taskflow.task
 def task2(task, *args, **kwargs):
@@ -106,12 +116,14 @@ def task2(task, *args, **kwargs):
 
     task3.delay()
 
+
 @taskflow.task
 def task3(task, *args, **kwargs):
     print ('task3')
 
     for i in range(0, 10):
         task4.delay()
+
 
 @taskflow.task
 def task4(task, *args, **kwargs):
@@ -120,12 +132,13 @@ def task4(task, *args, **kwargs):
 
     header = [task5.s() for i in range(10)]
 
-
     chord(header)(task6.s())
+
 
 @taskflow.task
 def task5(task, *args, **kwargs):
     print ('task5')
+
 
 @taskflow.task
 def task6(task, chord_result, *args, **kwargs):
@@ -135,16 +148,19 @@ def task6(task, chord_result, *args, **kwargs):
 # Example that connects to sequence of tasks together, to allow reuse of sub
 # flows.
 
+
 @taskflow.task
 def part1_start(task, *args, **kwargs):
     print ('part1 - task1')
     part1_task2.delay()
+
 
 @taskflow.task
 def part1_task2(task, *args, **kwargs):
     print ('part1 - task2')
     time.sleep(3)
     part1_task3.delay()
+
 
 @taskflow.task
 def part1_task3(task, *args, **kwargs):
@@ -156,29 +172,35 @@ def part2_start(task, *args, **kwargs):
     print ('part2 - task1')
     part2_task2.delay()
 
+
 @taskflow.task
 def part2_task2(task, *args, **kwargs):
     print ('part2 - task2')
     time.sleep(3)
     part2_task3.delay()
 
+
 @taskflow.task
 def part2_task3(task, *args, **kwargs):
     print ('part2 - task3')
     time.sleep(3)
+
 
 @taskflow.task
 def part3_start(task, *args, **kwargs):
     print ('part3 - start')
     time.sleep(3)
 
+
 class Part1TaskFlow(taskflow.TaskFlow):
     def start(self):
         part1_start.delay(self)
 
+
 class Part2TaskFlow(taskflow.TaskFlow):
     def start(self):
         part2_start.delay(self)
+
 
 class Part3TaskFlow(taskflow.TaskFlow):
     def start(self):
@@ -196,7 +218,6 @@ class MyCompositeTaskFlow(taskflow.CompositeTaskFlow):
         self.add(Part1TaskFlow(*args, **kwargs))
         self.add(Part2TaskFlow(*args, **kwargs))
         self.add(Part3TaskFlow(*args, **kwargs))
-
 
 
 class ConnectTwoTaskFlow(taskflow.TaskFlow):

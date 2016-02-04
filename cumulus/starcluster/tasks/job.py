@@ -484,7 +484,7 @@ class Complete(JobState):
         if _get_on_complete(self.job) == 'terminate':
             cluster_log_url = '%s/clusters/%s/log' % \
                 (cumulus.config.girder.baseUrl, self.cluster['_id'])
-            command.send_task(
+            app.send_task(
                 'cumulus.starcluster.tasks.cluster.terminate_cluster',
                 args=(self.cluster,),
                 kwargs={'log_write_url': cluster_log_url,
@@ -731,7 +731,7 @@ def upload_job_output_to_folder(cluster, job, log_write_url=None, job_dir=None,
     if _get_on_complete(job) == 'terminate':
         cluster_log_url = '%s/clusters/%s/log' % \
             (cumulus.config.girder.baseUrl, cluster['_id'])
-        command.send_task(
+        app.send_task(
             'cumulus.starcluster.tasks.cluster.terminate_cluster',
             args=(cluster,), kwargs={'log_write_url': cluster_log_url,
                                      'girder_token': girder_token})
