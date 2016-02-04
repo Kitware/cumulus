@@ -19,7 +19,6 @@
 
 from __future__ import absolute_import
 from celery import Celery
-from kombu import Queue
 
 _includes = (
     'cumulus.starcluster.tasks.cluster',
@@ -45,10 +44,17 @@ app = Celery('cumulus',  backend='amqp',
 
 app.conf.update(
     CELERY_DEFAULT_EXCHANGE_TYPE='topic',
-    CELERY_QUEUES=(
-        Queue('celery',   routing_key='celery'),
-        Queue('monitor',  routing_key='monitor.#'),
-        Queue('taskflow', routing_key='taskflow.#')),
+    CELERY_QUEUES={
+        'celery': {
+            'routing_key': 'celery'
+        },
+        'monitor': {
+            'routing_key': 'monitor.#'
+        },
+        'taskflow': {
+            'routing_key': 'taskflow.#'
+        }
+    },
     CELERY_ROUTES=_routes,
     CELERY_TASK_SERIALIZER = 'json',
     CELERY_ACCEPT_CONTENT = ('json',),
