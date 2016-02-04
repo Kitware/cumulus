@@ -32,8 +32,12 @@ import celery
 from celery.signals import before_task_publish, task_postrun, task_prerun
 from celery.canvas import maybe_signature
 from celery import current_task
+from celery.utils.log import get_task_logger
 
 from cumulus.celery import command
+
+logger = get_task_logger(__name__)
+
 
 # We need to use thread local storage to save the "current user task", celery's
 # current_task is not always what we need.
@@ -45,8 +49,20 @@ TASKFLOW_TASK_ID_HEADER = 'taskflow_task_id'
 
 # The states that a taskflow can be in, there are likely to be more
 class TaskState:
+    CREATED = 'created'
     RUNNING = 'running'
     ERROR = 'error'
+    COMPLETE = 'complete'
+
+class TaskFlowState:
+    CREATED = 'created'
+    RUNNING = 'running'
+    ERROR = 'error'
+    UNEXPECTEDERROR = 'unexpectederror'
+    TERMINATING = 'terminating'
+    TERMINATED = 'terminated'
+    DELETING = 'deleting'
+    DELETED = 'deleted'
     COMPLETE = 'complete'
 
 def _get_task_logger(id, girder_api_url, girder_token):
@@ -83,7 +99,9 @@ def task(func):
         # Get the current state of the taskflow so we know if we are terminating
         # Only do this if this task is not associated with termination ...
         if 'terminate' not in taskflow or not taskflow['terminate']:
-            if taskflow.status() == 'terminating':
+            status = taskflow.status()
+            if status == TaskFlowState.TERMINATING or \
+                status == TaskFlowState.UNEXPECTEDERROR:
                 return
 
         # Patch task state to 'running'
@@ -388,6 +406,20 @@ def _update_task_status(taskflow, task_id, status):
     }
     client.patch(url, data=json.dumps(body))
 
+def _update_taskflow_status(taskflow, status):
+    """
+    Utility function to update the state of a given taskflow.
+    """
+    girder_token = taskflow['girder_token']
+    girder_api_url = taskflow['girder_api_url']
+
+    url = 'taskflows/%s' % taskflow.id
+    client = _create_girder_client(girder_api_url, girder_token)
+    body = {
+        'status': status
+    }
+    client.patch(url, data=json.dumps(body))
+
 # Here we use postrun instead of on success or failure as we need original task
 @task_postrun.connect
 def task_postrun_handler(task=None, state=None, args=None, **kwargs):
@@ -396,15 +428,35 @@ def task_postrun_handler(task=None, state=None, args=None, **kwargs):
     headers and the calls the appropriate handler based on the state of the
     celery task.
     """
-    # Extract the taskflow from the headers
-    taskflow = task.request.headers[TASKFLOW_HEADER]
-    taskflow = to_taskflow(taskflow)
-    taskflow_task_id = task.request.headers[TASKFLOW_TASK_ID_HEADER]
+    taskflow_task_id  = None
+    try:
+        # Extract the taskflow from the headers
+        taskflow = task.request.headers[TASKFLOW_HEADER]
+        taskflow = to_taskflow(taskflow)
+        taskflow_task_id = task.request.headers[TASKFLOW_TASK_ID_HEADER]
 
-    if state == celery.states.SUCCESS:
-        task_success_handler(taskflow, taskflow_task_id, task, state, args)
-    elif state == celery.states.FAILURE:
-        task_failure_handler(taskflow, taskflow_task_id, task, **kwargs)
+        if state == celery.states.SUCCESS:
+            task_success_handler(taskflow, taskflow_task_id, task, state, args)
+        elif state == celery.states.FAILURE:
+            task_failure_handler(taskflow, taskflow_task_id, task, **kwargs)
+    except HttpError as ex:
+        if taskflow_task_id:
+            _update_taskflow_status(taskflow, TaskFlowState.UNEXPECTEDERROR)
+            msg = 'An HttpError was raise in task_postrun_handler for ' \
+                  'task \'%s\' the response text was:\n%s' % (taskflow_task_id,
+                                                              ex.responseText)
+            taskflow.logger.exception(msg)
+            logger.error(msg)
+        raise
+
+    except:
+        if taskflow_task_id:
+            _update_taskflow_status(taskflow, TaskFlowState.UNEXPECTEDERROR)
+            taskflow.logger.exception(
+                'An exception was raise in task_postrun_handler for '
+                'task \'%s\'' % taskflow_task_id)
+        raise
+
 
 def task_failure_handler(taskflow, taskflow_task_id, celery_task,
                          exception=None, args=None, kwargs=None,
@@ -445,7 +497,7 @@ def task_success_handler(taskflow, taskflow_task_id, celery_task, state=None,
         if CompositeTaskFlow.TASKFLOWS in taskflow and \
             taskflow[CompositeTaskFlow.TASKFLOWS]:
 
-            if status != 'terminating':
+            if status != TaskFlowState.TERMINATING:
                 taskflows = taskflow[CompositeTaskFlow.TASKFLOWS]
                 next_taskflow = to_taskflow(taskflows.pop(0))
                 # Only run each flow once ...
@@ -455,7 +507,7 @@ def task_success_handler(taskflow, taskflow_task_id, celery_task, state=None,
                 next_taskflow.start()
 
         # If we are finished deleting, do the final clean up
-        if status == 'deleting':
+        if status == TaskFlowState.DELETING:
             client = _create_girder_client(
                 taskflow.girder_api_url, taskflow.girder_token)
             url = 'taskflows/%s/delete' % taskflow.id
