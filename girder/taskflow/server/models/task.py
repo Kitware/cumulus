@@ -25,6 +25,9 @@ class Task(AccessControlledModel):
     def initialize(self):
         self.name = 'tasks'
         self.ensureIndices(['taskFlowId', 'celeryTaskId'])
+        self.exposeFields(level=AccessType.READ, fields=(
+            '_id', 'taskFlowId', 'status', 'log'))
+
 
     def validate(self, doc):
         return doc
@@ -42,7 +45,6 @@ class Task(AccessControlledModel):
         task['status'] = 'created'
 
         model = self.model('taskflow', 'taskflow')
-
 
         doc = self.setUserAccess(task, user, level=AccessType.ADMIN, save=True)
         # increment the number of active tasks
@@ -93,10 +95,10 @@ class Task(AccessControlledModel):
 
         return  self.find(query=query, fields=fields)
 
-    def update_task(self, user, task):
-        return self.save(task)
-
     def append_to_log(self, task, log):
+        """
+        Append a log entry the tasks log
+        """
         # This needs to be done in the database to prevent lost updates
         query = {
             '_id': task['_id']

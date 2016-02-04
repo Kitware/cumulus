@@ -24,6 +24,8 @@ class Taskflow(AccessControlledModel):
 
     def initialize(self):
         self.name = 'taskflows'
+        self.exposeFields(level=AccessType.READ, fields=(
+            '_id', 'status', 'log', 'activeTaskCount', 'taskFlowClass'))
 
     def validate(self, doc):
         return doc
@@ -36,6 +38,9 @@ class Taskflow(AccessControlledModel):
         return taskflow
 
     def append_to_log(self, taskflow, log):
+        """
+        Append a log entry to the taskflows log
+        """
         # This needs to be done in the database to prevent lost updates
         query = {
             '_id': taskflow['_id']

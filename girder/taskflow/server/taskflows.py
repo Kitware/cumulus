@@ -19,26 +19,21 @@
 
 import cherrypy
 import json
-import time
-import traceback
 from pymongo import ReturnDocument
 
 from girder.api.rest import RestException, getBodyJson, loadmodel,\
-    getCurrentUser, getApiUrl
+    getCurrentUser, getApiUrl, filtermodel, Resource
 from girder.api import access
-from girder.api.describe import Description
 from girder.api.docs import addModel
+from girder.api.describe import describeRoute, Description
 from girder.constants import AccessType
-from .base import BaseResource
-import requests
 import sys
-from cumulus.task import runner
 from bson.objectid import ObjectId
 
-from cumulus.taskflow import load_class
+from cumulus.taskflow import load_class, TaskFlowState, TaskState
 
 
-class TaskFlows(BaseResource):
+class TaskFlows(Resource):
 
     def __init__(self):
         super(TaskFlows, self).__init__()
@@ -55,21 +50,34 @@ class TaskFlows(BaseResource):
         self.route('PUT', (':id', 'delete'), self.delete_finished)
         self.route('GET', (':id','tasks'), self.tasks)
         self.route('PUT', (':id','tasks', ':taskId', 'finished'), self.task_finished)
-        # TODO Findout how to get plugin name rather than hardcoding it
+
         self._model = self.model('taskflow', 'taskflow')
-
-    def _clean(self, task):
-        if 'access' in task:
-            del task['access']
-
-        return task
 
     def _check_status(self, request):
         if request.status_code != 200:
             print >> sys.stderr, request.content
             request.raise_for_status()
 
+
+    addModel('CreateTaskFlowParams', {
+        'id': 'CreateTaskFlowParams',
+        'required': ['taskFlowClass'],
+        'properties': {
+            'taskFlowClass': {
+                'type': 'string'
+            }
+        }
+    }, 'taskflows')
+
     @access.user
+    @filtermodel(model='taskflow', plugin='taskflow')
+    @describeRoute(
+        Description('Create the taskflow')
+        .param(
+            'body',
+            'The properties to update',
+            required=False, paramType='body', dataType='CreateTaskFlowParams')
+    )
     def create(self, params):
         user = self.getCurrentUser()
         taskflow = getBodyJson()
@@ -87,17 +95,22 @@ class TaskFlows(BaseResource):
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/taskflows/%s' % taskflow['_id']
 
-        return self._clean(taskflow)
+        return taskflow
 
-    create.description = (
-        Description('Create the taskflow')
+    @access.user
+    @filtermodel(model='taskflow', plugin='taskflow')
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
+    @describeRoute(
+        Description('Update the taskflow')
+        .param(
+            'id',
+            'The id of taskflow',
+            required=True, paramType='path')
         .param(
             'updates',
             'The properties to update',
-            required=False, paramType='body'))
-
-    @access.user
-    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
+            required=True, paramType='body', dataType='object')
+    )
     def update(self, taskflow, params):
         user = self.getCurrentUser()
         immutable = ['access', '_id', 'taskFlowClass', 'log', 'activeTaskCount']
@@ -111,24 +124,16 @@ class TaskFlows(BaseResource):
 
         taskflow = self._model.update_taskflow(user, taskflow, updates)
 
-        return self._clean(taskflow)
-
-    update.description = (
-        Description('Update the taskflow')
-        .param(
-            'id',
-            'The id of taskflow',
-            required=True, paramType='path')
-        .param(
-            'updates',
-            'The properties to update',
-            required=False, paramType='body'))
+        return taskflow
 
     def _status(self, user, taskflow):
+        """
+        Utility function to extract the status.
+        """
         if 'status' in taskflow:
-            if taskflow['status'] == 'terminating' and \
+            if taskflow['status'] == TaskFlowState.TERMINATING and \
                 taskflow['activeTaskCount'] == 0:
-                return 'terminated'
+                return TaskFlowState.TERMINATED
             else:
                 return taskflow['status']
 
@@ -138,53 +143,57 @@ class TaskFlows(BaseResource):
         task_status = [t['status'] for t in tasks]
         task_status = set(task_status)
 
-        status = 'created'
+        status = TaskFlowState.CREATED
         if len(task_status) ==  1:
             status = task_status.pop()
-        elif 'error' in task_status:
-            status = 'error'
-        elif 'running' in task_status or \
-             ('complete'in task_status and 'created' in task_status):
-            status = 'running'
+        elif TaskState.ERROR in task_status:
+            status = TaskFlowState.ERROR
+        elif TaskState.RUNNING in task_status or \
+             (TaskState.COMPLETE in task_status and TaskState.CREATED in task_status):
+            status = TaskFlowState.RUNNING
 
         return status
 
+    @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
+    @describeRoute(
+        Description('Get the taskflow status')
+        .param(
+            'id',
+            'The id of taskflow',
+            required=True, paramType='path')
+    )
     def status(self, taskflow, params):
         user = self.getCurrentUser()
 
         return {'status': self._status(user, taskflow)}
 
-    status.description = (
-        Description('Get the task status')
-        .param(
-            'id',
-            'The id of task',
-            required=True, paramType='path'))
 
     @access.user
+    @filtermodel(model='taskflow', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
+    @describeRoute(
+        Description('Get a taskflow')
+        .param(
+            'id',
+            'The id of taskflow',
+            required=True, paramType='path')
+        .param(
+            'path',
+            'Option path to a particular property',
+            required=False, paramType='query')
+    )
     def get(self, taskflow, params):
 
         if 'path' in params:
             taskflow = self._model.get_path(taskflow, params['path'])
 
-        return self._clean(taskflow)
-
-    get.description = (
-        Description('Get the task ')
-        .param(
-            'id',
-            'The id of task',
-            required=True, paramType='path')
-        .param(
-            'path',
-            'Option path to a particular property',
-            required=False, paramType='query'))
+        return taskflow
 
 
     @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
+    @describeRoute(None)
     def log(self, taskflow, params):
         body = cherrypy.request.body.read()
         if not body:
@@ -192,13 +201,18 @@ class TaskFlows(BaseResource):
 
         self._model.append_to_log(taskflow, json.loads(body))
 
-    log.description = None
-
     @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
+    @describeRoute(
+        Description('Terminate the taskflow ')
+        .param(
+            'id',
+            'The id of taskflow',
+            required=True, paramType='path')
+    )
     def terminate(self, taskflow, params):
         user = getCurrentUser()
-        taskflow['status'] = 'terminating'
+        taskflow['status'] = TaskFlowState.TERMINATING
 
         self._model.save(taskflow)
         constructor = load_class(taskflow['taskFlowClass'])
@@ -213,15 +227,15 @@ class TaskFlows(BaseResource):
 
         taskflow.terminate()
 
-    terminate.description = (
-        Description('Terminate the task ')
+    @access.user
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+    @describeRoute(
+        Description('Start the taskflow ')
         .param(
             'id',
             'The id of task',
-            required=True, paramType='path'))
-
-    @access.user
-    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+            required=True, paramType='path')
+    )
     def start(self, taskflow, params):
         user = self.getCurrentUser()
 
@@ -236,27 +250,28 @@ class TaskFlows(BaseResource):
 
         workflow.start()
 
-    start.description = (
-        Description('Start the taskflow ')
+    @access.user
+    @filtermodel(model='taskflow', plugin='taskflow')
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+    @describeRoute(
+        Description('Delete the taskflow')
         .param(
             'id',
-            'The id of task',
-            required=True, paramType='path'))
-
-    @access.user
-    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+            'The id of taskflow',
+            required=True, paramType='path')
+    )
     def delete(self, taskflow, params):
         user = self.getCurrentUser()
 
-        if self._status == 'running':
+        if self._status == TaskFlowState.RUNNING:
             raise RestException('Taskflow is running', 400)
 
         constructor = load_class(taskflow['taskFlowClass'])
         token = self.model('token').createToken(user=user, days=7)
 
-        if taskflow['status'] != 'deleting':
+        if taskflow['status'] != TaskFlowState.DELETING:
 
-            taskflow['status'] = 'deleting'
+            taskflow['status'] = TaskFlowState.DELETING
             self._model.save(taskflow)
 
             workflow = constructor(
@@ -273,22 +288,24 @@ class TaskFlows(BaseResource):
             if taskflow['activeTaskCount'] == 0:
                 self._model.delete(taskflow)
                 cherrypy.response.status = 200
-                taskflow['status'] = 'deleted'
+                taskflow['status'] = TaskFlowState.DELETED
 
                 return taskflow
 
         cherrypy.response.status = 202
         return taskflow
 
-    delete.description = (
-        Description('Delete the taskflow')
+    @access.user
+    @filtermodel(model='task', plugin='taskflow')
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
+    @describeRoute(
+        Description('Get all the tasks associated with this taskflow')
         .param(
             'id',
             'The id of taskflow',
-            required=True, paramType='path'))
-
-    @access.user
-    def tasks(self, id, params):
+            required=True, paramType='path')
+    )
+    def tasks(self, taskflow, params):
         user = getCurrentUser()
 
         states = params.get('states')
@@ -296,13 +313,34 @@ class TaskFlows(BaseResource):
             states = json.loads(states)
 
         cursor = self.model('task', 'taskflow').find_by_taskflow_id(
-                                                    user, ObjectId(id),
-                                                    states=states)
+            user, ObjectId(taskflow['_id']), states=states)
 
-        return [self._clean(task) for task in cursor]
+        return [task for task in cursor]
+
+    addModel('CreateTaskParams', {
+        'id': 'CreateTaskParams',
+        'required': ['celeryTaskId'],
+        'properties': {
+            'celeryTaskId': {
+                'type': 'string'
+            }
+        }
+    }, 'taskflows')
 
     @access.user
+    @filtermodel(model='task', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
+    @describeRoute(
+        Description('Create a new task associated with this flow')
+        .param(
+            'id',
+            'The id of taskflow',
+            required=True, paramType='path')
+        .param(
+            'body',
+            'The properties to update',
+            required=False, paramType='body', dataType='CreateTaskParams')
+    )
     def create_task(self, taskflow, params):
         user = getCurrentUser()
         task = getBodyJson()
@@ -314,13 +352,16 @@ class TaskFlows(BaseResource):
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/tasks/%s' % task['_id']
 
-        return self._clean(task)
+        return task
 
     @access.user
-    def task_finished(self, id, taskId, params):
+    @filtermodel(model='taskflow', plugin='taskflow')
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
+    @describeRoute(None)
+    def task_finished(self, taskflow, taskId, params):
         # decrement the number of active tasks
         query = {
-            '_id': ObjectId(id)
+            '_id': ObjectId(taskflow['_id'])
         }
         update = {
             '$inc': {
@@ -333,11 +374,8 @@ class TaskFlows(BaseResource):
 
     @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+    @describeRoute(None)
     def delete_finished(self, taskflow, params):
         self._model.delete(taskflow)
 
-    @access.user
-    def get_path(self, taskflow, path):
-
-        return self._model.get_path(taskflow, path)
 

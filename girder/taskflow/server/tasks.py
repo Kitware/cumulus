@@ -20,17 +20,14 @@
 import cherrypy
 import json
 
-from girder.api.rest import RestException, getBodyJson, loadmodel
+from girder.api.rest import RestException, loadmodel, filtermodel, getBodyJson
+from girder.api.rest import Resource
 from girder.api import access
-from girder.api.describe import Description
-from girder.api.docs import addModel
+from girder.api.describe import Description, describeRoute
 from girder.constants import AccessType
-from .base import BaseResource
-import sys
-from cumulus.task import runner
-from bson.objectid import ObjectId
 
-class Tasks(BaseResource):
+
+class Tasks(Resource):
 
     def __init__(self):
         super(Tasks, self).__init__()
@@ -38,45 +35,15 @@ class Tasks(BaseResource):
         self.route('PATCH', (':id',), self.update)
         self.route('GET', (':id', 'status'), self.status)
         self.route('GET', (':id',), self.get)
-        self.route('GET', (), self.find)
         self.route('POST', (':id', 'log'), self.log)
-        self.route('PUT', (':id', 'terminate'), self.terminate)
-        self.route('DELETE', (':id',), self.delete)
+
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('task', 'taskflow')
 
-    def _clean(self, task):
-        if 'access' in task:
-            del task['access']
-
-        return task
-
-    def _check_status(self, request):
-        if request.status_code != 200:
-            print >> sys.stderr, request.content
-            request.raise_for_status()
-
     @access.user
-    def update(self, id, params):
-        user = self.getCurrentUser()
-
-        body = cherrypy.request.body.read()
-
-        if not body:
-            raise RestException('A body must be provided', code=400)
-
-        updates = json.loads(body)
-
-        task = self._model.load(id, user=user, level=AccessType.WRITE)
-        if not task:
-            raise RestException('Task not found.', code=404)
-
-        task.update(updates)
-        self._model.update_task(user, task)
-
-        return self._clean(task)
-
-    update.description = (
+    @filtermodel(model='task', plugin='taskflow')
+    @loadmodel(model='task', plugin='taskflow', level=AccessType.WRITE)
+    @describeRoute(
         Description('Update the task')
         .param(
             'id',
@@ -85,45 +52,51 @@ class Tasks(BaseResource):
         .param(
             'updates',
             'The properties to update',
-            required=False, paramType='body'))
+            required=False, paramType='body', dataType='object')
+    )
+    def update(self, task, params):
+        immutable = ['access', '_id', 'celeryTaskId', 'log', 'activeTaskCount']
+        updates = getBodyJson()
+        if not updates:
+            raise RestException('A body must be provided', code=400)
+
+        for p in updates:
+            if p in immutable:
+                raise RestException('\'%s\' is an immutable property' % p, 400)
+
+        task.update(updates)
+        self._model.save(task)
+
+        return task
 
     @access.user
-    def status(self, id, params):
-        user = self.getCurrentUser()
-
-        task = self._model.load(id, user=user, level=AccessType.READ)
-        if not task:
-            raise RestException('Task not found.', code=404)
-
-        return {'status': task['status']}
-
-    status.description = (
-        Description('Get the task status')
+    @loadmodel(model='task', plugin='taskflow', level=AccessType.READ)
+    @describeRoute(
+         Description('Get the task status')
         .param(
             'id',
             'The id of task',
-            required=True, paramType='path'))
+            required=True, paramType='path')
+    )
+    def status(self, task, params):
+        return {'status': task['status']}
 
     @access.user
-    def get(self, id, params):
-        user = self.getCurrentUser()
-
-        task = self._model.load(id, user=user, level=AccessType.READ)
-
-        if not task:
-            raise RestException('Task not found.', code=404)
-
-        return self._clean(task)
-
-    get.description = (
+    @filtermodel(model='task', plugin='taskflow')
+    @loadmodel(model='task', plugin='taskflow', level=AccessType.READ)
+    @describeRoute(
         Description('Get the task ')
         .param(
             'id',
             'The id of task',
-            required=True, paramType='path'))
+            required=True, paramType='path')
+    )
+    def get(self, task, params):
+        return task
 
     @access.user
     @loadmodel(model='task', plugin='taskflow', level=AccessType.WRITE)
+    @describeRoute(None)
     def log(self, task, params):
         body = cherrypy.request.body.read()
 
@@ -131,47 +104,3 @@ class Tasks(BaseResource):
             raise RestException('Log entry must be provided', code=400)
 
         self._model.append_to_log(task, json.loads(body))
-
-    log.description = None
-
-    @access.user
-    def terminate(self, id, params):
-        user = self.getCurrentUser()
-
-        task = self._model.load(id, user=user, level=AccessType.WRITE)
-
-        if not task:
-            raise RestException('Task not found.', code=404)
-
-
-    terminate.description = (
-        Description('Terminate the task ')
-        .param(
-            'id',
-            'The id of task',
-            required=True, paramType='path'))
-
-    @access.user
-    def delete(self, id, params):
-        user = self.getCurrentUser()
-
-        task = self._model.load(id, user=user, level=AccessType.WRITE)
-
-    delete.description = (
-        Description('Delete the task ')
-        .param(
-            'id',
-            'The id of task',
-            required=True, paramType='path'))
-
-
-    @access.user
-    def find(self, params):
-        user = self.getCurrentUser()
-
-        self.requireParams(['celeryTaskId'], params)
-
-        task = self._model.find_by_celery_task_id(user, params['celeryTaskId'])
-
-        return self._clean(task)
-
