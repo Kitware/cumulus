@@ -92,7 +92,7 @@ class ChordTaskFlow(taskflow.TaskFlow):
     This taskflow has a "fanout" an also a chord, at task4
     """
     def start(self):
-        task4.delay(self)
+        task1.delay(self)
 
 @taskflow.task
 def task1(task, *args, **kwargs):
