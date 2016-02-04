@@ -56,9 +56,9 @@ app.conf.update(
         }
     },
     CELERY_ROUTES=_routes,
-    CELERY_TASK_SERIALIZER = 'json',
-    CELERY_ACCEPT_CONTENT = ('json',),
-    CELERY_RESULT_SERIALIZER = 'json',
-    CELERY_ACKS_LATE = True,
-    CELERYD_PREFETCH_MULTIPLIER = 1
+    CELERY_TASK_SERIALIZER='json',
+    CELERY_ACCEPT_CONTENT=('json',),
+    CELERY_RESULT_SERIALIZER='json',
+    CELERY_ACKS_LATE=True,
+    CELERYD_PREFETCH_MULTIPLIER=1
 )

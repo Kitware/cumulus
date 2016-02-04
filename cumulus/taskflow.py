@@ -47,12 +47,14 @@ thread_local = threading.local()
 TASKFLOW_HEADER = 'taskflow'
 TASKFLOW_TASK_ID_HEADER = 'taskflow_task_id'
 
+
 # The states that a taskflow can be in, there are likely to be more
 class TaskState:
     CREATED = 'created'
     RUNNING = 'running'
     ERROR = 'error'
     COMPLETE = 'complete'
+
 
 class TaskFlowState:
     CREATED = 'created'
@@ -65,6 +67,7 @@ class TaskFlowState:
     DELETED = 'deleted'
     COMPLETE = 'complete'
 
+
 def _get_task_logger(id, girder_api_url, girder_token):
     logger = logging.getLogger('task.%s' % id)
     logger.setLevel(logging.INFO)
@@ -75,11 +78,13 @@ def _get_task_logger(id, girder_api_url, girder_token):
 
     return logger
 
+
 def _create_girder_client(girder_api_url, girder_token):
     client = GirderClient(apiUrl=girder_api_url)
     client.token = girder_token
 
     return client
+
 
 def task(func):
     """
@@ -101,7 +106,7 @@ def task(func):
         if 'terminate' not in taskflow or not taskflow['terminate']:
             status = taskflow.status()
             if status == TaskFlowState.TERMINATING or \
-                status == TaskFlowState.UNEXPECTEDERROR:
+                    status == TaskFlowState.UNEXPECTEDERROR:
                 return
 
         # Patch task state to 'running'
@@ -119,6 +124,7 @@ def task(func):
 
     return celery_task
 
+
 def load_class(class_name):
     module, cls = class_name.rsplit('.', 1)
     try:
@@ -133,6 +139,7 @@ def load_class(class_name):
 
     return constructor
 
+
 def to_taskflow(taskflow):
     """
     Utility method to ensure we have a taskflow instance rather than a simple
@@ -144,6 +151,7 @@ def to_taskflow(taskflow):
             taskflow = constr(**taskflow)
 
     return taskflow
+
 
 class TaskFlowLogHandler(logging.Handler):
 
@@ -157,14 +165,15 @@ class TaskFlowLogHandler(logging.Handler):
         r = requests.post(self._url, headers=self._headers, data=json_str)
         r.raise_for_status()
 
+
 class TaskFlow(dict):
     """
     This is the base class users derive that taskflows from. In the future more
     utility methods can be added for example to update data/results associated
     with the taskflow.
     """
-    def __init__(self, id=None, girder_token=None, girder_api_url=None,
-                **kwargs):
+    def __init__(self, id=None, girder_token=None,
+                 girder_api_url=None, **kwargs):
         """
         Constructs a new TaskFlow instance
         """
@@ -242,7 +251,7 @@ class TaskFlow(dict):
             """
             # Register the callback with the taskflow
             self._taskflow._register_on_complete(self._completed_task,
-                                                 task_to_run )
+                                                 task_to_run)
 
     def _register_on_complete(self, complete_task, task_to_run):
         """
@@ -298,15 +307,18 @@ class TaskFlow(dict):
 
 class CompositeTaskFlow(TaskFlow):
     TASKFLOWS = '_taskflows'
+
     def add(self, taskflow):
         taskflows = self.setdefault(CompositeTaskFlow.TASKFLOWS, [])
         taskflows.append(taskflow)
 
     def start(self):
         taskflow = self[CompositeTaskFlow.TASKFLOWS].pop(0)
-        taskflow[CompositeTaskFlow.TASKFLOWS] = self[CompositeTaskFlow.TASKFLOWS]
+        taskflow[CompositeTaskFlow.TASKFLOWS] = \
+            self[CompositeTaskFlow.TASKFLOWS]
 
         taskflow.start()
+
 
 def _taskflow_task_finished(taskflow, taskflow_task_id):
     girder_token = taskflow['girder_token']
@@ -317,6 +329,7 @@ def _taskflow_task_finished(taskflow, taskflow_task_id):
     url = 'taskflows/%s/tasks/%s/finished' % (taskflow.id, taskflow_task_id)
 
     return client.put(url)
+
 
 @task_prerun.connect
 def task_prerun_handler(task_id=None, task=None, args=None, **kwargs):
@@ -359,7 +372,8 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
     # Note: We also check for the existence of thread_local.current_task
     # this is because internally, chords call the group function directly
     # rather than launching an async celery.group task.
-    # (See: https://github.com/celery/celery/blob/v3.1.20/celery/app/builtins.py#L335-L337)
+    # (See: https://github.com/celery/celery/blob/v3.1.20/ ( line wrapped )
+    #  celery/app/builtins.py#L335-L337)
     # This means the before_task_publish signal is never called. Without the
     # before_task_publish signal the group task never recieves the
     # TASKFLOW_HEADER information and the 'reduce' task doesn't have
@@ -381,7 +395,8 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
                 taskflow = current_task.request.headers[TASKFLOW_HEADER]
                 taskflow = to_taskflow(taskflow)
             else:
-                taskflow = thread_local.current_task.request.headers[TASKFLOW_HEADER]
+                taskflow = \
+                    thread_local.current_task.request.headers[TASKFLOW_HEADER]
                 taskflow = to_taskflow(taskflow)
 
         taskflow_id = taskflow['id']
@@ -391,13 +406,13 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
         client = GirderClient(apiUrl=girder_api_url)
         client.token = girder_token
 
-
         client = _create_girder_client(girder_api_url, girder_token)
 
         # If this is a retry then we have already create a task get it from
         # the current tasks headers.
         if body['retries'] > 0:
-            taskflow_task_id = current_task.request.headers[TASKFLOW_TASK_ID_HEADER]
+            taskflow_task_id = \
+                current_task.request.headers[TASKFLOW_TASK_ID_HEADER]
         else:
             # This is a new task so create a taskflow task instance
             body = {
@@ -411,8 +426,6 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
         # Save the task_id and taskflow in the headers
         headers[TASKFLOW_TASK_ID_HEADER] = taskflow_task_id
         headers[TASKFLOW_HEADER] = taskflow
-
-
 
 
 def _update_task_status(taskflow, task_id, status):
@@ -429,6 +442,7 @@ def _update_task_status(taskflow, task_id, status):
     }
     client.patch(url, data=json.dumps(body))
 
+
 def _update_taskflow_status(taskflow, status):
     """
     Utility function to update the state of a given taskflow.
@@ -443,6 +457,7 @@ def _update_taskflow_status(taskflow, status):
     }
     client.patch(url, data=json.dumps(body))
 
+
 # Here we use postrun instead of on success or failure as we need original task
 @task_postrun.connect
 def task_postrun_handler(task=None, state=None, args=None, **kwargs):
@@ -452,7 +467,7 @@ def task_postrun_handler(task=None, state=None, args=None, **kwargs):
     celery task.
     """
     if TASKFLOW_HEADER in task.request.headers:
-        taskflow_task_id  = None
+        taskflow_task_id = None
         try:
             # Extract the taskflow from the headers
             taskflow = task.request.headers[TASKFLOW_HEADER]
@@ -460,20 +475,22 @@ def task_postrun_handler(task=None, state=None, args=None, **kwargs):
             taskflow_task_id = task.request.headers[TASKFLOW_TASK_ID_HEADER]
 
             if state == celery.states.SUCCESS:
-                task_success_handler(taskflow, taskflow_task_id, task, state, args)
+                task_success_handler(
+                    taskflow, taskflow_task_id, task, state, args)
             elif state == celery.states.FAILURE:
-                task_failure_handler(taskflow, taskflow_task_id, task, **kwargs)
+                task_failure_handler(
+                    taskflow, taskflow_task_id, task, **kwargs)
         except HttpError as ex:
             if taskflow_task_id:
                 _update_taskflow_status(taskflow, TaskFlowState.UNEXPECTEDERROR)
                 msg = 'An HttpError was raise in task_postrun_handler for ' \
-                      'task \'%s\' the response text was:\n%s' % (taskflow_task_id,
-                                                                  ex.responseText)
+                      'task \'%s\' the response text was:\n%s' % \
+                      (taskflow_task_id, ex.responseText)
                 taskflow.logger.exception(msg)
                 logger.error(msg)
             raise
 
-        except:
+        except Exception:
             if taskflow_task_id:
                 _update_taskflow_status(taskflow, TaskFlowState.UNEXPECTEDERROR)
                 taskflow.logger.exception(
@@ -519,15 +536,17 @@ def task_success_handler(taskflow, taskflow_task_id, celery_task, state=None,
         status = taskflow.status()
 
         if CompositeTaskFlow.TASKFLOWS in taskflow and \
-            taskflow[CompositeTaskFlow.TASKFLOWS]:
+                taskflow[CompositeTaskFlow.TASKFLOWS]:
 
             if status != TaskFlowState.TERMINATING:
                 taskflows = taskflow[CompositeTaskFlow.TASKFLOWS]
                 next_taskflow = to_taskflow(taskflows.pop(0))
                 # Only run each flow once ...
-                celery_task.request.headers[TASKFLOW_HEADER][CompositeTaskFlow.TASKFLOWS] = taskflows
+                taskflow_header = celery_task.request.headers[TASKFLOW_HEADER]
+                taskflow_header[CompositeTaskFlow.TASKFLOWS] = taskflows
                 # Also update the taskflow type to match the new flow
-                celery_task.request.headers[TASKFLOW_HEADER]['_type'] = next_taskflow['_type']
+                celery_task.request.headers[TASKFLOW_HEADER]['_type'] \
+                    = next_taskflow['_type']
                 next_taskflow.start()
 
         # If we are finished deleting, do the final clean up
