@@ -16,7 +16,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ###############################################################################
-
 from __future__ import absolute_import
 
 import time
@@ -120,6 +119,8 @@ def task4(task, *args, **kwargs):
     time.sleep(2)
 
     header = [task5.s() for i in range(10)]
+
+
     chord(header)(task6.s())
 
 @taskflow.task
@@ -184,7 +185,6 @@ class Part3TaskFlow(taskflow.TaskFlow):
         part3_start.delay(self)
 
 
-
 # This syntax is a little messy I think. It would be nice not the have to create
 # this extra taskflow class, we need it at the moment to support the creation of
 # the taskflow via the REST endpoint.
@@ -213,4 +213,3 @@ class ConnectTwoTaskFlow(taskflow.TaskFlow):
 
     def start(self):
         part1_start.delay(self)
-

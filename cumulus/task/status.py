@@ -18,7 +18,7 @@
 ###############################################################################
 
 from __future__ import absolute_import
-from cumulus.celery import monitor
+from cumulus.celery import app
 from cumulus.common import check_status
 import cumulus
 import requests
@@ -45,7 +45,7 @@ def _update_status(headers, task, status):
     check_status(r)
 
 
-@monitor.task(bind=True, max_retries=None)
+@app.task(bind=True, max_retries=None)
 def monitor_status(celery_task, token, task, spec, step, variables):
     headers = {'Girder-Token':  token}
     max_retries = None
