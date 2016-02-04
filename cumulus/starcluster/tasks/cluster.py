@@ -20,7 +20,7 @@
 from cumulus.starcluster.logging import logstdout
 import cumulus.starcluster.logging
 from cumulus.starcluster.tasks.job import submit
-from cumulus.celery import command
+from cumulus.celery import app
 from cumulus.common import create_config_request, check_status
 import cumulus
 from cumulus.transport import get_connection
@@ -31,7 +31,7 @@ import requests
 import time
 
 
-@command.task
+@app.task
 @cumulus.starcluster.logging.capture
 def start_cluster(cluster, log_write_url=None, on_start_submit=None,
                   girder_token=None):
@@ -96,7 +96,7 @@ def start_cluster(cluster, log_write_url=None, on_start_submit=None,
         log.exception(ex)
 
 
-@command.task
+@app.task
 @cumulus.starcluster.logging.capture
 def terminate_cluster(cluster, log_write_url=None, girder_token=None):
     cluster_id = cluster['_id']
@@ -156,7 +156,7 @@ def terminate_cluster(cluster, log_write_url=None, girder_token=None):
         check_status(r)
 
 
-@command.task
+@app.task
 @cumulus.starcluster.logging.capture
 def test_connection(cluster, log_write_url=None, girder_token=None):
     cluster_id = cluster['_id']

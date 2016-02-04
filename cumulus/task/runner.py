@@ -23,7 +23,7 @@ from jinja2 import Environment
 from jinja2.exceptions import UndefinedError
 import requests
 import sys
-from cumulus.celery import monitor
+from cumulus.celery import app
 import traceback
 import time
 

@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 from celery import Celery
+from kombu import Queue
 
 _includes = (
     'cumulus.starcluster.tasks.cluster',
@@ -30,32 +31,28 @@ _includes = (
 )
 
 # Route short tasks to their own queue
+monitor = {'queue': 'monitor'}
+
 _routes = {
-    'cumulus.starcluster.tasks.job.monitor_job': {
-        'queue': 'monitor'
-    },
-    'cumulus.starcluster.tasks.job.monitor_process': {
-        'queue': 'monitor'
-    },
-    'cumulus.task.status.monitor_status': {
-        'queue': 'monitor'
-    }
+    'cumulus.starcluster.tasks.job.monitor_job': monitor,
+    'cumulus.starcluster.tasks.job.monitor_process': monitor,
+    'cumulus.task.status.monitor_status': monitor
 }
 
-command = Celery('command',  backend='amqp',
-                 broker='amqp://guest:guest@localhost:5672/',
-                 include=_includes)
+app = Celery('cumulus',  backend='amqp',
+             broker='amqp://guest:guest@localhost:5672/',
+             include=_includes)
 
-command.config_from_object('cumulus.celery.commandconfig')
-command.conf.update(
-    CELERY_ROUTES=_routes
-)
-
-monitor = Celery('monitor',  backend='amqp',
-                 broker='amqp://guest:guest@localhost:5672/',
-                 include=_includes)
-
-monitor.config_from_object('cumulus.celery.monitorconfig')
-monitor.conf.update(
-    CELERY_ROUTES=_routes
+app.conf.update(
+    CELERY_DEFAULT_EXCHANGE_TYPE='topic',
+    CELERY_QUEUES=(
+        Queue('celery',   routing_key='celery'),
+        Queue('monitor',  routing_key='monitor.#'),
+        Queue('taskflow', routing_key='taskflow.#')),
+    CELERY_ROUTES=_routes,
+    CELERY_TASK_SERIALIZER = 'json',
+    CELERY_ACCEPT_CONTENT = ('json',),
+    CELERY_RESULT_SERIALIZER = 'json',
+    CELERY_ACKS_LATE = True,
+    CELERYD_PREFETCH_MULTIPLIER = 1
 )
