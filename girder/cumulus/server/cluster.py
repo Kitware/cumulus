@@ -23,6 +23,7 @@ from jsonpath_rw import parse
 
 from girder.api import access
 from girder.api.describe import Description
+from girder.api.v1.notification import sseMessage
 from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, getCurrentUser
@@ -42,6 +43,7 @@ class Cluster(BaseResource):
         self.route('POST', (), self.create)
         self.route('POST', (':id', 'log'), self.handle_log_record)
         self.route('GET', (':id', 'log'), self.log)
+        self.route('GET', (':id', 'log', 'stream'), self.log_stream)
         self.route('PUT', (':id', 'start'), self.start)
         self.route('PUT', (':id', 'launch'), self.launch)
         self.route('PUT', (':id', 'provision'), self.provision)
@@ -538,6 +540,53 @@ class Cluster(BaseResource):
             'offset',
             'The cluster to get log entries for.', required=False,
             paramType='query'))
+
+
+    @access.cookie
+    @access.user
+    def log_stream(self, id, params):
+        import time
+        # defaults taken from Girder
+        DEFAULT_STREAM_TIMEOUT = 300
+        MIN_POLL_INTERVAL = 0.5
+        MAX_POLL_INTERVAL = 2
+
+        user = self.getCurrentUser()
+        cherrypy.response.headers['Content-Type'] = 'text/event-stream'
+        cherrypy.response.headers['Cache-Control'] = 'no-cache'
+
+        timeout = int(params.get('timeout', DEFAULT_STREAM_TIMEOUT))
+
+        if not self._model.load(id, user=user, level=AccessType.READ):
+            raise RestException('Cluster not found.', code=404)
+
+        def streamGen():
+            lastLogSeen = 0
+            start = time.time()
+            wait = MIN_POLL_INTERVAL
+
+            while cherrypy.engine.state == cherrypy.engine.states.STARTED:
+                wait = min(wait + MIN_POLL_INTERVAL, MAX_POLL_INTERVAL)
+
+                for i, logMessage in enumerate(self._model.log_records(user, id, lastLogSeen)):
+                    lastLogSeen += 1
+                    wait = MIN_POLL_INTERVAL
+                    start = time.time()
+                    yield sseMessage(logMessage)
+
+                if time.time() - start > timeout:
+                    break
+
+                time.sleep(wait)
+
+        return streamGen
+
+    log_stream.description = (Description(
+        'Stream notifications of a log for a particular cluster via the SSE protocol')
+                              .param('id', 'The cluster to get log entries for.', paramType='path')
+                              .param('timeout', 'The duration without a notification before the '
+                                     'stream is closed.', dataType='integer', required=False))
+
 
     @access.user
     def submit_job(self, id, jobId, params):
