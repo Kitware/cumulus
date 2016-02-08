@@ -110,3 +110,15 @@ class Task(AccessControlledModel):
         }
 
         return self.update(query, update, multi=False)
+
+    def update_task(self, user, task, status=None):
+        if status and task['status'] != status:
+            task['status'] = status
+            task = self.save(task)
+
+            # Update the state of the parent taskflow
+            self.model('taskflow', 'taskflow').update_state(
+                user, task['taskFlowId'])
+
+        return task
+
