@@ -11,6 +11,9 @@
      "moabReader": {
             "pluginPath": "/test"
     },
-    "amis": {}
+    "amis": {},
+    "taskflow": {
+        "path": ["tests/integration/taskflow"]
+    }
 }
 

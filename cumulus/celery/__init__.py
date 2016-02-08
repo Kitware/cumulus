@@ -24,7 +24,6 @@ from cumulus.taskflow.utility import find_taskflow_modules
 _includes = [
     'cumulus.starcluster.tasks.cluster',
     'cumulus.starcluster.tasks.job',
-    'cumulus.task.status',
     'cumulus.ssh.tasks.key',
     'cumulus.aws.ec2.tasks.key'
 ]

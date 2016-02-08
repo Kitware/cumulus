@@ -1,6 +1,7 @@
 import os
 import pkgutil
 import pkg_resources as pr
+import sys
 
 import cumulus
 
@@ -19,14 +20,17 @@ def find_taskflow_modules():
                     pr.resource_filename(cumulus.__name__, '__init__.py'))
     base_path = os.path.abspath(
                     os.path.join(base_path, '..'))
-    paths = [base_path]
+    paths = []
     if 'taskflow' not in cumulus.config:
         print 'WARN: No taskflow path set.'
     else:
         for path in cumulus.config.taskflow.path:
             # If we are not dealing with full path treat as relative to install
             # tree
-            if path[0] == '/':
-                paths.append(path)
+            if path[0] != '/':
+                path = os.path.abspath(
+                    os.path.join(base_path, path))
 
+            paths.append(path)
+            sys.path.append(path)
     return find_modules(paths)
