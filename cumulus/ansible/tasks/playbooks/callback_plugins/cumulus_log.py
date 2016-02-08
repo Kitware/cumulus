@@ -15,8 +15,6 @@ class CallbackModule(object):
     """
 
     def __init__(self):
-        # from pudb.remote import set_trace; set_trace(term_size=(185, 46))
-
         self.current_task = None
         self.current_play = None
 

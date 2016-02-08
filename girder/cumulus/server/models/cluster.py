@@ -82,11 +82,11 @@ class Cluster(BaseModel):
         return adapter.validate()
 
     def _create(self, user, cluster):
-        self.setUserAccess(cluster, user=user, level=AccessType.ADMIN)
+        cluster = self.setUserAccess(cluster, user=user, level=AccessType.ADMIN)
         group = {
             '_id': ObjectId(self.get_group_id())
         }
-        self.setGroupAccess(cluster, group, level=AccessType.ADMIN)
+        cluster = self.setGroupAccess(cluster, group, level=AccessType.ADMIN)
 
         # Add userId field to indicate ownership
         cluster['userId'] = user['_id']
@@ -96,7 +96,6 @@ class Cluster(BaseModel):
         return cluster
 
     def create_ansible(self, user, name, template, profile):
-
         try:
             query = {
                 "userId": user['_id'],
@@ -176,8 +175,12 @@ class Cluster(BaseModel):
         if user is None:
             user = getCurrentUser()
 
-        cluster['status'] = status
-        return self.update_cluster(user, cluster)
+        current_cluster = self.load(cluster['_id'], user=user,
+                                    level=AccessType.WRITE)
+
+        current_cluster['status'] = status
+
+        return self.update_cluster(user, current_cluster)
 
     def update_cluster(self, user, cluster):
         # Load first to force access check

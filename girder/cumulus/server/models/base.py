@@ -46,7 +46,5 @@ class BaseModel(AccessControlledModel):
         doc = super(BaseModel, self).filter(doc=doc, user=user)
         doc.pop('_accessLevel', None)
         doc.pop('_modelType', None)
-        if '_id' in doc:
-            doc['_id'] = str(doc['_id'])
 
         return doc
