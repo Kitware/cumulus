@@ -68,9 +68,6 @@ class Cluster(BaseModel):
             except RestException:
                 del cluster['config']['ssh']['passphrase']
 
-        # Use json module to convert ObjectIds to strings
-        cluster = json.loads(json.dumps(cluster, default=str))
-
         return cluster
 
     def validate(self, cluster):
