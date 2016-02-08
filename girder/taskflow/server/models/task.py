@@ -20,6 +20,8 @@
 from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
 
+from cumulus.common.girder import create_status_notifications
+
 class Task(AccessControlledModel):
 
     def initialize(self):
@@ -119,6 +121,13 @@ class Task(AccessControlledModel):
             # Update the state of the parent taskflow
             self.model('taskflow', 'taskflow').update_state(
                 user, task['taskFlowId'])
+
+            notification = {
+                '_id': task['_id'],
+                'status': status
+            }
+
+            create_status_notifications('task', notification, task)
 
         return task
 
