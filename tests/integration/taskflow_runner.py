@@ -68,7 +68,7 @@ def main(config):
         # First run the simple flow
         print ('Running simple taskflow ...')
         taskflow_id = create_taskflow(
-            client, 'cumulus.mytaskflows.SimpleTaskFlow')
+            client, 'cumulus.taskflow.core.test.mytaskflows.SimpleTaskFlow')
 
         # Start the task flow
         url = 'taskflows/%s/start' % (taskflow_id)
@@ -80,7 +80,7 @@ def main(config):
         # Test terminating a simple flow
         print ('Running simple taskflow ...')
         taskflow_id = create_taskflow(
-            client, 'cumulus.mytaskflows.SimpleTaskFlow')
+            client, 'cumulus.taskflow.core.test.mytaskflows.SimpleTaskFlow')
 
         # Start the task flow
         url = 'taskflows/%s/start' % (taskflow_id)
@@ -111,7 +111,7 @@ def main(config):
         # Now try something with a chord
         print ('Running taskflow containing a chord ...')
         taskflow_id = create_taskflow(
-            client, 'cumulus.mytaskflows.ChordTaskFlow')
+            client, 'cumulus.taskflow.core.test.mytaskflows.ChordTaskFlow')
 
         # Start the task flow
         url = 'taskflows/%s/start' % (taskflow_id)
@@ -123,7 +123,7 @@ def main(config):
         # Now try a workflow that is the two connected together
         print ('Running taskflow that connects to parts together ...')
         taskflow_id = create_taskflow(
-            client, 'cumulus.mytaskflows.ConnectTwoTaskFlow')
+            client, 'cumulus.taskflow.core.test.mytaskflows.ConnectTwoTaskFlow')
 
         # Start the task flow
         url = 'taskflows/%s/start' % (taskflow_id)
@@ -135,7 +135,7 @@ def main(config):
         # Now try a composite workflow approach ...
         print ('Running taskflow that is a composite ...')
         taskflow_id = create_taskflow(
-            client, 'cumulus.mytaskflows.MyCompositeTaskFlow')
+            client, 'cumulus.taskflow.core.test.mytaskflows.MyCompositeTaskFlow')
 
         # Start the task flow
         url = 'taskflows/%s/start' % (taskflow_id)

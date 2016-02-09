@@ -19,15 +19,17 @@
 
 from __future__ import absolute_import
 from celery import Celery
+from cumulus.taskflow.utility import find_taskflow_modules
 
-_includes = (
+_includes = [
     'cumulus.starcluster.tasks.cluster',
     'cumulus.starcluster.tasks.job',
-    'cumulus.task.status',
     'cumulus.ssh.tasks.key',
-    'cumulus.aws.ec2.tasks.key',
-    'cumulus.mytaskflows'
-)
+    'cumulus.aws.ec2.tasks.key'
+]
+
+taskflow_modules = find_taskflow_modules()
+_includes += taskflow_modules
 
 # Route short tasks to their own queue
 monitor = {'queue': 'monitor'}

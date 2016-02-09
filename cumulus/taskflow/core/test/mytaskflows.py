@@ -17,8 +17,8 @@
 #  limitations under the License.
 ###############################################################################
 from __future__ import absolute_import
-
 import time
+
 from cumulus import taskflow
 
 from celery import chord

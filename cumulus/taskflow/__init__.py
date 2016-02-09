@@ -34,7 +34,8 @@ from celery.canvas import maybe_signature
 from celery import current_task
 from celery.utils.log import get_task_logger
 
-from cumulus.celery import app
+import cumulus.celery
+
 
 logger = get_task_logger(__name__)
 
@@ -120,7 +121,8 @@ def task(func):
         return func(celery_task, *args, **kwargs)
 
     # Now apply the celery decorator
-    celery_task = app.task(wrapped, bind=True, routing_key="taskflow.task")
+    celery_task = cumulus.celery.app.task(
+        wrapped, bind=True, routing_key="taskflow.task")
 
     return celery_task
 
