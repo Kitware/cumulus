@@ -32,6 +32,17 @@ from cumulus.common.girder import create_status_notifications, \
 import cumulus
 
 
+def preprocess_cluster(cluster):
+    # Convert model status into enum
+    try:
+        cluster['status'] = ClusterStatus(int(cluster['status']))
+    except (ValueError, AssertionError, TypeError):
+        # Assume 'old style' string status
+        pass
+
+    return cluster
+
+
 class Cluster(BaseModel):
 
     def __init__(self):
@@ -50,14 +61,12 @@ class Cluster(BaseModel):
         model = super(Cluster, self).load(id, level=level, user=user,
                                           objectId=objectId, force=force,
                                           fields=fields, exc=exc)
-        # Convert model status into enum
-        try:
-            model['status'] = ClusterStatus(int(model['status']))
-        except (ValueError, AssertionError, TypeError):
-            # Assume 'old style' string status
-            pass
+        return preprocess_cluster(model)
 
-        return model
+    def find(self, query=None, offset=0, limit=0, timeout=None,
+             fields=None, sort=None, **kwargs):
+        return [preprocess_cluster(cluster) for cluster in \
+                super(Cluster, self).find(query, offset, limit, timeout, fields, sort, **kwargs)]
 
     def filter(self, cluster, user, passphrase=True):
         cluster = super(Cluster, self).filter(doc=cluster, user=user)
@@ -198,7 +207,7 @@ class Cluster(BaseModel):
         if current_cluster['status'] != new_status:
             notification = {
                 '_id': cluster_id,
-                'status': new_status
+                'status': new_status.name
             }
             create_status_notifications('cluster', notification,
                                         current_cluster)
