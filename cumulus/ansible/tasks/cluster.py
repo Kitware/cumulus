@@ -80,3 +80,13 @@ def terminate_cluster(cluster, profile, secret_key,
     # to girder_token after this point
 
     pb.run()
+
+    cluster_id = cluster['_id']
+    status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl, cluster_id)
+    headers = {'Girder-Token':  girder_token}
+    updates = {
+        "status": "terminated"
+    }
+
+    r = requests.patch(status_url, headers=headers, json=updates)
+    check_status(r)
