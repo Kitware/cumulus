@@ -100,6 +100,15 @@ def task(func):
         taskflow = celery_task.request.headers[TASKFLOW_HEADER]
         taskflow = to_taskflow(taskflow)
         task_id = celery_task.request.headers[TASKFLOW_TASK_ID_HEADER]
+
+        # Get the current state of the taskflow so we know if we are terminating
+        # Only do this if this task is not associated with termination ...
+        if 'terminate' not in taskflow or not taskflow['terminate']:
+            status = taskflow.status()
+            if status == TaskFlowState.TERMINATING or \
+                    status == TaskFlowState.UNEXPECTEDERROR:
+                return
+
         setattr(celery_task, 'taskflow', taskflow)
         setattr(celery_task, 'logger', _get_task_logger(
             task_id, taskflow.girder_api_url, taskflow.girder_token))
@@ -349,14 +358,6 @@ def task_prerun_handler(task_id=None, task=None, args=None, **kwargs):
         taskflow = task.request.headers[TASKFLOW_HEADER]
         taskflow = to_taskflow(taskflow)
         task_id = task.request.headers[TASKFLOW_TASK_ID_HEADER]
-
-        # Get the current state of the taskflow so we know if we are terminating
-        # Only do this if this task is not associated with termination ...
-        if 'terminate' not in taskflow or not taskflow['terminate']:
-            status = taskflow.status()
-            if status == TaskFlowState.TERMINATING or \
-               status == TaskFlowState.UNEXPECTEDERROR:
-                return
 
         # Patch task state to 'running'
         _update_task_status(taskflow, task_id, TaskState.RUNNING)
