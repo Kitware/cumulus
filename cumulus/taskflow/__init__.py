@@ -43,7 +43,6 @@ logger = get_task_logger(__name__)
 # We need to use thread local storage to save the "current user task", celery's
 # current_task is not always what we need.
 thread_local = threading.local()
-thread_local.current_task = None
 
 # These key we used to store our taskflow data in the celery headers
 TASKFLOW_HEADER = 'taskflow'
@@ -193,11 +192,14 @@ class TaskFlow(dict):
         return self['girder_api_url']
 
     # State methods
-    def start(self):
+    def start(self, signature, **options):
         """
-        This must be implement by subclass to give start of the taskflow.
+        This must be called by subclass to give start to the taskflow.
         """
-        raise NotImplemented('Must be implemented by subclass')
+        signature.apply_async(
+            headers={
+                TASKFLOW_HEADER: self
+            }, **options)
 
     def terminate(self):
         pass
@@ -362,8 +364,8 @@ def task_prerun_handler(task_id=None, task=None, args=None, **kwargs):
 
     # Now run the user task function
     # Is this condition still nessisary?
-    if task.request.delivery_info["routing_key"].startswith("taskflow"):
-        thread_local.current_task = task
+    # if task.request.delivery_info["routing_key"].startswith("taskflow"):
+    thread_local.current_task = task
 
 
 
@@ -388,14 +390,16 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
 
 
 
-    if kwargs['routing_key'].startswith('taskflow') or \
-       hasattr(thread_local, "current_task"):
+#    if kwargs['routing_key'].startswith('taskflow') or \
+#       hasattr(thread_local, "current_task"):
 
-        if headers is not None and TASKFLOW_HEADER in headers:
-            taskflow = to_taskflow(headers[TASKFLOW_HEADER])
-        else:
-            taskflow = to_taskflow(thread_local.current_task.request.headers[TASKFLOW_HEADER])
+    # This will only be true for the initial task called
+    # from the taskflow object.
+    if not hasattr(thread_local, "current_task"):
+        thread_local.current_task = None
 
+    def _update_girder(taskflow, body):
+        taskflow = to_taskflow(taskflow)
         taskflow_id = taskflow['id']
         girder_token = taskflow['girder_token']
         girder_api_url = taskflow['girder_api_url']
@@ -419,10 +423,23 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
             url = 'taskflows/%s/tasks' % taskflow_id
             r = client.post(url, data=json.dumps(body))
             taskflow_task_id = r['_id']
+        return taskflow, taskflow_task_id
 
-            # Save the task_id and taskflow in the headers
+    # First task in the queue
+    if headers is not None and TASKFLOW_HEADER in headers:
+        taskflow, taskflow_task_id = _update_girder(headers[TASKFLOW_HEADER], body)
         headers[TASKFLOW_TASK_ID_HEADER] = taskflow_task_id
         headers[TASKFLOW_HEADER] = taskflow
+    # All other tasks
+    elif thread_local.current_task is not None and \
+         TASKFLOW_HEADER in thread_local.current_task.request.headers:
+
+        taskflow, taskflow_task_id = _update_girder(thread_local.current_task.request.headers[TASKFLOW_HEADER], body)
+        headers[TASKFLOW_TASK_ID_HEADER] = taskflow_task_id
+        headers[TASKFLOW_HEADER] = taskflow
+        # Save the task_id and taskflow in the headers
+    else:
+        print(body['task'])
 
 
 def _update_task_status(taskflow, task_id, status):
