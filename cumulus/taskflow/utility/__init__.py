@@ -35,22 +35,17 @@ def find_modules(paths, prefix=''):
             yield '%s%s' % (prefix,  name)
 
 
-def find_taskflow_modules():
-    # There has to be a better way!
-    base_path = os.path.dirname(pr.resource_filename(cumulus.__name__,
-                                                     '__init__.py'))
-    base_path = os.path.abspath(os.path.join(base_path, '..'))
-    paths = []
-    if 'taskflow' not in cumulus.config:
-        print 'WARN: No taskflow path set.'
-    else:
-        for path in cumulus.config.taskflow.path:
-            # If we are not dealing with full path treat as relative to install
-            # tree
-            if path[0] != '/':
-                path = os.path.abspath(
-                    os.path.join(base_path, path))
+def find_taskflow_modules(prefix=''):
+    modules = []
+    # First add core modules
+    base_path = os.path.abspath(
+                            os.path.dirname(
+                                pr.resource_filename(cumulus.__name__,
+                                                     '__init__.py')))
+    modules += find_modules([os.path.join(base_path, 'taskflow', 'core')],
+                            prefix='cumulus.taskflow.core.')
 
-            paths.append(path)
-            sys.path.append(path)
-    return find_modules(paths)
+    if 'taskflow' in cumulus.config:
+        modules += find_modules(cumulus.config.taskflow.path)
+
+    return modules
