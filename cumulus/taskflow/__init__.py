@@ -43,6 +43,7 @@ logger = get_task_logger(__name__)
 # We need to use thread local storage to save the "current user task", celery's
 # current_task is not always what we need.
 thread_local = threading.local()
+thread_local.current_task = None
 
 # These key we used to store our taskflow data in the celery headers
 TASKFLOW_HEADER = 'taskflow'
@@ -99,25 +100,11 @@ def task(func):
         # Extract the taskflow from the headers
         taskflow = celery_task.request.headers[TASKFLOW_HEADER]
         taskflow = to_taskflow(taskflow)
-
         task_id = celery_task.request.headers[TASKFLOW_TASK_ID_HEADER]
-
-        # Get the current state of the taskflow so we know if we are terminating
-        # Only do this if this task is not associated with termination ...
-        if 'terminate' not in taskflow or not taskflow['terminate']:
-            status = taskflow.status()
-            if status == TaskFlowState.TERMINATING or \
-                    status == TaskFlowState.UNEXPECTEDERROR:
-                return
-
-        # Patch task state to 'running'
-        _update_task_status(taskflow, task_id, TaskState.RUNNING)
-
         setattr(celery_task, 'taskflow', taskflow)
         setattr(celery_task, 'logger', _get_task_logger(
             task_id, taskflow.girder_api_url, taskflow.girder_token))
 
-        # Now run the user task function
         return func(celery_task, *args, **kwargs)
 
     # Now apply the celery decorator
@@ -356,10 +343,28 @@ def task_prerun_handler(task_id=None, task=None, args=None, **kwargs):
     task4.
     """
 
+    if TASKFLOW_HEADER in task.request.headers:
+        taskflow = task.request.headers[TASKFLOW_HEADER]
+        taskflow = to_taskflow(taskflow)
+        task_id = task.request.headers[TASKFLOW_TASK_ID_HEADER]
+
+        # Get the current state of the taskflow so we know if we are terminating
+        # Only do this if this task is not associated with termination ...
+        if 'terminate' not in taskflow or not taskflow['terminate']:
+            status = taskflow.status()
+            if status == TaskFlowState.TERMINATING or \
+               status == TaskFlowState.UNEXPECTEDERROR:
+                return
+
+        # Patch task state to 'running'
+        _update_task_status(taskflow, task_id, TaskState.RUNNING)
+
+
+    # Now run the user task function
+    # Is this condition still nessisary?
     if task.request.delivery_info["routing_key"].startswith("taskflow"):
         thread_local.current_task = task
-    else:
-        thread_local.current_task = None
+
 
 
 @before_task_publish.connect
@@ -381,25 +386,15 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
     # TASKFLOW_HEADER information and the 'reduce' task doesn't have
     # access to the taskflow header information
 
+
+
     if kwargs['routing_key'].startswith('taskflow') or \
-       thread_local.current_task is not None:
-        # If we are not in a task then we are at the start of a taskflow
-        # so we need to extract the taskflow object from the first postional
-        # arg
-        if not current_task:
-            args = body['args']
-            taskflow = to_taskflow(args[0])
+       hasattr(thread_local, "current_task"):
+
+        if headers is not None and TASKFLOW_HEADER in headers:
+            taskflow = to_taskflow(headers[TASKFLOW_HEADER])
         else:
-            # If the current task is one of celery's internal tasks, such as
-            # celery.group, the context will not contain the headers we need, so
-            # instead use the task we stored in thread local.
-            if current_task.request.headers:
-                taskflow = current_task.request.headers[TASKFLOW_HEADER]
-                taskflow = to_taskflow(taskflow)
-            else:
-                taskflow = \
-                    thread_local.current_task.request.headers[TASKFLOW_HEADER]
-                taskflow = to_taskflow(taskflow)
+            taskflow = to_taskflow(thread_local.current_task.request.headers[TASKFLOW_HEADER])
 
         taskflow_id = taskflow['id']
         girder_token = taskflow['girder_token']
@@ -416,7 +411,7 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
             taskflow_task_id = \
                 current_task.request.headers[TASKFLOW_TASK_ID_HEADER]
         else:
-            # This is a new task so create a taskflow task instance
+                # This is a new task so create a taskflow task instance
             body = {
                 'celeryTaskId': body['id'],
                 'name': body['task']
@@ -425,7 +420,7 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
             r = client.post(url, data=json.dumps(body))
             taskflow_task_id = r['_id']
 
-        # Save the task_id and taskflow in the headers
+            # Save the task_id and taskflow in the headers
         headers[TASKFLOW_TASK_ID_HEADER] = taskflow_task_id
         headers[TASKFLOW_HEADER] = taskflow
 
