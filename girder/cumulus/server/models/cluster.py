@@ -77,6 +77,11 @@ class Cluster(BaseModel):
         if not cluster['type']:
             raise ValidationException('Type must not be empty.', 'type')
 
+        # If inserting, ensure no other clusters have the same name field
+        if '_id' not in cluster:
+            if len(self.find({'name': cluster['name']})) > 0:
+                raise ValidationException('Name must be unique.', 'name')
+
         adapter = get_cluster_adapter(cluster)
 
         return adapter.validate()
