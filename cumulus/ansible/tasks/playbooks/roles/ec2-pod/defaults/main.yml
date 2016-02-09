@@ -1,6 +1,6 @@
 ---
 
-    name: pod
+    cluster_name: pod
 
     region: us-east-1
 
@@ -23,4 +23,3 @@
     hosts: {}
 
     state: running
-

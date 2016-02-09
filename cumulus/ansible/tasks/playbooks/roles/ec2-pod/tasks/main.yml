@@ -81,8 +81,8 @@
       aws_secret_key: "{{ aws_secret_key }}"
       count_tag:
         Name: >
-          {{ item.value.cluster_name|default(
-            ["ec2_pod", name, item.key]|join("_")) }}
+          {{ item.value.name|default(
+            ["ec2_pod", cluster_name, item.key]|join("_")) }}
         ec2_pod: "{{ cluster_name }}"
         ec2_pod_instance_name: "{{ item.key }}"
       exact_count: "{{ (item.value.count|default(1))|int }}"
@@ -90,7 +90,7 @@
       image: "{{ item.value.image|default(default_image) }}"
       instance_tags:
         Name: >
-          {{ item.value.cluster_name|default(
+          {{ item.value.name|default(
             ["ec2_pod", cluster_name, item.key]|join("_")) }}
         ec2_pod: "{{ cluster_name }}"
         ec2_pod_instance_name: "{{ item.key }}"
