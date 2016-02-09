@@ -18,6 +18,7 @@ def launch_cluster(cluster, profile, secret_key, girder_token, log_write_url):
         "log_write_url": log_write_url,
         "cluster_region": profile['regionName'],
         "cluster_state": "running",
+        "cluster_id": cluster["_id"],
         "aws_access_key": profile['accessKeyId'],
         "aws_secret_key": secret_key
     }
@@ -59,6 +60,7 @@ def terminate_cluster(cluster, profile, secret_key,
         "log_write_url": log_write_url,
         "cluster_region": profile['regionName'],
         "cluster_state": "absent",
+        "cluster_id": cluster["_id"],
         "aws_access_key": profile['accessKeyId'],
         "aws_secret_key": secret_key
     }

@@ -8,6 +8,7 @@
     instance_type: t2.medium
     ec2_pod_spec:
       key: "{{ aws_keyname }}"
+      cluster_name: "{{ cluster_id }}"
       rules:
 
         - proto: tcp # ssh
@@ -16,7 +17,8 @@
           cidr_ip: 0.0.0.0/0
 
         - proto: all
-          group_name: ec2_pod_default
+          group_name: "ec2_pod_{{cluster_id}}"
+          group_desc: "Ec2 security group for cluster {{ cluster_id }}"
 
       hosts:
         head:
@@ -28,8 +30,8 @@
   roles:
     - role: ec2-pod
       default_ssh_key: "{{ ec2_pod_spec.key }}"
-      name: "default"
       # passed in from deployment script
+      cluster_name: "{{ ec2_pod_spec.cluster_name }}"
       state: "{{ cluster_state }}"
       region: "{{ cluster_region }}"
       default_image: ami-e0f7e081

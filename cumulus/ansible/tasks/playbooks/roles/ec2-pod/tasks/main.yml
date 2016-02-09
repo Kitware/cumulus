@@ -11,14 +11,16 @@
         do_wait: >
             {{ state == "running" }}
 
+
   - name: hosts spec | process
     set_fact:
-        hosts_spec: "{{ hosts|process_hosts_spec(name) }}"
+        hosts_spec: "{{ hosts|process_hosts_spec(cluster_name) }}"
+
 
   - name: instances | update lists | compute
     set_fact:
         update_lists: >
-            {{ name|compute_ec2_update_lists(hosts,
+            {{ cluster_name|compute_ec2_update_lists(hosts,
                                              aws_access_key,
                                              aws_secret_key,
                                              state,
@@ -41,9 +43,9 @@
     ec2_group:
       aws_access_key: "{{ aws_access_key }}"
       aws_secret_key: "{{ aws_secret_key }}"
-      name: ec2_pod_{{ name }}
+      name: ec2_pod_{{ cluster_name }}
       description: >
-        security group for ec2 pod: {{ name }}
+        security group for ec2 pod: {{ cluster_name }}
       region: "{{ region }}"
       rules: "{{ rules }}"
       rules_egress: "{{ rules_egress }}"
@@ -79,18 +81,18 @@
       aws_secret_key: "{{ aws_secret_key }}"
       count_tag:
         Name: >
-          {{ item.value.name|default(
+          {{ item.value.cluster_name|default(
             ["ec2_pod", name, item.key]|join("_")) }}
-        ec2_pod: "{{ name }}"
+        ec2_pod: "{{ cluster_name }}"
         ec2_pod_instance_name: "{{ item.key }}"
       exact_count: "{{ (item.value.count|default(1))|int }}"
-      group: ec2_pod_{{ name }}
+      group: ec2_pod_{{ cluster_name }}
       image: "{{ item.value.image|default(default_image) }}"
       instance_tags:
         Name: >
-          {{ item.value.name|default(
-            ["ec2_pod", name, item.key]|join("_")) }}
-        ec2_pod: "{{ name }}"
+          {{ item.value.cluster_name|default(
+            ["ec2_pod", cluster_name, item.key]|join("_")) }}
+        ec2_pod: "{{ cluster_name }}"
         ec2_pod_instance_name: "{{ item.key }}"
       instance_type: "{{ item.value.type|default(default_instance_type) }}"
       key_name: "{{ item.value.ssh_key|default(default_ssh_key) }}"
@@ -141,8 +143,8 @@
       aws_secret_key: "{{ aws_secret_key }}"
 
       description: >
-        security group for ec2 pod: {{ name }}
+        security group for ec2 pod: {{ cluster_name }}
       region: "{{ region }}"
-      name: ec2_pod_{{ name }}
+      name: ec2_pod_{{ cluster_name }}
       state: absent
     when: do_destroy|bool
