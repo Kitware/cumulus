@@ -362,12 +362,7 @@ def task_prerun_handler(task_id=None, task=None, args=None, **kwargs):
         # Patch task state to 'running'
         _update_task_status(taskflow, task_id, TaskState.RUNNING)
 
-
-    # Now run the user task function
-    # Is this condition still nessisary?
-    # if task.request.delivery_info["routing_key"].startswith("taskflow"):
     thread_local.current_task = task
-
 
 
 @before_task_publish.connect
@@ -388,8 +383,6 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
     # before_task_publish signal the group task never recieves the
     # TASKFLOW_HEADER information and the 'reduce' task doesn't have
     # access to the taskflow header information
-
-
 
 #    if kwargs['routing_key'].startswith('taskflow') or \
 #       hasattr(thread_local, "current_task"):
@@ -428,14 +421,16 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
 
     # First task in the queue
     if headers is not None and TASKFLOW_HEADER in headers:
-        taskflow, taskflow_task_id = _update_girder(headers[TASKFLOW_HEADER], body)
+        taskflow, taskflow_task_id = _update_girder(
+            headers[TASKFLOW_HEADER], body)
         headers[TASKFLOW_TASK_ID_HEADER] = taskflow_task_id
         headers[TASKFLOW_HEADER] = taskflow
     # All other tasks
     elif thread_local.current_task is not None and \
-         TASKFLOW_HEADER in thread_local.current_task.request.headers:
+            TASKFLOW_HEADER in thread_local.current_task.request.headers:
 
-        taskflow, taskflow_task_id = _update_girder(thread_local.current_task.request.headers[TASKFLOW_HEADER], body)
+        taskflow, taskflow_task_id = _update_girder(
+            thread_local.current_task.request.headers[TASKFLOW_HEADER], body)
         headers[TASKFLOW_TASK_ID_HEADER] = taskflow_task_id
         headers[TASKFLOW_HEADER] = taskflow
         # Save the task_id and taskflow in the headers

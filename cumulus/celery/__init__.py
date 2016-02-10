@@ -52,10 +52,10 @@ command = Celery('command',  backend='amqp',
 command.config_from_object('cumulus.celery.commandconfig')
 command.conf.update(
     CELERY_ROUTES=_routes,
-    CELERY_TASK_SERIALIZER = 'json',
-    CELERY_ACCEPT_CONTENT = ('json',),
-    CELERY_RESULT_SERIALIZER = 'json',
-    CELERYD_PREFETCH_MULTIPLIER = 1
+    CELERY_TASK_SERIALIZER='json',
+    CELERY_ACCEPT_CONTENT=('json',),
+    CELERY_RESULT_SERIALIZER='json',
+    CELERYD_PREFETCH_MULTIPLIER=1
 )
 
 monitor = Celery('monitor',  backend='amqp',

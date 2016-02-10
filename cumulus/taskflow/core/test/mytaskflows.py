@@ -61,7 +61,6 @@ class LinkTaskFlow(taskflow.TaskFlow):
         super(LinkTaskFlow, self).start(simple_delete.s(*args, **kwargs))
 
 
-
 @command.task
 def regular_task():
     print "regular_task!!"
@@ -131,7 +130,6 @@ class ChordTaskFlow(taskflow.TaskFlow):
     def start(self, *args, **kwargs):
                 # Run simple task workflow
         super(ChordTaskFlow, self).start(task1.s(*args, **kwargs))
-
 
 
 @taskflow.task
