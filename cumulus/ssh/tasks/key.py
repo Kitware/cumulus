@@ -26,7 +26,7 @@ import requests
 import starcluster.logger
 
 import cumulus
-from cumulus.celery import app
+from cumulus.celery import command
 from cumulus.common import check_status
 
 
@@ -34,7 +34,7 @@ def _key_path(profile):
     return os.path.join(cumulus.config.ssh.keyStore, str(profile['_id']))
 
 
-@app.task
+@command.task
 def generate_key_pair(cluster, girder_token=None):
     '''
     Task to generate a new key pair for a user.
@@ -83,7 +83,7 @@ def generate_key_pair(cluster, girder_token=None):
         log.error(ex.message)
 
 
-@app.task
+@command.task
 def delete_key_pair(aws_profile, girder_token):
     path = _key_path(aws_profile)
 

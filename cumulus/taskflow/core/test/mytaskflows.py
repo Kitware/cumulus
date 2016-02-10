@@ -20,6 +20,7 @@ from __future__ import absolute_import
 import time
 
 from cumulus import taskflow
+from cumulus.celery import command
 
 from celery import chord
 
@@ -29,14 +30,41 @@ class SimpleTaskFlow(taskflow.TaskFlow):
     This is a simple linear taskflow, chain together 6 task. Notice that
     simple_task3 "fans" out the flow, by scheduling 10 copies of simple_task4.
     """
-    def start(self):
-        simple_task1.delay(self)
+    def start(self, *args, **kwargs):
+        # Prove that we can still run a regular celery task
+        regular_task.delay()
 
-    def terminate(self):
-        simple_terminate.delay(self)
+        # Run simple task workflow
+        super(SimpleTaskFlow, self).start(simple_task1.s(*args, **kwargs))
 
-    def delete(self):
-        simple_delete.delay(self)
+    def terminate(self, *args, **kwargs):
+        super(SimpleTaskFlow, self).start(simple_terminate.s(*args, **kwargs))
+
+    def delete(self, *args, **kwargs):
+        super(SimpleTaskFlow, self).start(simple_delete.s(*args, **kwargs))
+
+
+class LinkTaskFlow(taskflow.TaskFlow):
+    """
+    This is a simple linear taskflow, chain together 6 task. Notice that
+    simple_task3 "fans" out the flow, by scheduling 10 copies of simple_task4.
+    """
+    def start(self, *args, **kwargs):
+        # Prove that we can still run a regular celery task
+        super(LinkTaskFlow, self).start(regular_task.s(),
+                                        link=simple_task1.s())
+
+    def terminate(self, *args, **kwargs):
+        super(LinkTaskFlow, self).start(simple_terminate.s(*args, **kwargs))
+
+    def delete(self, *args, **kwargs):
+        super(LinkTaskFlow, self).start(simple_delete.s(*args, **kwargs))
+
+
+@command.task
+def regular_task():
+    print "regular_task!!"
+    time.sleep(3)
 
 
 @taskflow.task
@@ -99,8 +127,9 @@ class ChordTaskFlow(taskflow.TaskFlow):
     """
     This taskflow has a "fanout" an also a chord, at task4
     """
-    def start(self):
-        task1.delay(self)
+    def start(self, *args, **kwargs):
+                # Run simple task workflow
+        super(ChordTaskFlow, self).start(task1.s(*args, **kwargs))
 
 
 @taskflow.task
@@ -193,31 +222,33 @@ def part3_start(task, *args, **kwargs):
 
 
 class Part1TaskFlow(taskflow.TaskFlow):
-    def start(self):
-        part1_start.delay(self)
+    def start(self, *args, **kwargs):
+        # Run simple task workflow
+        super(Part1TaskFlow, self).start(part1_start.s(*args, **kwargs))
 
 
 class Part2TaskFlow(taskflow.TaskFlow):
-    def start(self):
-        part2_start.delay(self)
+    def start(self, *args, **kwargs):
+        # Run simple task workflow
+        super(Part2TaskFlow, self).start(part2_start.s(*args, **kwargs))
 
 
 class Part3TaskFlow(taskflow.TaskFlow):
-    def start(self):
-        part3_start.delay(self)
+    def start(self, *args, **kwargs):
+        super(Part3TaskFlow, self).start(part3_start.s(*args, **kwargs))
 
 
 # This syntax is a little messy I think. It would be nice not the have to create
 # this extra taskflow class, we need it at the moment to support the creation of
 # the taskflow via the REST endpoint.
-class MyCompositeTaskFlow(taskflow.CompositeTaskFlow):
-
-    def __init__(self, *args, **kwargs):
-        super(MyCompositeTaskFlow, self).__init__(*args, **kwargs)
-
-        self.add(Part1TaskFlow(*args, **kwargs))
-        self.add(Part2TaskFlow(*args, **kwargs))
-        self.add(Part3TaskFlow(*args, **kwargs))
+# class MyCompositeTaskFlow(taskflow.CompositeTaskFlow):
+#
+#     def __init__(self, *args, **kwargs):
+#         super(MyCompositeTaskFlow, self).__init__(*args, **kwargs)
+#
+#         self.add(Part1TaskFlow(*args, **kwargs))
+#         self.add(Part2TaskFlow(*args, **kwargs))
+#         self.add(Part3TaskFlow(*args, **kwargs))
 
 
 class ConnectTwoTaskFlow(taskflow.TaskFlow):
@@ -232,5 +263,5 @@ class ConnectTwoTaskFlow(taskflow.TaskFlow):
         # Not sure about the syntax?
         self.on_complete(part1_task3).run(part2_start.s())
 
-    def start(self):
-        part1_start.delay(self)
+    def start(self, *args, **kwargs):
+        super(ConnectTwoTaskFlow, self).start(part1_start.s(*args, **kwargs))

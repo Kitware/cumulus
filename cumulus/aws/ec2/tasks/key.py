@@ -22,7 +22,8 @@ import requests
 import traceback
 
 import cumulus
-from cumulus.celery import app
+
+from cumulus.celery import command
 from cumulus.starcluster.common import get_easy_ec2
 from cumulus.common import check_status
 
@@ -31,7 +32,7 @@ def _key_path(profile):
     return os.path.join(cumulus.config.ssh.keyStore, str(profile['_id']))
 
 
-@app.task
+@command.task
 def generate_key_pair(aws_profile, girder_token):
     try:
         ec2 = get_easy_ec2(aws_profile)
@@ -53,7 +54,7 @@ def generate_key_pair(aws_profile, girder_token):
     check_status(r)
 
 
-@app.task
+@command.task
 def delete_key_pair(aws_profile, girder_token):
     path = _key_path(aws_profile)
 

@@ -17,12 +17,6 @@
 #  limitations under the License.
 ###############################################################################
 
-CELERY_DEFAULT_QUEUE = 'celery'
-
-CELERY_DEFAULT_EXCHANGE = 'celery'
-CELERY_DEFAULT_EXCHANGE_TYPE = 'topic'
-CELERY_DEFAULT_ROUTING_KEY = 'celery'
-
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ('json',)
 CELERY_RESULT_SERIALIZER = 'json'

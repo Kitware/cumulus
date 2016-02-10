@@ -220,7 +220,7 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.celery.app.Task.retry')
+    @mock.patch('cumulus.celery.monitor.Task.retry')
     def test_monitor_job_running(self, retry, *args):
         job_id = 'dummy'
         cluster = {
@@ -284,7 +284,7 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.celery.app.Task.retry')
+    @mock.patch('cumulus.celery.monitor.Task.retry')
     def test_monitor_job_queued(self, *args):
 
         job_id = 'dummy'
@@ -346,7 +346,7 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.celery.app.Task.retry')
+    @mock.patch('cumulus.celery.monitor.Task.retry')
     @mock.patch('cumulus.starcluster.tasks.job.get_connection', autospec=True)
     def test_monitor_job_tail_output(self, get_connection, retry, *args):
 
@@ -413,7 +413,7 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.celery.app.Task.retry')
+    @mock.patch('cumulus.celery.command.Task.retry')
     @mock.patch('cumulus.starcluster.tasks.job.monitor_job')
     @mock.patch('cumulus.starcluster.tasks.job.get_connection', autospec=True)
     def test_submit_job(self, get_connection, *args):
