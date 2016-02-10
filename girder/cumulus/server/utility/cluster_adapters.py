@@ -83,8 +83,6 @@ class AbstractClusterAdapter(ModelImporter):
 
     def submit_job(self, job):
         log_url = '%s/jobs/%s/log' % (getApiUrl(), job['_id'])
-        job['_id'] = str(job['_id'])
-        del job['access']
 
         girder_token = get_task_token()['_id']
         cumulus.starcluster.tasks.job.submit(girder_token, self.cluster, job,
@@ -304,8 +302,6 @@ class NewtClusterAdapter(AbstractClusterAdapter):
 
     def submit_job(self, job):
         log_url = '%s/jobs/%s/log' % (getApiUrl(), job['_id'])
-        job['_id'] = str(job['_id'])
-        del job['access']
 
         girder_token = get_task_token(self.cluster)['_id']
         cumulus.starcluster.tasks.job.submit(girder_token, self.cluster, job,

@@ -534,7 +534,7 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body={}, user=self._user)
         self.assertStatusOk(r)
 
-        expected_submit_call = [[[u'token', {u'status': u'running', u'userId': str(self._user['_id']), u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}}, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}, {u'status': u'created', u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'clusterId': cluster_id, u'input': [
+        expected_submit_call = [[[u'token', {u'status': u'running', u'userId': str(self._user['_id']), u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}}, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}, {u'status': u'created', u'userId': str(self._user['_id']), u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'clusterId': cluster_id, u'input': [
             {u'itemId': u'546a1844ff34c70456111185', u'path': u''}], u'output': [{u'itemId': u'546a1844ff34c70456111185'}], u'_id': job_id, u'log': []}, u'http://127.0.0.1/api/v1/jobs/%s/log' % job_id], {}]]
         self.assertCalls(submit.call_args_list, expected_submit_call)
 
@@ -898,4 +898,31 @@ class ClusterTestCase(base.TestCase):
 
         # Assert that assetstore is gone
         self.assertIsNone(self.model('assetstore').load(cluster['assetstoreId']))
+
+    @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
+    def test_create_scheduler_type(self, generate_key_pair):
+        trad_body = {
+            'config': {
+                'host': 'myhost',
+                'ssh': {
+                    'user': 'myuser'
+                },
+                'scheduler': {
+                    'type': 'bogus'
+                }
+            },
+            'name': 'mycluster',
+            'type': 'trad'
+        }
+        json_body = json.dumps(trad_body)
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 400)
+
+        trad_body['config']['scheduler']['type'] = 'slurm'
+        json_body = json.dumps(trad_body)
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 201)
+
 
