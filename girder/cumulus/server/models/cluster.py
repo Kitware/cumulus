@@ -88,8 +88,9 @@ class Cluster(BaseModel):
 
         # If inserting, ensure no other clusters have the same name field
         if '_id' not in cluster:
-            if len(self.find({'name': cluster['name']})) > 0:
-                raise ValidationException('Name must be unique.', 'name')
+            if self.findOne({'name': cluster['name'],
+                             'userId': getCurrentUser()['_id']}):
+                raise ValidationException('A cluster with that name already exists', 'name')
 
         adapter = get_cluster_adapter(cluster)
 
