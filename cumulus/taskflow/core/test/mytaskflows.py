@@ -20,7 +20,7 @@ from __future__ import absolute_import
 import time
 
 from cumulus import taskflow
-from cumulus.celery import app
+from cumulus.celery import command
 
 from celery import chord
 
@@ -62,7 +62,7 @@ class LinkTaskFlow(taskflow.TaskFlow):
 
 
 
-@app.task
+@command.task
 def regular_task():
     print "regular_task!!"
     time.sleep(3)

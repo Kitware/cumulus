@@ -116,8 +116,8 @@ def task(func):
         return func(celery_task, *args, **kwargs)
 
     # Now apply the celery decorator
-    celery_task = cumulus.celery.app.task(
-        wrapped, bind=True, routing_key="taskflow.task")
+    celery_task = cumulus.celery.command.task(
+        wrapped, bind=True)
 
     return celery_task
 

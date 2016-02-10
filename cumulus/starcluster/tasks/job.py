@@ -23,7 +23,7 @@ from cumulus.starcluster.logging import logstdout
 import cumulus.starcluster.logging
 from cumulus.common import check_status
 from cumulus.starcluster.common import _log_exception, get_post_logger
-from cumulus.celery import app
+from cumulus.celery import command, monitor
 import cumulus
 import cumulus.girderclient
 from cumulus.constants import ClusterType, JobQueueState
@@ -143,7 +143,7 @@ def download_job_input_folders(cluster, job, log_write_url=None,
                      girder_token=girder_token)
 
 
-@app.task
+@command.task
 @cumulus.starcluster.logging.capture
 def download_job_input(cluster, job, log_write_url=None, girder_token=None):
     log = starcluster.logger.get_starcluster_logger()
@@ -214,7 +214,7 @@ def _get_on_complete(job):
     return on_complete
 
 
-@app.task
+@command.task
 @cumulus.starcluster.logging.capture
 def submit_job(cluster, job, log_write_url=None, girder_token=None):
     log = starcluster.logger.get_starcluster_logger()
@@ -484,7 +484,7 @@ class Complete(JobState):
         if _get_on_complete(self.job) == 'terminate':
             cluster_log_url = '%s/clusters/%s/log' % \
                 (cumulus.config.girder.baseUrl, self.cluster['_id'])
-            app.send_task(
+            command.send_task(
                 'cumulus.starcluster.tasks.cluster.terminate_cluster',
                 args=(self.cluster,),
                 kwargs={'log_write_url': cluster_log_url,
@@ -577,7 +577,7 @@ def from_string(s, **kwargs):
     return state
 
 
-@app.task(bind=True, max_retries=None)
+@monitor.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
 def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
     headers = {'Girder-Token':  girder_token}
@@ -731,7 +731,7 @@ def upload_job_output_to_folder(cluster, job, log_write_url=None, job_dir=None,
     if _get_on_complete(job) == 'terminate':
         cluster_log_url = '%s/clusters/%s/log' % \
             (cumulus.config.girder.baseUrl, cluster['_id'])
-        app.send_task(
+        command.send_task(
             'cumulus.starcluster.tasks.cluster.terminate_cluster',
             args=(cluster,), kwargs={'log_write_url': cluster_log_url,
                                      'girder_token': girder_token})
@@ -751,7 +751,7 @@ def upload_job_output_to_folder(cluster, job, log_write_url=None, job_dir=None,
         check_status(r)
 
 
-@app.task
+@command.task
 @cumulus.starcluster.logging.capture
 def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
                       girder_token=None):
@@ -769,7 +769,7 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
                                     job_dir=job_dir, girder_token=girder_token)
 
 
-@app.task(bind=True, max_retries=None)
+@monitor.task(bind=True, max_retries=None)
 @cumulus.starcluster.logging.capture
 def monitor_process(task, cluster, job, pid, nohup_out_path,
                     log_write_url=None, on_complete=None,
@@ -850,7 +850,7 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
         raise
 
 
-@app.task
+@command.task
 @cumulus.starcluster.logging.capture
 def terminate_job(cluster, job, log_write_url=None, girder_token=None):
     script_filepath = None
@@ -924,7 +924,7 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
             os.remove(script_filepath)
 
 
-@app.task(bind=True, max_retries=5)
+@command.task(bind=True, max_retries=5)
 def remove_output(task, cluster, job, girder_token):
     try:
         with get_connection(girder_token, cluster) as conn:
