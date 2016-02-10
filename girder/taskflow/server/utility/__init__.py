@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-#  Copyright 2015 Kitware Inc.
+#  Copyright 2016 Kitware Inc.
 #
 #  Licensed under the Apache License, Version 2.0 ( the "License" );
 #  you may not use this file except in compliance with the License.
@@ -17,17 +17,4 @@
 #  limitations under the License.
 ###############################################################################
 
-import jsonschema
-import json
-import inspect
-import os
-import cumulus.task
 
-
-def validate(spec):
-    path = inspect.getsourcefile(cumulus.task)
-    schema_path = os.path.join(os.path.dirname(path), 'task.json')
-    with open(schema_path, 'r') as fp:
-        schema = json.load(fp)
-
-    jsonschema.validate(spec, schema)

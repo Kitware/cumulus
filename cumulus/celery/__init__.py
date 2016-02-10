@@ -19,14 +19,18 @@
 
 from __future__ import absolute_import
 from celery import Celery
+from cumulus.taskflow.utility import find_taskflow_modules
 
-_includes = (
+_includes = [
     'cumulus.starcluster.tasks.cluster',
     'cumulus.starcluster.tasks.job',
     'cumulus.task.status',
     'cumulus.ssh.tasks.key',
     'cumulus.aws.ec2.tasks.key'
-)
+]
+
+taskflow_modules = find_taskflow_modules()
+_includes += taskflow_modules
 
 # Route short tasks to their own queue
 _routes = {
@@ -47,7 +51,11 @@ command = Celery('command',  backend='amqp',
 
 command.config_from_object('cumulus.celery.commandconfig')
 command.conf.update(
-    CELERY_ROUTES=_routes
+    CELERY_ROUTES=_routes,
+    CELERY_TASK_SERIALIZER='json',
+    CELERY_ACCEPT_CONTENT=('json',),
+    CELERY_RESULT_SERIALIZER='json',
+    CELERYD_PREFETCH_MULTIPLIER=1
 )
 
 monitor = Celery('monitor',  backend='amqp',

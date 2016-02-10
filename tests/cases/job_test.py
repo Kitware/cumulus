@@ -413,7 +413,7 @@ class JobTestCase(unittest.TestCase):
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
     @mock.patch('starcluster.logger')
     @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.celery.monitor.Task.retry')
+    @mock.patch('cumulus.celery.command.Task.retry')
     @mock.patch('cumulus.starcluster.tasks.job.monitor_job')
     @mock.patch('cumulus.starcluster.tasks.job.get_connection', autospec=True)
     def test_submit_job(self, get_connection, *args):

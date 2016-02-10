@@ -1,5 +1,5 @@
 {
-"name": "Cumulus plugin for Girder",
+"name": "TaskFlow",
 "description": "REST based creation/management of clusters in EC2",
 "dependencies": []
 }

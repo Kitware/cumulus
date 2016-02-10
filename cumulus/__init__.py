@@ -51,6 +51,18 @@ config_schema = {
                     "type": "string"
                 }
             }
+        },
+        "taskFlow": {
+            "type": "object",
+            "required": ["pluginPath"],
+            'properties': {
+                "path": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
         }
     }
 }

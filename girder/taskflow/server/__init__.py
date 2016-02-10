@@ -17,8 +17,10 @@
 #  limitations under the License.
 ###############################################################################
 
-from .task import Task
+from .tasks import Tasks
+from .taskflows import TaskFlows
 
 
 def load(info):
-    info['apiRoot'].tasks = Task()
+    info['apiRoot'].tasks = Tasks()
+    info['apiRoot'].taskflows = TaskFlows()
