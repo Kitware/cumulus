@@ -279,8 +279,9 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
 
             # Now monitor the jobs progress
             if monitor:
-                monitor_job.s(cluster, job, log_write_url=log_write_url,
-                              girder_token=girder_token).apply_async(countdown=5)
+                monitor_job.s(
+                    cluster, job, log_write_url=log_write_url,
+                    girder_token=girder_token).apply_async(countdown=5)
 
         # Now update the status of the job
         headers = {'Girder-Token':  girder_token}
@@ -585,8 +586,8 @@ def from_string(s, **kwargs):
     state = state_classes[s](None, **kwargs)
     return state
 
+
 @monitor.task(bind=True, max_retries=None)
-#@cumulus.starcluster.logging.capture
 def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']

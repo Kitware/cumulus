@@ -49,6 +49,7 @@ TASKFLOW_HEADER = 'taskflow'
 TASKFLOW_TASK_ID_HEADER = 'taskflow_task_id'
 TASKFLOW_RETRY_HEADER = 'taskflow_retries'
 
+
 # The states that a taskflow can be in, there are likely to be more
 class TaskState:
     CREATED = 'created'
@@ -417,7 +418,8 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
             # Celery always fires the postrun handler with a state of SUCCESS
             # for retries. So we need to save the retries here so we can
             # determine in the postrun handler if the task is really complete.
-            current_task.request.headers[TASKFLOW_RETRY_HEADER] = body['retries']
+            current_task.request.headers[TASKFLOW_RETRY_HEADER] \
+                = body['retries']
         else:
                 # This is a new task so create a taskflow task instance
             body = {
