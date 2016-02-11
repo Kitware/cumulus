@@ -69,13 +69,13 @@ def create_status_notifications(resource_name, notification, resource):
             })
 
 
-def send_status_notification(type, resource):
+def send_status_notification(resource_type, resource):
     notification = {
         '_id': resource['_id'],
         'status': resource['status']
     }
 
-    create_status_notifications(type, notification, resource)
+    create_status_notifications(resource_type, notification, resource)
 
 
 def _get_group_id(group):
