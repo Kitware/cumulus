@@ -20,6 +20,7 @@
 import cherrypy
 import json
 from pymongo import ReturnDocument
+import traceback
 
 from girder.api.rest import RestException, getBodyJson, loadmodel,\
     getCurrentUser, getApiUrl, filtermodel, Resource
@@ -88,6 +89,7 @@ class TaskFlows(Resource):
         try:
             load_class(taskflow['taskFlowClass'])
         except:
+            traceback.print_exc()
             raise RestException(
                     'Unable to load taskflow class: %s' % taskflow['taskFlowClass'])
         taskflow = self._model.create(user, taskflow)
@@ -239,7 +241,7 @@ class TaskFlows(Resource):
     def start(self, taskflow, params):
         user = self.getCurrentUser()
 
-
+        params = getBodyJson()
         constructor = load_class(taskflow['taskFlowClass'])
         token = self.model('token').createToken(user=user, days=7)
 
@@ -248,7 +250,7 @@ class TaskFlows(Resource):
             girder_token=token['_id'],
             girder_api_url=getApiUrl())
 
-        workflow.start()
+        workflow.start(**params)
 
     @access.user
     @filtermodel(model='taskflow', plugin='taskflow')
