@@ -9,6 +9,7 @@ import os
 DEFAULT_PLAYBOOK = os.path.join(os.path.dirname(__file__),
                                 "playbooks/default.yml")
 
+
 @command.task
 def launch_cluster(cluster, profile, secret_key, girder_token, log_write_url):
     stats = callbacks.AggregateStats()

@@ -22,10 +22,11 @@ from celery import Celery
 from cumulus.taskflow.utility import find_taskflow_modules
 from kombu.serialization import register
 import json
-from bson.objectid import ObjectId
+
 
 def oid_safe_dumps(obj):
     return json.dumps(obj, default=str)
+
 
 def oid_safe_loads(obj):
     return json.loads(obj)

@@ -35,7 +35,6 @@ class ClusterType:
             type == ClusterType.NEWT
 
 
-
 class VolumeType:
     EBS = 'ebs'
 
