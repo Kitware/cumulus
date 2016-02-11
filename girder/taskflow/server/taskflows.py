@@ -213,7 +213,11 @@ class TaskFlows(Resource):
     def start(self, taskflow, params):
         user = self.getCurrentUser()
 
-        params = getBodyJson()
+        try:
+            params = getBodyJson()
+        except RestException:
+            params = {}
+
         constructor = load_class(taskflow['taskFlowClass'])
         token = self.model('token').createToken(user=user, days=7)
 
