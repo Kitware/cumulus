@@ -21,7 +21,7 @@ from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
 
 from cumulus.taskflow import TaskFlowState, TaskState
-from cumulus.common.girder import create_status_notifications
+from cumulus.common.girder import send_status_notification
 
 MAX_RETRIES = 4
 
@@ -39,6 +39,8 @@ class Taskflow(AccessControlledModel):
         taskflow['status'] = TaskFlowState.CREATED
         taskflow = self.setUserAccess(
             taskflow, user, level=AccessType.ADMIN, save=True)
+
+        send_status_notification('taskflow', taskflow)
 
         return taskflow
 
@@ -189,10 +191,7 @@ class Taskflow(AccessControlledModel):
             else:
                 raise Exception('Max retry count exceeded.')
 
-        notification = {
-            '_id': taskflow_id,
-            'status': new_status
-        }
-        create_status_notifications('taskflow', notification,
-                                    taskflow)
+        if taskflow['status'] != new_status:
+            taskflow['status'] = new_status
+            send_status_notification('taskflow', taskflow)
 

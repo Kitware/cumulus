@@ -20,7 +20,7 @@
 from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
 
-from cumulus.common.girder import create_status_notifications
+from cumulus.common.girder import send_status_notification
 
 class Task(AccessControlledModel):
 
@@ -54,6 +54,8 @@ class Task(AccessControlledModel):
             '_id': taskflow['_id']
         }
         model.increment(query, 'activeTaskCount', 1)
+
+        send_status_notification('task', doc)
 
         return doc
 
@@ -122,12 +124,7 @@ class Task(AccessControlledModel):
             self.model('taskflow', 'taskflow').update_state(
                 user, task['taskFlowId'])
 
-            notification = {
-                '_id': task['_id'],
-                'status': status
-            }
-
-            create_status_notifications('task', notification, task)
+            send_status_notification('task', task)
 
         return task
 
