@@ -200,15 +200,20 @@ class TaskFlow(dict):
     def girder_api_url(self):
         return self['girder_api_url']
 
-    # State methods
-    def start(self, signature, **options):
+    def run_task(self, signature, **options):
         """
-        This must be called by subclass to give start to the taskflow.
+        Add appropriate headers and run task
         """
         signature.apply_async(
             headers={
                 TASKFLOW_HEADER: self
             }, **options)
+
+    def start(self, signature, **options):
+        """
+        This must be called by subclass to give start to the taskflow.
+        """
+        self.run_task(signature, **options)
 
     def terminate(self):
         pass
