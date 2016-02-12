@@ -20,7 +20,8 @@
 import cherrypy
 import json
 
-from girder.api.rest import RestException, loadmodel, filtermodel, getBodyJson
+from girder.api.rest import RestException, loadmodel, filtermodel, getBodyJson,\
+    getCurrentUser
 from girder.api.rest import Resource
 from girder.api import access
 from girder.api.describe import Description, describeRoute
@@ -55,7 +56,8 @@ class Tasks(Resource):
             required=False, paramType='body', dataType='object')
     )
     def update(self, task, params):
-        immutable = ['access', '_id', 'celeryTaskId', 'log', 'activeTaskCount']
+        immutable = ['access', '_id', 'celeryTaskId', 'log']
+        user = getCurrentUser()
         updates = getBodyJson()
         if not updates:
             raise RestException('A body must be provided', code=400)
@@ -64,10 +66,9 @@ class Tasks(Resource):
             if p in immutable:
                 raise RestException('\'%s\' is an immutable property' % p, 400)
 
-        task.update(updates)
-        self._model.save(task)
+        status = updates.get('status')
 
-        return task
+        return self._model.update_task(user, task, status=status)
 
     @access.user
     @loadmodel(model='task', plugin='taskflow', level=AccessType.READ)

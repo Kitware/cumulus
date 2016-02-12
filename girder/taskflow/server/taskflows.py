@@ -31,7 +31,7 @@ from girder.constants import AccessType
 import sys
 from bson.objectid import ObjectId
 
-from cumulus.taskflow import load_class, TaskFlowState, TaskState
+from cumulus.taskflow import load_class, TaskFlowState
 
 
 class TaskFlows(Resource):
@@ -128,34 +128,6 @@ class TaskFlows(Resource):
 
         return taskflow
 
-    def _status(self, user, taskflow):
-        """
-        Utility function to extract the status.
-        """
-        if 'status' in taskflow:
-            if taskflow['status'] == TaskFlowState.TERMINATING and \
-                taskflow['activeTaskCount'] == 0:
-                return TaskFlowState.TERMINATED
-            else:
-                return taskflow['status']
-
-        tasks = self.model('task', 'taskflow').find_by_taskflow_id(
-            user, taskflow['_id'])
-
-        task_status = [t['status'] for t in tasks]
-        task_status = set(task_status)
-
-        status = TaskFlowState.CREATED
-        if len(task_status) ==  1:
-            status = task_status.pop()
-        elif TaskState.ERROR in task_status:
-            status = TaskFlowState.ERROR
-        elif TaskState.RUNNING in task_status or \
-             (TaskState.COMPLETE in task_status and TaskState.CREATED in task_status):
-            status = TaskFlowState.RUNNING
-
-        return status
-
     @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
@@ -168,7 +140,7 @@ class TaskFlows(Resource):
     def status(self, taskflow, params):
         user = self.getCurrentUser()
 
-        return {'status': self._status(user, taskflow)}
+        return {'status': taskflow['status']}
 
 
     @access.user
@@ -241,7 +213,11 @@ class TaskFlows(Resource):
     def start(self, taskflow, params):
         user = self.getCurrentUser()
 
-        params = getBodyJson()
+        try:
+            params = getBodyJson()
+        except RestException:
+            params = {}
+
         constructor = load_class(taskflow['taskFlowClass'])
         token = self.model('token').createToken(user=user, days=7)
 
@@ -265,7 +241,8 @@ class TaskFlows(Resource):
     def delete(self, taskflow, params):
         user = self.getCurrentUser()
 
-        if self._status == TaskFlowState.RUNNING:
+        status = self._model.status(user, taskflow)
+        if status == TaskFlowState.RUNNING:
             raise RestException('Taskflow is running', 400)
 
         constructor = load_class(taskflow['taskFlowClass'])

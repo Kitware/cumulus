@@ -862,7 +862,6 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
 
 
 @command.task
-@cumulus.starcluster.logging.capture
 def terminate_job(cluster, job, log_write_url=None, girder_token=None):
     script_filepath = None
     headers = {'Girder-Token':  girder_token}
