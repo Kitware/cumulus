@@ -37,6 +37,8 @@ class Taskflow(AccessControlledModel):
 
     def create(self, user, taskflow):
         taskflow['status'] = TaskFlowState.CREATED
+        taskflow['log'] = []
+
         taskflow = self.setUserAccess(
             taskflow, user, level=AccessType.ADMIN, save=True)
 

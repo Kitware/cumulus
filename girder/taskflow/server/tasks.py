@@ -37,6 +37,7 @@ class Tasks(Resource):
         self.route('GET', (':id', 'status'), self.status)
         self.route('GET', (':id',), self.get)
         self.route('POST', (':id', 'log'), self.log)
+        self.route('GET', (':id', 'log'), self.get_log)
 
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('task', 'taskflow')
@@ -105,3 +106,23 @@ class Tasks(Resource):
             raise RestException('Log entry must be provided', code=400)
 
         self._model.append_to_log(task, json.loads(body))
+
+    @access.user
+    @loadmodel(model='task', plugin='taskflow', level=AccessType.READ)
+    @describeRoute(
+        Description(
+        'Get log entries for task')
+        .param(
+            'id',
+            'The task to get log entries for.', paramType='path')
+        .param(
+            'offset',
+            'A offset in to the log.', required=False,
+            paramType='query')
+    )
+    def get_log(self, task, params):
+        offset = 0
+        if 'offset' in params:
+            offset = int(params['offset'])
+
+        return {'log': task['log'][offset:]}

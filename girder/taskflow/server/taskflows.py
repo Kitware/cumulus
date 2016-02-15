@@ -51,6 +51,7 @@ class TaskFlows(Resource):
         self.route('PUT', (':id', 'delete'), self.delete_finished)
         self.route('GET', (':id','tasks'), self.tasks)
         self.route('PUT', (':id','tasks', ':taskId', 'finished'), self.task_finished)
+        self.route('GET', (':id', 'log'), self.get_log)
 
         self._model = self.model('taskflow', 'taskflow')
 
@@ -357,4 +358,22 @@ class TaskFlows(Resource):
     def delete_finished(self, taskflow, params):
         self._model.delete(taskflow)
 
+    @access.user
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
+    @describeRoute(
+        Description(
+        'Get log entries for taskflow')
+        .param(
+            'id',
+            'The taskflow to get log entries for.', paramType='path')
+        .param(
+            'offset',
+            'A offset in to the log.', required=False,
+            paramType='query')
+    )
+    def get_log(self, taskflow, params):
+        offset = 0
+        if 'offset' in params:
+            offset = int(params['offset'])
 
+        return {'log': taskflow['log'][offset:]}
