@@ -45,6 +45,7 @@ class Task(AccessControlledModel):
 
         task['taskFlowId'] = taskflow['_id']
         task['status'] = 'created'
+        task['log'] = []
 
         model = self.model('taskflow', 'taskflow')
 
