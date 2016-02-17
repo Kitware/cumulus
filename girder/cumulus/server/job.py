@@ -29,6 +29,7 @@ from .base import BaseResource
 from cumulus.starcluster import tasks
 from cumulus.constants import JobState
 
+
 class Job(BaseResource):
     def __init__(self):
         super(Job, self).__init__()
