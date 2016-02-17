@@ -28,7 +28,7 @@ before_install:
     # Install plugins
     - popd
     - pushd girder
-    - ls | xargs girder-install plugin -s --dev
+    - ls | xargs -n1 -I {} ln -s `pwd`/{} $HOME/build/girder/plugins/{}
     - popd
     # Install CMake
     - pushd "${HOME}"
@@ -46,7 +46,6 @@ script:
     - pushd _girder_build
     - cmake -DBUILD_JAVASCRIPT_TESTS:BOOL=OFF -DPYTHON_COVERAGE:BOOL=ON -DPYTHON_VERSION:STRING=${TRAVIS_PYTHON_VERSION} "${HOME}/build/girder"
     - ctest -R cumulus -VV
-    - ctest -R task -VV
     - popd
     # Now test cumulus package
     - mkdir _cumulus_build
