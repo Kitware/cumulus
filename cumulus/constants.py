@@ -55,6 +55,7 @@ class JobQueueState:
     COMPLETE = 'complete'
     ERROR = 'error'
 
+
 class JobState:
     CREATED = 'created'
     RUNNING = 'running'
