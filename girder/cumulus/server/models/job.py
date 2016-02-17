@@ -80,7 +80,7 @@ class Job(BaseModel):
         new_status = job['status']
 
         if current_job['status'] != new_status:
-            send_status_notification('job', current_job)
+            send_status_notification('job', job)
 
         return self.save(job)
 

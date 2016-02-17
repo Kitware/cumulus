@@ -26,6 +26,7 @@ from cumulus.starcluster.common import _log_exception, get_post_logger
 from cumulus.celery import command, monitor
 import cumulus
 import cumulus.girderclient
+import cumulus.constants
 from cumulus.constants import ClusterType, JobQueueState
 from cumulus.queue import get_queue_adapter
 from cumulus.queue.abstract import AbstractQueueAdapter
@@ -319,16 +320,16 @@ def submit(girder_token, cluster, job, log_url):
 
 
 class JobState(object):
-    CREATED = 'created'
-    RUNNING = 'running'
-    TERMINATED = 'terminated'
-    TERMINATING = 'terminating'
-    UNEXPECTEDERROR = 'unexpectederror'
-    QUEUED = 'queued'
-    ERROR = 'error'
-    UPLOADING = 'uploading'
-    ERROR_UPLOADING = 'error_uploading',
-    COMPLETE = 'complete'
+    CREATED = cumulus.constants.JobState.CREATED
+    RUNNING = cumulus.constants.JobState.RUNNING
+    TERMINATED = cumulus.constants.JobState.TERMINATED
+    TERMINATING = cumulus.constants.JobState.TERMINATING
+    UNEXPECTEDERROR = cumulus.constants.JobState.UNEXPECTEDERROR
+    QUEUED = cumulus.constants.JobState.QUEUED
+    ERROR = cumulus.constants.JobState.ERROR
+    UPLOADING = cumulus.constants.JobState.UPLOADING
+    ERROR_UPLOADING = cumulus.constants.JobState.ERROR_UPLOADING
+    COMPLETE = cumulus.constants.JobState.COMPLETE
 
     def __init__(self, previous, **kwargs):
         if previous:

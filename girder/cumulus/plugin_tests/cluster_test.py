@@ -293,8 +293,8 @@ class ClusterTestCase(base.TestCase):
                          isJson=False, params={'timeout': 0})
         self.assertStatusOk(r)
         notifications = self.getSseMessages(r)
-        self.assertEqual(len(notifications), 1, 'Expecting a single notification')
-        notification = notifications[0]
+        self.assertEqual(len(notifications), 2, 'Expecting two notifications')
+        notification = notifications[1]
         notification_type = notification['type']
         data = notification['data']
         self.assertEqual(notification_type, 'cluster.status')
@@ -535,7 +535,7 @@ class ClusterTestCase(base.TestCase):
         self.assertStatusOk(r)
 
         expected_submit_call = [[[u'token', {u'status': u'running', u'userId': str(self._user['_id']), u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}}, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}, {u'status': u'created', u'userId': str(self._user['_id']), u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'clusterId': cluster_id, u'input': [
-            {u'itemId': u'546a1844ff34c70456111185', u'path': u''}], u'output': [{u'itemId': u'546a1844ff34c70456111185'}], u'_id': job_id, u'log': []}, u'http://127.0.0.1/api/v1/jobs/%s/log' % job_id], {}]]
+            {u'itemId': u'546a1844ff34c70456111185', u'path': u''}], u'output': [{u'itemId': u'546a1844ff34c70456111185'}], u'_id': job_id}, u'http://127.0.0.1/api/v1/jobs/%s/log' % job_id], {}]]
         self.assertCalls(submit.call_args_list, expected_submit_call)
 
     @mock.patch('cumulus.starcluster.tasks.cluster.terminate_cluster.delay')
@@ -844,7 +844,8 @@ class ClusterTestCase(base.TestCase):
 
 
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
-    def test_delete_assetstore (self, generate_key):
+    @mock.patch('cumulus.ssh.tasks.key.delete_key_pair.delay')
+    def test_delete_assetstore (self, delete_key, generate_key):
         body = {
             'type': 'trad',
             'name': 'my trad cluster',

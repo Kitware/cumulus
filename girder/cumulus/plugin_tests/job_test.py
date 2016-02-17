@@ -317,8 +317,8 @@ class JobTestCase(base.TestCase):
                          isJson=False, params={'timeout': 0})
         self.assertStatusOk(r)
         notifications = self.getSseMessages(r)
-        self.assertEqual(len(notifications), 1, 'Expecting a single notification')
-        notification = notifications[0]
+        self.assertEqual(len(notifications), 2, 'Expecting two notifications')
+        notification = notifications[1]
         notification_type = notification['type']
         data = notification['data']
         self.assertEqual(notification_type, 'job.status')
@@ -523,3 +523,45 @@ class JobTestCase(base.TestCase):
         self.assertStatus(r, 200)
         self.assertEqual(len(r.json), 1)
         self.assertEqual(r.json[0]['_id'], job2['_id'])
+
+    def test_delete_running(self):
+        body = {
+            'onComplete': {
+                'cluster': 'terminate'
+            },
+            'input': [
+                {
+                    'itemId': '546a1844ff34c70456111185',
+                    'path': ''
+                }
+            ],
+            'commands': [
+                ''
+            ],
+            'name': 'test',
+            'output': [{
+                'itemId': '546a1844ff34c70456111185'
+            }]
+        }
+
+        json_body = json.dumps(body)
+        r = self.request('/jobs', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+
+        self.assertStatus(r, 201)
+        job_id = r.json['_id']
+
+        body = {
+            'status': 'running'
+        }
+
+        json_body = json.dumps(body)
+        r = self.request('/jobs/%s' %
+                         str(job_id), method='PATCH',
+                         type='application/json', body=json_body,
+                         user=self._cumulus)
+        self.assertStatusOk(r)
+
+        r = self.request('/jobs/%s' %
+                 str(job_id), method='DELETE', user=self._cumulus)
+        self.assertStatus(r, 400)

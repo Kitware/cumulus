@@ -349,8 +349,8 @@ class AwsTestCase(base.TestCase):
                          isJson=False, params={'timeout': 0})
         self.assertStatusOk(r)
         notifications = self.getSseMessages(r)
-        self.assertEqual(len(notifications), 1, 'Expecting a single notification')
-        notification = notifications[0]
+        self.assertEqual(len(notifications), 2, 'Expecting a two notifications')
+        notification = notifications[1]
         notification_type = notification['type']
         data = notification['data']
         self.assertEqual(notification_type, 'profile.status')

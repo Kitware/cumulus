@@ -20,13 +20,14 @@
 import cherrypy
 
 from girder.api import access
-from girder.api.describe import Description
+from girder.api.describe import Description, describeRoute
 from girder.constants import AccessType, SortDir
 from girder.api.docs import addModel
-from girder.api.rest import RestException, getBodyJson, getApiUrl
+from girder.api.rest import RestException, getBodyJson, getApiUrl, loadmodel
 from .base import BaseResource
 
 from cumulus.starcluster import tasks
+from cumulus.constants import JobState
 
 
 class Job(BaseResource):
@@ -206,7 +207,7 @@ class Job(BaseResource):
 
         cluster = cluster_model.filter(cluster, user)
         base_url = getApiUrl()
-        self._model.update_status(user, id, 'terminating')
+        self._model.update_status(user, id, JobState.TERMINATING)
 
         log_url = '%s/jobs/%s/log' % (base_url, id)
 
@@ -411,16 +412,24 @@ class Job(BaseResource):
             'The job id.', paramType='path', required=True))
 
     @access.user
-    def delete(self, id, params):
+    @loadmodel(model='job', plugin='cumulus', level=AccessType.ADMIN)
+    @describeRoute(
+        Description('Delete a job')
+        .param(
+            'id',
+            'The job id.', paramType='path', required=True)
+        .notes('A running job can not be deleted.')
+    )
+    def delete(self, job, params):
         user = self.getCurrentUser()
+        running_state = [
+            JobState.RUNNING, JobState.QUEUED, JobState.TERMINATING,
+            JobState.UPLOADING]
 
-        job = self._model.load(id, user=user, level=AccessType.ADMIN)
-
-        if not job:
-            raise RestException('Job not found.', code=404)
+        if job['status'] in running_state:
+            raise RestException('Unable to delete running job.')
 
         # Clean up any job output
-
         if 'clusterId' in job:
             cluster_model = self.model('cluster', 'cumulus')
             cluster = cluster_model.load(job['clusterId'], user=user,
@@ -434,12 +443,6 @@ class Job(BaseResource):
                                               girder_token=girder_token)
 
         self._model.remove(job)
-
-    delete.description = (
-        Description('Delete a job')
-        .param(
-            'id',
-            'The job id.', paramType='path', required=True))
 
     @access.user
     def find(self, params):

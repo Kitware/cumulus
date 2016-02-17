@@ -54,3 +54,16 @@ class JobQueueState:
     RUNNING = 'running'
     COMPLETE = 'complete'
     ERROR = 'error'
+
+
+class JobState:
+    CREATED = 'created'
+    RUNNING = 'running'
+    TERMINATED = 'terminated'
+    TERMINATING = 'terminating'
+    UNEXPECTEDERROR = 'unexpectederror'
+    QUEUED = 'queued'
+    ERROR = 'error'
+    UPLOADING = 'uploading'
+    ERROR_UPLOADING = 'error_uploading',
+    COMPLETE = 'complete'
