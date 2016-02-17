@@ -844,7 +844,8 @@ class ClusterTestCase(base.TestCase):
 
 
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
-    def test_delete_assetstore (self, generate_key):
+    @mock.patch('cumulus.ssh.tasks.key.delete_key_pair.delay')
+    def test_delete_assetstore (self, delete_key, generate_key):
         body = {
             'type': 'trad',
             'name': 'my trad cluster',
