@@ -21,6 +21,7 @@ import cherrypy
 import json
 from pymongo import ReturnDocument
 import traceback
+import logging
 
 from girder.api.rest import RestException, getBodyJson, loadmodel,\
     getCurrentUser, getApiUrl, filtermodel, Resource
@@ -33,6 +34,7 @@ from bson.objectid import ObjectId
 
 from cumulus.taskflow import load_class, TaskFlowState
 
+logger = logging.getLogger('girder')
 
 class TaskFlows(Resource):
 
@@ -89,10 +91,12 @@ class TaskFlows(Resource):
         # Check that we can load the class
         try:
             load_class(taskflow['taskFlowClass'])
-        except:
+        except Exception as ex:
+            msg = 'Unable to load taskflow class: %s (%s)' % \
+                        (taskflow['taskFlowClass'], ex.message)
+            logger.exception(msg)
             traceback.print_exc()
-            raise RestException(
-                    'Unable to load taskflow class: %s' % taskflow['taskFlowClass'])
+            raise RestException(msg, 400)
         taskflow = self._model.create(user, taskflow)
 
         cherrypy.response.status = 201
