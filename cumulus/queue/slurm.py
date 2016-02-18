@@ -58,24 +58,30 @@ class SlurmQueueAdapter(AbstractQueueAdapter):
 
         return self._parse_job_id(output)
 
-    def job_status(self, job):
+    def job_statuses(self, jobs):
+        job_ids = ','.join(
+            [job[AbstractQueueAdapter.QUEUE_JOB_ID] for job in jobs])
         output = self._cluster_connection.execute('squeue -j %s'
-                                                  % job['queueJobId'])
+                                                  % job_ids)
 
-        state = None
-        slurm_state = self._extract_job_status(output, job)
+        states = []
+        for job in jobs:
+            state = None
+            slurm_state = self._extract_job_status(output, job)
 
-        if slurm_state:
-            if slurm_state in SlurmQueueAdapter.RUNNING_STATE:
-                state = JobQueueState.RUNNING
-            elif slurm_state in SlurmQueueAdapter.ERROR_STATE:
-                state = JobQueueState.ERROR
-            elif slurm_state in SlurmQueueAdapter.QUEUED_STATE:
-                state = JobQueueState.QUEUED
-            elif slurm_state in SlurmQueueAdapter.COMPLETE_STATE:
-                state = JobQueueState.COMPLETE
+            if slurm_state:
+                if slurm_state in SlurmQueueAdapter.RUNNING_STATE:
+                    state = JobQueueState.RUNNING
+                elif slurm_state in SlurmQueueAdapter.ERROR_STATE:
+                    state = JobQueueState.ERROR
+                elif slurm_state in SlurmQueueAdapter.QUEUED_STATE:
+                    state = JobQueueState.QUEUED
+                elif slurm_state in SlurmQueueAdapter.COMPLETE_STATE:
+                    state = JobQueueState.COMPLETE
 
-        return state
+            states.append((job, state))
+
+        return states
 
     def _extract_job_status(self, job_status_output, job):
         state = None

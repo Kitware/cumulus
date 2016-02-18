@@ -60,32 +60,27 @@ def _put_script(conn, script_commands):
 
     return cmd
 
-
-def job_dir(job, job_output_dir=None):
+def job_dir(cluster, job):
     """
     Returns the job directory for a given job.
 
+    :param cluster: The job the cluster is running on.
     :param job: The job to return the directory for.
-    :param job_output_dir: Any root output directory
 
     """
-    job_dir = './%s' % job['_id']
-
-    if job_output_dir:
-        job_dir = os.path.join(job_output_dir, job['_id'])
-
-    return job_dir
-
-
-def _job_dir(job):
+    # First try the job parameters
     output_root = parse('params.jobOutputDir').find(job)
-
     if output_root:
         output_root = output_root[0].value
     else:
-        output_root = None
+        # Try the cluster
+        output_root = parse('config.jobOutputDir').find(cluster)
+        if output_root:
+            output_root = output_root[0].value
+        else:
+            output_root = '.'
 
-    return job_dir(job, output_root)
+    return os.path.join(output_root, job['_id'])
 
 
 def download_job_input_items(cluster, job, log_write_url=None,
@@ -108,7 +103,7 @@ def download_job_input_items(cluster, job, log_write_url=None,
             download_cmd = 'python girderclient.py --token %s --url "%s" ' \
                            'download --dir %s  --job %s' \
                 % (girder_token, cumulus.config.girder.baseUrl,
-                   _job_dir(job), job_id)
+                   job_dir(cluster, job), job_id)
 
             download_output = '%s.download.out' % job_id
             download_cmd = 'nohup %s  &> %s  &\n' % (download_cmd,
@@ -146,7 +141,7 @@ def download_job_input_items(cluster, job, log_write_url=None,
 
 def download_job_input_folders(cluster, job, log_write_url=None,
                                girder_token=None, submit=True):
-    job_dir = _job_dir(job)
+    job_dir = job_dir(cluster, job)
 
     with get_connection(girder_token, cluster) as conn:
         for input in job['input']:
@@ -168,7 +163,7 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
 
     # Create job directory
     with get_connection(girder_token, cluster) as conn:
-        conn.mkdir(_job_dir(job))
+        conn.mkdir(job_dir(cluster, job))
 
     log.info('Downloading input for "%s"' % job['name'])
 
@@ -239,8 +234,6 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
     log = starcluster.logger.get_starcluster_logger()
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
-    job_dir = _job_dir(job)
-    job['dir'] = job_dir
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
     try:
         # if terminating break out
@@ -254,6 +247,9 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
                 job_params = {}
                 if 'params' in job:
                     job_params = job['params']
+
+                job_dir = job_dir(cluster, job)
+                job['dir'] = job_dir
 
                 slots = -1
                 parallel_env = _get_parallel_env(cluster, job)
@@ -273,11 +269,11 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
                 conn.mkdir(job_dir, ignore_failure=True)
                 # put the script to master
                 conn.put(StringIO(script), os.path.join(job_dir, script_name))
-                # Now submit the job
 
                 if slots > -1:
                     log.info('We have %s slots available' % slots)
 
+                # Now submit the job
                 queue_job_id \
                     = get_queue_adapter(cluster, conn).submit_job(job,
                                                                   script_name)
@@ -286,7 +282,8 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
             job[AbstractQueueAdapter.QUEUE_JOB_ID] = queue_job_id
             patch_data = {
                 'status': JobState.QUEUED,
-                AbstractQueueAdapter.QUEUE_JOB_ID: queue_job_id
+                AbstractQueueAdapter.QUEUE_JOB_ID: queue_job_id,
+                'dir': job_id
             }
 
             r = requests.patch(status_url, headers=headers, json=patch_data)
@@ -394,8 +391,6 @@ class Created(JobState):
             raise Exception('Unrecognized state: %s' % job_queue_status)
 
     def run(self):
-        self.task.retry(throw=False, countdown=5)
-
         return self
 
 
@@ -413,8 +408,6 @@ class Queued(JobState):
             raise Exception('Unrecognized state: %s' % job_queue_status)
 
     def run(self):
-        self.task.retry(throw=False, countdown=5)
-
         return self
 
 
@@ -431,7 +424,7 @@ class Running(JobState):
                     offset = len(output['content'])
                 else:
                     output['content'] = []
-                tail_path = os.path.join(_job_dir(self.job), path)
+                tail_path = os.path.join(self.job['dir'], path)
                 command = 'tail -n +%d %s' % (offset, tail_path)
                 try:
                     # Only tail if file exists
@@ -458,7 +451,6 @@ class Running(JobState):
     def run(self):
         self._update_queue_time(self.job)
         self._tail_output()
-        self.task.retry(throw=False, countdown=5)
         return self
 
 
@@ -484,7 +476,7 @@ class Complete(JobState):
                 try:
                     path = Template(output['path']).render(**variables)
                     tmp_path = os.path.join(tempfile.tempdir, path)
-                    path = os.path.join(_job_dir(self.job), path)
+                    path = os.path.join(self.job['dir'], path)
                     self.conn.get(path, localpath=tmp_path)
                     error_regex = re.compile(output['errorRegEx'])
                     with open(tmp_path, 'r') as fp:
@@ -523,8 +515,6 @@ class Terminating(JobState):
             return self
 
     def run(self):
-        self.task.retry(throw=False, countdown=5)
-
         return self
 
 
@@ -533,7 +523,7 @@ class Terminated(JobState):
         return self
 
     def run(self):
-        pass
+        return self
 
 
 class Uploading(JobState):
@@ -559,7 +549,7 @@ class Uploading(JobState):
         if 'output' in self.job and len(self.job['output']) > 0:
             upload_job_output.delay(self.cluster, self.job,
                                     log_write_url=self.log_write_url,
-                                    job_dir=_job_dir(self.job),
+                                    job_dir=self.job['dir'],
                                     girder_token=self.girder_token)
 
 
@@ -573,7 +563,7 @@ class ErrorUploading(Uploading):
         return Error(self)
 
     def run(self):
-        pass
+        return self
 
 
 class UnexpectedError(JobState):
@@ -581,7 +571,7 @@ class UnexpectedError(JobState):
         return self
 
     def run(self):
-        pass
+        return self
 
 
 state_classes = {
@@ -603,35 +593,60 @@ def from_string(s, **kwargs):
     return state
 
 
-@monitor.task(bind=True, max_retries=None)
-def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
+def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None):
     headers = {'Girder-Token':  girder_token}
-    job_id = job['_id']
 
-    status_update_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
-    status_url = '%s/jobs/%s/status' % (cumulus.config.girder.baseUrl, job_id)
-
+    cluster_url = '%s/clusters/%s' % (
+        cumulus.config.girder.baseUrl, cluster['_id'])
     try:
         with get_connection(girder_token, cluster) as conn:
-            # First get the current status
-            r = requests.get(status_url, headers=headers)
-            check_status(r)
-
-            current_status = r.json()['status']
-
-            if current_status == JobState.TERMINATED:
-                return
 
             try:
-                job_queue_state \
-                    = get_queue_adapter(cluster, conn).job_status(job)
-                job_status = from_string(current_status, task=task,
-                                         cluster=cluster, job=job,
-                                         log_write_url=log_write_url,
-                                         girder_token=girder_token, conn=conn)
-                job_status = job_status.next(job_queue_state)
-                job['status'] = str(job_status)
-                job_status.run()
+                job_queue_states \
+                    = get_queue_adapter(cluster, conn).job_statuses(jobs)
+
+                new_states = set()
+                for (job, state) in job_queue_states:
+                    job_id = job['_id']
+                    # First get the current status
+                    status_url = '%s/jobs/%s/status' % (
+                        cumulus.config.girder.baseUrl, job_id)
+                    r = requests.get(status_url, headers=headers)
+                    check_status(r)
+                    current_status = r.json()['status']
+
+                    if current_status == JobState.TERMINATED:
+                        continue
+
+                    job_status = from_string(current_status, task=task,
+                                             cluster=cluster, job=job,
+                                             log_write_url=log_write_url,
+                                             girder_token=girder_token,
+                                             conn=conn)
+                    job_status = job_status.next(state)
+                    job['status'] = str(job_status)
+                    job_status.run()
+                    json = {
+                        'status': str(job_status),
+                        'timings': job.get('timings', {}),
+                        'output': job['output']
+                    }
+                    job_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl,
+                                              job['_id'])
+                    r = requests.patch(job_url, headers=headers, json=json)
+                    check_status(r)
+
+                    new_states.add(job['status'])
+
+                # Now see if we still have job to monitor
+                running_states = set(
+                    [JobState.CREATED, JobState.QUEUED,
+                     JobState.RUNNING, JobState.TERMINATING]
+                )
+
+                # Do we have any job still in a running state?
+                if new_states & running_states:
+                    task.retry(countdown=5)
             except EOFError:
                 # Try again
                 task.retry(countdown=5)
@@ -641,26 +656,28 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
                 task.retry(countdown=5)
                 return
 
-        json = {
-            'status': str(job_status),
-            'timings': job.get('timings', {}),
-            'output': job['output']
-        }
-
-        r = requests.patch(status_update_url, headers=headers, json=json)
-        check_status(r)
     except starcluster.exception.RemoteCommandFailed as ex:
-        r = requests.patch(status_update_url, headers=headers,
-                           json={'status': JobState.UNEXPECTEDERROR})
+        r = requests.patch(cluster_url, headers=headers,
+                           json={'status': 'error'})
         check_status(r)
         _log_exception(ex)
     except Exception as ex:
         traceback.print_exc()
-        r = requests.patch(status_update_url, headers=headers,
-                           json={'status': JobState.UNEXPECTEDERROR})
+        r = requests.patch(cluster_url, headers=headers,
+                           json={'status': 'error'})
         check_status(r)
         _log_exception(ex)
         raise
+
+
+@monitor.task(bind=True, max_retries=None)
+def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
+    _monitor_jobs(task, cluster, [job], log_write_url, girder_token)
+
+
+@monitor.task(bind=True, max_retries=None)
+def monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None):
+    _monitor_jobs(task, cluster, jobs, log_write_url, girder_token)
 
 
 def upload_job_output_to_item(cluster, job, log_write_url=None, job_dir=None,
@@ -736,7 +753,7 @@ def upload_job_output_to_folder(cluster, job, log_write_url=None, job_dir=None,
     assetstore_base_url = get_assetstore_url_base(cluster)
     assetstore_id = get_assetstore_id(girder_token, cluster)
     if not job_dir:
-        job_dir = _job_dir(job)
+        job_dir = job['dir']
 
     try:
         with get_connection(girder_token, cluster) as conn:
@@ -954,7 +971,7 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
 def remove_output(task, cluster, job, girder_token):
     try:
         with get_connection(girder_token, cluster) as conn:
-            rm_cmd = 'rm -rf %s' % _job_dir(job)
+            rm_cmd = 'rm -rf %s' % job['dir']
             conn.execute(rm_cmd)
     except EOFError:
         # Try again
