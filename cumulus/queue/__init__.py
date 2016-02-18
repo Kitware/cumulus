@@ -19,8 +19,6 @@
 
 from jsonpath_rw import parse
 
-from girder import events
-
 from . import sge
 from . import pbs
 from . import slurm
@@ -52,10 +50,6 @@ def get_queue_adapter(cluster, cluster_connection=None):
             system = QueueType.SGE
 
     if system not in type_to_adapter:
-        e = events.trigger('queue.adapter.get', system)
-        if len(e.responses) > 0:
-            cls = e.responses[-1]
-        else:
             raise Exception('Unsupported queuing system: %s' % system)
     else:
         cls = type_to_adapter[system]
@@ -71,13 +65,4 @@ def is_valid_type(type):
     :param The queue type ( 'sge', 'slurm' ...)
     :returns
     """
-    valid = False
-    if type in type_to_adapter:
-        valid = True
-    else:
-        # See if this type is supported by a plugin
-        e = events.trigger('queue.adapter.get', type)
-        if len(e.responses) > 0:
-            valid = True
-
-    return valid
+    return type in type_to_adapter
