@@ -24,7 +24,7 @@ import traceback
 import logging
 
 from girder.api.rest import RestException, getBodyJson, loadmodel,\
-    getCurrentUser, getApiUrl, filtermodel, Resource
+    getCurrentUser, filtermodel, Resource
 from girder.api import access
 from girder.api.docs import addModel
 from girder.api.describe import describeRoute, Description
@@ -200,7 +200,7 @@ class TaskFlows(Resource):
         taskflow = constructor(
             id=str(taskflow['_id']),
             girder_token=token['_id'],
-            girder_api_url=getApiUrl())
+            girder_api_url=cumulus.config.girder.baseUrl)
 
         # Mark the taskflow as being used to termination
         taskflow['terminate'] = True
@@ -262,7 +262,7 @@ class TaskFlows(Resource):
             workflow = constructor(
                 id=str(taskflow['_id']),
                 girder_token=token['_id'],
-                girder_api_url=getApiUrl())
+                girder_api_url=cumulus.config.girder.baseUrl)
 
             workflow.delete()
 
