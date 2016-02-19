@@ -33,6 +33,7 @@ import sys
 from bson.objectid import ObjectId
 
 from cumulus.taskflow import load_class, TaskFlowState
+import cumulus
 
 logger = logging.getLogger('girder')
 
@@ -229,7 +230,7 @@ class TaskFlows(Resource):
         workflow = constructor(
             id=str(taskflow['_id']),
             girder_token=token['_id'],
-            girder_api_url=getApiUrl())
+            girder_api_url=cumulus.config.girder.baseUrl)
 
         workflow.start(**params)
 
