@@ -20,6 +20,11 @@
 from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
 
+from cumulus.taskflow import TaskFlowState, TaskState
+from cumulus.common.girder import send_status_notification
+
+MAX_RETRIES = 4
+
 class Taskflow(AccessControlledModel):
 
     def initialize(self):
@@ -31,9 +36,13 @@ class Taskflow(AccessControlledModel):
         return doc
 
     def create(self, user, taskflow):
+        taskflow['status'] = TaskFlowState.CREATED
+        taskflow['log'] = []
 
         taskflow = self.setUserAccess(
             taskflow, user, level=AccessType.ADMIN, save=True)
+
+        send_status_notification('taskflow', taskflow)
 
         return taskflow
 
@@ -115,3 +124,76 @@ class Taskflow(AccessControlledModel):
 
         self.model('task', 'taskflow').removeWithQuery(query)
         self.remove(taskflow)
+
+    def status(self, user, taskflow):
+        """
+        Utility function to extract the status.
+        """
+        if 'status' in taskflow:
+            if taskflow['status'] == TaskFlowState.TERMINATING:
+                if taskflow['activeTaskCount'] == 0:
+                    return TaskFlowState.TERMINATED
+                else:
+                    return TaskFlowState.TERMINATING
+
+            if taskflow['status'] in [TaskFlowState.DELETED,
+                                      TaskFlowState.DELETING]:
+                return taskflow['status']
+
+        tasks = self.model('task', 'taskflow').find_by_taskflow_id(
+            user, taskflow['_id'])
+
+        task_status = [t['status'] for t in tasks]
+        task_status = set(task_status)
+
+        status = TaskFlowState.CREATED
+        if len(task_status) ==  1:
+            status = task_status.pop()
+        elif TaskState.ERROR in task_status:
+            status = TaskFlowState.ERROR
+        elif TaskState.RUNNING in task_status or \
+             (TaskState.COMPLETE in task_status and TaskState.CREATED in task_status):
+            status = TaskFlowState.RUNNING
+
+        return status
+
+    def update_state(self, user, taskflow_id):
+        """
+        Update the state of the taskflow. This is called any time a task in the
+        flow updates its state.
+        """
+        taskflow = self.load(taskflow_id, level=AccessType.WRITE, user=user)
+
+        # Use a 'update if current' strategy to update the taskflow state. This
+        # should work provided we don't have high contention, if we start to
+        # see high contention we will need to rethink this.
+        new_status = self.status(user, taskflow)
+        # We have nothing todo
+        if taskflow['status'] == new_status:
+            return
+
+        query = {
+            '_id': taskflow['_id'],
+            'status': taskflow['status']
+        }
+        update = {
+            '$set': {'status': new_status}
+        }
+
+        retries = 0
+        while True:
+            update_result = self.update(query, update, multi=False)
+
+            if update_result.modified_count > 0 or \
+                    update_result.matched_count == 0:
+                break
+
+            if retries < MAX_RETRIES:
+                retries += 1
+            else:
+                raise Exception('Max retry count exceeded.')
+
+        if taskflow['status'] != new_status:
+            taskflow['status'] = new_status
+            send_status_notification('taskflow', taskflow)
+

@@ -20,13 +20,15 @@
 from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
 
+from cumulus.common.girder import send_status_notification
+
 class Task(AccessControlledModel):
 
     def initialize(self):
         self.name = 'tasks'
         self.ensureIndices(['taskFlowId', 'celeryTaskId'])
         self.exposeFields(level=AccessType.READ, fields=(
-            '_id', 'taskFlowId', 'status', 'log'))
+            '_id', 'taskFlowId', 'status', 'log', 'name'))
 
 
     def validate(self, doc):
@@ -43,6 +45,7 @@ class Task(AccessControlledModel):
 
         task['taskFlowId'] = taskflow['_id']
         task['status'] = 'created'
+        task['log'] = []
 
         model = self.model('taskflow', 'taskflow')
 
@@ -52,6 +55,8 @@ class Task(AccessControlledModel):
             '_id': taskflow['_id']
         }
         model.increment(query, 'activeTaskCount', 1)
+
+        send_status_notification('task', doc)
 
         return doc
 
@@ -110,3 +115,17 @@ class Task(AccessControlledModel):
         }
 
         return self.update(query, update, multi=False)
+
+    def update_task(self, user, task, status=None):
+        if status and task['status'] != status:
+            task['status'] = status
+            task = self.save(task)
+
+            # Update the state of the parent taskflow
+            self.model('taskflow', 'taskflow').update_state(
+                user, task['taskFlowId'])
+
+            send_status_notification('task', task)
+
+        return task
+

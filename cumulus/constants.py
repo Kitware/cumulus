@@ -77,3 +77,16 @@ class ClusterStatus(IntEnum):
 
     def __str__(self):
         return '"' + self.name + '"'
+
+
+class JobState:
+    CREATED = 'created'
+    RUNNING = 'running'
+    TERMINATED = 'terminated'
+    TERMINATING = 'terminating'
+    UNEXPECTEDERROR = 'unexpectederror'
+    QUEUED = 'queued'
+    ERROR = 'error'
+    UPLOADING = 'uploading'
+    ERROR_UPLOADING = 'error_uploading',
+    COMPLETE = 'complete'

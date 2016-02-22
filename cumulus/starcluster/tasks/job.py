@@ -26,6 +26,7 @@ from cumulus.starcluster.common import _log_exception, get_post_logger
 from cumulus.celery import command, monitor
 import cumulus
 import cumulus.girderclient
+import cumulus.constants
 from cumulus.constants import ClusterType, JobQueueState
 from cumulus.queue import get_queue_adapter
 from cumulus.queue.abstract import AbstractQueueAdapter
@@ -128,7 +129,7 @@ def download_job_input_items(cluster, job, log_write_url=None,
 
 
 def download_job_input_folders(cluster, job, log_write_url=None,
-                               girder_token=None):
+                               girder_token=None, submit=True):
     job_dir = _job_dir(job)
 
     with get_connection(girder_token, cluster) as conn:
@@ -139,8 +140,9 @@ def download_job_input_folders(cluster, job, log_write_url=None,
                 upload_path(conn, girder_token, folder_id,
                             os.path.join(job_dir, path))
 
-    submit_job.delay(cluster, job, log_write_url=log_write_url,
-                     girder_token=girder_token)
+    if submit:
+        submit_job.delay(cluster, job, log_write_url=log_write_url,
+                         girder_token=girder_token)
 
 
 @command.task
@@ -216,7 +218,8 @@ def _get_on_complete(job):
 
 @command.task
 @cumulus.starcluster.logging.capture
-def submit_job(cluster, job, log_write_url=None, girder_token=None):
+def submit_job(cluster, job, log_write_url=None, girder_token=None,
+               monitor=True):
     log = starcluster.logger.get_starcluster_logger()
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
@@ -264,6 +267,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
                                                                   script_name)
 
             # Update the state and queue job id
+            job[AbstractQueueAdapter.QUEUE_JOB_ID] = queue_job_id
             patch_data = {
                 'status': JobState.QUEUED,
                 AbstractQueueAdapter.QUEUE_JOB_ID: queue_job_id
@@ -275,10 +279,12 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None):
             job['queuedTime'] = time.time()
 
             # Now monitor the jobs progress
-            monitor_job.s(cluster, job, log_write_url=log_write_url,
-                          girder_token=girder_token).apply_async(countdown=5)
+            if monitor:
+                monitor_job.s(
+                    cluster, job, log_write_url=log_write_url,
+                    girder_token=girder_token).apply_async(countdown=5)
 
-        # Now update the status of the cluster
+        # Now update the status of the job
         headers = {'Girder-Token':  girder_token}
         r = requests.patch(status_url, headers=headers,
                            json={'status': JobState.QUEUED})
@@ -314,16 +320,16 @@ def submit(girder_token, cluster, job, log_url):
 
 
 class JobState(object):
-    CREATED = 'created'
-    RUNNING = 'running'
-    TERMINATED = 'terminated'
-    TERMINATING = 'terminating'
-    UNEXPECTEDERROR = 'unexpectederror'
-    QUEUED = 'queued'
-    ERROR = 'error'
-    UPLOADING = 'uploading'
-    ERROR_UPLOADING = 'error_uploading',
-    COMPLETE = 'complete'
+    CREATED = cumulus.constants.JobState.CREATED
+    RUNNING = cumulus.constants.JobState.RUNNING
+    TERMINATED = cumulus.constants.JobState.TERMINATED
+    TERMINATING = cumulus.constants.JobState.TERMINATING
+    UNEXPECTEDERROR = cumulus.constants.JobState.UNEXPECTEDERROR
+    QUEUED = cumulus.constants.JobState.QUEUED
+    ERROR = cumulus.constants.JobState.ERROR
+    UPLOADING = cumulus.constants.JobState.UPLOADING
+    ERROR_UPLOADING = cumulus.constants.JobState.ERROR_UPLOADING
+    COMPLETE = cumulus.constants.JobState.COMPLETE
 
     def __init__(self, previous, **kwargs):
         if previous:
@@ -393,6 +399,8 @@ class Queued(JobState):
     def run(self):
         self.task.retry(throw=False, countdown=5)
 
+        return self
+
 
 class Running(JobState):
     def _tail_output(self):
@@ -435,6 +443,7 @@ class Running(JobState):
         self._update_queue_time(self.job)
         self._tail_output()
         self.task.retry(throw=False, countdown=5)
+        return self
 
 
 class Complete(JobState):
@@ -500,6 +509,8 @@ class Terminating(JobState):
 
     def run(self):
         self.task.retry(throw=False, countdown=5)
+
+        return self
 
 
 class Terminated(JobState):
@@ -578,7 +589,6 @@ def from_string(s, **kwargs):
 
 
 @monitor.task(bind=True, max_retries=None)
-@cumulus.starcluster.logging.capture
 def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
@@ -609,11 +619,11 @@ def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
                 job_status.run()
             except EOFError:
                 # Try again
-                task.retry(throw=False, countdown=5)
+                task.retry(countdown=5)
                 return
             except starcluster.exception.SSHConnectionError as ex:
                 # Try again
-                task.retry(throw=False, countdown=5)
+                task.retry(countdown=5)
                 return
 
         json = {
@@ -710,6 +720,8 @@ def upload_job_output_to_folder(cluster, job, log_write_url=None, job_dir=None,
     headers = {'Girder-Token':  girder_token}
     assetstore_base_url = get_assetstore_url_base(cluster)
     assetstore_id = get_assetstore_id(girder_token, cluster)
+    if not job_dir:
+        job_dir = _job_dir(job)
 
     try:
         with get_connection(girder_token, cluster) as conn:
@@ -851,7 +863,6 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
 
 
 @command.task
-@cumulus.starcluster.logging.capture
 def terminate_job(cluster, job, log_write_url=None, girder_token=None):
     script_filepath = None
     headers = {'Girder-Token':  girder_token}

@@ -47,6 +47,7 @@ thread_local = threading.local()
 # These key we used to store our taskflow data in the celery headers
 TASKFLOW_HEADER = 'taskflow'
 TASKFLOW_TASK_ID_HEADER = 'taskflow_task_id'
+TASKFLOW_RETRY_HEADER = 'taskflow_retries'
 
 
 # The states that a taskflow can be in, there are likely to be more
@@ -200,15 +201,20 @@ class TaskFlow(dict):
     def girder_api_url(self):
         return self['girder_api_url']
 
-    # State methods
-    def start(self, signature, **options):
+    def run_task(self, signature, **options):
         """
-        This must be called by subclass to give start to the taskflow.
+        Add appropriate headers and run task
         """
         signature.apply_async(
             headers={
                 TASKFLOW_HEADER: self
             }, **options)
+
+    def start(self, signature, **options):
+        """
+        This must be called by subclass to give start to the taskflow.
+        """
+        self.run_task(signature, **options)
 
     def terminate(self):
         pass
@@ -408,6 +414,12 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
         if body['retries'] > 0:
             taskflow_task_id = \
                 current_task.request.headers[TASKFLOW_TASK_ID_HEADER]
+
+            # Celery always fires the postrun handler with a state of SUCCESS
+            # for retries. So we need to save the retries here so we can
+            # determine in the postrun handler if the task is really complete.
+            current_task.request.headers[TASKFLOW_RETRY_HEADER] \
+                = body['retries']
         else:
                 # This is a new task so create a taskflow task instance
             body = {
@@ -527,6 +539,16 @@ def task_success_handler(taskflow, taskflow_task_id, celery_task, state=None,
     """
     Success handler
     """
+
+    # Get the number of retries saved in the before_send
+    taskflow_retries \
+        = current_task.request.get('headers', {}).get(TASKFLOW_RETRY_HEADER)
+
+    # If the retry counts don't match then we know we have been reschedule so we
+    # shouldn't mark the task as complete.
+    if taskflow_retries and taskflow_retries != celery_task.request.retries:
+        return
+
     # See if we have any follow on tasks
     to_run = taskflow._on_complete_lookup(celery_task.name)
     if to_run:

@@ -19,6 +19,7 @@
 import os
 import pkgutil
 import pkg_resources as pr
+import sys
 
 import cumulus
 
@@ -44,6 +45,9 @@ def find_taskflow_modules(prefix=''):
                             prefix='cumulus.taskflow.core.')
 
     if 'taskflow' in cumulus.config:
+        # Add taskflow path to sys.path so we can load the modules
+        for path in cumulus.config.taskflow.path:
+            sys.path.append(path)
         modules += find_modules(cumulus.config.taskflow.path)
 
     return modules

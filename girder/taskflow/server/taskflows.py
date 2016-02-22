@@ -20,9 +20,11 @@
 import cherrypy
 import json
 from pymongo import ReturnDocument
+import traceback
+import logging
 
 from girder.api.rest import RestException, getBodyJson, loadmodel,\
-    getCurrentUser, getApiUrl, filtermodel, Resource
+    getCurrentUser, filtermodel, Resource
 from girder.api import access
 from girder.api.docs import addModel
 from girder.api.describe import describeRoute, Description
@@ -30,8 +32,10 @@ from girder.constants import AccessType
 import sys
 from bson.objectid import ObjectId
 
-from cumulus.taskflow import load_class, TaskFlowState, TaskState
+from cumulus.taskflow import load_class, TaskFlowState
+import cumulus
 
+logger = logging.getLogger('girder')
 
 class TaskFlows(Resource):
 
@@ -50,6 +54,7 @@ class TaskFlows(Resource):
         self.route('PUT', (':id', 'delete'), self.delete_finished)
         self.route('GET', (':id','tasks'), self.tasks)
         self.route('PUT', (':id','tasks', ':taskId', 'finished'), self.task_finished)
+        self.route('GET', (':id', 'log'), self.get_log)
 
         self._model = self.model('taskflow', 'taskflow')
 
@@ -87,9 +92,12 @@ class TaskFlows(Resource):
         # Check that we can load the class
         try:
             load_class(taskflow['taskFlowClass'])
-        except:
-            raise RestException(
-                    'Unable to load taskflow class: %s' % taskflow['taskFlowClass'])
+        except Exception as ex:
+            msg = 'Unable to load taskflow class: %s (%s)' % \
+                        (taskflow['taskFlowClass'], ex.message)
+            logger.exception(msg)
+            traceback.print_exc()
+            raise RestException(msg, 400)
         taskflow = self._model.create(user, taskflow)
 
         cherrypy.response.status = 201
@@ -126,34 +134,6 @@ class TaskFlows(Resource):
 
         return taskflow
 
-    def _status(self, user, taskflow):
-        """
-        Utility function to extract the status.
-        """
-        if 'status' in taskflow:
-            if taskflow['status'] == TaskFlowState.TERMINATING and \
-                taskflow['activeTaskCount'] == 0:
-                return TaskFlowState.TERMINATED
-            else:
-                return taskflow['status']
-
-        tasks = self.model('task', 'taskflow').find_by_taskflow_id(
-            user, taskflow['_id'])
-
-        task_status = [t['status'] for t in tasks]
-        task_status = set(task_status)
-
-        status = TaskFlowState.CREATED
-        if len(task_status) ==  1:
-            status = task_status.pop()
-        elif TaskState.ERROR in task_status:
-            status = TaskFlowState.ERROR
-        elif TaskState.RUNNING in task_status or \
-             (TaskState.COMPLETE in task_status and TaskState.CREATED in task_status):
-            status = TaskFlowState.RUNNING
-
-        return status
-
     @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
@@ -166,7 +146,7 @@ class TaskFlows(Resource):
     def status(self, taskflow, params):
         user = self.getCurrentUser()
 
-        return {'status': self._status(user, taskflow)}
+        return {'status': taskflow['status']}
 
 
     @access.user
@@ -220,7 +200,7 @@ class TaskFlows(Resource):
         taskflow = constructor(
             id=str(taskflow['_id']),
             girder_token=token['_id'],
-            girder_api_url=getApiUrl())
+            girder_api_url=cumulus.config.girder.baseUrl)
 
         # Mark the taskflow as being used to termination
         taskflow['terminate'] = True
@@ -239,6 +219,10 @@ class TaskFlows(Resource):
     def start(self, taskflow, params):
         user = self.getCurrentUser()
 
+        try:
+            params = getBodyJson()
+        except RestException:
+            params = {}
 
         constructor = load_class(taskflow['taskFlowClass'])
         token = self.model('token').createToken(user=user, days=7)
@@ -246,9 +230,9 @@ class TaskFlows(Resource):
         workflow = constructor(
             id=str(taskflow['_id']),
             girder_token=token['_id'],
-            girder_api_url=getApiUrl())
+            girder_api_url=cumulus.config.girder.baseUrl)
 
-        workflow.start()
+        workflow.start(**params)
 
     @access.user
     @filtermodel(model='taskflow', plugin='taskflow')
@@ -263,7 +247,8 @@ class TaskFlows(Resource):
     def delete(self, taskflow, params):
         user = self.getCurrentUser()
 
-        if self._status == TaskFlowState.RUNNING:
+        status = self._model.status(user, taskflow)
+        if status == TaskFlowState.RUNNING:
             raise RestException('Taskflow is running', 400)
 
         constructor = load_class(taskflow['taskFlowClass'])
@@ -277,7 +262,7 @@ class TaskFlows(Resource):
             workflow = constructor(
                 id=str(taskflow['_id']),
                 girder_token=token['_id'],
-                girder_api_url=getApiUrl())
+                girder_api_url=cumulus.config.girder.baseUrl)
 
             workflow.delete()
 
@@ -378,4 +363,22 @@ class TaskFlows(Resource):
     def delete_finished(self, taskflow, params):
         self._model.delete(taskflow)
 
+    @access.user
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
+    @describeRoute(
+        Description(
+        'Get log entries for taskflow')
+        .param(
+            'id',
+            'The taskflow to get log entries for.', paramType='path')
+        .param(
+            'offset',
+            'A offset in to the log.', required=False,
+            paramType='query')
+    )
+    def get_log(self, taskflow, params):
+        offset = 0
+        if 'offset' in params:
+            offset = int(params['offset'])
 
+        return {'log': taskflow['log'][offset:]}
