@@ -229,18 +229,6 @@ class Cluster(BaseResource):
         elif cluster_type == ClusterType.ANSIBLE:
             cluster = self._create_ansible(params, body)
         elif cluster_type == ClusterType.TRADITIONAL:
-            scheduler_type = parse('config.scheduler.type').find(body)
-            if scheduler_type:
-                scheduler_type = scheduler_type[0].value
-            else:
-                scheduler_type = QueueType.SGE
-                config = body.setdefault('config', {})
-                scheduler = config.setdefault('scheduler', {})
-                scheduler['type'] = scheduler_type
-
-            if not QueueType.is_valid_type(scheduler_type):
-                raise RestException('Unsupported scheduler.', code=400)
-
             cluster = self._create_traditional(params, body)
         elif cluster_type == ClusterType.NEWT:
             cluster = self._create_newt(params, body)
