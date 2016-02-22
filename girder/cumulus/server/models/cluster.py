@@ -98,10 +98,16 @@ class Cluster(BaseModel):
         if not queue.is_valid_type(scheduler_type):
             raise ValidationException('Unsupported scheduler.', 'type')
 
-        # If inserting, ensure no other clusters have the same name field
+        # If inserting, ensure no other clusters have the same name field amd
+        # type
         if '_id' not in cluster:
-            if self.findOne({'name': cluster['name'],
-                             'userId': getCurrentUser()['_id']}):
+            query = {
+                'name': cluster['name'],
+                'userId': getCurrentUser()['_id'],
+                'type': cluster['type']
+            }
+
+            if self.findOne(query):
                 raise ValidationException('A cluster with that name already exists', 'name')
 
         adapter = get_cluster_adapter(cluster)
