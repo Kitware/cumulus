@@ -405,7 +405,11 @@ class Cluster(BaseResource):
 
         if 'status' in body:
             try:
-                cluster['status'] = ClusterStatus[body['status']]
+                # For now only do for ansible clusters
+                if cluster['type'] == ClusterType.ANSIBLE:
+                    cluster['status'] = ClusterStatus[body['status']]
+                else:
+                    cluster['status'] = body['status']
             except (ValueError, KeyError):
                 cluster['status'] = body['status']
 

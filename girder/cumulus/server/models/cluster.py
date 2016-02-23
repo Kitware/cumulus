@@ -35,7 +35,9 @@ from cumulus import queue
 def preprocess_cluster(cluster):
     # Convert model status into enum
     try:
-        cluster['status'] = ClusterStatus(int(cluster['status']))
+        # For now only do this for ansible
+        if cluster['type'] == ClusterType.ANSIBLE:
+            cluster['status'] = ClusterStatus(int(cluster['status']))
     except (ValueError, AssertionError, TypeError):
         # Assume 'old style' string status
         pass
