@@ -26,6 +26,10 @@ def launch_cluster(cluster, profile, secret_key, girder_token, log_write_url):
 
     extra_vars.update(cluster.get('template', {}))
 
+    # If no keyname is provided use the one associated with the profile
+    if 'aws_keyname' not in extra_vars:
+        extra_vars['aws_keyname'] = profile['_id']
+
     pb = ansible.playbook.PlayBook(
         playbook=DEFAULT_PLAYBOOK,
         inventory=ansible.inventory.Inventory(['localhost']),
@@ -65,6 +69,10 @@ def terminate_cluster(cluster, profile, secret_key,
         "aws_access_key": profile['accessKeyId'],
         "aws_secret_key": secret_key
     }
+
+    # If no keyname is provided use the one associated with the profile
+    if 'aws_keyname' not in extra_vars:
+        extra_vars['aws_keyname'] = profile['_id']
 
     extra_vars.update(cluster.get('template', {}))
 
