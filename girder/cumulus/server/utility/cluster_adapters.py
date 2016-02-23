@@ -184,7 +184,6 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         self.launch(request_body)
         self.provision(request_body)
 
-
     def update(self, request_body):
         """
         Adapters may implement this if they support a update operation.

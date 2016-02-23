@@ -29,7 +29,7 @@ from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, getCurrentUser
 from girder.models.model_base import ValidationException
 from .base import BaseResource
-from cumulus.constants import ClusterType, ClusterStatus, QueueType
+from cumulus.constants import ClusterType, ClusterStatus
 from .utility.cluster_adapters import get_cluster_adapter
 from cumulus.ssh.tasks.key import generate_key_pair
 from cumulus.common import update_dict
@@ -533,7 +533,6 @@ class Cluster(BaseResource):
             'The cluster to get log entries for.', required=False,
             paramType='query'))
 
-
     @access.cookie
     @access.user
     def log_stream(self, id, params):
@@ -560,7 +559,8 @@ class Cluster(BaseResource):
             while cherrypy.engine.state == cherrypy.engine.states.STARTED:
                 wait = min(wait + MIN_POLL_INTERVAL, MAX_POLL_INTERVAL)
 
-                for i, logMessage in enumerate(self._model.log_records(user, id, lastLogSeen)):
+                records = self._model.log_records(user, id, lastLogSeen)
+                for i, logMessage in enumerate(records):
                     lastLogSeen += 1
                     wait = MIN_POLL_INTERVAL
                     start = time.time()
@@ -573,12 +573,13 @@ class Cluster(BaseResource):
 
         return streamGen
 
-    log_stream.description = (Description(
-        'Stream notifications of a log for a particular cluster via the SSE protocol')
-                              .param('id', 'The cluster to get log entries for.', paramType='path')
-                              .param('timeout', 'The duration without a notification before the '
-                                     'stream is closed.', dataType='integer', required=False))
-
+    log_stream.description = (
+        Description('Stream notifications of a log for a particular cluster '
+                    'via the SSE protocol')
+        .param('id', 'The cluster to get log entries for.',
+               paramType='path')
+        .param('timeout', 'The duration without a notification before the '
+               'stream is closed.', dataType='integer', required=False))
 
     @access.user
     def submit_job(self, id, jobId, params):

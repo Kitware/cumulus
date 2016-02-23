@@ -17,7 +17,6 @@
 #  limitations under the License.
 ###############################################################################
 
-import json
 from jsonpath_rw import parse
 from girder.models.model_base import ValidationException
 from bson.objectid import ObjectId, InvalidId
@@ -31,6 +30,7 @@ from cumulus.common.girder import send_status_notification, \
     check_group_membership
 import cumulus
 from cumulus import queue
+
 
 def preprocess_cluster(cluster):
     # Convert model status into enum
@@ -67,8 +67,9 @@ class Cluster(BaseModel):
 
     def find(self, query=None, offset=0, limit=0, timeout=None,
              fields=None, sort=None, **kwargs):
-        return [preprocess_cluster(cluster) for cluster in \
-                super(Cluster, self).find(query, offset, limit, timeout, fields, sort, **kwargs)]
+        return [preprocess_cluster(cluster) for cluster in
+                super(Cluster, self).find(query, offset, limit, timeout,
+                                          fields, sort, **kwargs)]
 
     def filter(self, cluster, user, passphrase=True):
         cluster = super(Cluster, self).filter(doc=cluster, user=user)
@@ -110,7 +111,8 @@ class Cluster(BaseModel):
             }
 
             if self.findOne(query):
-                raise ValidationException('A cluster with that name already exists', 'name')
+                raise ValidationException('A cluster with that name already '
+                                          'exists', 'name')
 
         adapter = get_cluster_adapter(cluster)
 
