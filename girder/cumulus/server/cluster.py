@@ -610,6 +610,8 @@ class Cluster(BaseResource):
         job_model.save(job)
 
         cluster_adapter = get_cluster_adapter(cluster)
+        del job['access']
+        del job['log']
         cluster_adapter.submit_job(job)
 
     submit_job.description = (
