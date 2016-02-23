@@ -28,7 +28,7 @@ class Task(AccessControlledModel):
         self.name = 'tasks'
         self.ensureIndices(['taskFlowId', 'celeryTaskId'])
         self.exposeFields(level=AccessType.READ, fields=(
-            '_id', 'taskFlowId', 'status', 'log'))
+            '_id', 'taskFlowId', 'status', 'log', 'name'))
 
 
     def validate(self, doc):
