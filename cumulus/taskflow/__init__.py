@@ -240,7 +240,7 @@ class TaskFlow(dict):
         client = _create_girder_client(girder_api_url, girder_token)
         url = 'taskflows/%s' % self.id
         body = {
-            key: value
+            'meta.%s' % key: value
         }
         client.patch(url, data=json.dumps(body))
 
