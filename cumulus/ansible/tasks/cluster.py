@@ -25,10 +25,11 @@ def run_playbook(playbook, inventory, extra_vars=None):
         stats=stats,
         extra_vars=extra_vars
     )
-
     # Note:  can refer to callback.playbook.extra_vars  to get access
     # to girder_token after this point
-    pb.run()
+    results = pb.run()
+
+    return results
 
 
 @command.task
@@ -62,13 +63,21 @@ def run_ansible(cluster, profile, secret_key, extra_vars,
     # Run the playbook
     run_playbook(playbook, inventory, playbook_variables)
 
-    # Update girder with the new status
+    # Check status from girder
     cluster_id = cluster['_id']
-    status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl, cluster_id)
     headers = {'Girder-Token':  girder_token}
-    updates = {
-        "status": post_status
-    }
+    status_url = '%s/clusters/%s/status' % (cumulus.config.girder.baseUrl,
+                                            cluster_id)
+    r = requests.get(status_url, headers=headers)
+    status = r.json()['status']
 
-    r = requests.patch(status_url, headers=headers, json=updates)
-    check_status(r)
+    if status != 'error':
+        # Update girder with the new status
+        status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
+                                         cluster_id)
+        updates = {
+            "status": post_status
+        }
+
+        r = requests.patch(status_url, headers=headers, json=updates)
+        check_status(r)

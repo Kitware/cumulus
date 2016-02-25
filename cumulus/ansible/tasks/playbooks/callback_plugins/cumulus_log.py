@@ -1,5 +1,6 @@
 import requests
 import datetime as dt
+import cumulus
 
 STARTING = 'starting'
 SKIPPED = 'skipped'
@@ -17,6 +18,10 @@ class CallbackModule(object):
     def __init__(self):
         self.current_task = None
         self.current_play = None
+
+    @property
+    def cluster_id(self):
+        return self.playbook.extra_vars['cluster_id']
 
     @property
     def girder_token(self):
@@ -56,6 +61,17 @@ class CallbackModule(object):
         res2 = self._filter_res(res)
         res2['host'] = host
         self.log(ERROR, self.current_task, data=res2)
+
+        # Update girder with the new status
+        status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
+                                         self.cluster_id)
+        headers = {'Girder-Token':  self.girder_token}
+        updates = {
+            "status": "error"
+        }
+
+        r = requests.patch(status_url, headers=headers, json=updates)
+        cumulus.common.check_status(r)
 
     def runner_on_ok(self, host, res):
         res2 = self._filter_res(res)
