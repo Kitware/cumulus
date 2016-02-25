@@ -165,16 +165,19 @@ class Cluster(BaseResource):
 
     def _create_ansible(self, params, body):
 
-        self.requireParams(['name', 'template', 'profile'], body)
+        self.requireParams(['name', 'playbook',
+                            'playbook_variables', 'profile'], body)
 
         name = body['name']
-        template = body['template']
+        playbook = body['playbook']
+        playbook_variables = body['playbook_variables']
         profile = body['profile']
         # Create some configuration item here
         # config_id = self._create_config(config)
         user = self.getCurrentUser()
 
-        cluster = self._model.create_ansible(user, name, template, profile)
+        cluster = self._model.create_ansible(user, name, playbook,
+                                             playbook_variables, profile)
         cluster = self._model.filter(cluster, user)
 
         return cluster
@@ -215,7 +218,6 @@ class Cluster(BaseResource):
     @access.user
     def create(self, params):
         body = getBodyJson()
-
         # Default ec2 cluster
         cluster_type = 'ec2'
 

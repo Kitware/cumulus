@@ -55,6 +55,7 @@ class Cluster(BaseModel):
 
         self.exposeFields(level=AccessType.READ,
                           fields=('_id', 'status', 'name', 'config',
+                                  'playbook', 'playbook_variables',
                                   'template', 'profile', 'type',
                                   'userId', 'assetstoreId'))
 
@@ -134,7 +135,7 @@ class Cluster(BaseModel):
 
         return cluster
 
-    def create_ansible(self, user, name, template, profile):
+    def create_ansible(self, user, name, playbook, playbook_variables, profile):
         try:
             query = {
                 "userId": user['_id'],
@@ -153,7 +154,8 @@ class Cluster(BaseModel):
 
         cluster = {
             'name': name,
-            'template': template,
+            'playbook': playbook,
+            'playbook_variables': playbook_variables,
             'profile': profile["_id"],
             'log': [],
             'status': ClusterStatus.created,

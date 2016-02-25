@@ -6,33 +6,20 @@ import cumulus
 import requests
 import os
 
-DEFAULT_PLAYBOOK = os.path.join(os.path.dirname(__file__),
-                                "playbooks/default.yml")
+
+def get_playbook_path(name):
+    return os.path.join(os.path.dirname(__file__),
+                        "playbooks/" + name + ".yml")
 
 
-@command.task
-def launch_cluster(cluster, profile, secret_key, girder_token, log_write_url):
+def run_playbook(playbook, inventory, extra_vars=None):
+    extra_vars = {} if extra_vars is None else extra_vars
+
     stats = callbacks.AggregateStats()
 
-    extra_vars = {
-        "girder_token": girder_token,
-        "log_write_url": log_write_url,
-        "cluster_region": profile['regionName'],
-        "cluster_state": "running",
-        "cluster_id": cluster["_id"],
-        "aws_access_key": profile['accessKeyId'],
-        "aws_secret_key": secret_key
-    }
-
-    extra_vars.update(cluster.get('template', {}))
-
-    # If no keyname is provided use the one associated with the profile
-    if 'aws_keyname' not in extra_vars:
-        extra_vars['aws_keyname'] = profile['_id']
-
     pb = ansible.playbook.PlayBook(
-        playbook=DEFAULT_PLAYBOOK,
-        inventory=ansible.inventory.Inventory(['localhost']),
+        playbook=playbook,
+        inventory=inventory,
         callbacks=callbacks.PlaybookCallbacks(verbose=1),
         runner_callbacks=callbacks.PlaybookRunnerCallbacks(stats, verbose=1),
         stats=stats,
@@ -41,60 +28,46 @@ def launch_cluster(cluster, profile, secret_key, girder_token, log_write_url):
 
     # Note:  can refer to callback.playbook.extra_vars  to get access
     # to girder_token after this point
-
     pb.run()
-
-    cluster_id = cluster['_id']
-    status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl, cluster_id)
-    headers = {'Girder-Token':  girder_token}
-    updates = {
-        "status": "launched"
-    }
-
-    r = requests.patch(status_url, headers=headers, json=updates)
-    check_status(r)
 
 
 @command.task
-def terminate_cluster(cluster, profile, secret_key,
-                      girder_token, log_write_url):
-    stats = callbacks.AggregateStats()
+def run_ansible(cluster, profile, secret_key, extra_vars,
+                girder_token, log_write_url, post_status):
 
-    extra_vars = {
+    playbook = get_playbook_path(cluster.get("playbook", "default"))
+
+    inventory = ansible.inventory.Inventory(['localhost'])
+
+    # Default variables all playbooks will need
+    playbook_variables = {
         "girder_token": girder_token,
         "log_write_url": log_write_url,
         "cluster_region": profile['regionName'],
-        "cluster_state": "absent",
         "cluster_id": cluster["_id"],
         "aws_access_key": profile['accessKeyId'],
         "aws_secret_key": secret_key
     }
 
+    # Update with variables passed in from the cluster adapater
+    playbook_variables.update(extra_vars)
+
+    # Update with variables passed in as apart of the cluster configuration
+    playbook_variables.update(cluster.get('playbook_variables', {}))
+
     # If no keyname is provided use the one associated with the profile
-    if 'aws_keyname' not in extra_vars:
-        extra_vars['aws_keyname'] = profile['_id']
+    if 'aws_keyname' not in playbook_variables:
+        playbook_variables['aws_keyname'] = profile['_id']
 
-    extra_vars.update(cluster.get('template', {}))
+    # Run the playbook
+    run_playbook(playbook, inventory, playbook_variables)
 
-    pb = ansible.playbook.PlayBook(
-        playbook=DEFAULT_PLAYBOOK,
-        inventory=ansible.inventory.Inventory(['localhost']),
-        callbacks=callbacks.PlaybookCallbacks(verbose=1),
-        runner_callbacks=callbacks.PlaybookRunnerCallbacks(stats, verbose=1),
-        stats=stats,
-        extra_vars=extra_vars
-    )
-
-    # Note:  can refer to callback.playbook.extra_vars  to get access
-    # to girder_token after this point
-
-    pb.run()
-
+    # Update girder with the new status
     cluster_id = cluster['_id']
     status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl, cluster_id)
     headers = {'Girder-Token':  girder_token}
     updates = {
-        "status": "terminated"
+        "status": post_status
     }
 
     r = requests.patch(status_url, headers=headers, json=updates)
