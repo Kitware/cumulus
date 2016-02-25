@@ -165,19 +165,19 @@ class Cluster(BaseResource):
 
     def _create_ansible(self, params, body):
 
-        self.requireParams(['name', 'playbook',
-                            'playbook_variables', 'profile'], body)
+        self.requireParams(['name',
+                            'cluster_config', 'profile'], body)
 
         name = body['name']
-        playbook = body['playbook']
-        playbook_variables = body['playbook_variables']
+        playbook = body['playbook'] if 'playbook' in body.keys() else 'default'
+        cluster_config = body['cluster_config']
         profile = body['profile']
         # Create some configuration item here
         # config_id = self._create_config(config)
         user = self.getCurrentUser()
 
         cluster = self._model.create_ansible(user, name, playbook,
-                                             playbook_variables, profile)
+                                             cluster_config, profile)
         cluster = self._model.filter(cluster, user)
 
         return cluster

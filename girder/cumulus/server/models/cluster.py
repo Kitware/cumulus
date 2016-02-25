@@ -55,9 +55,8 @@ class Cluster(BaseModel):
 
         self.exposeFields(level=AccessType.READ,
                           fields=('_id', 'status', 'name', 'config',
-                                  'playbook', 'playbook_variables',
-                                  'template', 'profile', 'type',
-                                  'userId', 'assetstoreId'))
+                                  'cluster_config', 'template', 'profile',
+                                  'type', 'userId', 'assetstoreId'))
 
     def load(self, id, level=AccessType.ADMIN, user=None, objectId=True,
              force=False, fields=None, exc=False):
@@ -135,7 +134,7 @@ class Cluster(BaseModel):
 
         return cluster
 
-    def create_ansible(self, user, name, playbook, playbook_variables, profile):
+    def create_ansible(self, user, name, playbook, cluster_config, profile):
         try:
             query = {
                 "userId": user['_id'],
@@ -155,7 +154,7 @@ class Cluster(BaseModel):
         cluster = {
             'name': name,
             'playbook': playbook,
-            'playbook_variables': playbook_variables,
+            'cluster_config': cluster_config,
             'profile': profile["_id"],
             'log': [],
             'status': ClusterStatus.created,

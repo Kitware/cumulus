@@ -54,7 +54,7 @@ def run_ansible(cluster, profile, secret_key, extra_vars,
     playbook_variables.update(extra_vars)
 
     # Update with variables passed in as apart of the cluster configuration
-    playbook_variables.update(cluster.get('playbook_variables', {}))
+    playbook_variables.update(cluster.get('cluster_config', {}))
 
     # If no keyname is provided use the one associated with the profile
     if 'aws_keyname' not in playbook_variables:
