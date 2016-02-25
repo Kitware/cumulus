@@ -898,3 +898,30 @@ class ClusterTestCase(base.TestCase):
 
         # Assert that assetstore is gone
         self.assertIsNone(self.model('assetstore').load(cluster['assetstoreId']))
+
+
+    @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
+    def test_create_scheduler_type(self, generate_key_pair):
+        trad_body = {
+            'config': {
+                'host': 'myhost',
+                'ssh': {
+                    'user': 'myuser'
+                },
+                'scheduler': {
+                    'type': 'bogus'
+                }
+            },
+            'name': 'mycluster',
+            'type': 'trad'
+        }
+        json_body = json.dumps(trad_body)
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 400)
+
+        trad_body['config']['scheduler']['type'] = 'slurm'
+        json_body = json.dumps(trad_body)
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 201)
