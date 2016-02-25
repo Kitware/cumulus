@@ -56,8 +56,9 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
             except Exception:
                 traceback.print_exc()
 
-    def _wait_for_status(self, status_url, status):
-        sleeps = 0
+    def _wait_for_status(self, status_url, status, timeout=10):
+
+        start = time.time();
         while True:
             time.sleep(1)
             r = self._client.get(status_url)
@@ -65,11 +66,10 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
             if r['status'] == status:
                 break
 
-            if sleeps > 9:
+            if time.time() - start > timeout:
                 self.fail('Resource never moved into the "%s" state, current '
                           'state is "%s"' % (status, r['status']))
 
-            sleeps += 1
 
     def create_profile(self):
 
@@ -99,7 +99,8 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
         body = {
             'template': {
                 'instance_type': 't2.nano',
-                'instance_count': 2
+                'instance_count': 2,
+                'default_image': 'ami-9abea4fb'
             },
             'profile': self._profile_id,
             'name': 'AnsibleIntegrationTest',
@@ -114,13 +115,22 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
         self._client.put(cluster_url)
 
         status_url = 'clusters/%s/status' % self._cluster_id
-        self._wait_for_status(status_url, 'running')
+        self._wait_for_status(status_url, 'launched', timeout=120)
+
+    def terminate_cluster(self):
+        cluster_url = 'clusters/%s/terminate' % self._cluster_id
+        self._client.put(cluster_url)
+
+        status_url = 'clusters/%s/status' % self._cluster_id
+        self._wait_for_status(status_url, 'terminated', timeout=180)
+
 
     def test(self):
         try:
             self.create_profile()
             self.create_cluster()
             self.launch_cluster()
+            self.terminate_cluster()
         except HttpError as error:
             self.fail(error.responseText)
 
