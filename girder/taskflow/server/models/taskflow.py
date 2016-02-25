@@ -30,7 +30,8 @@ class Taskflow(AccessControlledModel):
     def initialize(self):
         self.name = 'taskflows'
         self.exposeFields(level=AccessType.READ, fields=(
-            '_id', 'status', 'log', 'activeTaskCount', 'taskFlowClass'))
+            '_id', 'status', 'log', 'activeTaskCount', 'taskFlowClass',
+            'meta'))
 
     def validate(self, doc):
         return doc
