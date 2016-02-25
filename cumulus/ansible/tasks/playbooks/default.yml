@@ -22,11 +22,13 @@
 
       hosts:
         head:
-          type: "{{ instance_type }}"
+          type: "{{ master_instance_type }}"
+          image: "{{ master_instance_ami}}"
 
         data:
-          type: "{{ instance_type }}"
-          count: "{{ instance_count }}"
+          type: "{{ node_instance_type }}"
+          count: "{{ node_instance_count }}"
+          image: "{{ node_instance_ami}}"
   roles:
     - role: ec2-pod
       default_ssh_key: "{{ ec2_pod_spec.key }}"
