@@ -59,7 +59,7 @@
       region: "{{ region }}"
       state: absent
       wait: yes
-      wait_timeout: 120 # two minutes
+      wait_timeout: "{{ terminate_wait_timeout }}"
     ignore_errors: true
     when: (terminate_set|length > 0)|bool
 

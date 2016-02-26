@@ -88,8 +88,6 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
         r = self._client.post(profile_url, data=json.dumps(body))
         self._profile_id = r['_id']
 
-        print self._profile_id
-
         profile_status_url \
             = 'user/%s/aws/profiles/%s/status' % (user['_id'], self._profile_id)
         self._wait_for_status(profile_status_url, 'available')
@@ -102,7 +100,8 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
                 "master_instance_ami": "ami-03de3c63",
                 "node_instance_count": 2,
                 "node_instance_type": "t2.nano",
-                "node_instance_ami": "ami-03de3c63"
+                "node_instance_ami": "ami-03de3c63",
+                "terminate_wait_timeout": 240
             },
             'profile': self._profile_id,
             'name': 'AnsibleIntegrationTest',
