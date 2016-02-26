@@ -1,9 +1,12 @@
 git+https://github.com/cjh1/StarCluster.git@cumulus#egg=StarCluster
-boto==2.32.0
+boto==2.38.0
 celery==3.1.20
-requests==2.4.3
+requests==2.7.0
 requests-toolbelt==0.3.0
 jsonschema==2.4.0
 easydict==1.5
 Jinja2==2.7.3
+six==1.9.0
 jsonpath-rw==1.4.0
+enum34==1.0.4
+ansible==1.9.4

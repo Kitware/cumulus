@@ -17,19 +17,32 @@
 #  limitations under the License.
 ###############################################################################
 
-import json
 from jsonpath_rw import parse
 from girder.models.model_base import ValidationException
-from bson.objectid import ObjectId
+from bson.objectid import ObjectId, InvalidId
 from girder.constants import AccessType
-from girder.api.rest import RestException
+from girder.api.rest import RestException, getCurrentUser
 from .base import BaseModel
-from cumulus.constants import ClusterType, QueueType
+from cumulus.constants import ClusterType, ClusterStatus, QueueType
+
 from ..utility.cluster_adapters import get_cluster_adapter
 from cumulus.common.girder import send_status_notification, \
     check_group_membership
 import cumulus
 from cumulus import queue
+
+
+def preprocess_cluster(cluster):
+    # Convert model status into enum
+    try:
+        # For now only do this for ansible
+        if cluster['type'] == ClusterType.ANSIBLE:
+            cluster['status'] = ClusterStatus(int(cluster['status']))
+    except (ValueError, AssertionError, TypeError):
+        # Assume 'old style' string status
+        pass
+
+    return cluster
 
 
 class Cluster(BaseModel):
@@ -41,8 +54,22 @@ class Cluster(BaseModel):
         self.name = 'clusters'
 
         self.exposeFields(level=AccessType.READ,
-                          fields=('_id', 'status', 'name', 'config', 'template',
+                          fields=('_id', 'status', 'name', 'config',
+                                  'cluster_config', 'template', 'profile',
                                   'type', 'userId', 'assetstoreId'))
+
+    def load(self, id, level=AccessType.ADMIN, user=None, objectId=True,
+             force=False, fields=None, exc=False):
+        model = super(Cluster, self).load(id, level=level, user=user,
+                                          objectId=objectId, force=force,
+                                          fields=fields, exc=exc)
+        return preprocess_cluster(model)
+
+    def find(self, query=None, offset=0, limit=0, timeout=None,
+             fields=None, sort=None, **kwargs):
+        return [preprocess_cluster(cluster) for cluster in
+                super(Cluster, self).find(query, offset, limit, timeout,
+                                          fields, sort, **kwargs)]
 
     def filter(self, cluster, user, passphrase=True):
         cluster = super(Cluster, self).filter(doc=cluster, user=user)
@@ -52,9 +79,6 @@ class Cluster(BaseModel):
                 check_group_membership(user, cumulus.config.girder.group)
             except RestException:
                 del cluster['config']['ssh']['passphrase']
-
-        # Use json module to convert ObjectIds to strings
-        cluster = json.loads(json.dumps(cluster, default=str))
 
         return cluster
 
@@ -77,16 +101,29 @@ class Cluster(BaseModel):
         if not queue.is_valid_type(scheduler_type):
             raise ValidationException('Unsupported scheduler.', 'type')
 
+        # If inserting, ensure no other clusters have the same name field amd
+        # type
+        if '_id' not in cluster:
+            query = {
+                'name': cluster['name'],
+                'userId': getCurrentUser()['_id'],
+                'type': cluster['type']
+            }
+
+            if self.findOne(query):
+                raise ValidationException('A cluster with that name already '
+                                          'exists', 'name')
+
         adapter = get_cluster_adapter(cluster)
 
         return adapter.validate()
 
     def _create(self, user, cluster):
-        self.setUserAccess(cluster, user=user, level=AccessType.ADMIN)
+        cluster = self.setUserAccess(cluster, user=user, level=AccessType.ADMIN)
         group = {
             '_id': ObjectId(self.get_group_id())
         }
-        self.setGroupAccess(cluster, group, level=AccessType.ADMIN)
+        cluster = self.setGroupAccess(cluster, group, level=AccessType.ADMIN)
 
         # Add userId field to indicate ownership
         cluster['userId'] = user['_id']
@@ -96,6 +133,35 @@ class Cluster(BaseModel):
         send_status_notification('cluster', cluster)
 
         return cluster
+
+    def create_ansible(self, user, name, playbook, cluster_config, profile):
+        try:
+            query = {
+                "userId": user['_id'],
+                "_id":  ObjectId(profile)}
+        except InvalidId:
+            query = {
+                "userId": user['_id'],
+                "name": profile}
+
+        profile = self.model("aws", "cumulus").findOne(query)
+
+        if profile is None:
+            raise ValidationException("Profile must be specified!")
+
+        # Should do some template validation here
+
+        cluster = {
+            'name': name,
+            'playbook': playbook,
+            'cluster_config': cluster_config,
+            'profile': profile["_id"],
+            'log': [],
+            'status': ClusterStatus.created,
+            'type': ClusterType.ANSIBLE
+        }
+
+        return self._create(user, cluster)
 
     def create_ec2(self, user, config_id, name, template):
         cluster = {
@@ -144,6 +210,17 @@ class Cluster(BaseModel):
         # Load first to force access check
         self.load(id, user=user, level=AccessType.WRITE)
         self.update({'_id': ObjectId(id)}, {'$push': {'log': record}})
+
+    def update_status(self, cluster, status, user=None):
+        if user is None:
+            user = getCurrentUser()
+
+        current_cluster = self.load(cluster['_id'], user=user,
+                                    level=AccessType.WRITE)
+
+        current_cluster['status'] = status
+
+        return self.update_cluster(user, current_cluster)
 
     def update_cluster(self, user, cluster):
         # Load first to force access check

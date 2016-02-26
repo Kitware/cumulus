@@ -23,10 +23,12 @@ from jsonpath_rw import parse
 from girder.utility.model_importer import ModelImporter
 from girder.models.model_base import ValidationException
 from girder.api.rest import RestException, getApiUrl, getCurrentUser
+from bson.objectid import ObjectId, InvalidId
 
-from cumulus.constants import ClusterType
+from cumulus.constants import ClusterType, ClusterStatus
 from cumulus.common.girder import get_task_token
 import cumulus.starcluster.tasks.cluster
+import cumulus.ansible.tasks.cluster
 
 
 class AbstractClusterAdapter(ModelImporter):
@@ -35,6 +37,10 @@ class AbstractClusterAdapter(ModelImporter):
     """
     def __init__(self, cluster):
         self.cluster = cluster
+        self._model = self.model('cluster', 'cumulus')
+
+    def update_status(self, status):
+        self.cluster = self._model.update_status(self.cluster, status)
 
     def validate(self):
         """
@@ -87,6 +93,110 @@ class AbstractClusterAdapter(ModelImporter):
         girder_token = get_task_token()['_id']
         cumulus.starcluster.tasks.job.submit(girder_token, self.cluster, job,
                                              log_url)
+
+
+class AnsibleClusterAdapter(AbstractClusterAdapter):
+    """
+    This defines the interface to be used by all cluster adapters.
+    """
+
+    def update_status(self, status):
+        assert type(status) is ClusterStatus, \
+            "%s must be a ClusterStatus type" % status
+
+        super(AnsibleClusterAdapter, self).update_status(status)
+
+    def validate(self):
+        """
+        Adapters may implement this if they need to perform any validation
+        steps whenever the cluster info is saved to the database. It should
+        return the document with any necessary alterations in the success case,
+        or throw an exception if validation fails.
+        """
+        return self.cluster
+
+    def _get_profile(self, profile_id):
+        user = getCurrentUser()
+        query = {"userId": user['_id']}
+        try:
+            query["_id"] = ObjectId(profile_id)
+        except InvalidId:
+            query["name"] = profile_id
+
+        profile = self.model("aws", "cumulus").findOne(query)
+        secret = profile['secretAccessKey']
+
+        profile = self.model("aws", "cumulus").filter(profile, user)
+
+        if profile is None:
+            raise ValidationException("Profile must be specified!")
+
+        profile['_id'] = str(profile['_id'])
+
+        return profile, secret
+
+    def launch(self, **kwargs):
+        # if id is None // Exception
+        # TODO: add assert if status > launching, error
+
+        self.update_status(ClusterStatus.launching)
+
+        base_url = getApiUrl()
+        log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
+        girder_token = get_task_token()['_id']
+
+        profile, secret_key = self._get_profile(self.cluster['profile'])
+
+        cumulus.ansible.tasks.cluster.run_ansible \
+            .delay(self.cluster, profile, secret_key,
+                   {"cluster_state": "running"},
+                   girder_token, log_write_url, "launched")
+
+        return self.cluster
+
+    def terminate(self):
+        self.update_status(ClusterStatus.terminating)
+
+        base_url = getApiUrl()
+        log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
+        girder_token = get_task_token()['_id']
+
+        profile, secret_key = self._get_profile(self.cluster['profile'])
+
+        cumulus.ansible.tasks.cluster.run_ansible \
+            .delay(self.cluster, profile, secret_key,
+                   {"cluster_state": "absent"},
+                   girder_token, log_write_url, "terminated")
+
+    def provision(self, request_body):
+        self.update_status(ClusterStatus.provisioning)
+
+        # Do celery/ansible provisioning here
+
+        self.update_status(ClusterStatus.provisioned)
+        pass
+
+    def start(self, request_body):
+        """
+        Adapters may implement this if they support a start operation.
+        """
+        if self.cluster['status'] == 'running':
+            raise RestException('Cluster already running.', code=400)
+
+        self.launch(request_body)
+        self.provision(request_body)
+
+    def update(self, request_body):
+        """
+        Adapters may implement this if they support a update operation.
+        """
+        self.update_status(ClusterStatus[request_body['status']])
+
+#     def delete(self):
+#         """
+#         Adapters may implement this if they support a delete operation.
+#         """
+#         pass
 
 
 class Ec2ClusterAdapter(AbstractClusterAdapter):
@@ -310,6 +420,7 @@ class NewtClusterAdapter(AbstractClusterAdapter):
 
 type_to_adapter = {
     ClusterType.EC2: Ec2ClusterAdapter,
+    ClusterType.ANSIBLE: AnsibleClusterAdapter,
     ClusterType.TRADITIONAL: TraditionClusterAdapter,
     ClusterType.NEWT: NewtClusterAdapter
 }

@@ -18,14 +18,20 @@
 ###############################################################################
 
 
+from enum import IntEnum
+
+
 class ClusterType:
     EC2 = 'ec2'
+    ANSIBLE = 'ansible'
     TRADITIONAL = 'trad'
     NEWT = 'newt'
 
     @staticmethod
     def is_valid_type(type):
-        return type == ClusterType.EC2 or type == ClusterType.TRADITIONAL or \
+        return type == ClusterType.EC2 or \
+            type == ClusterType.TRADITIONAL or \
+            type == ClusterType.ANSIBLE or \
             type == ClusterType.NEWT
 
 
@@ -54,6 +60,23 @@ class JobQueueState:
     RUNNING = 'running'
     COMPLETE = 'complete'
     ERROR = 'error'
+
+
+class ClusterStatus(IntEnum):
+    error = -1
+    creating = 0
+    created = 10
+    launching = 20
+    launched = 30
+    provisioning = 40
+    provisioned = 50
+    terminating = 60
+    terminated = 70
+    stopped = 101
+    running = 102
+
+    def __str__(self):
+        return '"' + self.name + '"'
 
 
 class JobState:

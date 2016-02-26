@@ -17,8 +17,8 @@
 #  limitations under the License.
 ###############################################################################
 
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_ACCEPT_CONTENT = ('json',)
+CELERY_TASK_SERIALIZER = 'oid_safe_json'
+CELERY_ACCEPT_CONTENT = ('json', 'oid_safe_json')
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_ACKS_LATE = True
 CELERYD_PREFETCH_MULTIPLIER = 1

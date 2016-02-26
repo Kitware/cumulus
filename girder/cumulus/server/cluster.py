@@ -23,12 +23,13 @@ from jsonpath_rw import parse
 
 from girder.api import access
 from girder.api.describe import Description
+from girder.api.v1.notification import sseMessage
 from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, getCurrentUser
 from girder.models.model_base import ValidationException
 from .base import BaseResource
-from cumulus.constants import ClusterType
+from cumulus.constants import ClusterType, ClusterStatus
 from .utility.cluster_adapters import get_cluster_adapter
 from cumulus.ssh.tasks.key import generate_key_pair
 from cumulus.common import update_dict
@@ -42,7 +43,10 @@ class Cluster(BaseResource):
         self.route('POST', (), self.create)
         self.route('POST', (':id', 'log'), self.handle_log_record)
         self.route('GET', (':id', 'log'), self.log)
+        self.route('GET', (':id', 'log', 'stream'), self.log_stream)
         self.route('PUT', (':id', 'start'), self.start)
+        self.route('PUT', (':id', 'launch'), self.launch)
+        self.route('PUT', (':id', 'provision'), self.provision)
         self.route('PATCH', (':id',), self.update)
         self.route('GET', (':id', 'status'), self.status)
         self.route('PUT', (':id', 'terminate'), self.terminate)
@@ -113,9 +117,8 @@ class Cluster(BaseResource):
                 if profile_id:
                     profile_id = profile_id[0].value
                     # Check this a valid profile
-                    profile = \
-                        self.model('aws', 'cumulus').load(profile_id,
-                                                          user=getCurrentUser())
+                    profile = self.model('aws', 'cumulus')\
+                                  .load(profile_id, user=getCurrentUser())
 
                     if not profile:
                         raise ValidationException('Invalid profile id')
@@ -160,6 +163,25 @@ class Cluster(BaseResource):
 
         return cluster
 
+    def _create_ansible(self, params, body):
+
+        self.requireParams(['name',
+                            'cluster_config', 'profile'], body)
+
+        name = body['name']
+        playbook = body['playbook'] if 'playbook' in body.keys() else 'default'
+        cluster_config = body['cluster_config']
+        profile = body['profile']
+        # Create some configuration item here
+        # config_id = self._create_config(config)
+        user = self.getCurrentUser()
+
+        cluster = self._model.create_ansible(user, name, playbook,
+                                             cluster_config, profile)
+        cluster = self._model.filter(cluster, user)
+
+        return cluster
+
     def _create_traditional(self, params, body):
 
         self.requireParams(['name', 'config'], body)
@@ -196,7 +218,6 @@ class Cluster(BaseResource):
     @access.user
     def create(self, params):
         body = getBodyJson()
-
         # Default ec2 cluster
         cluster_type = 'ec2'
 
@@ -207,6 +228,8 @@ class Cluster(BaseResource):
 
         if cluster_type == ClusterType.EC2:
             cluster = self._create_ec2(params, body)
+        elif cluster_type == ClusterType.ANSIBLE:
+            cluster = self._create_ansible(params, body)
         elif cluster_type == ClusterType.TRADITIONAL:
             cluster = self._create_traditional(params, body)
         elif cluster_type == ClusterType.NEWT:
@@ -327,6 +350,49 @@ class Cluster(BaseResource):
             dataType='ClusterStartParams', required=False))
 
     @access.user
+    def launch(self, id, params):
+        return self._launch_or_provision("launch", id, params)
+
+    launch.description = (Description(
+        'Start a cluster with ansible'
+    ).param(
+        'id',
+        'The cluster id to start.', paramType='path', required=True))
+
+    @access.user
+    def provision(self, id, params):
+        return self._launch_or_provision("provision", id, params)
+
+    provision.description = (Description(
+        'Provision a cluster with ansible'
+    ).param(
+        'id',
+        'The cluster id to provision.', paramType='path', required=True
+    ).param(
+        'body', 'Parameter used when starting cluster', paramType='body',
+        dataType='list', required=False))
+
+    def _launch_or_provision(self, process, id, params):
+        assert process in ["launch", "provision"]
+        body = {}
+
+        if cherrypy.request.body:
+            request_body = cherrypy.request.body.read().decode('utf8')
+            if request_body:
+                body = json.loads(request_body)
+
+        user = self.getCurrentUser()
+        cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+
+        if not cluster:
+            raise RestException('Cluster not found.', code=404)
+
+        cluster = self._model.filter(cluster, user, passphrase=False)
+        adapter = get_cluster_adapter(cluster)
+
+        return getattr(adapter, process)(**body)
+
+    @access.user
     def update(self, id, params):
         body = getBodyJson()
         user = self.getCurrentUser()
@@ -340,7 +406,14 @@ class Cluster(BaseResource):
             cluster['assetstoreId'] = body['assetstoreId']
 
         if 'status' in body:
-            cluster['status'] = body['status']
+            try:
+                # For now only do for ansible clusters
+                if cluster['type'] == ClusterType.ANSIBLE:
+                    cluster['status'] = ClusterStatus[body['status']]
+                else:
+                    cluster['status'] = body['status']
+            except (ValueError, KeyError):
+                cluster['status'] = body['status']
 
         if 'timings' in body:
             if 'timings' in cluster:
@@ -362,7 +435,11 @@ class Cluster(BaseResource):
 
         # Now do any updates the adapter provides
         adapter = get_cluster_adapter(cluster)
-        adapter.update(body)
+        try:
+            adapter.update(body)
+        # Skip adapter.update if update not defined for this adapter
+        except NotImplementedError:
+            pass
 
         return self._model.filter(cluster, user)
 
@@ -393,8 +470,10 @@ class Cluster(BaseResource):
 
         if not cluster:
             raise RestException('Cluster not found.', code=404)
-
-        return {'status': cluster['status']}
+        try:
+            return {'status': cluster['status'].name}
+        except AttributeError:
+            return {'status': cluster['status']}
 
     addModel('ClusterStatus', {
         'id': 'ClusterStatus',
@@ -456,6 +535,54 @@ class Cluster(BaseResource):
             'The cluster to get log entries for.', required=False,
             paramType='query'))
 
+    @access.cookie
+    @access.user
+    def log_stream(self, id, params):
+        import time
+        # defaults taken from Girder
+        DEFAULT_STREAM_TIMEOUT = 300
+        MIN_POLL_INTERVAL = 0.5
+        MAX_POLL_INTERVAL = 2
+
+        user = self.getCurrentUser()
+        cherrypy.response.headers['Content-Type'] = 'text/event-stream'
+        cherrypy.response.headers['Cache-Control'] = 'no-cache'
+
+        timeout = int(params.get('timeout', DEFAULT_STREAM_TIMEOUT))
+
+        if not self._model.load(id, user=user, level=AccessType.READ):
+            raise RestException('Cluster not found.', code=404)
+
+        def streamGen():
+            lastLogSeen = 0
+            start = time.time()
+            wait = MIN_POLL_INTERVAL
+
+            while cherrypy.engine.state == cherrypy.engine.states.STARTED:
+                wait = min(wait + MIN_POLL_INTERVAL, MAX_POLL_INTERVAL)
+
+                records = self._model.log_records(user, id, lastLogSeen)
+                for i, logMessage in enumerate(records):
+                    lastLogSeen += 1
+                    wait = MIN_POLL_INTERVAL
+                    start = time.time()
+                    yield sseMessage(logMessage)
+
+                if time.time() - start > timeout:
+                    break
+
+                time.sleep(wait)
+
+        return streamGen
+
+    log_stream.description = (
+        Description('Stream notifications of a log for a particular cluster '
+                    'via the SSE protocol')
+        .param('id', 'The cluster to get log entries for.',
+               paramType='path')
+        .param('timeout', 'The duration without a notification before the '
+               'stream is closed.', dataType='integer', required=False))
+
     @access.user
     def submit_job(self, id, jobId, params):
         job_id = jobId
@@ -465,7 +592,8 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        if cluster['status'] != 'running':
+        if cluster['status'] != 'running' and \
+           cluster['status'] != ClusterStatus.running:
             raise RestException('Cluster is not running', code=400)
 
         cluster = self._model.filter(cluster, user, passphrase=False)
@@ -482,13 +610,11 @@ class Cluster(BaseResource):
         if body:
             job['params'] = json.loads(body)
 
-        job = job_model.save(job)
-        del job['access']
-        del job['log']
-        job['_id'] = str(job['_id'])
-        job['userId'] = str(job['userId'])
+        job_model.save(job)
 
         cluster_adapter = get_cluster_adapter(cluster)
+        del job['access']
+        del job['log']
         cluster_adapter.submit_job(job)
 
     submit_job.description = (

@@ -20,8 +20,23 @@
 from __future__ import absolute_import
 from celery import Celery
 from cumulus.taskflow.utility import find_taskflow_modules
+from kombu.serialization import register
+import json
+
+
+def oid_safe_dumps(obj):
+    return json.dumps(obj, default=str)
+
+
+def oid_safe_loads(obj):
+    return json.loads(obj)
+
+register('oid_safe_json', oid_safe_dumps, oid_safe_loads,
+         content_type='application/x-oid_safe_json',
+         content_encoding='utf-8')
 
 _includes = [
+    'cumulus.ansible.tasks.cluster',
     'cumulus.starcluster.tasks.cluster',
     'cumulus.starcluster.tasks.job',
     'cumulus.ssh.tasks.key',
@@ -51,8 +66,8 @@ command = Celery('command',  backend='amqp',
 command.config_from_object('cumulus.celery.commandconfig')
 command.conf.update(
     CELERY_ROUTES=_routes,
-    CELERY_TASK_SERIALIZER='json',
-    CELERY_ACCEPT_CONTENT=('json',),
+    CELERY_TASK_SERIALIZER='oid_safe_json',
+    CELERY_ACCEPT_CONTENT=('json', 'oid_safe_json'),
     CELERY_RESULT_SERIALIZER='json',
     CELERYD_PREFETCH_MULTIPLIER=1
 )

@@ -842,7 +842,6 @@ class ClusterTestCase(base.TestCase):
         self.assertStatusOk(r)
         self.assertEqual(len(r.json), 0, 'Don\'t expect any clusters')
 
-
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
     @mock.patch('cumulus.ssh.tasks.key.delete_key_pair.delay')
     def test_delete_assetstore (self, delete_key, generate_key):
@@ -900,6 +899,7 @@ class ClusterTestCase(base.TestCase):
         # Assert that assetstore is gone
         self.assertIsNone(self.model('assetstore').load(cluster['assetstoreId']))
 
+
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
     def test_create_scheduler_type(self, generate_key_pair):
         trad_body = {
@@ -925,5 +925,3 @@ class ClusterTestCase(base.TestCase):
         r = self.request('/clusters', method='POST',
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
-
-
