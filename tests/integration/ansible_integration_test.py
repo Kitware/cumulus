@@ -97,10 +97,12 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
 
     def create_cluster(self):
         body = {
-            'template': {
-                'instance_type': 't2.nano',
-                'instance_count': 2,
-                'default_image': 'ami-9abea4fb'
+            "cluster_config": {
+                "master_instance_type": "t2.nano",
+                "master_instance_ami": "ami-03de3c63",
+                "node_instance_count": 2,
+                "node_instance_type": "t2.nano",
+                "node_instance_ami": "ami-03de3c63"
             },
             'profile': self._profile_id,
             'name': 'AnsibleIntegrationTest',
@@ -115,14 +117,14 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
         self._client.put(cluster_url)
 
         status_url = 'clusters/%s/status' % self._cluster_id
-        self._wait_for_status(status_url, 'launched', timeout=120)
+        self._wait_for_status(status_url, 'launched', timeout=300)
 
     def terminate_cluster(self):
         cluster_url = 'clusters/%s/terminate' % self._cluster_id
         self._client.put(cluster_url)
 
         status_url = 'clusters/%s/status' % self._cluster_id
-        self._wait_for_status(status_url, 'terminated', timeout=180)
+        self._wait_for_status(status_url, 'terminated', timeout=300)
 
 
     def test(self):
