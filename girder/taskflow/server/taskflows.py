@@ -197,15 +197,17 @@ class TaskFlows(Resource):
         self._model.save(taskflow)
         constructor = load_class(taskflow['taskFlowClass'])
         token = self.model('token').createToken(user=user, days=7)
-        taskflow = constructor(
+        taskflow_instance = constructor(
             id=str(taskflow['_id']),
             girder_token=token['_id'],
             girder_api_url=cumulus.config.girder.baseUrl)
 
+        # Set the meta data
+        taskflow_instance['meta'] = taskflow.get('meta', {})
         # Mark the taskflow as being used to termination
-        taskflow['terminate'] = True
+        taskflow_instance['terminate'] = True
 
-        taskflow.terminate()
+        taskflow_instance.terminate()
 
     @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
