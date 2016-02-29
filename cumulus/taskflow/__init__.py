@@ -545,7 +545,8 @@ def task_success_handler(sender=None, **kwargs):
 
             # See if we have any follow on tasks
             to_run = taskflow._on_complete_lookup(sender.name)
-            if to_run:
+            # Only run follow on tasks if we aren't terminating
+            if to_run and taskflow.status() != TaskFlowState.TERMINATING:
                 to_run.delay()
 
             # Is the completion of this task going to complete the flow?
