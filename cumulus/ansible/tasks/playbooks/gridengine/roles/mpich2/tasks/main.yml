@@ -1,0 +1,21 @@
+- name: Install mpich2 on all nodes
+  apt: name={{ item }} state=present
+  become_user: root
+  with_items:
+    - build-essential
+    - mpich2
+  tags:
+    - mpich2
+
+- name: Template hosts file
+  become_user: root
+  template: src=mpich2.hosts.j2 dest=/home/mpich2.hosts
+  when: inventory_hostname == groups['master'][0]
+  tags:
+    - mpich2
+
+- name: Create MPICH2 profile
+  become_user: root
+  copy: src=mpich2.sh dest=/etc/profile.d/mpich2.sh
+  tags:
+    - mpich2

@@ -1,0 +1,6 @@
+group_name @allhosts
+
+hostlist {% for host in groups['exec'] -%}
+    {{ '%s ' % hostvars[host].private_ip }}
+{%- endfor %}
+

@@ -1,0 +1,15 @@
+pe_name            orte
+{% set slots = [] %}
+{% for host in groups['exec'] %}
+{% set _ = slots.append(hostvars[host].get('ansible_processor_count', 1)) %}
+{% endfor %}
+slots              {{ slots | sum }}
+user_lists         NONE
+xuser_lists        NONE
+start_proc_args    /bin/true
+stop_proc_args     /bin/true
+allocation_rule    $fill_up
+control_slaves     TRUE
+job_is_first_task  FALSE
+urgency_slots      min
+accounting_summary FALSE

@@ -1,0 +1,9 @@
+hostname              {{hostvars[item].private_ip}}
+load_scaling          NONE
+complex_values        slots={{ hostvars[item].get('ansible_processor_count', 1) }}
+user_lists            NONE
+xuser_lists           NONE
+projects              NONE
+xprojects             NONE
+usage_scaling         NONE
+report_variables      NONE

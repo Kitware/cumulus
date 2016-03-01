@@ -1,0 +1,19 @@
+- name: Master setup
+  hosts: master
+  become: yes
+  roles:
+    - master
+
+- name: Install mpich2
+  hosts: all
+  become: yes
+  roles:
+    - mpich2
+
+- name: Exec host setup
+  hosts: exec
+  become: yes
+  roles:
+    - exec
+
+

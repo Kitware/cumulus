@@ -1,0 +1,186 @@
+- name: Install grid engine packages on master node
+  apt: name={{ item }} state=present
+  become_user: root
+  with_items:
+    - gridengine-client
+    - gridengine-master
+    - gridengine-exec
+  tags:
+    - master
+
+- name: Install NFS server package
+  apt: name=nfs-kernel-server state=present
+  become_user: root
+  tags:
+    - master
+    - nfs-server
+
+- name: Stop NFS server
+  service: name=nfs-kernel-server state=stopped
+  tags:
+    - master
+    - nfs-server
+
+
+- name: Export /home via NFS
+  become_user: root
+  template: src=export.j2 dest=/etc/exports force=true
+  tags:
+    - master
+    - nfs-server
+
+- name: Start NFS server
+  service: name=nfs-kernel-server state=running
+  tags:
+    - master
+    - nfs-server
+
+- name: Add master node as the submit host
+  become_user: sgeadmin
+  shell: qconf -as {{ ansible_hostname }}
+  ignore_errors: true
+  tags:
+    - master
+
+- name: Template exec host files
+  become_user: sgeadmin
+  template: src=exec_host.j2 dest=/tmp/exec_host_{{item}}
+  with_items:
+    - "{{ groups['exec'] }}"
+  tags:
+    - master
+
+- name: Add exec hosts
+  become_user: sgeadmin
+  shell: qconf -Ae /tmp/exec_host_{{item}}
+  ignore_errors: true
+  with_items:
+    - "{{ groups['exec'] }}"
+  tags:
+    - master
+
+- name: Cleanup exec host files
+  become_user: sgeadmin
+  shell: rm /tmp/exec_host*
+  ignore_errors: true
+  tags:
+    - master
+
+- name: Create allhosts host group
+  become_user: sgeadmin
+  shell: qconf -Ahgrp /tmp/allhosts
+  ignore_errors: true
+  tags:
+    - master
+
+- name: Template allhosts host group file
+  become_user: sgeadmin
+  template: src=allhosts.j2 dest=/tmp/allhosts
+  tags:
+    - master
+
+- name: Create allhosts host group
+  become_user: sgeadmin
+  shell: qconf -Ahgrp /tmp/allhosts
+  ignore_errors: true
+  tags:
+    - master
+
+- name: Clean allhosts file
+  become_user: sgeadmin
+  file: path=/tmp/allhosts state=absent
+  ignore_errors: true
+  tags:
+    - master
+
+- name: Template parallel environment configuration
+  become_user: sgeadmin
+  template: src=pe.j2 dest=/tmp/pe
+  tags:
+  - master
+
+- name: Create parallel environment
+  become_user: sgeadmin
+  shell: qconf -Ap /tmp/pe
+  tags:
+  - master
+
+- name: Clean up pe configuration
+  become_user: root
+  file: path=/tmp/pe state=absent
+  ignore_errors: true
+  tags:
+    - master
+
+- name: Copy over all.q configuration
+  become_user: sgeadmin
+  copy: src=all.q dest=/tmp/all.q
+  tags:
+    - master
+
+- name: Create all.q
+  become_user: sgeadmin
+  shell: qconf -Aq /tmp/all.q
+  ignore_errors: true
+  tags:
+    - master
+
+- name: Clean up all.q
+  become_user: sgeadmin
+  file: path=/tmp/all.q state=absent
+  ignore_errors: true
+  tags:
+    - master
+
+- name: Adding all hosts to queue
+  become_user: sgeadmin
+  shell: qconf -aattr queue hostlist @allhosts all.q
+  ignore_errors: true
+  tags:
+    - master
+
+- name: Copy over sched_conf
+  become_user: sgeadmin
+  copy: src=sched_conf dest=/tmp/sched_conf
+  tags:
+    - master
+
+- name: Configure for on demand scheduling
+  become_user: sgeadmin
+  shell:  qconf -Msconf /tmp/sched_conf
+  tags:
+    - master
+
+- name: Clean up sched_conf
+  become_user: sgeadmin
+  file: path=/tmp/sched_conf state=absent
+  ignore_errors: true
+  tags:
+    - master
+
+- name: Generate SSH key for access between nodes
+  user: name=ubuntu generate_ssh_key=yes
+  tags:
+    - master
+
+- name: Add key to authorize_key file
+  become_user: ubuntu
+  shell: cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+  tags:
+  - master
+
+- name: Get all resolved hostname in host group
+  become_user: ubuntu
+  shell: qconf -shgrp_resolved @allhosts
+  register: hosts
+  tags:
+  - master
+
+- name: Add all host keys to known_hosts
+  become_user: ubuntu
+  shell: ssh-keyscan -H {{item}} >> ~/.ssh/known_hosts
+  with_items: "hosts.stdout.split(' ')"
+  tags:
+  - master
+
+
