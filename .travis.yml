@@ -32,7 +32,6 @@ before_install:
     - popd
     # Install CMake
     - CACHE=$HOME/.cache CMAKE_VERSION=3.1.0 CMAKE_SHORT_VERSION=3.1 source $HOME/build/girder/scripts/install_cmake.sh
-    - curl -L "http://cmake.org/files/v3.1/cmake-3.1.0-Linux-x86_64.tar.gz" | gunzip -c | tar x
 install:
     - pwd
     - pip install -U -r requirements.txt
