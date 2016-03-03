@@ -61,15 +61,31 @@ def _put_script(conn, script_commands):
     return cmd
 
 
-def _job_dir(job):
+def job_dir(job, job_output_dir=None):
+    """
+    Returns the job directory for a given job.
+
+    :param job: The job to return the directory for.
+    :param job_output_dir: Any root output directory
+
+    """
     job_dir = './%s' % job['_id']
+
+    if job_output_dir:
+        job_dir = os.path.join(job_output_dir, job['_id'])
+
+    return job_dir
+
+
+def _job_dir(job):
     output_root = parse('params.jobOutputDir').find(job)
 
     if output_root:
         output_root = output_root[0].value
-        job_dir = os.path.join(output_root, job['_id'])
+    else:
+        output_root = None
 
-    return job_dir
+    return job_dir(job, output_root)
 
 
 def download_job_input_items(cluster, job, log_write_url=None,
@@ -452,7 +468,6 @@ class Complete(JobState):
         error = False
         for output in self.job.get('output', []):
             if 'errorRegEx' in output and output['errorRegEx']:
-                print "we have a regex"
                 stdout_file = '%s-%s.o%s' % (self.job['name'],
                                              self.job['_id'],
                                              self.job['queueJobId'])
