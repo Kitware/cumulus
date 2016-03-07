@@ -20,8 +20,6 @@ class AnsibleInventoryHost(object):
             s += " "
             s += " ".join(["%s=%s" % (k, v)
                            for k, v in self.variables.items()])
-            s += "\n"
-
         return s
 
     @staticmethod
@@ -88,8 +86,8 @@ class AnsibleInventoryGroup(AnsibleInventorySection):
         self.heading = "[%s]" % value
 
     def to_string(self):
-        s = "%s" % self.head
-        s += "".join([i.to_string() for i in self.items])
+        s = "%s\n" % self.heading
+        s += "\n".join([i.to_string() for i in self.items]) + "\n"
         return s
 
 
@@ -108,10 +106,10 @@ class AnsibleInventory(object):
     section_classes = [AnsibleInventoryGroup]
 
     # Empty line or whitespace or starts with #
-    ignore_lines = re.compile("|^\s+$|^#")
+    ignore_lines = re.compile("^\s+$|^#")
 
     def __init__(self, global_hosts,  sections=None):
-        self.global_hosts = []
+        self.global_hosts = global_hosts
         self.sections = sections if sections is not None else []
 
     @staticmethod
@@ -121,16 +119,40 @@ class AnsibleInventory(object):
 
         for line in inventory.split("\n"):
             # Ignore comments and empty lines
-            if AnsibleInventory.ignore_lines.match(line):
+            if line == "" or AnsibleInventory.ignore_lines.match(line):
                 continue
 
+            # Sentinal that asks "are we on a new section heading?"
+            # Assume for each line that this is false
+            treated = False
+
+            # Ask easy of our section classes if it can treat this
+            # particular line
             for section_class in AnsibleInventory.section_classes:
                 if section_class.treat(line):
+                    treated = True
+                    break
+
+            # If we have a treatable line
+            if treated:
+
+                # If current isn't currently equal to global_hosts
+                # Then current is a section and should be appended
+                # to sections.
+                if id(current) != id(global_hosts):
                     sections.append(current)
-                    current = section_class(line)
-                else:
-                    current.append(
-                        AnsibleInventoryHost.from_string(line.rstrip()))
+
+                # Set current to the new section
+                current = section_class(line)
+            else:
+                # we've just got content
+                current.append(
+                    AnsibleInventoryHost.from_string(line.rstrip()))
+
+        # Make sure we append the last section (assuming it is
+        # not global_hosts)
+        if id(current) != id(global_hosts):
+            sections.append(current)
 
         return AnsibleInventory(global_hosts, sections)
 
@@ -143,13 +165,12 @@ class AnsibleInventory(object):
     def to_string(self):
         s = ""
         for host in self.global_hosts:
-            s += host.to_string()
+            s += host.to_string() + "\n"
 
-        s += "\n"
-
-        for section in self.sections:
-            s += section.to_string()
+        if self.sections:
             s += "\n"
+            s += "\n".join([section.to_string()
+                            for section in self.sections]) + "\n"
 
         return s
 
