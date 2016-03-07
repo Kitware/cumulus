@@ -2,7 +2,8 @@ import unittest
 import mock
 import os
 import ansible
-from cumulus.ansible.tasks.cluster import run_playbook
+import cumulus.ansible.tasks.inventory as inventory
+
 
 class AnsibleTestCase(unittest.TestCase):
 
@@ -12,18 +13,59 @@ class AnsibleTestCase(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def assertAnsibleReturn(self, results, ok, changed, failures, skipped):
-        self.assertEqual(results['localhost']['ok'], ok)
-        self.assertEqual(results['localhost']['changed'], changed)
-        self.assertEqual(results['localhost']['failures'], failures)
-        self.assertEqual(results['localhost']['skipped'], skipped)
+    def test_ansible_host_basic(self):
+        case = "localhost"
+        h = inventory.AnsibleInventoryHost(case)
+        self.assertEquals(case, h.host)
+        self.assertEquals(case, h.to_string())
 
-    def test_run_playbook(self):
+    def test_ansible_host_basic_read_from_string(self):
+        case = "localhost"
+        h = inventory.AnsibleInventoryHost.from_string(case)
+        self.assertEquals(case, h.host)
+        self.assertEquals(case, h.to_string())
 
-        path = os.path.join(os.environ["CUMULUS_SOURCE_DIRECTORY"],
-                            'tests', 'cases', 'fixtures', 'ansible',
-                            'test_run_playbook.yml')
-        inventory = ansible.inventory.Inventory(['localhost'])
+    def test_ansible_host_variables_to_string(self):
+        target = "localhost foo=bar baz=bar\n"
+        h = inventory.AnsibleInventoryHost("localhost", foo="bar", baz="bar")
 
-        results = run_playbook(path, inventory)
-        self.assertAnsibleReturn(results, 1, 0, 0, 0)
+        # Ensure variables have been set on host
+        self.assertTrue('foo' in h.variables)
+        self.assertEquals(h.variables['foo'], 'bar')
+        self.assertTrue('baz' in h.variables)
+        self.assertEquals(h.variables['baz'], 'bar')
+
+        # Test to_string
+        self.assertEquals(h.to_string(), target)
+
+    def test_ansible_malformed_host(self):
+        cases = ["localhost foo",
+                 "localhost foo=",
+                 "localhost foo= bar",
+                 "localhost foo==bar",
+                 "localhost foo = bar"]
+        for case in cases:
+            with self.assertRaises(RuntimeError):
+                inventory.AnsibleInventoryHost.from_string(case)
+
+    def test_ansible_inventory_group_name(self):
+        g = inventory.AnsibleInventoryGroup("[foobar]")
+        self.assertEquals(g.heading, "[foobar]")
+        self.assertEquals(g.name, "foobar")
+
+    def test_ansible_inventory_group_set_name(self):
+        g = inventory.AnsibleInventoryGroup("[foobar]")
+        g.name = "FOOBAR"
+        self.assertEquals(g.name, "FOOBAR")
+        self.assertEquals(g.heading, "[FOOBAR]")
+
+    def test_ansible_inventory_group_items(self):
+        g = inventory.AnsibleInventoryGroup("[foobar]", ["an item"])
+        self.assertEquals(len(g.items), 1)
+        self.assertEquals(g.items[0], "an item")
+
+    def test_ansible_inventory_group_treat(self):
+        self.assertTrue(inventory.AnsibleInventoryGroup.treat("[foobar]"))
+        self.assertFalse(inventory.AnsibleInventoryGroup.treat("[foobar:vars]"))
+        self.assertFalse(inventory.AnsibleInventoryGroup.treat("[foobar:children]"))
+        self.assertFalse(inventory.AnsibleInventoryGroup.treat("foobar"))
