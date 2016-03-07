@@ -1,5 +1,6 @@
 import re
 
+
 class AnsibleInventoryHost(object):
     """
     Represents an Ansible inventory host and its associated variables.
@@ -14,23 +15,33 @@ class AnsibleInventoryHost(object):
         self.variables = kwargs
 
     def to_string(self):
-        return "%s %s\n" % \
-            (self.host,
-             " ".join(["%s=%s" % (k, v)
-                       for k, v in self.variables.items()]))
+        s = self.host
+        if self.variables:
+            s += " "
+            s += " ".join(["%s=%s" % (k, v)
+                           for k, v in self.variables.items()])
+            s += "\n"
+
+        return s
 
     @staticmethod
     def from_string(s):
-        parts = " ".split(s.rstrip())
+        parts = s.rstrip().split()
         host = parts[0]
         kwargs = {}
         for part in parts[1:]:
             try:
-                kwargs[part.split("=")[0]] = part.split("=")[1]
-            except KeyError:
+                key = part.split("=")[0]
+                value = part.split("=")[1]
+                if bool(key) and bool(value):
+                    kwargs[key] = value
+                else:
+                    raise RuntimeError("Could not parse %s for host %s" %
+                                       (part, host))
+            except IndexError:
                 raise RuntimeError("Could not parse %s for host %s" %
                                    (part, host))
-        return AnsibleInventoryHost(host, kwargs)
+        return AnsibleInventoryHost(host, **kwargs)
 
 
 class AnsibleInventorySection(object):
@@ -50,8 +61,8 @@ class AnsibleInventorySection(object):
     def name(self, value):
         raise NotImplemented("Must be implemented by subclass")
 
-
-    def treat(self, line):
+    @staticmethod
+    def treat(line):
         raise NotImplemented("Must be implemented by subclass")
 
     def append(self, item):
@@ -62,17 +73,19 @@ class AnsibleInventoryGroup(AnsibleInventorySection):
     """
     Class that represents a group section in an Ansible inventory script
     """
-    def treat(self, line):
+
+    @staticmethod
+    def treat(line):
         return True if line.startswith("[") \
             and ":" not in line else False
 
     @property
     def name(self):
-        return self.name[1:-1]
+        return self.heading[1:-1]
 
     @name.setter
     def name(self, value):
-        self.header = "[%s]" % value
+        self.heading = "[%s]" % value
 
     def to_string(self):
         s = "%s" % self.head
