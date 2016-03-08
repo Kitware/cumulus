@@ -369,7 +369,7 @@ class Cluster(BaseResource):
         'id',
         'The cluster id to provision.', paramType='path', required=True
     ).param(
-        'body', 'Parameter used when starting cluster', paramType='body',
+        'body', 'Parameter used when provisioning cluster', paramType='body',
         dataType='list', required=False))
 
     def _launch_or_provision(self, process, id, params):

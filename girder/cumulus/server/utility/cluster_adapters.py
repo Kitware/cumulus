@@ -99,6 +99,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     """
     This defines the interface to be used by all cluster adapters.
     """
+    DEFAULT_PLAYBOOK = 'default'
 
     def update_status(self, status):
         assert type(status) is ClusterStatus, \
@@ -148,7 +149,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         profile, secret_key = self._get_profile(self.cluster['profile'])
 
         cumulus.ansible.tasks.cluster.run_ansible \
-            .delay(self.cluster, profile, secret_key,
+            .delay(self.DEFAULT_PLAYBOOK, self.cluster, profile, secret_key,
                    {"cluster_state": "running"},
                    girder_token, log_write_url, "launched")
 
@@ -164,17 +165,26 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         profile, secret_key = self._get_profile(self.cluster['profile'])
 
         cumulus.ansible.tasks.cluster.run_ansible \
-            .delay(self.cluster, profile, secret_key,
+            .delay(self.DEFAULT_PLAYBOOK, self.cluster, profile, secret_key,
                    {"cluster_state": "absent"},
                    girder_token, log_write_url, "terminated")
 
-    def provision(self, request_body):
+    def provision(self, **kwargs):
         self.update_status(ClusterStatus.provisioning)
 
-        # Do celery/ansible provisioning here
+        base_url = getApiUrl()
+        log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
+        girder_token = get_task_token()['_id']
 
-        self.update_status(ClusterStatus.provisioned)
-        pass
+        profile, secret_key = self._get_profile(self.cluster['profile'])
+        playbook = kwargs['playbook'] if 'playbook' in kwargs else self.DEFAULT_PLAYBOOK
+
+        cumulus.ansible.tasks.cluster.provision_cluster \
+            .delay(playbook, self.cluster, profile, secret_key,
+                   {"cluster_state": "running"},
+                   girder_token, log_write_url, "provisioned")
+
+        return self.cluster
 
     def start(self, request_body):
         """
