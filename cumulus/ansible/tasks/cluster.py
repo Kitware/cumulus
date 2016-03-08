@@ -1,6 +1,6 @@
 from cumulus.celery import command
 from cumulus.common import check_status
-from inventory import AnsibleInventory, AnsibleInventoryHost
+from inventory import AnsibleInventory
 import cumulus
 import requests
 import os
@@ -10,12 +10,14 @@ from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
 
+
 def get_playbook_path(name):
     return os.path.join(os.path.dirname(__file__),
                         "playbooks/" + name + ".yml")
 
 
-def run_playbook(playbook, inventory, extra_vars=None,  verbose=None, env=None):
+def run_playbook(playbook, inventory, extra_vars=None,
+                 verbose=None, env=None):
 
     env = env if env is not None else os.environ.copy()
 
@@ -33,8 +35,6 @@ def run_playbook(playbook, inventory, extra_vars=None,  verbose=None, env=None):
 
     for line in iter(p.stdout.readline, b''):
         logger.info(line)
-
-
 
 
 @command.task
