@@ -177,7 +177,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         girder_token = get_task_token()['_id']
 
         profile, secret_key = self._get_profile(self.cluster['profile'])
-        playbook = kwargs['playbook'] if 'playbook' in kwargs else self.DEFAULT_PLAYBOOK
+        playbook = kwargs.get('playbook', self.DEFAULT_PLAYBOOK)
 
         cumulus.ansible.tasks.cluster.provision_cluster \
             .delay(playbook, self.cluster, profile, secret_key,

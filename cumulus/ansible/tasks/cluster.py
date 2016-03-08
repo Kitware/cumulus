@@ -15,6 +15,7 @@ def get_playbook_path(name):
     return os.path.join(os.path.dirname(__file__),
                         "playbooks/" + name + ".yml")
 
+
 def run_playbook(playbook, inventory, extra_vars=None,
                  verbose=None, env=None):
 
