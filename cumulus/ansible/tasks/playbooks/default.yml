@@ -6,6 +6,8 @@
     cluster_state: running
     cluster_region: us-west-2
     instance_type: t2.medium
+    aws_access_key: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+    aws_secret_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
     ec2_pod_spec:
       key: "{{ aws_keyname }}"
       cluster_name: "{{ cluster_id }}"
