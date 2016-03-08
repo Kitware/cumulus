@@ -1,4 +1,7 @@
 import re
+import tempfile
+import os
+from contextlib import contextmanager
 
 
 class AnsibleInventoryHost(object):
@@ -41,6 +44,9 @@ class AnsibleInventoryHost(object):
                                    (part, host))
         return AnsibleInventoryHost(host, **kwargs)
 
+    def __eq__(self, other):
+        return self.host == other.host and self.variables == other.variables
+
 
 class AnsibleInventorySection(object):
     """
@@ -48,7 +54,12 @@ class AnsibleInventorySection(object):
     script.
     """
     def __init__(self, heading, items=None):
-        self.heading = heading.rstrip()
+        heading = heading.strip()
+        heading = "[" + heading if heading[0] != "[" else heading
+        heading = heading + "]" if heading[-1] != "]" else heading
+
+        self.heading = heading
+
         self.items = items if items is not None else []
 
     @property
@@ -71,6 +82,10 @@ class AnsibleInventoryGroup(AnsibleInventorySection):
     """
     Class that represents a group section in an Ansible inventory script
     """
+
+    def __init__(self, heading, items=None):
+        super(AnsibleInventoryGroup, self).__init__(heading, items)
+        self.items = [AnsibleInventory.as_host(item) for item in self.items]
 
     @staticmethod
     def treat(line):
@@ -108,8 +123,17 @@ class AnsibleInventory(object):
     # Empty line or whitespace or starts with #
     ignore_lines = re.compile("^\s+$|^#")
 
+    @staticmethod
+    def as_host(val):
+        try:
+            val.to_string()
+            return val
+        except AttributeError:
+            return AnsibleInventoryHost.from_string(val)
+
     def __init__(self, global_hosts,  sections=None):
-        self.global_hosts = global_hosts
+        self.global_hosts = [AnsibleInventory.as_host(h)
+                             for h in global_hosts]
         self.sections = sections if sections is not None else []
 
     @staticmethod
@@ -177,3 +201,14 @@ class AnsibleInventory(object):
     def to_file(self, path):
         with open(path, "wb") as fh:
             fh.write(self.to_string())
+
+    @contextmanager
+    def to_tempfile(self):
+        _, path = tempfile.mkstemp()
+
+        with open(path, "wb") as fh:
+            fh.write(self.to_string())
+
+        yield path
+
+        os.remove(path)
