@@ -149,9 +149,10 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         profile, secret_key = self._get_profile(self.cluster['profile'])
 
         cumulus.ansible.tasks.cluster.run_ansible \
-            .delay(self.DEFAULT_PLAYBOOK, self.cluster, profile, secret_key,
-                   {"cluster_state": "running"},
-                   girder_token, log_write_url, "launched")
+            .delay(self.cluster.get('playbook', self.DEFAULT_PLAYBOOK),
+                   self.cluster, profile, secret_key,
+                   {"cluster_state": "running"}, girder_token, log_write_url,
+                   "launched")
 
         return self.cluster
 
@@ -170,6 +171,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
                    girder_token, log_write_url, "terminated")
 
     def provision(self, **kwargs):
+        # status must be >= launched.
         self.update_status(ClusterStatus.provisioning)
 
         base_url = getApiUrl()
