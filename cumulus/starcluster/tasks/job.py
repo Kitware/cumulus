@@ -61,6 +61,7 @@ def _put_script(conn, script_commands):
 
     return cmd
 
+
 def job_directory(cluster, job, user_home='.'):
     """
     Returns the job directory for a given job.
