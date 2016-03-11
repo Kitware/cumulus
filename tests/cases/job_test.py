@@ -177,7 +177,8 @@ class JobTestCase(unittest.TestCase):
             'name': 'dummy',
             'output': [{
                 'itemId': 'dummy'
-            }]
+            }],
+            'dir': '/home/test/%s' % job_id
         }
 
         MockMaster.execute_stack = ['qstat output']
@@ -214,7 +215,7 @@ class JobTestCase(unittest.TestCase):
 
         self.assertTrue(self._get_status_called, 'Expect get status endpoint to be hit')
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
-        expected_calls = [[[{u'config': {u'_id': u'dummy', u'scheduler': {u'type': u'sge'}}, u'name': u'dummy', u'type': u'ec2', u'_id': u'dummy'}, {u'status': u'uploading', u'output': [{u'itemId': u'dummy'}], u'_id': u'dummy', u'queueJobId': u'dummy', u'name': u'dummy'}], {u'girder_token': u's', u'log_write_url': 1, u'job_dir': u'./dummy'}]]
+        expected_calls = [[[{u'config': {u'_id': u'dummy', u'scheduler': {u'type': u'sge'}}, u'name': u'dummy', u'type': u'ec2', u'_id': u'dummy'}, {u'status': u'uploading', u'output': [{u'itemId': u'dummy'}], u'_id': u'dummy', u'queueJobId': u'dummy', u'name': u'dummy', u'dir': u'/home/test/dummy'}], {u'girder_token': u's', u'log_write_url': 1, u'job_dir': u'/home/test/dummy'}]]
         self.assertCalls(self._upload_job_output.call_args_list, expected_calls)
 
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
@@ -366,7 +367,8 @@ class JobTestCase(unittest.TestCase):
             '_id': job_id,
             'queueJobId': '1',
             'name': 'dummy',
-            'output': [{'tail': True,  'path': 'dummy/file/path'}]
+            'output': [{'tail': True,  'path': 'dummy/file/path'}],
+            'dir': '/home/test'
         }
 
         conn = get_connection.return_value.__enter__.return_value
@@ -454,7 +456,7 @@ class JobTestCase(unittest.TestCase):
         qsub_output = ['Your job 74 ("test.sh") has been submitted']
 
         conn = get_connection.return_value.__enter__.return_value
-        conn.execute.side_effect = [qconf_output, qsub_output]
+        conn.execute.side_effect = [['/home/test'], qconf_output, qsub_output]
 
         def _get_status(url, request):
             content = {
@@ -492,7 +494,7 @@ class JobTestCase(unittest.TestCase):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
 
-        self.assertEqual(conn.execute.call_args_list[0],
+        self.assertEqual(conn.execute.call_args_list[1],
                          mock.call('qconf -sp orte'), 'Unexpected qconf command: %s' %
                          str(MockMaster.instance.ssh.execute.call_args_list[0]))
 
@@ -521,12 +523,12 @@ class JobTestCase(unittest.TestCase):
                         'accounting_summary FALSE']
 
         conn.reset_mock()
-        conn.execute.side_effect = [qconf_output, qsub_output]
+        conn.execute.side_effect = [['/home/test'], qconf_output, qsub_output]
 
         with httmock.HTTMock(get_status, set_status):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
-        self.assertEqual(conn.execute.call_args_list[0],
+        self.assertEqual(conn.execute.call_args_list[1],
                          mock.call('qconf -sp mype'), 'Unexpected qconf command: %s' %
                          str(conn.execute.call_args_list[0]))
 
@@ -556,7 +558,7 @@ class JobTestCase(unittest.TestCase):
         }
 
         conn.reset_mock()
-        conn.execute.side_effect = [['Your job 74 ("test.sh") has been submitted']]
+        conn.execute.side_effect = [['/home/test'], ['Your job 74 ("test.sh") has been submitted']]
 
         with httmock.HTTMock(get_status, set_status):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
@@ -594,13 +596,13 @@ class JobTestCase(unittest.TestCase):
         }
 
         conn.reset_mock()
-        conn.execute.side_effect = [qconf_output, ['Your job 74 ("test.sh") has been submitted']]
+        conn.execute.side_effect = [['/home/test'], qconf_output, ['Your job 74 ("test.sh") has been submitted']]
 
         with httmock.HTTMock(get_status, set_status):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
 
-        self.assertEqual(conn.execute.call_args_list[0], mock.call('qconf -sp mype'))
+        self.assertEqual(conn.execute.call_args_list[1], mock.call('qconf -sp mype'))
         self.assertEqual(job_model['params']['numberOfSlots'], 10)
 
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
