@@ -60,7 +60,7 @@ def _put_script(conn, script_commands):
 
     return cmd
 
-def job_dir(cluster, job):
+def job_directory(cluster, job, user_home='.'):
     """
     Returns the job directory for a given job.
 
@@ -78,7 +78,7 @@ def job_dir(cluster, job):
         if output_root:
             output_root = output_root[0].value
         else:
-            output_root = '.'
+            output_root = user_home
 
     return os.path.join(output_root, job['_id'])
 
@@ -103,7 +103,7 @@ def download_job_input_items(cluster, job, log_write_url=None,
             download_cmd = 'python girderclient.py --token %s --url "%s" ' \
                            'download --dir %s  --job %s' \
                 % (girder_token, cumulus.config.girder.baseUrl,
-                   job_dir(cluster, job), job_id)
+                   job_directory(cluster, job), job_id)
 
             download_output = '%s.download.out' % job_id
             download_cmd = 'nohup %s  &> %s  &\n' % (download_cmd,
@@ -141,7 +141,7 @@ def download_job_input_items(cluster, job, log_write_url=None,
 
 def download_job_input_folders(cluster, job, log_write_url=None,
                                girder_token=None, submit=True):
-    job_dir = job_dir(cluster, job)
+    job_dir = job_directory(cluster, job)
 
     with get_connection(girder_token, cluster) as conn:
         for input in job['input']:
@@ -163,7 +163,7 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
 
     # Create job directory
     with get_connection(girder_token, cluster) as conn:
-        conn.mkdir(job_dir(cluster, job))
+        conn.mkdir(job_directory(cluster, job))
 
     log.info('Downloading input for "%s"' % job['name'])
 
@@ -248,7 +248,12 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
                 if 'params' in job:
                     job_params = job['params']
 
-                job_dir = job_dir(cluster, job)
+                output = conn.execute('pwd')
+                if len(output) != 1:
+                    raise Exception('Unable to fetch users home directory.')
+
+                user_home = output[0]
+                job_dir = job_directory(cluster, job, user_home=user_home)
                 job['dir'] = job_dir
 
                 slots = -1
@@ -283,7 +288,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
             patch_data = {
                 'status': JobState.QUEUED,
                 AbstractQueueAdapter.QUEUE_JOB_ID: queue_job_id,
-                'dir': job_id
+                'dir': job_dir
             }
 
             r = requests.patch(status_url, headers=headers, json=patch_data)

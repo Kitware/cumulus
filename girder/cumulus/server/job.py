@@ -248,6 +248,9 @@ class Job(BaseResource):
             else:
                 job['timings'] = body['timings']
 
+        if 'dir' in body:
+            job['dir'] = body['dir']
+
         job = self._model.update_job(user, job)
 
         # Don't return the access object
