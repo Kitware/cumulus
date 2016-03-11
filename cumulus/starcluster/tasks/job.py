@@ -599,7 +599,8 @@ def from_string(s, **kwargs):
     return state
 
 
-def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None):
+def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None,
+                  monitor_interval=5):
     headers = {'Girder-Token':  girder_token}
 
     cluster_url = '%s/clusters/%s' % (
@@ -652,7 +653,7 @@ def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None):
 
                 # Do we have any job still in a running state?
                 if new_states & running_states:
-                    task.retry(countdown=5)
+                    task.retry(countdown=monitor_interval)
             except EOFError:
                 # Try again
                 task.retry(countdown=5)
@@ -679,13 +680,17 @@ def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None):
 
 
 @monitor.task(bind=True, max_retries=None, throws=(Retry,))
-def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
-    _monitor_jobs(task, cluster, [job], log_write_url, girder_token)
+def monitor_job(task, cluster, job, log_write_url=None, girder_token=None,
+                monitor_interval=5):
+    _monitor_jobs(task, cluster, [job], log_write_url, girder_token,
+                  monitor_interval=monitor_interval)
 
 
 @monitor.task(bind=True, max_retries=None, throws=(Retry,))
-def monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None):
-    _monitor_jobs(task, cluster, jobs, log_write_url, girder_token)
+def monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None,
+                 monitor_interval=5):
+    _monitor_jobs(task, cluster, jobs, log_write_url, girder_token,
+                  monitor_interval=monitor_interval)
 
 
 def upload_job_output_to_item(cluster, job, log_write_url=None, job_dir=None,
