@@ -59,7 +59,9 @@ def get_instance_vars(instance):
     inventory output. instance is a boto.ec2.instance.
     """
     return {
-        'private_ip_address': instance.private_ip_address
+        'private_ip': instance.private_ip_address,
+        'ansible_ssh_user': os.environ.get('CLUSTER_USER'),
+        'ansible_ssh_private_key_file': os.environ.get('PRIVATE_KEY_FILE', '')
     }
 
 
@@ -126,7 +128,7 @@ def get_regions():
 
 if __name__ == '__main__':
     REQUIRED_ENV_VARS = ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY',
-                         'CLUSTER_ID',)
+                         'CLUSTER_ID', 'CLUSTER_USER',)
 
     for required_env_var in REQUIRED_ENV_VARS:
         if os.environ.get(required_env_var, '') == '':
