@@ -36,6 +36,8 @@ def run_playbook(playbook, inventory, extra_vars=None,
     for line in iter(p.stdout.readline, b''):
         logger.info(line)
 
+    return p.wait()
+
 
 def get_playbook_variables(cluster, profile, extra_vars):
     # Default variables all playbooks will need
@@ -78,6 +80,15 @@ def check_girder_cluster_status(cluster, girder_token, post_status):
         check_status(r)
 
 
+def check_ansible_return_code(returncode, cluster, girder_token):
+    if returncode != 0:
+        check_status(requests.patch('%s/clusters/%s' %
+                                    (cumulus.config.girder.baseUrl,
+                                     cluster['_id']),
+                                    headers={'Girder-Token': girder_token},
+                                    json={'status': 'error'}))
+
+
 @command.task
 def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
                       girder_token, log_write_url, post_status):
@@ -89,13 +100,17 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
                 "AWS_SECRET_ACCESS_KEY": secret_key,
                 "GIRDER_TOKEN": girder_token,
                 "LOG_WRITE_URL": log_write_url,
-                "CLUSTER_ID": cluster["_id"]})
+                "CLUSTER_ID": cluster["_id"],
+                "CLUSTER_USER": cluster['cluster_config']['user'],
+                "ANSIBLE_HOST_KEY_CHECKING": 'false',
+                "PRIVATE_KEY_FILE": _key_path(profile)})
 
     inventory = os.path.join(os.path.dirname(__file__), 'dynamic-inventory')
 
-    run_playbook(playbook, inventory, playbook_variables,
-                 env=env, verbose=3)
+    ansible = run_playbook(playbook, inventory, playbook_variables,
+                           env=env, verbose=3)
 
+    check_ansible_return_code(ansible, cluster, girder_token)
     check_girder_cluster_status(cluster, girder_token, post_status)
 
 
@@ -110,12 +125,14 @@ def run_ansible(playbook, cluster, profile, secret_key, extra_vars,
                 "AWS_SECRET_ACCESS_KEY": secret_key,
                 "GIRDER_TOKEN": girder_token,
                 "LOG_WRITE_URL": log_write_url,
-                "CLUSTER_ID": cluster["_id"]})
+                "CLUSTER_ID": cluster["_id"],
+                "CLUSTER_USER": cluster['cluster_config']['user']})
 
     inventory = AnsibleInventory(["localhost"])
 
     with inventory.to_tempfile() as inventory_path:
-        run_playbook(playbook, inventory_path, playbook_variables,
-                     env=env, verbose=3)
+        ansible = run_playbook(playbook, inventory_path, playbook_variables,
+                               env=env, verbose=3)
 
+    check_ansible_return_code(ansible, cluster, girder_token)
     check_girder_cluster_status(cluster, girder_token, post_status)
