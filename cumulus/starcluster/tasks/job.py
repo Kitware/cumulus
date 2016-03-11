@@ -45,6 +45,7 @@ import time
 import uuid
 from StringIO import StringIO
 from celery import signature
+from celery.exceptions import Retry
 from jinja2 import Environment, Template, PackageLoader
 from jsonpath_rw import parse
 import tempfile
@@ -660,7 +661,9 @@ def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None):
                 # Try again
                 task.retry(countdown=5)
                 return
-
+    # Ensure that the Retry exception will get through
+    except Retry:
+        raise
     except starcluster.exception.RemoteCommandFailed as ex:
         r = requests.patch(cluster_url, headers=headers,
                            json={'status': 'error'})
@@ -675,12 +678,12 @@ def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None):
         raise
 
 
-@monitor.task(bind=True, max_retries=None)
+@monitor.task(bind=True, max_retries=None, throws=(Retry,))
 def monitor_job(task, cluster, job, log_write_url=None, girder_token=None):
     _monitor_jobs(task, cluster, [job], log_write_url, girder_token)
 
 
-@monitor.task(bind=True, max_retries=None)
+@monitor.task(bind=True, max_retries=None, throws=(Retry,))
 def monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None):
     _monitor_jobs(task, cluster, jobs, log_write_url, girder_token)
 
