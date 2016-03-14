@@ -361,6 +361,16 @@ class Cluster(BaseResource):
 
     @access.user
     def provision(self, id, params):
+        user = self.getCurrentUser()
+        cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+
+        if not cluster:
+            raise RestException('Cluster not found.', code=404)
+        elif cluster['status'] not in (ClusterStatus.launched,
+                                       ClusterStatus.provisioned,
+                                       ClusterStatus.running):
+            raise RestException('Cluster can not be provisioned.', code=400)
+
         return self._launch_or_provision("provision", id, params)
 
     provision.description = (Description(
