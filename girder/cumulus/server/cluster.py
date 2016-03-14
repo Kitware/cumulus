@@ -564,7 +564,7 @@ class Cluster(BaseResource):
             raise RestException('Cluster not found.', code=404)
 
         def streamGen():
-            lastLogSeen = 0
+            lastLogSeen = len(self._model.log_records(user, id))
             start = time.time()
             wait = MIN_POLL_INTERVAL
 
