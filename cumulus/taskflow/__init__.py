@@ -19,6 +19,8 @@
 from __future__ import absolute_import
 import logging
 import importlib
+import traceback
+import types
 
 from functools import wraps
 import json
@@ -151,6 +153,14 @@ def to_taskflow(taskflow):
 
     return taskflow
 
+class LogRecordEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, type):
+            return obj.__name__
+        elif isinstance(obj, types.TracebackType):
+            return traceback.format_tb(obj)[0]
+        else:
+            return str(obj)
 
 class TaskFlowLogHandler(logging.Handler):
 
@@ -160,7 +170,7 @@ class TaskFlowLogHandler(logging.Handler):
         self._headers = {'Girder-Token':  girder_token}
 
     def emit(self, record):
-        json_str = json.dumps(record.__dict__, default=str)
+        json_str = json.dumps(record.__dict__, cls=LogRecordEncoder)
         r = requests.post(self._url, headers=self._headers, data=json_str)
         r.raise_for_status()
 
