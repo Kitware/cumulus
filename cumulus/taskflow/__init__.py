@@ -236,9 +236,9 @@ class TaskFlow(dict):
     def run(self):
         self.start()
 
-    def set(self, key, value):
+    def set_metadata(self, key, value):
         """
-        Set a value on the taskflow. This can be used to save results or other
+        Set metadata on the taskflow. This can be used to save results or other
         output.
 
         :params key: The value key.
@@ -253,6 +253,24 @@ class TaskFlow(dict):
             'meta.%s' % key: value
         }
         client.patch(url, data=json.dumps(body))
+
+    def get_metadata(self, key):
+        """
+        Get metadata from the taskflow.
+
+        :params key: The value key.
+        """
+        girder_token = self['girder_token']
+        girder_api_url = self['girder_api_url']
+
+        client = _create_girder_client(girder_api_url, girder_token)
+        url = 'taskflows/%s' % self.id
+        params = {
+           'path': 'meta.%s' % key
+        }
+        r = client.get(url, parameters=params)
+
+        return r['meta']
 
     class _on_complete_instance(object):
         """
