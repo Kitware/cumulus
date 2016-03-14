@@ -51,6 +51,9 @@ _routes = {
     'cumulus.starcluster.tasks.job.monitor_job': {
         'queue': 'monitor'
     },
+    'cumulus.starcluster.tasks.job.monitor_jobs': {
+        'queue': 'monitor'
+    },
     'cumulus.starcluster.tasks.job.monitor_process': {
         'queue': 'monitor'
     },

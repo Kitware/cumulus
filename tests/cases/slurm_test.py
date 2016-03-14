@@ -55,20 +55,27 @@ class SlurmQueueAdapterTestCase(unittest.TestCase):
         self.assertIsNotNone(cm.exception)
 
 
-    def test_job_status(self):
-        job_id = '1126'
-        job = {
-            AbstractQueueAdapter.QUEUE_JOB_ID: job_id
+    def test_job_statuses(self):
+        job1_id = '1126'
+        job1 = {
+            AbstractQueueAdapter.QUEUE_JOB_ID: job1_id
         }
+        job2_id = '1127'
+        job2 = {
+            AbstractQueueAdapter.QUEUE_JOB_ID: job2_id
+        }
+
         job_status_output = [
               'JOBID PARTITION     NAME     USER  ST       TIME  NODES NODELIST(REASON)',
-              '%s general-c      hello_te cdc   R       0:14      2 f16n[10-11]' % job_id
+              '%s general-c      hello_te cdc   R       0:14      2 f16n[10-11]' % job1_id,
+              '%s general-c      hello_te cdc   F       0:14      2 f16n[10-11]' % job2_id
         ]
-        expected_calls = [mock.call('squeue -j %s' % job_id)]
+        expected_calls = [mock.call('squeue -j %s,%s' % (job1_id, job2_id))]
         self._cluster_connection.execute.return_value = job_status_output
-        status = self._adapter.job_status(job)
+        status = self._adapter.job_statuses([job1, job2])
         self.assertEqual(self._cluster_connection.execute.call_args_list, expected_calls)
-        self.assertEqual(status, 'running')
+        self.assertEqual(status[0][1], 'running')
+        self.assertEqual(status[1][1], 'error')
 
     def test_submission_template(self):
         cluster = {

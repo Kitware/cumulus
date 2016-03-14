@@ -19,6 +19,8 @@
 from __future__ import absolute_import
 import logging
 import importlib
+import traceback
+import types
 
 from functools import wraps
 import json
@@ -152,6 +154,16 @@ def to_taskflow(taskflow):
     return taskflow
 
 
+class LogRecordEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, type):
+            return obj.__name__
+        elif isinstance(obj, types.TracebackType):
+            return traceback.format_tb(obj)[0]
+        else:
+            return str(obj)
+
+
 class TaskFlowLogHandler(logging.Handler):
 
     def __init__(self, girder_token, url):
@@ -160,7 +172,7 @@ class TaskFlowLogHandler(logging.Handler):
         self._headers = {'Girder-Token':  girder_token}
 
     def emit(self, record):
-        json_str = json.dumps(record.__dict__, default=str)
+        json_str = json.dumps(record.__dict__, cls=LogRecordEncoder)
         r = requests.post(self._url, headers=self._headers, data=json_str)
         r.raise_for_status()
 
@@ -226,9 +238,9 @@ class TaskFlow(dict):
     def run(self):
         self.start()
 
-    def set(self, key, value):
+    def set_metadata(self, key, value):
         """
-        Set a value on the taskflow. This can be used to save results or other
+        Set metadata on the taskflow. This can be used to save results or other
         output.
 
         :params key: The value key.
@@ -243,6 +255,24 @@ class TaskFlow(dict):
             'meta.%s' % key: value
         }
         client.patch(url, data=json.dumps(body))
+
+    def get_metadata(self, key):
+        """
+        Get metadata from the taskflow.
+
+        :params key: The value key.
+        """
+        girder_token = self['girder_token']
+        girder_api_url = self['girder_api_url']
+
+        client = _create_girder_client(girder_api_url, girder_token)
+        url = 'taskflows/%s' % self.id
+        params = {
+            'path': 'meta.%s' % key
+        }
+        r = client.get(url, parameters=params)
+
+        return r['meta']
 
     class _on_complete_instance(object):
         """

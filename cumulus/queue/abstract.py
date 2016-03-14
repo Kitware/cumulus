@@ -31,5 +31,5 @@ class AbstractQueueAdapter(object):
     def terminate_job(self, job):
         raise NotImplementedError('Subclasses should implement this')
 
-    def job_status(self, job):
+    def job_statuses(self, jobs):
         raise NotImplementedError('Subclasses should implement this')

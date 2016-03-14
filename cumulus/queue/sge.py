@@ -55,21 +55,25 @@ class SgeQueueAdapter(AbstractQueueAdapter):
 
         return self._parse_job_id(output)
 
-    def job_status(self, job):
+    def job_statuses(self, jobs):
         output = self._cluster_connection.execute('qstat')
 
-        state = None
-        sge_state = self._extract_job_status(output, job)
+        states = []
+        for job in jobs:
+            state = None
+            sge_state = self._extract_job_status(output, job)
 
-        if sge_state:
-            if sge_state in SgeQueueAdapter.RUNNING_STATE:
-                state = JobQueueState.RUNNING
-            elif sge_state in SgeQueueAdapter.ERROR_STATE:
-                state = JobQueueState.ERROR
-            elif sge_state in SgeQueueAdapter.QUEUED_STATE:
-                state = JobQueueState.QUEUED
+            if sge_state:
+                if sge_state in SgeQueueAdapter.RUNNING_STATE:
+                    state = JobQueueState.RUNNING
+                elif sge_state in SgeQueueAdapter.ERROR_STATE:
+                    state = JobQueueState.ERROR
+                elif sge_state in SgeQueueAdapter.QUEUED_STATE:
+                    state = JobQueueState.QUEUED
 
-        return state
+            states.append((job, state))
+
+        return states
 
     def _extract_job_status(self, job_status_output, job):
         state = None

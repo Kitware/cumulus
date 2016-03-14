@@ -74,21 +74,35 @@ class SgeQueueAdapterTestCase(unittest.TestCase):
         self.assertIsNotNone(cm.exception)
 
 
-    def test_job_status(self):
-        job_id = '1126'
-        job = {
-            AbstractQueueAdapter.QUEUE_JOB_ID: job_id
+    def test_job_statuses(self):
+        job1_id = '1126'
+        job1 = {
+            AbstractQueueAdapter.QUEUE_JOB_ID: job1_id
+        }
+        job2_id = '1127'
+        job2 = {
+            AbstractQueueAdapter.QUEUE_JOB_ID: job2_id
         }
         job_status_output = [
             'job-ID  prior   name       user         state submit/start at     queue                          slots ja-task-ID',
             '-----------------------------------------------------------------------------------------------------------------',
-            '1126 0.50000 test.sh    cjh          r     11/18/2015 13:18:09 main.q@ulmus.kitware.com           1'
+            '%s 0.50000 test.sh    cjh          r     11/18/2015 13:18:09 main.q@ulmus.kitware.com           1' % job1_id,
+            '%s 0.50000 test.sh    cjh          q     11/18/2015 13:18:09 main.q@ulmus.kitware.com           1' % job2_id
         ]
         expected_calls = [mock.call('qstat')]
         self._cluster_connection.execute.return_value = job_status_output
-        status = self._adapter.job_status(job)
+        status = self._adapter.job_statuses([job1])
         self.assertEqual(self._cluster_connection.execute.call_args_list, expected_calls)
-        self.assertEqual(status, 'running')
+        self.assertEqual(status[0][1], 'running')
+
+        # Now try two jobs
+        self._cluster_connection.reset_mock()
+        expected_calls = [mock.call('qstat')]
+        self._cluster_connection.execute.return_value = job_status_output
+        status = self._adapter.job_statuses([job1, job2])
+        self.assertEqual(self._cluster_connection.execute.call_args_list, expected_calls)
+        self.assertEqual(status[0][1], 'running')
+        self.assertEqual(status[1][1], 'queued')
 
     def test_unsupported(self):
         with self.assertRaises(Exception) as cm:
