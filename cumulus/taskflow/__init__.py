@@ -153,6 +153,7 @@ def to_taskflow(taskflow):
 
     return taskflow
 
+
 class LogRecordEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, type):
@@ -161,6 +162,7 @@ class LogRecordEncoder(json.JSONEncoder):
             return traceback.format_tb(obj)[0]
         else:
             return str(obj)
+
 
 class TaskFlowLogHandler(logging.Handler):
 
@@ -266,7 +268,7 @@ class TaskFlow(dict):
         client = _create_girder_client(girder_api_url, girder_token)
         url = 'taskflows/%s' % self.id
         params = {
-           'path': 'meta.%s' % key
+            'path': 'meta.%s' % key
         }
         r = client.get(url, parameters=params)
 
