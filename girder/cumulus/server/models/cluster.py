@@ -207,9 +207,25 @@ class Cluster(BaseModel):
         return self._create(user, cluster)
 
     def add_log_record(self, user, id, record):
+        def mongo_safe_value(value):
+            new_value = {}
+
+            if not isinstance(value, dict):
+                return value
+            else:
+                for (k, v) in value.iteritems():
+                    if '.' in str(k) or '$' in str(k):
+                        k = k.replace('.', '_').replace('$', '_')
+
+                    new_value[k] = mongo_safe_value(v)
+
+            return new_value
         # Load first to force access check
         self.load(id, user=user, level=AccessType.WRITE)
-        self.update({'_id': ObjectId(id)}, {'$push': {'log': record}})
+        self.update({'_id': ObjectId(id)},
+                    {'$push': {
+                        'log': mongo_safe_value(record)
+                    }})
 
     def update_status(self, cluster, status, user=None):
         if user is None:
