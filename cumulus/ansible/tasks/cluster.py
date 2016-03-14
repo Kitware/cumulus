@@ -16,6 +16,12 @@ def get_playbook_path(name):
                         "playbooks/" + name + ".yml")
 
 
+def get_callback_plugins_path():
+    return os.path.join(os.path.dirname(__file__),
+                        'playbooks',
+                        'callback_plugins')
+
+
 def run_playbook(playbook, inventory, extra_vars=None,
                  verbose=None, env=None):
 
@@ -92,6 +98,8 @@ def check_ansible_return_code(returncode, cluster, girder_token):
 @command.task
 def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
                       girder_token, log_write_url, post_status):
+    from cumulus.ssh.tasks.key import _key_path
+
     playbook = get_playbook_path(playbook)
     playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
 
@@ -103,6 +111,7 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
                 "CLUSTER_ID": cluster["_id"],
                 "CLUSTER_USER": cluster['cluster_config']['user'],
                 "ANSIBLE_HOST_KEY_CHECKING": 'false',
+                'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path(),
                 "PRIVATE_KEY_FILE": _key_path(profile)})
 
     inventory = os.path.join(os.path.dirname(__file__), 'dynamic-inventory')
