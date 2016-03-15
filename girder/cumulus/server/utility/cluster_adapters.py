@@ -195,8 +195,18 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         if self.cluster['status'] == 'running':
             raise RestException('Cluster already running.', code=400)
 
-        self.launch(request_body)
-        self.provision(request_body)
+        self.update_status(ClusterStatus.launching)
+
+        base_url = getApiUrl()
+        log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
+        girder_token = get_task_token()['_id']
+        profile, secret_key = self._get_profile(self.cluster['profile'])
+
+        cumulus.ansible.tasks.cluster.start_cluster \
+            .delay(self.cluster.get('playbook', self.DEFAULT_PLAYBOOK),
+                   request_body['playbook'],  # provision playbook
+                   self.cluster, profile, secret_key,
+                   {"cluster_state": "running"}, girder_token, log_write_url)
 
     def update(self, request_body):
         """

@@ -124,6 +124,19 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
 
 
 @command.task
+def start_cluster(launch_playbook, provision_playbook, cluster, profile,
+                  secret_key, extra_vars, girder_token, log_write_url):
+    run_ansible(launch_playbook, cluster, profile, secret_key, extra_vars,
+                girder_token, log_write_url, 'launched')
+
+    # todo cluster statuses should be updated in celery tasks?
+    check_girder_cluster_status(cluster, girder_token, 'provisioning')
+
+    provision_cluster(provision_playbook, cluster, profile, secret_key,
+                      extra_vars, girder_token, log_write_url, 'provisioned')
+
+
+@command.task
 def run_ansible(playbook, cluster, profile, secret_key, extra_vars,
                 girder_token, log_write_url, post_status):
     playbook = get_playbook_path(playbook)
