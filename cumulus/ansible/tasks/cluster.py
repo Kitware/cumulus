@@ -7,6 +7,7 @@ import os
 import json
 import subprocess
 from celery.utils.log import get_task_logger
+import select
 
 logger = get_task_logger(__name__)
 
@@ -31,10 +32,21 @@ def run_playbook(playbook, inventory, extra_vars=None,
 
     cmd.append(playbook)
 
-    p = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE)
+    p = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
 
-    for line in iter(p.stdout.readline, b''):
-        logger.info(line)
+    while True:
+        reads = [p.stdout.fileno(), p.stderr.fileno()]
+        ret = select.select(reads, [], [])
+
+        for fd in ret[0]:
+            if fd == p.stdout.fileno():
+                logger.info(p.stdout.readline())
+            if fd == p.stderr.fileno():
+                logger.error(p.stderr.readline())
+
+        if p.poll() is not None:
+            break
 
 
 @command.task
