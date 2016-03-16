@@ -14,8 +14,8 @@ WARNING = 'warning'
 
 class CallbackModule(object):
 
-    """
-    """
+    '''
+    '''
 
     def __init__(self):
         self.current_task = None
@@ -23,7 +23,7 @@ class CallbackModule(object):
 
     @property
     def cluster_id(self):
-        return os.environ.get("CLUSTER_ID")
+        return os.environ.get('CLUSTER_ID')
 
     @property
     def girder_token(self):
@@ -31,17 +31,17 @@ class CallbackModule(object):
 
     @property
     def log_write_url(self):
-        return os.environ.get("LOG_WRITE_URL")
+        return os.environ.get('LOG_WRITE_URL')
 
     def log(self, status, message, type='task', data=None):
         if self.log_write_url is not None and \
            self.girder_token is not None:
             logged_at = dt.datetime.now().isoformat()
-            msg = {"status": status,
-                   "created": logged_at,
-                   "type": type,
-                   "message": message,
-                   "data": data}
+            msg = {'status': status,
+                   'created': logged_at,
+                   'type': type,
+                   'message': message,
+                   'data': data}
 
             r = requests.post(self.log_write_url,
                               json=msg,
@@ -61,7 +61,7 @@ class CallbackModule(object):
             res2['module_name'] = res2['invocation']['module_name']
             res2.pop('invocation', None)
         except AttributeError:
-            res2 = {"error": res}
+            res2 = {'error': res}
 
         return res2
 
@@ -77,7 +77,7 @@ class CallbackModule(object):
                                              self.cluster_id)
             headers = {'Girder-Token':  self.girder_token}
             updates = {
-                "status": "error"
+                'status': 'error'
             }
 
             r = requests.patch(status_url, headers=headers, json=updates)
