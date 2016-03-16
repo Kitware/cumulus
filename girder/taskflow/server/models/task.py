@@ -16,6 +16,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ###############################################################################
+import datetime
 
 from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
@@ -28,7 +29,7 @@ class Task(AccessControlledModel):
         self.name = 'tasks'
         self.ensureIndices(['taskFlowId', 'celeryTaskId'])
         self.exposeFields(level=AccessType.READ, fields=(
-            '_id', 'taskFlowId', 'status', 'log', 'name'))
+            '_id', 'taskFlowId', 'status', 'log', 'name', 'created'))
 
 
     def validate(self, doc):
@@ -46,6 +47,8 @@ class Task(AccessControlledModel):
         task['taskFlowId'] = taskflow['_id']
         task['status'] = 'created'
         task['log'] = []
+        now = datetime.datetime.utcnow()
+        task['created'] = now
 
         model = self.model('taskflow', 'taskflow')
 
