@@ -28,6 +28,7 @@ from jsonpath_rw import parse
 from base_integration_test import BaseIntegrationTest
 from girder_client import HttpError
 
+
 class AnsibleIntegrationTest(BaseIntegrationTest):
 
     def __init__(self, name, girder_url, girder_user, girder_password, aws_access_key_id,
@@ -78,11 +79,11 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
 
         profile_url = 'user/%s/aws/profiles' % user['_id']
         body = {
-            "accessKeyId": self._aws_access_key_id,
-            "availabilityZone": "us-west-2a",
-            "name": "testTest",
-            "regionName": "us-west-2",
-            "secretAccessKey": self._aws_secret_access_key
+            'accessKeyId': self._aws_access_key_id,
+            'availabilityZone': 'us-west-2a',
+            'name': 'testTest',
+            'regionName': 'us-west-2',
+            'secretAccessKey': self._aws_secret_access_key
         }
 
         r = self._client.post(profile_url, data=json.dumps(body))
@@ -95,17 +96,19 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
 
     def create_cluster(self):
         body = {
-            "cluster_config": {
-                "master_instance_type": "t2.nano",
-                "master_instance_ami": "ami-03de3c63",
-                "node_instance_count": 2,
-                "node_instance_type": "t2.nano",
-                "node_instance_ami": "ami-03de3c63",
-                "terminate_wait_timeout": 240
+            'cluster_config': {
+                'master_instance_type': 't2.nano',
+                'master_instance_ami': 'ami-03de3c63',
+                'node_instance_count': 2,
+                'node_instance_type': 't2.nano',
+                'node_instance_ami': 'ami-03de3c63',
+                'ansible_ssh_user': 'ubuntu',
+                'terminate_wait_timeout': 240
             },
             'profile': self._profile_id,
             'name': 'AnsibleIntegrationTest',
-            'type': 'ansible'
+            'type': 'ansible',
+            'playbook': 'sge'
         }
 
         r = self._client.post('clusters', data=json.dumps(body))
@@ -117,6 +120,15 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
 
         status_url = 'clusters/%s/status' % self._cluster_id
         self._wait_for_status(status_url, 'launched', timeout=300)
+
+    def provision_cluster(self):
+        cluster_url = 'clusters/%s/provision' % self._cluster_id
+        self._client.put(cluster_url, data=json.dumps({
+            'playbook': 'gridengine/site'
+        }))
+
+        status_url = 'clusters/%s/status' % self._cluster_id
+        self._wait_for_status(status_url, 'provisioned', timeout=600)
 
     def terminate_cluster(self):
         cluster_url = 'clusters/%s/terminate' % self._cluster_id
@@ -131,6 +143,7 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
             self.create_profile()
             self.create_cluster()
             self.launch_cluster()
+            self.provision_cluster()
             self.terminate_cluster()
         except HttpError as error:
             self.fail(error.responseText)
@@ -144,6 +157,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     suite = unittest.TestSuite()
-    suite.addTest(AnsibleIntegrationTest("test", args.girder_url, args.girder_user,
+    suite.addTest(AnsibleIntegrationTest('test', args.girder_url, args.girder_user,
         args.girder_password, args.aws_access_key_id, args.aws_secret_access_key))
     unittest.TextTestRunner().run(suite)
