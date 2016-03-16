@@ -177,7 +177,8 @@ class JobTestCase(unittest.TestCase):
             'name': 'dummy',
             'output': [{
                 'itemId': 'dummy'
-            }]
+            }],
+            'dir': '/home/test/%s' % job_id
         }
 
         MockMaster.execute_stack = ['qstat output']
@@ -214,7 +215,7 @@ class JobTestCase(unittest.TestCase):
 
         self.assertTrue(self._get_status_called, 'Expect get status endpoint to be hit')
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
-        expected_calls = [[[{u'config': {u'_id': u'dummy', u'scheduler': {u'type': u'sge'}}, u'name': u'dummy', u'type': u'ec2', u'_id': u'dummy'}, {u'status': u'uploading', u'output': [{u'itemId': u'dummy'}], u'_id': u'dummy', u'queueJobId': u'dummy', u'name': u'dummy'}], {u'girder_token': u's', u'log_write_url': 1, u'job_dir': u'./dummy'}]]
+        expected_calls = [[[{u'config': {u'_id': u'dummy', u'scheduler': {u'type': u'sge'}}, u'name': u'dummy', u'type': u'ec2', u'_id': u'dummy'}, {u'status': u'uploading', u'output': [{u'itemId': u'dummy'}], u'_id': u'dummy', u'queueJobId': u'dummy', u'name': u'dummy', u'dir': u'/home/test/dummy'}], {u'girder_token': u's', u'log_write_url': 1, u'job_dir': u'/home/test/dummy'}]]
         self.assertCalls(self._upload_job_output.call_args_list, expected_calls)
 
     @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
@@ -366,7 +367,8 @@ class JobTestCase(unittest.TestCase):
             '_id': job_id,
             'queueJobId': '1',
             'name': 'dummy',
-            'output': [{'tail': True,  'path': 'dummy/file/path'}]
+            'output': [{'tail': True,  'path': 'dummy/file/path'}],
+            'dir': '/home/test'
         }
 
         conn = get_connection.return_value.__enter__.return_value
@@ -454,7 +456,7 @@ class JobTestCase(unittest.TestCase):
         qsub_output = ['Your job 74 ("test.sh") has been submitted']
 
         conn = get_connection.return_value.__enter__.return_value
-        conn.execute.side_effect = [qconf_output, qsub_output]
+        conn.execute.side_effect = [['/home/test'], qconf_output, qsub_output]
 
         def _get_status(url, request):
             content = {
@@ -492,7 +494,7 @@ class JobTestCase(unittest.TestCase):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
 
-        self.assertEqual(conn.execute.call_args_list[0],
+        self.assertEqual(conn.execute.call_args_list[1],
                          mock.call('qconf -sp orte'), 'Unexpected qconf command: %s' %
                          str(MockMaster.instance.ssh.execute.call_args_list[0]))
 
@@ -521,12 +523,12 @@ class JobTestCase(unittest.TestCase):
                         'accounting_summary FALSE']
 
         conn.reset_mock()
-        conn.execute.side_effect = [qconf_output, qsub_output]
+        conn.execute.side_effect = [['/home/test'], qconf_output, qsub_output]
 
         with httmock.HTTMock(get_status, set_status):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
-        self.assertEqual(conn.execute.call_args_list[0],
+        self.assertEqual(conn.execute.call_args_list[1],
                          mock.call('qconf -sp mype'), 'Unexpected qconf command: %s' %
                          str(conn.execute.call_args_list[0]))
 
@@ -556,7 +558,7 @@ class JobTestCase(unittest.TestCase):
         }
 
         conn.reset_mock()
-        conn.execute.side_effect = [['Your job 74 ("test.sh") has been submitted']]
+        conn.execute.side_effect = [['/home/test'], ['Your job 74 ("test.sh") has been submitted']]
 
         with httmock.HTTMock(get_status, set_status):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
@@ -594,13 +596,192 @@ class JobTestCase(unittest.TestCase):
         }
 
         conn.reset_mock()
-        conn.execute.side_effect = [qconf_output, ['Your job 74 ("test.sh") has been submitted']]
+        conn.execute.side_effect = [['/home/test'], qconf_output, ['Your job 74 ("test.sh") has been submitted']]
 
         with httmock.HTTMock(get_status, set_status):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
 
-        self.assertEqual(conn.execute.call_args_list[0], mock.call('qconf -sp mype'))
+        self.assertEqual(conn.execute.call_args_list[1], mock.call('qconf -sp mype'))
         self.assertEqual(job_model['params']['numberOfSlots'], 10)
+
+    @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
+    @mock.patch('starcluster.logger')
+    @mock.patch('cumulus.starcluster.logging')
+    @mock.patch('cumulus.celery.monitor.Task.retry')
+    def test_monitor_jobs_queued_retry(self, retry, *args):
+
+        cluster = {
+            '_id': 'lost',
+            'type': 'ec2',
+            'name': 'dummy',
+            'config': {
+                '_id': 'dummy',
+                'scheduler': {
+                    'type': 'sge'
+                }
+            }
+        }
+        job1_id = 'dummy1'
+        job1_model = {
+            '_id': job1_id,
+            'queueJobId': '1',
+            'name': 'dummy',
+            'output': []
+        }
+        job2_id = 'dummy1'
+        job2_model = {
+            '_id': job2_id,
+            'queueJobId': '2',
+            'name': 'dummy',
+            'output': []
+        }
+
+
+        MockMaster.execute_stack = [[ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
+                             '-----------------------------------------------------------------------------------------',
+                             '1 0.00000 hostname   sgeadmin     q     09/09/2009 14:58:14                1',
+                             '2 0.00000 hostname   sgeadmin     q     09/09/2009 14:58:14                1']]
+
+        self._get_status_calls = {}
+        self._set_status_calls = {}
+
+        def _get_status(url, request):
+            content = {
+                'status': 'queued'
+            }
+            content = json.dumps(content)
+            headers = {
+                'content-length': len(content),
+                'content-type': 'application/json'
+            }
+            job_id = url.path.split('/')[-2]
+
+            self._get_status_calls[job_id]  = True
+            return httmock.response(200, content, headers, request=request)
+
+        def _set_status(url, request):
+            expected = {'status': 'queued', 'timings': {}, 'output': []}
+            job_id = url.path.split('/')[-1]
+            self._set_status_calls[job_id] = True
+            self._set_status_called = json.loads(request.body) == expected
+
+            return httmock.response(200, None, {}, request=request)
+
+        job1_status_url = '/api/v1/jobs/%s/status' % job1_id
+        job1_get_status = httmock.urlmatch(
+            path=r'^%s$' % job1_status_url, method='GET')(_get_status)
+
+        job1_status_update_url = '/api/v1/jobs/%s' % job1_id
+        job1_set_status = httmock.urlmatch(
+            path=r'^%s$' % job1_status_update_url, method='PATCH')(_set_status)
+
+        job2_status_url = '/api/v1/jobs/%s/status' % job2_id
+        job2_get_status = httmock.urlmatch(
+            path=r'^%s$' % job2_status_url, method='GET')(_get_status)
+
+        job2_status_update_url = '/api/v1/jobs/%s' % job2_id
+        job2_set_status = httmock.urlmatch(
+            path=r'^%s$' % job2_status_update_url, method='PATCH')(_set_status)
+
+        with httmock.HTTMock(job1_get_status, job1_set_status,
+                             job2_get_status, job2_set_status):
+            job.monitor_jobs(cluster, [job1_model, job2_model], **{'girder_token': 's', 'log_write_url': 1})
+
+        self.assertTrue(self._get_status_calls[job1_id])
+        self.assertTrue(self._set_status_calls[job1_id])
+        self.assertTrue(self._get_status_calls[job2_id])
+        self.assertTrue(self._set_status_calls[job2_id])
+        # Make sure we are rescheduled
+        self.assertTrue(retry.call_args_list)
+
+    @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
+    @mock.patch('starcluster.logger')
+    @mock.patch('cumulus.starcluster.logging')
+    @mock.patch('cumulus.celery.monitor.Task.retry')
+    def test_monitor_jobs_queued_no_retry(self, retry, *args):
+
+        cluster = {
+            '_id': 'lost',
+            'type': 'ec2',
+            'name': 'dummy',
+            'config': {
+                '_id': 'dummy',
+                'scheduler': {
+                    'type': 'sge'
+                }
+            }
+        }
+        job1_id = 'dummy1'
+        job1_model = {
+            '_id': job1_id,
+            'queueJobId': '1',
+            'name': 'dummy',
+            'output': []
+        }
+        job2_id = 'dummy1'
+        job2_model = {
+            '_id': job2_id,
+            'queueJobId': '2',
+            'name': 'dummy',
+            'output': []
+        }
+
+
+        MockMaster.execute_stack = [[ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
+                             '-----------------------------------------------------------------------------------------']]
+
+        self._get_status_calls = {}
+        self._set_status_calls = {}
+
+        def _get_status(url, request):
+            content = {
+                'status': 'complete'
+            }
+            content = json.dumps(content)
+            headers = {
+                'content-length': len(content),
+                'content-type': 'application/json'
+            }
+            job_id = url.path.split('/')[-2]
+
+            self._get_status_calls[job_id]  = True
+            return httmock.response(200, content, headers, request=request)
+
+        def _set_status(url, request):
+            expected = {'status': 'complete', 'timings': {}, 'output': []}
+            job_id = url.path.split('/')[-1]
+            self._set_status_calls[job_id] = True
+            self._set_status_called = json.loads(request.body) == expected
+
+            return httmock.response(200, None, {}, request=request)
+
+        job1_status_url = '/api/v1/jobs/%s/status' % job1_id
+        job1_get_status = httmock.urlmatch(
+            path=r'^%s$' % job1_status_url, method='GET')(_get_status)
+
+        job1_status_update_url = '/api/v1/jobs/%s' % job1_id
+        job1_set_status = httmock.urlmatch(
+            path=r'^%s$' % job1_status_update_url, method='PATCH')(_set_status)
+
+        job2_status_url = '/api/v1/jobs/%s/status' % job2_id
+        job2_get_status = httmock.urlmatch(
+            path=r'^%s$' % job2_status_url, method='GET')(_get_status)
+
+        job2_status_update_url = '/api/v1/jobs/%s' % job2_id
+        job2_set_status = httmock.urlmatch(
+            path=r'^%s$' % job2_status_update_url, method='PATCH')(_set_status)
+
+        with httmock.HTTMock(job1_get_status, job1_set_status,
+                             job2_get_status, job2_set_status):
+            job.monitor_jobs(cluster, [job1_model, job2_model], **{'girder_token': 's', 'log_write_url': 1})
+
+        self.assertTrue(self._get_status_calls[job1_id])
+        self.assertTrue(self._set_status_calls[job1_id])
+        self.assertTrue(self._get_status_calls[job2_id])
+        self.assertTrue(self._set_status_calls[job2_id])
+        # All jobs are complete fo we shouldn't resheduled
+        self.assertFalse(retry.call_args_list)
+
 
 
