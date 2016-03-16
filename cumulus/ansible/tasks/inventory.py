@@ -5,14 +5,14 @@ from contextlib import contextmanager
 
 
 class AnsibleInventoryHost(object):
-    """
+    '''
     Represents an Ansible inventory host and its associated variables.
     Implements low level functions for reading and writing the host to
     an inventory file. Note:  This does NOT model an actual host,  but
     rather a host line in an Ansible inventory file. It may represent
     multiple hosts in contexts where pattern matching is used (e.g.
-    where a host declared as "www[01:50].example.com").
-    """
+    where a host declared as 'www[01:50].example.com').
+    '''
     def __init__(self, host, **kwargs):
         self.host = host
         self.variables = kwargs
@@ -20,8 +20,8 @@ class AnsibleInventoryHost(object):
     def to_string(self):
         s = self.host
         if self.variables:
-            s += " "
-            s += " ".join(["%s=%s" % (k, v)
+            s += ' '
+            s += ' '.join(['%s=%s' % (k, v)
                            for k, v in self.variables.items()])
         return s
 
@@ -32,15 +32,15 @@ class AnsibleInventoryHost(object):
         kwargs = {}
         for part in parts[1:]:
             try:
-                key = part.split("=")[0]
-                value = part.split("=")[1]
+                key = part.split('=')[0]
+                value = part.split('=')[1]
                 if bool(key) and bool(value):
                     kwargs[key] = value
                 else:
-                    raise RuntimeError("Could not parse %s for host %s" %
+                    raise RuntimeError('Could not parse %s for host %s' %
                                        (part, host))
             except IndexError:
-                raise RuntimeError("Could not parse %s for host %s" %
+                raise RuntimeError('Could not parse %s for host %s' %
                                    (part, host))
         return AnsibleInventoryHost(host, **kwargs)
 
@@ -49,14 +49,14 @@ class AnsibleInventoryHost(object):
 
 
 class AnsibleInventorySection(object):
-    """
+    '''
     Abstract class that represents a config section in an Ansible inventory
     script.
-    """
+    '''
     def __init__(self, heading, items=None):
         heading = heading.strip()
-        heading = "[" + heading if heading[0] != "[" else heading
-        heading = heading + "]" if heading[-1] != "]" else heading
+        heading = '[' + heading if heading[0] != '[' else heading
+        heading = heading + ']' if heading[-1] != ']' else heading
 
         self.heading = heading
 
@@ -64,24 +64,24 @@ class AnsibleInventorySection(object):
 
     @property
     def name(self):
-        raise NotImplemented("Must be implemented by subclass")
+        raise NotImplemented('Must be implemented by subclass')
 
     @name.setter
     def name(self, value):
-        raise NotImplemented("Must be implemented by subclass")
+        raise NotImplemented('Must be implemented by subclass')
 
     @staticmethod
     def treat(line):
-        raise NotImplemented("Must be implemented by subclass")
+        raise NotImplemented('Must be implemented by subclass')
 
     def append(self, item):
         self.items.append(item)
 
 
 class AnsibleInventoryGroup(AnsibleInventorySection):
-    """
+    '''
     Class that represents a group section in an Ansible inventory script
-    """
+    '''
 
     def __init__(self, heading, items=None):
         super(AnsibleInventoryGroup, self).__init__(heading, items)
@@ -89,8 +89,8 @@ class AnsibleInventoryGroup(AnsibleInventorySection):
 
     @staticmethod
     def treat(line):
-        return True if line.startswith("[") \
-            and ":" not in line else False
+        return True if line.startswith('[') \
+            and ':' not in line else False
 
     @property
     def name(self):
@@ -98,11 +98,11 @@ class AnsibleInventoryGroup(AnsibleInventorySection):
 
     @name.setter
     def name(self, value):
-        self.heading = "[%s]" % value
+        self.heading = '[%s]' % value
 
     def to_string(self):
-        s = "%s\n" % self.heading
-        s += "\n".join([i.to_string() for i in self.items]) + "\n"
+        s = '%s\n' % self.heading
+        s += '\n'.join([i.to_string() for i in self.items]) + '\n'
         return s
 
 
@@ -110,10 +110,10 @@ class AnsibleInventoryGroup(AnsibleInventorySection):
 #        See: http://docs.ansible.com/ansible/intro_inventory.html for more
 #        info on these features.
 class AnsibleInventory(object):
-    """
+    '''
     Represents an Ansible inventory script. It reads and writes an ini-like
     file in the style of an Ansible inventory.
-    """
+    '''
 
     # Could add classes for AnsibleInventoryGroupVars and
     # AnsibleInventoryGroupOfGroups here if these features become
@@ -121,7 +121,7 @@ class AnsibleInventory(object):
     section_classes = [AnsibleInventoryGroup]
 
     # Empty line or whitespace or starts with #
-    ignore_lines = re.compile("^\s+$|^#")
+    ignore_lines = re.compile('^\s+$|^#')
 
     @staticmethod
     def as_host(val):
@@ -141,12 +141,12 @@ class AnsibleInventory(object):
         sections = []
         current = global_hosts = []
 
-        for line in inventory.split("\n"):
+        for line in inventory.split('\n'):
             # Ignore comments and empty lines
-            if line == "" or AnsibleInventory.ignore_lines.match(line):
+            if line == '' or AnsibleInventory.ignore_lines.match(line):
                 continue
 
-            # Sentinal that asks "are we on a new section heading?"
+            # Sentinal that asks 'are we on a new section heading?'
             # Assume for each line that this is false
             treated = False
 
@@ -182,31 +182,31 @@ class AnsibleInventory(object):
 
     @staticmethod
     def from_file(path):
-        with open(path, "rb") as fh:
+        with open(path, 'rb') as fh:
             inventory = fh.read()
         return AnsibleInventory.from_string(inventory)
 
     def to_string(self):
-        s = ""
+        s = ''
         for host in self.global_hosts:
-            s += host.to_string() + "\n"
+            s += host.to_string() + '\n'
 
         if self.sections:
-            s += "\n"
-            s += "\n".join([section.to_string()
-                            for section in self.sections]) + "\n"
+            s += '\n'
+            s += '\n'.join([section.to_string()
+                            for section in self.sections]) + '\n'
 
         return s
 
     def to_file(self, path):
-        with open(path, "wb") as fh:
+        with open(path, 'wb') as fh:
             fh.write(self.to_string())
 
     @contextmanager
     def to_tempfile(self):
         _, path = tempfile.mkstemp()
 
-        with open(path, "wb") as fh:
+        with open(path, 'wb') as fh:
             fh.write(self.to_string())
 
         yield path

@@ -14,7 +14,7 @@ logger = get_task_logger(__name__)
 
 def get_playbook_path(name):
     return os.path.join(os.path.dirname(__file__),
-                        "playbooks/" + name + ".yml")
+                        'playbooks/' + name + '.yml')
 
 
 def get_callback_plugins_path():
@@ -28,13 +28,13 @@ def run_playbook(playbook, inventory, extra_vars=None,
 
     env = env if env is not None else os.environ.copy()
 
-    cmd = ["ansible-playbook", "-i", inventory]
+    cmd = ['ansible-playbook', '-i', inventory]
 
     if verbose is not None:
-        cmd.append("-%s" % ("v" * verbose))
+        cmd.append('-%s' % ('v' * verbose))
 
     if extra_vars is not None:
-        cmd.extend(["--extra-vars", json.dumps(extra_vars)])
+        cmd.extend(['--extra-vars', json.dumps(extra_vars)])
 
     cmd.append(playbook)
 
@@ -54,12 +54,14 @@ def run_playbook(playbook, inventory, extra_vars=None,
         if p.poll() is not None:
             return p.wait()
 
+    playbook = get_playbook_path(cluster.get('playbook', 'default'))
+
 
 def get_playbook_variables(cluster, profile, extra_vars):
     # Default variables all playbooks will need
     playbook_variables = {
-        "cluster_region": profile['regionName'],
-        "cluster_id": cluster["_id"]
+        'cluster_region': profile['regionName'],
+        'cluster_id': cluster['_id']
     }
 
     # Update with variables passed in from the cluster adapater
@@ -89,7 +91,7 @@ def check_girder_cluster_status(cluster, girder_token, post_status):
         status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
                                          cluster_id)
         updates = {
-            "status": post_status
+            'status': post_status
         }
 
         r = requests.patch(status_url, headers=headers, json=updates)
