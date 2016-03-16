@@ -22,8 +22,9 @@
 
 ```json
     {"name": "test cluster",
-     "type": "ansible",
-     "cluster_config": {
+    "type": "ansible",
+	"playbook": "sge",
+	"cluster_config": {
          "master_instance_type": "t2.micro",
          "master_instance_ami": "ami-03de3c63",
          "node_instance_count": 2,
@@ -43,3 +44,13 @@
 
 Other variables may be passed into cluster_config.  These will override any variables set in the playbook or used by ansible.
 
+## Launch the cluster
+Hit the **/cluster/<<cluster_id>>/launch** endpoint
+
+## Provision the cluster
+Hit the **/cluster/<<cluster_id>>/provision** endpoint. You must pass in data that includes a playbook, e.g.:
+
+```json
+	{ "playbook": "gridengine/site"}
+```
+	
