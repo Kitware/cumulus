@@ -28,7 +28,8 @@
          "master_instance_ami": "ami-03de3c63",
          "node_instance_count": 2,
          "node_instance_type": "t2.micro",
-         "node_instance_ami": "ami-03de3c63"
+         "node_instance_ami": "ami-03de3c63",
+         "ansible_ssh_user": "ubuntu"
      },
      "profile": "<<profile_id>>"}
 ```
@@ -38,6 +39,7 @@
 + ```node_instance_type``` describes the instance type of the slave nodes,
 + ```node_instance_ami``` describes the instance ami to use for the slave nodes
 + ```node_instance_count``` the number of slave nodes to start.
++ ```ansible_ssh_user``` login that ansible will use for ssh
 
 Other variables may be passed into cluster_config.  These will override any variables set in the playbook or used by ansible.
 

@@ -119,7 +119,6 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
                 "GIRDER_TOKEN": girder_token,
                 "LOG_WRITE_URL": log_write_url,
                 "CLUSTER_ID": cluster["_id"],
-                "CLUSTER_USER": cluster['cluster_config']['user'],
                 "ANSIBLE_HOST_KEY_CHECKING": 'false',
                 'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path(),
                 "PRIVATE_KEY_FILE": _key_path(profile)})
@@ -157,8 +156,7 @@ def run_ansible(playbook, cluster, profile, secret_key, extra_vars,
                 "AWS_SECRET_ACCESS_KEY": secret_key,
                 "GIRDER_TOKEN": girder_token,
                 "LOG_WRITE_URL": log_write_url,
-                "CLUSTER_ID": cluster["_id"],
-                "CLUSTER_USER": cluster['cluster_config']['user']})
+                "CLUSTER_ID": cluster["_id"]})
 
     inventory = AnsibleInventory(["localhost"])
 
