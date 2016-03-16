@@ -38,23 +38,31 @@ class PbsQueueAdapter(AbstractQueueAdapter):
 
         return self._parse_job_id(output)
 
-    def job_status(self, job):
-        output = self._cluster_connection.execute('qstat')
+    def job_statuses(self, jobs):
 
-        state = None
-        pbs_state = self._extract_job_status(output, job)
+        job_ids = ' '.join(
+            [job[AbstractQueueAdapter.QUEUE_JOB_ID] for job in jobs])
 
-        if pbs_state:
-            if pbs_state in PbsQueueAdapter.RUNNING_STATE:
-                state = JobQueueState.RUNNING
-            elif pbs_state in PbsQueueAdapter.ERROR_STATE:
-                state = JobQueueState.ERROR
-            elif pbs_state in PbsQueueAdapter.QUEUED_STATE:
-                state = JobQueueState.QUEUED
-            elif pbs_state in PbsQueueAdapter.COMPLETE_STATE:
-                state = JobQueueState.COMPLETE
+        output = self._cluster_connection.execute('qstat %s' % job_ids)
 
-        return state
+        states = []
+        for job in jobs:
+            state = None
+            pbs_state = self._extract_job_status(output, job)
+
+            if pbs_state:
+                if pbs_state in PbsQueueAdapter.RUNNING_STATE:
+                    state = JobQueueState.RUNNING
+                elif pbs_state in PbsQueueAdapter.ERROR_STATE:
+                    state = JobQueueState.ERROR
+                elif pbs_state in PbsQueueAdapter.QUEUED_STATE:
+                    state = JobQueueState.QUEUED
+                elif pbs_state in PbsQueueAdapter.COMPLETE_STATE:
+                    state = JobQueueState.COMPLETE
+
+            states.append((job, state))
+
+        return states
 
     def _extract_job_status(self, job_status_output, job):
         state = None

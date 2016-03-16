@@ -54,22 +54,35 @@ class PbsQueueAdapterTestCase(unittest.TestCase):
         self.assertIsNotNone(cm.exception)
 
 
-    def test_job_status(self):
-        job_id = '1126'
-        job = {
-            AbstractQueueAdapter.QUEUE_JOB_ID: job_id
+    def test_job_statuses(self):
+        job1_id = '1126'
+        job1 = {
+            AbstractQueueAdapter.QUEUE_JOB_ID: job1_id
+        }
+        job2_id = '1127'
+        job2 = {
+            AbstractQueueAdapter.QUEUE_JOB_ID: job2_id
         }
         job_status_output = [
             'Job id                    Name             User            Time Use S Queue',
             '------------------------- ---------------- --------------- -------- - -----',
-            '%s.ulex                    sleep.sh         cjh             00:00:00 C batch' % job_id,
-            '2.ulex                    sleep.sh         cjh             00:00:00 C batch'
+            '%s.ulex                    sleep.sh         cjh             00:00:00 C batch' % job1_id,
+            '%s.ulex                    sleep.sh         cjh             00:00:00 C batch' % job2_id
         ]
-        expected_calls = [mock.call('qstat')]
+        expected_calls = [mock.call('qstat %s' % job1_id)]
         self._cluster_connection.execute.return_value = job_status_output
-        status = self._adapter.job_status(job)
+        status = self._adapter.job_statuses([job1])
         self.assertEqual(self._cluster_connection.execute.call_args_list, expected_calls)
-        self.assertEqual(status, 'complete')
+        self.assertEqual(status[0][1], 'complete')
+
+        # Now try two jobs
+        self._cluster_connection.reset_mock()
+        expected_calls = [mock.call('qstat %s %s' % (job1_id, job2_id))]
+        self._cluster_connection.execute.return_value = job_status_output
+        status = self._adapter.job_statuses([job1, job2])
+        self.assertEqual(self._cluster_connection.execute.call_args_list, expected_calls)
+        self.assertEqual(status[0][1], 'complete')
+        self.assertEqual(status[1][1], 'complete')
 
     def test_submission_template_pbs(self):
         cluster = {
