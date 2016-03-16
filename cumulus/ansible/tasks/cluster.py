@@ -54,8 +54,6 @@ def run_playbook(playbook, inventory, extra_vars=None,
         if p.poll() is not None:
             return p.wait()
 
-    playbook = get_playbook_path(cluster.get('playbook', 'default'))
-
 
 def get_playbook_variables(cluster, profile, extra_vars):
     # Default variables all playbooks will need
