@@ -1,6 +1,8 @@
 import requests
 import datetime as dt
 import cumulus
+import os
+import sys
 
 STARTING = 'starting'
 SKIPPED = 'skipped'
@@ -12,8 +14,8 @@ WARNING = 'warning'
 
 class CallbackModule(object):
 
-    """
-    """
+    '''
+    '''
 
     def __init__(self):
         self.current_task = None
@@ -21,57 +23,67 @@ class CallbackModule(object):
 
     @property
     def cluster_id(self):
-        return self.playbook.extra_vars['cluster_id']
+        return os.environ.get('CLUSTER_ID')
 
     @property
     def girder_token(self):
-        return self.playbook.extra_vars['girder_token']
+        return os.environ.get('GIRDER_TOKEN')
 
     @property
     def log_write_url(self):
-        return self.playbook.extra_vars['log_write_url']
+        return os.environ.get('LOG_WRITE_URL')
 
     def log(self, status, message, type='task', data=None):
-        logged_at = dt.datetime.now().isoformat()
-        msg = {"status": status,
-               "created": logged_at,
-               "type": type,
-               "message": message,
-               "data": data}
+        if self.log_write_url is not None and \
+           self.girder_token is not None:
+            logged_at = dt.datetime.now().isoformat()
+            msg = {'status': status,
+                   'created': logged_at,
+                   'type': type,
+                   'message': message,
+                   'data': data}
 
-        r = requests.post(self.log_write_url,
-                          json=msg,
-                          headers={
-                              'Girder-Token': self.girder_token,
-                              'Content-Type': 'application/json'
-                          })
+            r = requests.post(self.log_write_url,
+                              json=msg,
+                              headers={
+                                  'Girder-Token': self.girder_token,
+                                  'Content-Type': 'application/json'
+                              })
 
-        assert r.status_code == 200
+            assert r.status_code == 200
 
     def on_any(self, *args, **kwargs):
         pass
 
     def _filter_res(self, res):
-        res2 = res.copy()
-        res2['module_name'] = res2['invocation']['module_name']
-        res2.pop('invocation', None)
+        try:
+            res2 = res.copy()
+            res2['module_name'] = res2['invocation']['module_name']
+            res2.pop('invocation', None)
+        except AttributeError:
+            res2 = {'error': res}
+
         return res2
 
     def runner_on_failed(self, host, res, ignore_errors=False):
-        res2 = self._filter_res(res)
-        res2['host'] = host
-        self.log(ERROR, self.current_task, data=res2)
+        if self.cluster_id is not None and \
+           self.girder_token is not None:
+            res2 = self._filter_res(res)
+            res2['host'] = host
+            self.log(ERROR, self.current_task, data=res2)
 
-        # Update girder with the new status
-        status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
-                                         self.cluster_id)
-        headers = {'Girder-Token':  self.girder_token}
-        updates = {
-            "status": "error"
-        }
+            # Update girder with the new status
+            status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
+                                             self.cluster_id)
+            headers = {'Girder-Token':  self.girder_token}
+            updates = {
+                'status': 'error'
+            }
 
-        r = requests.patch(status_url, headers=headers, json=updates)
-        cumulus.common.check_status(r)
+            r = requests.patch(status_url, headers=headers, json=updates)
+            if r.status_code != 200:
+                print >> sys.stderr, r.content
+                r.raise_for_status()
 
     def runner_on_ok(self, host, res):
         res2 = self._filter_res(res)
