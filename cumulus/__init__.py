@@ -23,43 +23,43 @@ from easydict import EasyDict as edict
 import pkg_resources as pr
 
 config_schema = {
-    "type": "object",
-    "required": ["girder"],
-    "properties": {
-        "girder": {
-            "type": "object",
-            "required": ["baseUrl", "user", "group"],
+    'type': 'object',
+    'required': ['girder'],
+    'properties': {
+        'girder': {
+            'type': 'object',
+            'required': ['baseUrl', 'user', 'group'],
             'properties': {
-                "baseUrl": {
-                    "type": "string",
-                    "pattern": "^http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]"
-                    "|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+$"
+                'baseUrl': {
+                    'type': 'string',
+                    'pattern': '^http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]'
+                    '|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+$'
                 },
-                "user": {
-                    "type": "string"
+                'user': {
+                    'type': 'string'
                 },
-                "group": {
-                    "type": "string"
+                'group': {
+                    'type': 'string'
                 }
             }
         },
-        "moadReader": {
-            "type": "object",
-            "required": ["pluginPath"],
+        'moadReader': {
+            'type': 'object',
+            'required': ['pluginPath'],
             'properties': {
-                "pluginPath": {
-                    "type": "string"
+                'pluginPath': {
+                    'type': 'string'
                 }
             }
         },
-        "taskFlow": {
-            "type": "object",
-            "required": ["pluginPath"],
+        'taskFlow': {
+            'type': 'object',
+            'required': ['pluginPath'],
             'properties': {
-                "path": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
+                'path': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'string'
                     }
                 }
             }
@@ -67,12 +67,12 @@ config_schema = {
     }
 }
 
-if pr.resource_exists(__name__, "conf/config.json"):
+if pr.resource_exists(__name__, 'conf/config.json'):
     config = json.loads(
-        pr.resource_string(__name__, "conf/config.json"))
+        pr.resource_string(__name__, 'conf/config.json'))
 else:
     config = json.loads(
-        pr.resource_string(__name__, "conf/default_config.json"))
+        pr.resource_string(__name__, 'conf/default_config.json'))
 
 validate(config, config_schema)
 

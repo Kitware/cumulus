@@ -422,11 +422,11 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
     # access to the taskflow header information
 
 #    if kwargs['routing_key'].startswith('taskflow') or \
-#       hasattr(thread_local, "current_task"):
+#       hasattr(thread_local, 'current_task'):
 
     # This will only be true for the initial task called
     # from the taskflow object.
-    if not hasattr(thread_local, "current_task"):
+    if not hasattr(thread_local, 'current_task'):
         thread_local.current_task = None
 
     def _update_girder(taskflow, body):

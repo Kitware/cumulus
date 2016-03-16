@@ -264,7 +264,7 @@ def main():
         required=True)
     parser.add_argument('--url', help='Base URL for Girder ops', required=True)
 
-    subparsers = parser.add_subparsers(title="actions", dest='action')
+    subparsers = parser.add_subparsers(title='actions', dest='action')
 
     # Upload
     upload_parser = subparsers.add_parser(
@@ -289,5 +289,5 @@ def main():
             config.token, config.url, config.job, config.dir).run()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

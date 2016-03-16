@@ -114,14 +114,14 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
     playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
 
     env = os.environ.copy()
-    env.update({"AWS_ACCESS_KEY_ID": profile['accessKeyId'],
-                "AWS_SECRET_ACCESS_KEY": secret_key,
-                "GIRDER_TOKEN": girder_token,
-                "LOG_WRITE_URL": log_write_url,
-                "CLUSTER_ID": cluster["_id"],
-                "ANSIBLE_HOST_KEY_CHECKING": 'false',
+    env.update({'AWS_ACCESS_KEY_ID': profile['accessKeyId'],
+                'AWS_SECRET_ACCESS_KEY': secret_key,
+                'GIRDER_TOKEN': girder_token,
+                'LOG_WRITE_URL': log_write_url,
+                'CLUSTER_ID': cluster['_id'],
+                'ANSIBLE_HOST_KEY_CHECKING': 'false',
                 'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path(),
-                "PRIVATE_KEY_FILE": _key_path(profile)})
+                'PRIVATE_KEY_FILE': _key_path(profile)})
 
     inventory = os.path.join(os.path.dirname(__file__), 'dynamic-inventory')
 
@@ -152,13 +152,13 @@ def run_ansible(playbook, cluster, profile, secret_key, extra_vars,
     playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
 
     env = os.environ.copy()
-    env.update({"AWS_ACCESS_KEY_ID": profile['accessKeyId'],
-                "AWS_SECRET_ACCESS_KEY": secret_key,
-                "GIRDER_TOKEN": girder_token,
-                "LOG_WRITE_URL": log_write_url,
-                "CLUSTER_ID": cluster["_id"]})
+    env.update({'AWS_ACCESS_KEY_ID': profile['accessKeyId'],
+                'AWS_SECRET_ACCESS_KEY': secret_key,
+                'GIRDER_TOKEN': girder_token,
+                'LOG_WRITE_URL': log_write_url,
+                'CLUSTER_ID': cluster['_id']})
 
-    inventory = AnsibleInventory(["localhost"])
+    inventory = AnsibleInventory(['localhost'])
 
     with inventory.to_tempfile() as inventory_path:
         ansible = run_playbook(playbook, inventory_path, playbook_variables,
