@@ -137,17 +137,17 @@ class Cluster(BaseModel):
     def create_ansible(self, user, name, playbook, cluster_config, profile):
         try:
             query = {
-                "userId": user['_id'],
-                "_id":  ObjectId(profile)}
+                'userId': user['_id'],
+                '_id':  ObjectId(profile)}
         except InvalidId:
             query = {
-                "userId": user['_id'],
-                "name": profile}
+                'userId': user['_id'],
+                'name': profile}
 
-        profile = self.model("aws", "cumulus").findOne(query)
+        profile = self.model('aws', 'cumulus').findOne(query)
 
         if profile is None:
-            raise ValidationException("Profile must be specified!")
+            raise ValidationException('Profile must be specified!')
 
         # Should do some template validation here
 
@@ -155,7 +155,7 @@ class Cluster(BaseModel):
             'name': name,
             'playbook': playbook,
             'cluster_config': cluster_config,
-            'profile': profile["_id"],
+            'profile': profile['_id'],
             'log': [],
             'status': ClusterStatus.created,
             'type': ClusterType.ANSIBLE

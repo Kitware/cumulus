@@ -103,7 +103,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
     def update_status(self, status):
         assert type(status) is ClusterStatus, \
-            "%s must be a ClusterStatus type" % status
+            '%s must be a ClusterStatus type' % status
 
         super(AnsibleClusterAdapter, self).update_status(status)
 
@@ -118,19 +118,19 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
     def _get_profile(self, profile_id):
         user = getCurrentUser()
-        query = {"userId": user['_id']}
+        query = {'userId': user['_id']}
         try:
-            query["_id"] = ObjectId(profile_id)
+            query['_id'] = ObjectId(profile_id)
         except InvalidId:
-            query["name"] = profile_id
+            query['name'] = profile_id
 
-        profile = self.model("aws", "cumulus").findOne(query)
+        profile = self.model('aws', 'cumulus').findOne(query)
         secret = profile['secretAccessKey']
 
-        profile = self.model("aws", "cumulus").filter(profile, user)
+        profile = self.model('aws', 'cumulus').filter(profile, user)
 
         if profile is None:
-            raise ValidationException("Profile must be specified!")
+            raise ValidationException('Profile must be specified!')
 
         profile['_id'] = str(profile['_id'])
 
@@ -151,8 +151,8 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         cumulus.ansible.tasks.cluster.run_ansible \
             .delay(self.cluster.get('playbook', self.DEFAULT_PLAYBOOK),
                    self.cluster, profile, secret_key,
-                   {"cluster_state": "running"}, girder_token, log_write_url,
-                   "launched")
+                   {'cluster_state': 'running'}, girder_token, log_write_url,
+                   'launched')
 
         return self.cluster
 
@@ -167,8 +167,8 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         cumulus.ansible.tasks.cluster.run_ansible \
             .delay(self.DEFAULT_PLAYBOOK, self.cluster, profile, secret_key,
-                   {"cluster_state": "absent"},
-                   girder_token, log_write_url, "terminated")
+                   {'cluster_state': 'absent'},
+                   girder_token, log_write_url, 'terminated')
 
     def provision(self, **kwargs):
         # status must be >= launched.
@@ -183,8 +183,8 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         cumulus.ansible.tasks.cluster.provision_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
-                   {"cluster_state": "running"},
-                   girder_token, log_write_url, "provisioned")
+                   {'cluster_state': 'running'},
+                   girder_token, log_write_url, 'provisioned')
 
         return self.cluster
 
@@ -206,7 +206,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             .delay(self.cluster.get('playbook', self.DEFAULT_PLAYBOOK),
                    request_body['playbook'],  # provision playbook
                    self.cluster, profile, secret_key,
-                   {"cluster_state": "running"}, girder_token, log_write_url)
+                   {'cluster_state': 'running'}, girder_token, log_write_url)
 
     def update(self, request_body):
         """

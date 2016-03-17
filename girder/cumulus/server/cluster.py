@@ -351,7 +351,7 @@ class Cluster(BaseResource):
 
     @access.user
     def launch(self, id, params):
-        return self._launch_or_provision("launch", id, params)
+        return self._launch_or_provision('launch', id, params)
 
     launch.description = (Description(
         'Start a cluster with ansible'
@@ -371,7 +371,7 @@ class Cluster(BaseResource):
                                        ClusterStatus.running):
             raise RestException('Cluster can not be provisioned.', code=400)
 
-        return self._launch_or_provision("provision", id, params)
+        return self._launch_or_provision('provision', id, params)
 
     provision.description = (Description(
         'Provision a cluster with ansible'
@@ -383,7 +383,7 @@ class Cluster(BaseResource):
         dataType='list', required=False))
 
     def _launch_or_provision(self, process, id, params):
-        assert process in ["launch", "provision"]
+        assert process in ['launch', 'provision']
         body = {}
 
         if cherrypy.request.body:
