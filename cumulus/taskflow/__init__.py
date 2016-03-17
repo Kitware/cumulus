@@ -159,7 +159,7 @@ class LogRecordEncoder(json.JSONEncoder):
         if isinstance(obj, type):
             return obj.__name__
         elif isinstance(obj, types.TracebackType):
-            return traceback.format_tb(obj)[0]
+            return traceback.format_tb(obj)
         else:
             return str(obj)
 
@@ -512,7 +512,8 @@ def _update_taskflow_status(taskflow, status):
 
 
 @task_failure.connect
-def task_failure_handler(sender=None, task_id=None, exception=None, **kwargs):
+def task_failure_handler(sender=None, task_id=None, exception=None,
+                         traceback=None, **kwargs):
     if TASKFLOW_HEADER in sender.request.headers:
         taskflow_task_id = None
         try:
@@ -530,8 +531,9 @@ def task_failure_handler(sender=None, task_id=None, exception=None, **kwargs):
                 taskflow_task_id, taskflow.girder_api_url,
                 taskflow.girder_token)
 
-            msg = 'Exception raise by task: %s' % exception.message
-            logger.exception(msg)
+            msg = 'Exception raise by task.'
+            logger.error(
+                msg, exc_info=[type(exception), exception.message, traceback])
 
         except HttpError as ex:
             if taskflow_task_id:
