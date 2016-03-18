@@ -46,7 +46,7 @@
   become_user: sgeadmin
   template: src=exec_host.j2 dest=/tmp/exec_host_{{item}}
   with_items:
-    - "{{ groups['exec'] }}"
+    - "{{ groups['exec'] + groups['master'] }}"
   tags:
     - master
 
@@ -55,7 +55,7 @@
   shell: qconf -Ae /tmp/exec_host_{{item}}
   ignore_errors: true
   with_items:
-    - "{{ groups['exec'] }}"
+    - "{{ groups['exec'] + groups['master'] }}"
   tags:
     - master
 
