@@ -11,9 +11,7 @@
     - mpich2
 
 - name: Exec host setup
-  hosts: exec
+  hosts: all
   become: yes
   roles:
     - exec
-
-
