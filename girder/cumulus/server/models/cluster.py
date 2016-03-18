@@ -215,7 +215,7 @@ class Cluster(BaseModel):
             else:
                 for (k, v) in value.iteritems():
                     if '.' in str(k) or '$' in str(k):
-                        k = k.replace('.', u'_').replace('$', u'_')
+                        k = k.replace('.', '\\u002e').replace('$', '\\u0024')
 
                     new_value[k] = mongo_safe_value(v)
 
