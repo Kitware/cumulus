@@ -63,7 +63,7 @@ class LinkTaskFlow(taskflow.TaskFlow):
 
 @command.task
 def regular_task():
-    print "regular_task!!"
+    print 'regular_task!!'
     time.sleep(3)
 
 

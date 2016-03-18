@@ -112,8 +112,8 @@ class SshClusterConnection(AbstractConnection):
             if remote_path[0] == '/':
                 current_path = '/'
 
-            for path in remote_path.split("/"):
-                print sys.stderr, "path: %s" % path
+            for path in remote_path.split('/'):
+                print sys.stderr, 'path: %s' % path
                 if not path:
                     continue
                 current_path = os.path.join(current_path, path)

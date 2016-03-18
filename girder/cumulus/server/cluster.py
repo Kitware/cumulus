@@ -351,7 +351,7 @@ class Cluster(BaseResource):
 
     @access.user
     def launch(self, id, params):
-        return self._launch_or_provision("launch", id, params)
+        return self._launch_or_provision('launch', id, params)
 
     launch.description = (Description(
         'Start a cluster with ansible'
@@ -361,7 +361,17 @@ class Cluster(BaseResource):
 
     @access.user
     def provision(self, id, params):
-        return self._launch_or_provision("provision", id, params)
+        user = self.getCurrentUser()
+        cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+
+        if not cluster:
+            raise RestException('Cluster not found.', code=404)
+        elif cluster['status'] not in (ClusterStatus.launched,
+                                       ClusterStatus.provisioned,
+                                       ClusterStatus.running):
+            raise RestException('Cluster can not be provisioned.', code=400)
+
+        return self._launch_or_provision('provision', id, params)
 
     provision.description = (Description(
         'Provision a cluster with ansible'
@@ -369,11 +379,11 @@ class Cluster(BaseResource):
         'id',
         'The cluster id to provision.', paramType='path', required=True
     ).param(
-        'body', 'Parameter used when starting cluster', paramType='body',
+        'body', 'Parameter used when provisioning cluster', paramType='body',
         dataType='list', required=False))
 
     def _launch_or_provision(self, process, id, params):
-        assert process in ["launch", "provision"]
+        assert process in ['launch', 'provision']
         body = {}
 
         if cherrypy.request.body:
@@ -554,7 +564,7 @@ class Cluster(BaseResource):
             raise RestException('Cluster not found.', code=404)
 
         def streamGen():
-            lastLogSeen = 0
+            lastLogSeen = len(self._model.log_records(user, id))
             start = time.time()
             wait = MIN_POLL_INTERVAL
 

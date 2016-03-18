@@ -1,0 +1,1 @@
+{{ hostvars[groups['master'][0]].private_ip }}

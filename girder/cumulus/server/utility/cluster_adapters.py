@@ -99,10 +99,11 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     """
     This defines the interface to be used by all cluster adapters.
     """
+    DEFAULT_PLAYBOOK = 'default'
 
     def update_status(self, status):
         assert type(status) is ClusterStatus, \
-            "%s must be a ClusterStatus type" % status
+            '%s must be a ClusterStatus type' % status
 
         super(AnsibleClusterAdapter, self).update_status(status)
 
@@ -117,19 +118,19 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
     def _get_profile(self, profile_id):
         user = getCurrentUser()
-        query = {"userId": user['_id']}
+        query = {'userId': user['_id']}
         try:
-            query["_id"] = ObjectId(profile_id)
+            query['_id'] = ObjectId(profile_id)
         except InvalidId:
-            query["name"] = profile_id
+            query['name'] = profile_id
 
-        profile = self.model("aws", "cumulus").findOne(query)
+        profile = self.model('aws', 'cumulus').findOne(query)
         secret = profile['secretAccessKey']
 
-        profile = self.model("aws", "cumulus").filter(profile, user)
+        profile = self.model('aws', 'cumulus').filter(profile, user)
 
         if profile is None:
-            raise ValidationException("Profile must be specified!")
+            raise ValidationException('Profile must be specified!')
 
         profile['_id'] = str(profile['_id'])
 
@@ -148,9 +149,10 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         profile, secret_key = self._get_profile(self.cluster['profile'])
 
         cumulus.ansible.tasks.cluster.run_ansible \
-            .delay(self.cluster, profile, secret_key,
-                   {"cluster_state": "running"},
-                   girder_token, log_write_url, "launched")
+            .delay(self.cluster.get('playbook', self.DEFAULT_PLAYBOOK),
+                   self.cluster, profile, secret_key,
+                   {'cluster_state': 'running'}, girder_token, log_write_url,
+                   'launched')
 
         return self.cluster
 
@@ -164,17 +166,27 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         profile, secret_key = self._get_profile(self.cluster['profile'])
 
         cumulus.ansible.tasks.cluster.run_ansible \
-            .delay(self.cluster, profile, secret_key,
-                   {"cluster_state": "absent"},
-                   girder_token, log_write_url, "terminated")
+            .delay(self.DEFAULT_PLAYBOOK, self.cluster, profile, secret_key,
+                   {'cluster_state': 'absent'},
+                   girder_token, log_write_url, 'terminated')
 
-    def provision(self, request_body):
+    def provision(self, **kwargs):
+        # status must be >= launched.
         self.update_status(ClusterStatus.provisioning)
 
-        # Do celery/ansible provisioning here
+        base_url = getApiUrl()
+        log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
+        girder_token = get_task_token()['_id']
 
-        self.update_status(ClusterStatus.provisioned)
-        pass
+        profile, secret_key = self._get_profile(self.cluster['profile'])
+        playbook = kwargs.get('playbook', self.DEFAULT_PLAYBOOK)
+
+        cumulus.ansible.tasks.cluster.provision_cluster \
+            .delay(playbook, self.cluster, profile, secret_key,
+                   {'cluster_state': 'running'},
+                   girder_token, log_write_url, 'provisioned')
+
+        return self.cluster
 
     def start(self, request_body):
         """
@@ -183,8 +195,18 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         if self.cluster['status'] == 'running':
             raise RestException('Cluster already running.', code=400)
 
-        self.launch(request_body)
-        self.provision(request_body)
+        self.update_status(ClusterStatus.launching)
+
+        base_url = getApiUrl()
+        log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
+        girder_token = get_task_token()['_id']
+        profile, secret_key = self._get_profile(self.cluster['profile'])
+
+        cumulus.ansible.tasks.cluster.start_cluster \
+            .delay(self.cluster.get('playbook', self.DEFAULT_PLAYBOOK),
+                   request_body['playbook'],  # provision playbook
+                   self.cluster, profile, secret_key,
+                   {'cluster_state': 'running'}, girder_token, log_write_url)
 
     def update(self, request_body):
         """

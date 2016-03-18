@@ -1,0 +1,3 @@
+{% for host in groups['exec'] %}
+{{ hostvars[host].private_ip }}:{{ hostvars[host].get('ansible_processor_count', 1) }}
+{% endfor %}

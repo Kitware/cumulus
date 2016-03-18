@@ -17,6 +17,12 @@ def get_playbook_path(name):
                         'playbooks/' + name + '.yml')
 
 
+def get_callback_plugins_path():
+    return os.path.join(os.path.dirname(__file__),
+                        'playbooks',
+                        'callback_plugins')
+
+
 def run_playbook(playbook, inventory, extra_vars=None,
                  verbose=None, env=None):
 
@@ -46,15 +52,10 @@ def run_playbook(playbook, inventory, extra_vars=None,
                 logger.error(p.stderr.readline())
 
         if p.poll() is not None:
-            break
+            return p.wait()
 
 
-@command.task
-def run_ansible(cluster, profile, secret_key, extra_vars,
-                girder_token, log_write_url, post_status):
-
-    playbook = get_playbook_path(cluster.get('playbook', 'default'))
-
+def get_playbook_variables(cluster, profile, extra_vars):
     # Default variables all playbooks will need
     playbook_variables = {
         'cluster_region': profile['regionName'],
@@ -71,19 +72,10 @@ def run_ansible(cluster, profile, secret_key, extra_vars,
     if 'aws_keyname' not in playbook_variables:
         playbook_variables['aws_keyname'] = profile['_id']
 
-    env = os.environ.copy()
-    env.update({'AWS_ACCESS_KEY_ID': profile['accessKeyId'],
-                'AWS_SECRET_ACCESS_KEY': secret_key,
-                'GIRDER_TOKEN': girder_token,
-                'LOG_WRITE_URL': log_write_url,
-                'CLUSTER_ID': cluster['_id']})
+    return playbook_variables
 
-    inventory = AnsibleInventory(['localhost'])
 
-    with inventory.to_tempfile() as inventory_path:
-        run_playbook(playbook, inventory_path, playbook_variables,
-                     env=env, verbose=3)
-
+def check_girder_cluster_status(cluster, girder_token, post_status):
     # Check status from girder
     cluster_id = cluster['_id']
     headers = {'Girder-Token':  girder_token}
@@ -102,3 +94,75 @@ def run_ansible(cluster, profile, secret_key, extra_vars,
 
         r = requests.patch(status_url, headers=headers, json=updates)
         check_status(r)
+
+
+def check_ansible_return_code(returncode, cluster, girder_token):
+    if returncode != 0:
+        check_status(requests.patch('%s/clusters/%s' %
+                                    (cumulus.config.girder.baseUrl,
+                                     cluster['_id']),
+                                    headers={'Girder-Token': girder_token},
+                                    json={'status': 'error'}))
+
+
+@command.task
+def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
+                      girder_token, log_write_url, post_status):
+    from cumulus.ssh.tasks.key import _key_path
+
+    playbook = get_playbook_path(playbook)
+    playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
+
+    env = os.environ.copy()
+    env.update({'AWS_ACCESS_KEY_ID': profile['accessKeyId'],
+                'AWS_SECRET_ACCESS_KEY': secret_key,
+                'GIRDER_TOKEN': girder_token,
+                'LOG_WRITE_URL': log_write_url,
+                'CLUSTER_ID': cluster['_id'],
+                'ANSIBLE_HOST_KEY_CHECKING': 'false',
+                'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path(),
+                'PRIVATE_KEY_FILE': _key_path(profile)})
+
+    inventory = os.path.join(os.path.dirname(__file__), 'dynamic-inventory')
+
+    ansible = run_playbook(playbook, inventory, playbook_variables,
+                           env=env, verbose=3)
+
+    check_ansible_return_code(ansible, cluster, girder_token)
+    check_girder_cluster_status(cluster, girder_token, post_status)
+
+
+@command.task
+def start_cluster(launch_playbook, provision_playbook, cluster, profile,
+                  secret_key, extra_vars, girder_token, log_write_url):
+    run_ansible(launch_playbook, cluster, profile, secret_key, extra_vars,
+                girder_token, log_write_url, 'launched')
+
+    # todo cluster statuses should be updated in celery tasks?
+    check_girder_cluster_status(cluster, girder_token, 'provisioning')
+
+    provision_cluster(provision_playbook, cluster, profile, secret_key,
+                      extra_vars, girder_token, log_write_url, 'provisioned')
+
+
+@command.task
+def run_ansible(playbook, cluster, profile, secret_key, extra_vars,
+                girder_token, log_write_url, post_status):
+    playbook = get_playbook_path(playbook)
+    playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
+
+    env = os.environ.copy()
+    env.update({'AWS_ACCESS_KEY_ID': profile['accessKeyId'],
+                'AWS_SECRET_ACCESS_KEY': secret_key,
+                'GIRDER_TOKEN': girder_token,
+                'LOG_WRITE_URL': log_write_url,
+                'CLUSTER_ID': cluster['_id']})
+
+    inventory = AnsibleInventory(['localhost'])
+
+    with inventory.to_tempfile() as inventory_path:
+        ansible = run_playbook(playbook, inventory_path, playbook_variables,
+                               env=env, verbose=3)
+
+    check_ansible_return_code(ansible, cluster, girder_token)
+    check_girder_cluster_status(cluster, girder_token, post_status)

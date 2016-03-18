@@ -1,0 +1,40 @@
+- name: Install grid engine packages on exec node
+  apt: name={{ item }} state=present
+  become_user: root
+  with_items:
+    - gridengine-client
+    - gridengine-exec
+  tags:
+    - exec
+
+- name: Stop execd
+  service: name=gridengine-exec state=stopped
+
+
+- name: Template and install act_qmaster configuration file
+  template: src=act_qmaster dest=/var/lib/gridengine/default/common/act_qmaster group=sgeadmin owner=sgeadmin force=yes
+  become_user: root
+  tags:
+    - exec
+
+- name: Start execd
+  service: name=gridengine-exec state=running
+
+- name: Install NFS client
+  apt: name=nfs-common
+  become_user: root
+  tags:
+    - exec
+    - nfs-client
+
+- name: Mounting /home from master
+  become_user: root
+  mount:
+    name: /home
+    src: "{{ hostvars[groups['master'][0]].private_ip }}:/home"
+    fstype: nfs
+    state: mounted
+  when: inventory_hostname != groups['master'][0]
+  tags:
+    - exec
+    - nfs-client

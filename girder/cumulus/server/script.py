@@ -88,16 +88,16 @@ class Script(BaseResource):
         return self._clean(script)
 
     addModel('Script', {
-        "id": "Script",
-        "required": "global",
-        "properties": {
-            "name": {
-                "type": "string"
+        'id': 'Script',
+        'required': 'global',
+        'properties': {
+            'name': {
+                'type': 'string'
             },
-            "commands": {
-                "type": "array",
-                "items": {
-                    "type": "string"
+            'commands': {
+                'type': 'array',
+                'items': {
+                    'type': 'string'
                 }
             }
         }
