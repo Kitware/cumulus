@@ -22,65 +22,78 @@ from contextlib import contextmanager
 import stat
 import sys
 
-from starcluster.sshutils import SSHClient
-import starcluster.config
 from jsonpath_rw import parse
 
 from .abstract import AbstractConnection
 from cumulus.constants import ClusterType
 import cumulus
 from cumulus.common import create_config_request
+from paramiko.client import SSHClient
+from paramiko import RSAKey
+import paramiko
 
+class SshCommandException(Exception):
+    def __init__(self, command, exit_code, output):
+        super(SshCommandException, self).__init__('"%s" failed with %s'
+                                                  % (command, exit_code))
+        self.command = command
+        self.exit_code = exit_code
+        self.output = output
 
 class SshClusterConnection(AbstractConnection):
     def __init__(self, girder_token, cluster):
         self._girder_token = girder_token
         self._cluster = cluster
 
+    def _load_rsa_key(self, path, passphrase):
+        return RSAKey.from_private_key_file(path, password=passphrase)
+
     def __enter__(self):
-        if self._cluster['type'] == ClusterType.TRADITIONAL:
-            username = parse('config.ssh.user').find(self._cluster)[0].value
-            hostname = parse('config.host').find(self._cluster)[0].value
-            passphrase \
-                = parse('config.ssh.passphrase').find(self._cluster)[0].value
+        self._client = SSHClient()
+        self._client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-            key_path = os.path.join(cumulus.config.ssh.keyStore,
-                                    self._cluster['_id'])
+        username = parse('config.ssh.user').find(self._cluster)[0].value
+        hostname = parse('config.host').find(self._cluster)[0].value
+        passphrase \
+            = parse('config.ssh.passphrase').find(self._cluster)[0].value
+        if not passphrase:
+            passphrase = None
 
-            self._conn = SSHClient(host=hostname, username=username,
-                                   private_key=key_path,
-                                   private_key_pass=passphrase, timeout=5)
-            self._conn.connect()
-        else:
-            cluster_id = self._cluster['_id']
-            config_id = self._cluster['config']['_id']
-            config_request = create_config_request(
-                self._girder_token, cumulus.config.girder.baseUrl, config_id)
-            config = starcluster.config.StarClusterConfig(config_request)
+        key_path = os.path.join(cumulus.config.ssh.keyStore,
+                                self._cluster['_id'])
 
-            config.load()
-            cm = config.get_cluster_manager()
-            sc = cm.get_cluster(cluster_id)
-            master = sc.master_node
-            master.user = sc.cluster_user
-            self._conn = master.ssh
+        private_key = self._load_rsa_key(key_path, passphrase)
+
+        self._client.connect(hostname=hostname, username=username,
+                            pkey=private_key)
 
         return self
 
     def __exit__(self, type, value, traceback):
-        self._conn.close()
+        self._client.close()
 
     def execute(self, command, ignore_exit_status=False, source_profile=True):
-        return self._conn.execute(command,
-                                  ignore_exit_status=ignore_exit_status,
-                                  source_profile=source_profile)
+        if source_profile:
+            command = 'source /etc/profile && %s' % command
+
+        chan = self._client.get_transport().open_session()
+        chan.exec_command(command)
+        stdout = chan.makefile('r', -1)
+        stderr = chan.makefile_stderr('r', -1)
+
+        output = stdout.readlines() + stderr.readlines()
+        exit_code = chan.recv_exit_status()
+        if ignore_exit_status and exit_code != 0:
+            raise SshCommandException(command, exit_code, output)
+
+        return output
 
     @contextmanager
     def get(self, remote_path):
         sftp = None
         file = None
         try:
-            sftp = self._conn.transport.open_sftp_client()
+            sftp = self._client.get_transport().open_sftp_client()
             file = sftp.open(remote_path)
             yield file
         finally:
@@ -90,7 +103,7 @@ class SshClusterConnection(AbstractConnection):
 
     def isfile(self, remote_path):
 
-        with self._conn.transport.open_sftp_client() as sftp:
+        with self._client.get_transport().open_sftp_client() as sftp:
             try:
                 s = sftp.stat(remote_path)
             except IOError:
@@ -99,7 +112,7 @@ class SshClusterConnection(AbstractConnection):
             return stat.S_ISDIR(s.st_mode)
 
     def mkdir(self, remote_path, ignore_failure=False):
-        with self._conn.transport.open_sftp_client() as sftp:
+        with self._client.get_transport().open_sftp_client() as sftp:
             try:
                 sftp.mkdir(remote_path)
             except IOError:
@@ -107,13 +120,12 @@ class SshClusterConnection(AbstractConnection):
                     raise
 
     def makedirs(self, remote_path):
-        with self._conn.transport.open_sftp_client() as sftp:
+        with self._client.get_transport().open_sftp_client() as sftp:
             current_path = ''
             if remote_path[0] == '/':
                 current_path = '/'
 
             for path in remote_path.split('/'):
-                print sys.stderr, 'path: %s' % path
                 if not path:
                     continue
                 current_path = os.path.join(current_path, path)
@@ -123,19 +135,19 @@ class SshClusterConnection(AbstractConnection):
                     sftp.mkdir(current_path)
 
     def put(self, stream, remote_path):
-        with self._conn.transport.open_sftp_client() as sftp:
+        with self._client.get_transport().open_sftp_client() as sftp:
             sftp.putfo(stream, remote_path)
 
     def stat(self, remote_path):
-        with self._conn.transport.open_sftp_client() as sftp:
+        with self._client.get_transport().open_sftp_client() as sftp:
             return sftp.stat(remote_path)
 
     def remove(self, remote_path):
-        with self._conn.transport.open_sftp_client() as sftp:
+        with self._client.get_transport().open_sftp_client() as sftp:
             return sftp.remove(remote_path)
 
     def list(self, remote_path):
-        with self._conn.transport.open_sftp_client() as sftp:
+        with self._client.get_transport().open_sftp_client() as sftp:
             for path in sftp.listdir_iter(remote_path):
                 yield {
                     'name': path.filename,
