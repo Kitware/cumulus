@@ -18,6 +18,7 @@
 ###############################################################################
 
 import os
+import sys
 
 from jsonpath_rw import parse
 import requests
@@ -56,10 +57,10 @@ class NewtQueueAdapter(SlurmQueueAdapter):
         check_status(r)
         json_response = r.json()
 
-        import sys
-        print >> sys.stderr, json_response
+        if json_response['error']:
+            print >> sys.stderr, json_response
 
-        if json_response['status'] != 'OK' or json_response['error']:
+        if json_response['status'] != 'OK' or 'jobid' not in json_response:
             raise Exception(json_response['error'])
 
         return json_response['jobid']
