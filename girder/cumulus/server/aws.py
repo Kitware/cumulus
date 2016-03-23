@@ -19,12 +19,13 @@
 
 import cherrypy
 import json
+from jsonpath_rw import parse
 
 import cumulus
 import cumulus.aws.ec2.tasks.key
 
 from cumulus.common.girder import get_task_token
-from cumulus.starcluster.common import get_easy_ec2
+from cumulus.aws.ec2 import get_ec2_client
 
 from girder.api import access
 from girder.api.describe import Description
@@ -131,8 +132,8 @@ def delete_profile(user, profile, params):
     cumulus.aws.ec2.tasks.key.delete_key_pair.delay(_filter(profile),
                                                     get_task_token()['_id'])
 
-    ec2 = get_easy_ec2(profile)
-    ec2.delete_keypair(profile['_id'])
+    client = get_ec2_client(profile)
+    client.delete_key(KeyName=profile['_id'])
 
     ModelImporter.model('aws', 'cumulus').remove(profile)
 
@@ -236,8 +237,13 @@ status.description = (
 @loadmodel(model='aws', plugin='cumulus',  map={'profileId': 'profile'},
            level=AccessType.WRITE)
 def running_instances(user, profile, params):
-    ec2 = get_easy_ec2(profile)
-    count = ec2.get_running_instance_count()
+
+    client = get_ec2_client(profile)
+    count = len(client.describe_instances(
+                Filters=[{
+                    'Name': 'instance-state-name',
+                    'Values': ['running']
+                    }]))
 
     return {
         'runninginstances': count
@@ -264,11 +270,19 @@ running_instances.description = (
 @loadmodel(model='aws', plugin='cumulus',  map={'profileId': 'profile'},
            level=AccessType.WRITE)
 def max_instances(user, profile, params):
-    ec2 = get_easy_ec2(profile)
-    count = ec2.get_max_instances()
+    client = get_ec2_client(profile)
+    response = client.describe_account_attributes(
+        AttributeNames=['max-instances'])
+    jsonpath = 'AccountAttributes[0].AttributeValues[0].AttributeValue'
+    max_instances = parse(jsonpath).find(response)
+
+    if max_instances:
+        max_instances = max_instances[0].value
+    else:
+        raise RestException('Unable to extract "max-instances" attribute.')
 
     return {
-        'maxinstances': count
+        'maxinstances': max_instances
     }
 
 addModel('AwsProfileMaxInstances', {

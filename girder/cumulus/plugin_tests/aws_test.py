@@ -23,9 +23,8 @@ import mock
 import re
 import tempfile
 from easydict import EasyDict
-from boto.exception import EC2ResponseError
-from starcluster.exception import RegionDoesNotExist, ZoneDoesNotExist
-
+from botocore.exceptions import ClientError
+from cumulus.aws.ec2 import ClientErrorCode
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
@@ -114,12 +113,18 @@ class AwsTestCase(base.TestCase):
 
 
 
-    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    def test_create(self, generate_key_pair, EasyEC2):
+    def test_create(self, generate_key_pair, get_ec2_client):
 
-        instance = EasyEC2.return_value
-        instance.get_region.side_effect = EC2ResponseError(401, '', '')
+        ec2_client = get_ec2_client.return_value
+        response = {
+            'Error': {
+                'Code': ClientErrorCode.AuthFailure
+            }
+        }
+        get_ec2_client.side_effect = ClientError(response, '')
+
 
         body = {
             'name': 'myprof',
@@ -137,22 +142,39 @@ class AwsTestCase(base.TestCase):
         self.assertStatus(r, 400)
 
         # Check we handle invalid region
-        instance.get_region.side_effect = RegionDoesNotExist('')
+        get_ec2_client.side_effect = None
+        response = {
+            'Error': {
+                'Code': ClientErrorCode.InvalidParameterValue
+            }
+        }
+        ec2_client.describe_regions.side_effect = ClientError(response, '')
+
         r = self.request(create_url, method='POST',
                          type='application/json', body=json.dumps(body),
                          user=self._user)
         self.assertStatus(r, 400)
 
         # Check we handle invalid zone
-        instance.get_region.side_effect = ZoneDoesNotExist('', '')
+        response = {
+            'Error': {
+                'Code': ClientErrorCode.InvalidParameterValue
+            }
+        }
+        ec2_client.describe_zones.side_effect = ClientError(response, '')
         r = self.request(create_url, method='POST',
                          type='application/json', body=json.dumps(body),
                          user=self._user)
         self.assertStatus(r, 400)
 
-
-        instance.get_region.side_effect = None
-        instance.get_region.return_value = EasyDict({'endpoint': 'cornwall.ec2.amazon.com'})
+        ec2_client.describe_zones.side_effect = None
+        ec2_client.describe_regions.side_effect = None
+        ec2_client.describe_regions.return_value = {
+            'Regions': [{
+                'RegionName': 'cornwall',
+                'Endpoint': 'cornwall.ec2.amazon.com'
+            }]
+        }
 
         r = self.request(create_url, method='POST',
                          type='application/json', body=json.dumps(body),
@@ -186,11 +208,11 @@ class AwsTestCase(base.TestCase):
                          user=self._user)
         self.assertStatus(r, 400)
 
-    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    def test_create_public_ips(self, generate_key_pair, EasyEC2):
+    def test_create_public_ips(self, generate_key_pair, get_ec2_client):
 
-        instance = EasyEC2.return_value
+        ec2_client = get_ec2_client.return_value
 
         body = {
             'name': 'myprof',
@@ -203,7 +225,12 @@ class AwsTestCase(base.TestCase):
 
         # Check we handle invalid credentials
         create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
-        instance.get_region.return_value = EasyDict({'endpoint': 'cornwall.ec2.amazon.com'})
+        ec2_client.describe_regions.return_value = {
+            'Regions': [{
+                'RegionName': 'cornwall',
+                'Endpoint': 'cornwall.ec2.amazon.com'
+            }]
+        }
 
         r = self.request(create_url, method='POST',
                          type='application/json', body=json.dumps(body),
@@ -236,11 +263,16 @@ class AwsTestCase(base.TestCase):
 
 
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_update(self, EasyEC2, delay):
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    def test_update(self, get_ec2_client, delay):
         region_host = 'cornwall.ec2.amazon.com'
-        instance = EasyEC2.return_value
-        instance.get_region.return_value = EasyDict({'endpoint': region_host})
+        ec2_client = get_ec2_client.return_value
+        ec2_client.describe_regions.return_value = {
+            'Regions': [{
+                'RegionName': 'cornwall',
+                'Endpoint': region_host
+            }]
+        }
 
         profile_name = 'myprof'
         body = {
@@ -387,18 +419,21 @@ class AwsTestCase(base.TestCase):
         }
         self.assertEqual(profile, expected, 'Profile values not updated')
 
-
-
-    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
-    @mock.patch('girder.plugins.cumulus.aws.get_easy_ec2')
+    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    @mock.patch('girder.plugins.cumulus.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.delete_key_pair.delay')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay' )
-    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_delete(self, EasyEC2, generate_key_pair, delete_key_pair,
-                    get_easy_ec2, volume_get_easy_ec2):
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    def test_delete(self, get_ec2_client, generate_key_pair, delete_key_pair,
+                    aws_get_ec2_client, volume_get_ec2_client):
         region_host = 'cornwall.ec2.amazon.com'
-        instance = EasyEC2.return_value
-        instance.get_region.return_value = EasyDict({'endpoint': region_host})
+        ec2_client = get_ec2_client.return_value
+        ec2_client.describe_regions.return_value = {
+            'Regions': [{
+                'RegionName': 'cornwall',
+                'Endpoint': region_host
+            }]
+        }
 
         body = {
             'name': 'myprof',
@@ -488,8 +523,9 @@ class AwsTestCase(base.TestCase):
         profile_id = str(r.json['_id'])
 
         volume_id = 'vol-1'
-        volume_get_easy_ec2.return_value.create_volume.return_value.id \
-            = volume_id
+        volume_get_ec2_client.return_value.create_volume.return_value = {
+            'VolumeId': volume_id
+        }
 
         body = {
             'name': 'test',
@@ -521,11 +557,16 @@ class AwsTestCase(base.TestCase):
         self.assertStatusOk(r)
 
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_get(self, EasyEC2, generate_key_pair):
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    def test_get(self, get_ec2_client, generate_key_pair):
         region_host = 'cornwall.ec2.amazon.com'
-        instance = EasyEC2.return_value
-        instance.get_region.return_value = EasyDict({'endpoint': region_host})
+        get_ec2_client = get_ec2_client.return_value
+        get_ec2_client.describe_regions.return_value = {
+            'Regions': [{
+                'RegionName': 'cornwall',
+                'Endpoint': region_host
+            }]
+        }
 
         profile1 = {
             'name': 'myprof1',
@@ -576,13 +617,18 @@ class AwsTestCase(base.TestCase):
 
         self.assertEqual(r.json, [profile1, profile2], 'Check profiles where returned')
 
-    @mock.patch('girder.plugins.cumulus.aws.get_easy_ec2')
+    @mock.patch('girder.plugins.cumulus.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_running_instances(self, EasyEC2, generate_key_pair, get_easy_ec2):
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    def test_running_instances(self, get_ec2_client, generate_key_pair, aws_get_ec2_client):
         region_host = 'cornwall.ec2.amazon.com'
-        instance = EasyEC2.return_value
-        instance.get_region.return_value = EasyDict({'endpoint': region_host})
+        ec2_client = get_ec2_client.return_value
+        ec2_client.describe_regions.return_value = {
+            'Regions': [{
+                'RegionName': 'cornwall',
+                'Endpoint': region_host
+            }]
+        }
 
         profile = {
             'name': 'myprof1',
@@ -602,7 +648,8 @@ class AwsTestCase(base.TestCase):
         self.assertStatus(r, 201)
         profile_id = r.json['_id']
 
-        get_easy_ec2.return_value.get_running_instance_count.return_value = 10
+
+        aws_get_ec2_client.return_value.describe_instances.return_value = [x for x in range(0, 10)]
 
         running_instances_url = '/user/%s/aws/profiles/%s/runninginstances' % \
             (str(self._user['_id']), str(profile_id))
@@ -611,15 +658,20 @@ class AwsTestCase(base.TestCase):
         expected = {
             u'runninginstances': 10
         }
-        self.assertEqual(expected, r.json, 'Unexpected response')
+        self.assertEqual(expected, r.json)
 
-    @mock.patch('girder.plugins.cumulus.aws.get_easy_ec2')
+    @mock.patch('girder.plugins.cumulus.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_max_instances(self, EasyEC2, generate_key_pair, get_easy_ec2):
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    def test_max_instances(self, get_ec2_client, generate_key_pair, aws_get_ec2_client):
         region_host = 'cornwall.ec2.amazon.com'
-        instance = EasyEC2.return_value
-        instance.get_region.return_value = EasyDict({'endpoint': region_host})
+        ec2_client = get_ec2_client.return_value
+        ec2_client.describe_regions.return_value = {
+            'Regions': [{
+                'RegionName': 'cornwall',
+                'Endpoint': region_host
+                }]
+        }
 
         profile = {
             'name': 'myprof1',
@@ -639,7 +691,14 @@ class AwsTestCase(base.TestCase):
         self.assertStatus(r, 201)
         profile_id = r.json['_id']
 
-        get_easy_ec2.return_value.get_max_instances.return_value = 100
+        response = {
+            'AccountAttributes': [{
+                'AttributeValues': [{
+                    'AttributeValue': 100
+                }]
+            }]
+        }
+        aws_get_ec2_client.return_value.describe_account_attributes.return_value = response
 
         running_instances_url = '/user/%s/aws/profiles/%s/maxinstances' % \
             (str(self._user['_id']), str(profile_id))
@@ -649,5 +708,4 @@ class AwsTestCase(base.TestCase):
             u'maxinstances': 100
         }
         self.assertEqual(expected, r.json, 'Unexpected response')
-
 

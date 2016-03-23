@@ -1,5 +1,6 @@
 git+https://github.com/cjh1/StarCluster.git@cumulus#egg=StarCluster
 boto==2.38.0
+boto3==1.3.0
 celery==3.1.20
 requests==2.7.0
 requests-toolbelt==0.3.0

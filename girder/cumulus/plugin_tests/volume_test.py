@@ -49,8 +49,8 @@ class VolumeTestCase(base.TestCase):
 
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def setUp(self, EasyEC2, *args):
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    def setUp(self, get_ec2_client, *args):
         super(VolumeTestCase, self).setUp()
 
         users = ({
@@ -145,8 +145,13 @@ class VolumeTestCase(base.TestCase):
             'availabilityZone': self._availability_zone
         }
 
-        instance = EasyEC2.return_value
-        instance.get_region.return_value = EasyDict({'endpoint': 'cornwall.ec2.amazon.com'})
+        ec2_client = get_ec2_client.return_value
+        ec2_client.describe_regions.return_value = {
+            'Regions': [{
+                'RegionName': 'cornwall',
+                'Endpoint': 'cornwall.ec2.amazon.com'
+                }]
+        }
 
         create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
         r = self.request(create_url, method='POST',
@@ -162,12 +167,13 @@ class VolumeTestCase(base.TestCase):
         self.assertStatus(r, 201)
         self._another_profile_id = str(r.json['_id'])
 
-    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
-    def test_create(self, get_easy_ec2):
+    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    def test_create(self, get_ec2_client):
         volume_id = 'vol-1'
-        instance = get_easy_ec2.return_value
-        instance \
-            .create_volume.return_value.id = volume_id
+        ec2_client = get_ec2_client.return_value
+        ec2_client.create_volume.return_value = {
+            'VolumeId': volume_id
+        }
 
         body = {
             'name': 'test',
@@ -300,12 +306,13 @@ class VolumeTestCase(base.TestCase):
                          user=self._cumulus)
         self.assertStatus(r, 400)
 
-    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
-    def test_get(self, get_easy_ec2):
+    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    def test_get(self, get_ec2_client):
         volume_id = 'vol-1'
-        instance = get_easy_ec2.return_value
-        instance \
-            .create_volume.return_value.id = volume_id
+        ec2_client = get_ec2_client.return_value
+        ec2_client.create_volume.return_value = {
+            'VolumeId': volume_id
+        }
 
         body = {
             'name': 'test',
@@ -350,12 +357,14 @@ class VolumeTestCase(base.TestCase):
                          user=self._cumulus)
         self.assertStatus(r, 400)
 
-    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
-    def test_delete(self, get_easy_ec2):
+    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    def test_delete(self, get_ec2_client):
         volume_id = 'vol-1'
-        instance = get_easy_ec2.return_value
-        instance \
-            .create_volume.return_value.id = volume_id
+        ec2_client = get_ec2_client.return_value
+        ec2_client.create_volume.return_value = {
+            'VolumeId': volume_id
+        }
+
         body = {
             'name': 'test',
             'size': 20,
@@ -374,10 +383,12 @@ class VolumeTestCase(base.TestCase):
         volume_id = str(r.json['_id'])
 
         # Try and delete any attached volume
-        instance \
-            .get_volume.return_value \
-            .update.return_value = 'available'
+        ec2_client.describe_volumes.return_value = {
+            'Volumes': [{
+                'State': 'available'
 
+            }]
+        }
         body = {
             'path': '/data'
         }
@@ -393,9 +404,13 @@ class VolumeTestCase(base.TestCase):
         self.assertStatus(r, 400)
 
         # Detach it then delete it
-        instance \
-            .get_volume.return_value \
-            .update.return_value = 'in-use'
+        ec2_client.describe_volumes.return_value = {
+            'Volumes': [{
+                'State': 'in-use'
+
+            }]
+        }
+
         url = '/volumes/%s/detach' % (volume_id)
         r = self.request(url, method='PUT', user=self._cumulus)
         self.assertStatusOk(r)
@@ -406,18 +421,21 @@ class VolumeTestCase(base.TestCase):
 
 
 
-    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
-    def test_attach_volume(self, get_easy_ec2):
+    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    def test_attach_volume(self, get_ec2_client):
 
         ec2_volume_id = 'vol-1'
-        instance = get_easy_ec2.return_value
-        instance \
-            .create_volume.return_value.id = ec2_volume_id
+        ec2_client = get_ec2_client.return_value
+        ec2_client.create_volume.return_value = {
+            'VolumeId': ec2_volume_id
+        }
 
-        instance \
-            .get_volume.return_value \
-            .update.return_value = 'available'
+        ec2_client.describe_volumes.return_value = {
+            'Volumes': [{
+                'State': 'available'
 
+            }]
+        }
         body = {
             'name': 'test',
             'size': 20,
@@ -455,10 +473,14 @@ class VolumeTestCase(base.TestCase):
             expected, r.json, 'Config was not successfully updated')
 
         # Try to attach volume that is already attached
-        instance.reset_mock()
-        instance \
-            .get_volume.return_value \
-            .update.return_value = 'in-use'
+        ec2_client.reset_mock()
+        ec2_client.describe_volumes.return_value = {
+            'Volumes': [{
+                'State': 'in-use'
+
+            }]
+        }
+
         url = '/volumes/%s/clusters/%s/attach' % (volume_id, self._cluster_id)
         r = self.request(url, method='PUT',
                          type='application/json', body=json.dumps(body),
@@ -466,10 +488,14 @@ class VolumeTestCase(base.TestCase):
         self.assertStatus(r, 400)
 
         # Try to attach volume that is currently being created
-        instance.reset_mock()
-        instance \
-            .get_volume.return_value \
-            .update.return_value = 'creating'
+        ec2_client.reset_mock()
+        ec2_client.describe_volumes.return_value = {
+            'Volumes': [{
+                'State': 'creating'
+
+            }]
+        }
+
         url = '/volumes/%s/clusters/%s/attach' % (volume_id, self._cluster_id)
         r = self.request(url, method='PUT',
                          type='application/json', body=json.dumps(body),
@@ -477,10 +503,14 @@ class VolumeTestCase(base.TestCase):
 
         self.assertStatus(r, 400)
         # Try to attach volume to traditional cluster
-        instance.reset_mock()
-        instance \
-            .get_volume.return_value \
-            .update.return_value = 'creating'
+        ec2_client.reset_mock()
+        ec2_client.describe_volumes.return_value = {
+            'Volumes': [{
+                'State': 'creating'
+
+            }]
+        }
+
         url = '/volumes/%s/clusters/%s/attach' % (
             volume_id, self._trad_cluster_id)
         r = self.request(url, method='PUT',
@@ -488,15 +518,18 @@ class VolumeTestCase(base.TestCase):
                          user=self._cumulus)
         self.assertStatus(r, 400)
 
-    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
-    def test_detach_volume(self, get_easy_ec2):
+    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    def test_detach_volume(self, get_ec2_client):
         ec2_volume_id = 'vol-1'
-        instance = get_easy_ec2.return_value
-        instance \
-            .create_volume.return_value.id = ec2_volume_id
-        instance \
-            .get_volume.return_value \
-            .update.return_value = 'available'
+        ec2_client = get_ec2_client.return_value
+        ec2_client.create_volume.return_value = {
+            'VolumeId': ec2_volume_id
+        }
+        ec2_client.describe_volumes.return_value = {
+            'Volumes': [{
+                'State': 'available'
+            }]
+        }
 
         body = {
             'name': 'testing me',
@@ -530,21 +563,22 @@ class VolumeTestCase(base.TestCase):
         self.assertStatusOk(r)
 
         # Try successful detach
-        instance.reset_mock()
-        instance \
-            .create_volume.return_value.id = ec2_volume_id
-
-        instance \
-            .get_volume.return_value \
-            .update.return_value = 'in-use'
+        ec2_client.reset_mock()
+        ec2_client.create_volume.return_value = {
+            'VolumeId': ec2_volume_id
+        }
+        ec2_client.describe_volumes.return_value = {
+            'Volumes': [{
+                'State': 'in-use'
+            }]
+        }
 
         url = '/volumes/%s/detach' % (volume_id)
         r = self.request(url, method='PUT', user=self._user)
         self.assertStatusOk(r)
 
         # Assert that detach was called on ec2 object
-        self.assertEqual(len(instance.get_volume
-                             .return_value.detach.call_args_list),
+        self.assertEqual(len(ec2_client.detach_volume.call_args_list),
                          1, "detach was not called")
 
         r = self.request('/starcluster-configs/%s' % self._cluster_config_id, method='GET',
@@ -554,15 +588,18 @@ class VolumeTestCase(base.TestCase):
         self.assertStatusOk(r)
         self.assertEqual(expected, r.json, 'Config was not updated correctly')
 
-    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
-    def test_find_volume(self, get_easy_ec2):
+    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    def test_find_volume(self, get_ec2_client):
         ec2_volume_id = 'vol-1'
-        instance = get_easy_ec2.return_value
-        instance \
-            .create_volume.return_value.id = ec2_volume_id
-        instance \
-            .get_volume.return_value \
-            .update.return_value = 'available'
+        ec2_client = get_ec2_client.return_value
+        ec2_client.create_volume.return_value = {
+            'VolumeId': ec2_volume_id
+        }
+        ec2_client.describe_volumes.return_value = {
+            'Volumes': [{
+                'State': 'available'
+            }]
+        }
 
         # Create some test volumes
         body = {
@@ -635,16 +672,18 @@ class VolumeTestCase(base.TestCase):
         self.assertStatusOk(r)
         self.assertEqual(len(r.json), 1, 'Wrong number of volumes returned')
 
-    @mock.patch('girder.plugins.cumulus.volume.get_easy_ec2')
-    def test_get_status(self, get_easy_ec2):
+    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    def test_get_status(self, get_ec2_client):
         ec2_volume_id = 'vol-1'
-        instance = get_easy_ec2.return_value
-        instance \
-            .create_volume.return_value.id = ec2_volume_id
-        instance \
-            .get_volume.return_value \
-            .update.return_value = 'available'
-
+        ec2_client = get_ec2_client.return_value
+        ec2_client.create_volume.return_value = {
+            'VolumeId': ec2_volume_id
+        }
+        ec2_client.describe_volumes.return_value = {
+            'Volumes': [{
+                'State': 'available'
+            }]
+        }
         # Create some test volumes
         body = {
             'name': 'testing me',
@@ -671,9 +710,11 @@ class VolumeTestCase(base.TestCase):
         }
         self.assertEqual(r.json, expected, 'Unexpected status')
 
-        instance \
-            .get_volume.return_value \
-            .update.return_value = 'in-use'
+        ec2_client.describe_volumes.return_value = {
+            'Volumes': [{
+                'State': 'in-use'
+            }]
+        }
         r = self.request(url, method='GET', user=self._user)
         self.assertStatusOk(r)
         expected = {
