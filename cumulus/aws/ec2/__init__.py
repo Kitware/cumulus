@@ -1,8 +1,10 @@
 import boto3
 
+
 class ClientErrorCode:
-    AuthFailure  = 'AuthFailure'
+    AuthFailure = 'AuthFailure'
     InvalidParameterValue = 'InvalidParameterValue'
+
 
 def get_ec2_client(profile):
     aws_access_key_id = profile['accessKeyId']

@@ -28,37 +28,6 @@ from cumulus.starcluster.tasks import job
 from celery.app import task
 
 
-class MockMaster:
-    execute_stack = []
-    def __init__(self):
-        self.ssh = mock.MagicMock()
-
-        self.ssh.execute.side_effect = MockMaster.execute_stack
-        MockMaster.instance = self
-
-class MockCluster:
-    def __init__(self):
-        self.master_node = MockMaster()
-        self.cluster_user = 'bob'
-
-
-class MockClusterManager:
-    def __init__(self):
-        self.cluster = MockCluster()
-    def get_cluster(self, name):
-        return self.cluster
-
-class MockStarClusterConfig:
-    def __init__(self, *args, **kw):
-        self.cluster_manager = MockClusterManager()
-
-    def load(self):
-        pass
-
-    def get_cluster_manager(self):
-        return self.cluster_manager
-
-
 class MockContext(task.Context):
 
     def __init__(self, *args, **kwargs):
@@ -91,9 +60,9 @@ class JobTestCase(unittest.TestCase):
 
         self.assertListEqual(self.normalize(calls), expected, msg)
 
-    @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
-    @mock.patch('cumulus.starcluster.logging')
-    def test_monitor_job_terminated(self, logging):
+    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
+    def test_monitor_job_terminated(self, get_connection):
+        conn = get_connection.return_value.__enter__.return_value
 
         job_id = 'dummy'
         cluster = {
@@ -114,7 +83,7 @@ class JobTestCase(unittest.TestCase):
             'output': []
         }
 
-        MockMaster.execute_stack = ['qstat output']
+        conn.execute.return_value = 'qstat output'
 
         def _get_status(url, request):
             content = {
@@ -150,14 +119,10 @@ class JobTestCase(unittest.TestCase):
         self.assertTrue(self._get_status_called, 'Expect get status endpoint to be hit')
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
 
-    @mock.patch('starcluster.config.StarClusterConfig')
-    @mock.patch('starcluster.logger')
-    @mock.patch('cumulus.starcluster.logging')
-    def test_monitor_job_complete(self, logging,logger, StarClusterConfig):
-
-        StarClusterConfig.return_value.get_cluster_manager.return_value \
-            .get_cluster.return_value \
-            .master_node.ssh.stat.return_value.st_size = 0
+    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
+    def test_monitor_job_complete(self, get_connection):
+        conn = get_connection.return_value.__enter__.return_value
+        conn.stat.return_value.st_size = 0
 
         job_id = 'dummy'
         cluster = {
@@ -181,7 +146,7 @@ class JobTestCase(unittest.TestCase):
             'dir': '/home/test/%s' % job_id
         }
 
-        MockMaster.execute_stack = ['qstat output']
+        conn.execute.return_value = 'qstat output'
 
         def _get_status(url, request):
             content = {
@@ -218,11 +183,10 @@ class JobTestCase(unittest.TestCase):
         expected_calls = [[[{u'config': {u'_id': u'dummy', u'scheduler': {u'type': u'sge'}}, u'name': u'dummy', u'type': u'ec2', u'_id': u'dummy'}, {u'status': u'uploading', u'output': [{u'itemId': u'dummy'}], u'_id': u'dummy', u'queueJobId': u'dummy', u'name': u'dummy', u'dir': u'/home/test/dummy'}], {u'girder_token': u's', u'log_write_url': 1, u'job_dir': u'/home/test/dummy'}]]
         self.assertCalls(self._upload_job_output.call_args_list, expected_calls)
 
-    @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
-    @mock.patch('starcluster.logger')
-    @mock.patch('cumulus.starcluster.logging')
+    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
     @mock.patch('cumulus.celery.monitor.Task.retry')
-    def test_monitor_job_running(self, retry, *args):
+    def test_monitor_job_running(self, retry, get_connection):
+        conn = get_connection.return_value.__enter__.return_value
         job_id = 'dummy'
         cluster = {
             '_id': 'jill',
@@ -242,9 +206,9 @@ class JobTestCase(unittest.TestCase):
             'output': []
         }
 
-        MockMaster.execute_stack = [[ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
+        conn.execute.return_value = [ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
                              '-----------------------------------------------------------------------------------------',
-                             '1 0.00000 hostname   sgeadmin     r     09/09/2009 14:58:14                1']]
+                             '1 0.00000 hostname   sgeadmin     r     09/09/2009 14:58:14                1']
 
         def _get_status(url, request):
             content = {
@@ -282,12 +246,11 @@ class JobTestCase(unittest.TestCase):
         self.assertTrue(self._get_status_called, 'Expect get status endpoint to be hit')
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
 
-    @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
-    @mock.patch('starcluster.logger')
-    @mock.patch('cumulus.starcluster.logging')
-    @mock.patch('cumulus.celery.monitor.Task.retry')
-    def test_monitor_job_queued(self, *args):
 
+    @mock.patch('cumulus.celery.monitor.Task.retry')
+    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
+    def test_monitor_job_queued(self, get_connection, *args):
+        conn = get_connection.return_value.__enter__.return_value
         job_id = 'dummy'
         cluster = {
             '_id': 'lost',
@@ -307,9 +270,9 @@ class JobTestCase(unittest.TestCase):
             'output': []
         }
 
-        MockMaster.execute_stack = [[ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
+        conn.execute.return_value = [ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
                              '-----------------------------------------------------------------------------------------',
-                             '1 0.00000 hostname   sgeadmin     q     09/09/2009 14:58:14                1']]
+                             '1 0.00000 hostname   sgeadmin     q     09/09/2009 14:58:14                1']
 
         def _get_status(url, request):
             content = {
@@ -344,11 +307,8 @@ class JobTestCase(unittest.TestCase):
         self.assertTrue(self._get_status_called, 'Expect get status endpoint to be hit')
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
 
-    @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
-    @mock.patch('starcluster.logger')
-    @mock.patch('cumulus.starcluster.logging')
     @mock.patch('cumulus.celery.monitor.Task.retry')
-    @mock.patch('cumulus.starcluster.tasks.job.get_connection', autospec=True)
+    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
     def test_monitor_job_tail_output(self, get_connection, retry, *args):
 
         job_id = 'dummy'
@@ -372,9 +332,9 @@ class JobTestCase(unittest.TestCase):
         }
 
         conn = get_connection.return_value.__enter__.return_value
-        conn.execute.side_effect = [[ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
+        conn.execute.side_effect = [ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
                              '-----------------------------------------------------------------------------------------',
-                             '1 0.00000 hostname   sgeadmin     r     09/09/2009 14:58:14                1'], ['i have a tail', 'asdfas'] ]
+                             '1 0.00000 hostname   sgeadmin     r     09/09/2009 14:58:14                1'], ['i have a tail', 'asdfas']
 
         def _get_status(url, request):
             content = {
@@ -412,9 +372,6 @@ class JobTestCase(unittest.TestCase):
         self.assertTrue(self._get_status_called, 'Expect get status endpoint to be hit')
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
 
-    @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
-    @mock.patch('starcluster.logger')
-    @mock.patch('cumulus.starcluster.logging')
     @mock.patch('cumulus.celery.command.Task.retry')
     @mock.patch('cumulus.starcluster.tasks.job.monitor_job')
     @mock.patch('cumulus.starcluster.tasks.job.get_connection', autospec=True)
@@ -482,6 +439,18 @@ class JobTestCase(unittest.TestCase):
 
             return httmock.response(200, content, headers, request=request)
 
+        def _log(url, request):
+            content = {
+            }
+            content = json.dumps(content)
+            headers = {
+                'content-length': len(content),
+                'content-type': 'application/json'
+            }
+
+            return httmock.response(200, content, headers, request=request)
+
+
         status_url = '/api/v1/jobs/%s/status' % job_id
         get_status = httmock.urlmatch(
             path=r'^%s$' % status_url, method='GET')(_get_status)
@@ -490,13 +459,17 @@ class JobTestCase(unittest.TestCase):
         set_status = httmock.urlmatch(
             path=r'^%s$' % status_update_url, method='PATCH')(_set_status)
 
-        with httmock.HTTMock(get_status, set_status):
+        log_url = '/api/v1/jobs/%s/log' % job_id
+        log = httmock.urlmatch(
+            path=r'^%s$' % log_url, method='POST')(_log)
+
+        with httmock.HTTMock(get_status, set_status, log):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
 
         self.assertEqual(conn.execute.call_args_list[1],
                          mock.call('qconf -sp orte'), 'Unexpected qconf command: %s' %
-                         str(MockMaster.instance.ssh.execute.call_args_list[0]))
+                         str(conn.execute.call_args_list[0]))
 
         # Specifying and parallel environment
         job_model = {
@@ -525,7 +498,7 @@ class JobTestCase(unittest.TestCase):
         conn.reset_mock()
         conn.execute.side_effect = [['/home/test'], qconf_output, qsub_output]
 
-        with httmock.HTTMock(get_status, set_status):
+        with httmock.HTTMock(get_status, set_status, log):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
         self.assertEqual(conn.execute.call_args_list[1],
@@ -560,7 +533,7 @@ class JobTestCase(unittest.TestCase):
         conn.reset_mock()
         conn.execute.side_effect = [['/home/test'], ['Your job 74 ("test.sh") has been submitted']]
 
-        with httmock.HTTMock(get_status, set_status):
+        with httmock.HTTMock(get_status, set_status, log):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
 
@@ -598,18 +571,17 @@ class JobTestCase(unittest.TestCase):
         conn.reset_mock()
         conn.execute.side_effect = [['/home/test'], qconf_output, ['Your job 74 ("test.sh") has been submitted']]
 
-        with httmock.HTTMock(get_status, set_status):
+        with httmock.HTTMock(get_status, set_status, log):
             job.submit_job(cluster, job_model, log_write_url='log_write_url',
                            girder_token='girder_token')
 
         self.assertEqual(conn.execute.call_args_list[1], mock.call('qconf -sp mype'))
         self.assertEqual(job_model['params']['numberOfSlots'], 10)
 
-    @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
-    @mock.patch('starcluster.logger')
-    @mock.patch('cumulus.starcluster.logging')
+    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
     @mock.patch('cumulus.celery.monitor.Task.retry')
-    def test_monitor_jobs_queued_retry(self, retry, *args):
+    def test_monitor_jobs_queued_retry(self, retry, get_connection):
+        conn = get_connection.return_value.__enter__.return_value
 
         cluster = {
             '_id': 'lost',
@@ -638,10 +610,10 @@ class JobTestCase(unittest.TestCase):
         }
 
 
-        MockMaster.execute_stack = [[ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
+        conn.execute.return_value = [ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
                              '-----------------------------------------------------------------------------------------',
                              '1 0.00000 hostname   sgeadmin     q     09/09/2009 14:58:14                1',
-                             '2 0.00000 hostname   sgeadmin     q     09/09/2009 14:58:14                1']]
+                             '2 0.00000 hostname   sgeadmin     q     09/09/2009 14:58:14                1']
 
         self._get_status_calls = {}
         self._set_status_calls = {}
@@ -695,11 +667,10 @@ class JobTestCase(unittest.TestCase):
         # Make sure we are rescheduled
         self.assertTrue(retry.call_args_list)
 
-    @mock.patch('starcluster.config.StarClusterConfig', new=MockStarClusterConfig)
-    @mock.patch('starcluster.logger')
-    @mock.patch('cumulus.starcluster.logging')
+    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
     @mock.patch('cumulus.celery.monitor.Task.retry')
-    def test_monitor_jobs_queued_no_retry(self, retry, *args):
+    def test_monitor_jobs_queued_no_retry(self, retry, get_connection):
+        conn = get_connection.return_value.__enter__.return_value
 
         cluster = {
             '_id': 'lost',
@@ -728,8 +699,8 @@ class JobTestCase(unittest.TestCase):
         }
 
 
-        MockMaster.execute_stack = [[ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
-                             '-----------------------------------------------------------------------------------------']]
+        conn.execute.return_value = [ 'job-ID  prior   name       user         state submit/start at     queue  slots ja-task-ID',
+                             '-----------------------------------------------------------------------------------------']
 
         self._get_status_calls = {}
         self._set_status_calls = {}

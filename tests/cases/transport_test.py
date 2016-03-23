@@ -42,8 +42,9 @@ class TransportTestCase(unittest.TestCase):
         except OSError:
             pass
 
-    @mock.patch('starcluster.sshutils.SSHClient.connect')
-    def test_get_ssh_connection_trad(self, connect):
+    @mock.patch('cumulus.transport.ssh.paramiko.RSAKey.from_private_key_file')
+    @mock.patch('cumulus.transport.ssh.paramiko.SSHClient.connect')
+    def test_get_ssh_connection(self, connect, from_private_key_file):
         cluster = {
             '_id': self._cluster_id,
             'config': {
@@ -58,25 +59,5 @@ class TransportTestCase(unittest.TestCase):
 
         with get_connection('girder_token', cluster) as ssh:
             self.assertTrue(isinstance(ssh, SshClusterConnection))
-
-    @mock.patch('cumulus.transport.ssh.create_config_request')
-    @mock.patch('starcluster.config.StarClusterConfig')
-    def test_get_ssh_connection_ec2(self, StarClusterConfig,
-                                    create_config_request):
-        cluster = {
-            '_id': self._cluster_id,
-            'config': {
-                '_id': 'dummy'
-            },
-            'type': 'ec2',
-            'name': 'mycluster'
-        }
-
-        with get_connection('girder_token', cluster) as ssh:
-            self.assertTrue(isinstance(ssh, SshClusterConnection))
-
-        self.assertEqual(len(create_config_request.call_args_list),
-                         1, 'The cluster configuration was not fetched')
-
 
 

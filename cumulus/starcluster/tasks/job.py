@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 import traceback
 from cumulus.starcluster.logging import logstdout
-import cumulus.starcluster.logging
 from cumulus.common import check_status
 from cumulus.starcluster.common import _log_exception, get_post_logger
 from cumulus.celery import command, monitor
@@ -34,9 +33,6 @@ from cumulus.transport import get_connection
 from cumulus.transport.files.download import download_path
 from cumulus.transport.files.upload import upload_path
 from cumulus.transport.files import get_assetstore_url_base, get_assetstore_id
-import starcluster.config
-import starcluster.logger
-import starcluster.exception
 import requests
 import os
 import re
@@ -50,6 +46,7 @@ from jinja2 import Environment, Template, PackageLoader
 from jsonpath_rw import parse
 import tempfile
 from girder_client import HttpError
+import paramiko
 
 
 def _put_script(conn, script_commands):
@@ -159,9 +156,9 @@ def download_job_input_folders(cluster, job, log_write_url=None,
 
 
 @command.task
-@cumulus.starcluster.logging.capture
 def download_job_input(cluster, job, log_write_url=None, girder_token=None):
-    log = starcluster.logger.get_starcluster_logger()
+    job_url = '%s/jobs/%s/log' % cumulus.config.girder.baseUrl, job['_id']
+    log = get_post_logger(job['_id'], girder_token, job_url)
 
     # Create job directory
     with get_connection(girder_token, cluster) as conn:
@@ -230,10 +227,10 @@ def _get_on_complete(job):
 
 
 @command.task
-@cumulus.starcluster.logging.capture
 def submit_job(cluster, job, log_write_url=None, girder_token=None,
                monitor=True):
-    log = starcluster.logger.get_starcluster_logger()
+    job_url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl, job['_id'])
+    log = get_post_logger(job['_id'], girder_token, job_url)
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
@@ -309,16 +306,6 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
         r = requests.patch(status_url, headers=headers,
                            json={'status': JobState.QUEUED})
         check_status(r)
-    except starcluster.exception.RemoteCommandFailed as ex:
-        r = requests.patch(status_url, headers=headers,
-                           json={'status': JobState.UNEXPECTEDERROR})
-        check_status(r)
-        _log_exception(ex)
-    except starcluster.exception.ClusterDoesNotExist as ex:
-        r = requests.patch(status_url, headers=headers,
-                           json={'status': JobState.UNEXPECTEDERROR})
-        check_status(r)
-        _log_exception(ex)
     except Exception as ex:
         traceback.print_exc()
         r = requests.patch(status_url, headers=headers,
@@ -420,7 +407,9 @@ class Queued(JobState):
 
 class Running(JobState):
     def _tail_output(self):
-        log = starcluster.logger.get_starcluster_logger()
+        job_url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl,
+                                      self.job['_id'])
+        log = get_post_logger(self.job['_id'], self.girder_token, job_url)
 
         # Do we need to tail any output files
         for output in self.job.get('output', []):
@@ -442,7 +431,7 @@ class Running(JobState):
                         log.info('Skipping tail of %s as file doesn\'t '
                                  'currently exist' %
                                  tail_path)
-                except starcluster.exception.RemoteCommandFailed as ex:
+                except Exception as ex:
                     _log_exception(ex)
 
     def next(self, job_queue_status):
@@ -535,7 +524,9 @@ class Terminated(JobState):
 
 class Uploading(JobState):
     def next(self, job_queue_status):
-        log = starcluster.logger.get_starcluster_logger()
+        job_url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl,
+                                      self.job['_id'])
+        log = get_post_logger(self.job['_id'], self.girder_token, job_url)
         job_name = self.job['name']
 
         if 'runningTime' in self.job:
@@ -659,14 +650,14 @@ def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None,
                 # Try again
                 task.retry(countdown=5)
                 return
-            except starcluster.exception.SSHConnectionError as ex:
+            except paramiko.ssh_exception.NoValidConnectionsError as ex:
                 # Try again
                 task.retry(countdown=5)
                 return
     # Ensure that the Retry exception will get through
     except Retry:
         raise
-    except starcluster.exception.RemoteCommandFailed as ex:
+    except paramiko.ssh_exception.NoValidConnectionsError as ex:
         r = requests.patch(cluster_url, headers=headers,
                            json={'status': 'error'})
         check_status(r)
@@ -753,7 +744,7 @@ def upload_job_output_to_item(cluster, job, log_write_url=None, job_dir=None,
                               on_complete=on_complete,
                               girder_token=girder_token)
 
-    except starcluster.exception.RemoteCommandFailed as ex:
+    except Exception as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
@@ -810,12 +801,12 @@ def upload_job_output_to_folder(cluster, job, log_write_url=None, job_dir=None,
 
 
 @command.task
-@cumulus.starcluster.logging.capture
 def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
                       girder_token=None):
 
     job_name = job['name']
-    log = starcluster.logger.get_starcluster_logger()
+    job_url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl, job['_id'])
+    log = get_post_logger(job['_id'], girder_token, job_url)
 
     log.info('Uploading output for "%s"' % job_name)
 
@@ -828,12 +819,12 @@ def upload_job_output(cluster, job, log_write_url=None, job_dir=None,
 
 
 @monitor.task(bind=True, max_retries=None)
-@cumulus.starcluster.logging.capture
 def monitor_process(task, cluster, job, pid, nohup_out_path,
                     log_write_url=None, on_complete=None,
                     output_message='Job download/upload error: %s',
                     girder_token=None):
-    log = starcluster.logger.get_starcluster_logger()
+    job_url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl, job['_id'])
+    log = get_post_logger(job['_id'], girder_token, job_url)
     headers = {'Girder-Token':  girder_token}
     job_id = job['_id']
     status_url = '%s/jobs/%s' % (cumulus.config.girder.baseUrl, job_id)
@@ -895,11 +886,6 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
     except EOFError:
         # Try again
         task.retry(throw=False, countdown=5)
-    except starcluster.exception.RemoteCommandFailed as ex:
-        r = requests.patch(status_url, headers=headers,
-                           json={'status': JobState.UNEXPECTEDERROR})
-        check_status(r)
-        _log_exception(ex)
     except Exception as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': JobState.UNEXPECTEDERROR})
@@ -960,16 +946,6 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
                                           output_message=output_message,
                                           girder_token=girder_token)
 
-    except starcluster.exception.RemoteCommandFailed as ex:
-        r = requests.patch(status_url, headers=headers,
-                           json={'status': JobState.UNEXPECTEDERROR})
-        check_status(r)
-        _log_exception(ex)
-    except starcluster.exception.ClusterDoesNotExist as ex:
-        r = requests.patch(status_url, headers=headers,
-                           json={'status': JobState.UNEXPECTEDERROR})
-        check_status(r)
-        _log_exception(ex)
     except Exception as ex:
         r = requests.patch(status_url, headers=headers,
                            json={'status': JobState.UNEXPECTEDERROR})

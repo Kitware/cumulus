@@ -20,17 +20,15 @@
 import os
 from contextlib import contextmanager
 import stat
-import sys
-
 from jsonpath_rw import parse
 
 from .abstract import AbstractConnection
-from cumulus.constants import ClusterType
 import cumulus
-from cumulus.common import create_config_request
+
 from paramiko.client import SSHClient
 from paramiko import RSAKey
 import paramiko
+
 
 class SshCommandException(Exception):
     def __init__(self, command, exit_code, output):
@@ -39,6 +37,7 @@ class SshCommandException(Exception):
         self.command = command
         self.exit_code = exit_code
         self.output = output
+
 
 class SshClusterConnection(AbstractConnection):
     def __init__(self, girder_token, cluster):
@@ -65,7 +64,7 @@ class SshClusterConnection(AbstractConnection):
         private_key = self._load_rsa_key(key_path, passphrase)
 
         self._client.connect(hostname=hostname, username=username,
-                            pkey=private_key)
+                             pkey=private_key)
 
         return self
 

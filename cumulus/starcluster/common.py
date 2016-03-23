@@ -28,6 +28,7 @@ def _log_exception(ex):
     log = starcluster.logger.get_starcluster_logger()
     log.error(traceback.format_exc())
 
+
 def get_post_logger(name, girder_token, post_url):
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
