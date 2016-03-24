@@ -124,9 +124,9 @@ def delete_profile(user, profile, params):
         raise RestException('Unable to delete profile as it is associated with'
                             ' a volume', 400)
 
-    if ModelImporter.model('starclusterconfig', 'cumulus').findOne(query):
+    if ModelImporter.model('cluster', 'cumulus').findOne(query):
         raise RestException('Unable to delete profile as it is associated with'
-                            ' a configuration', 400)
+                            ' a cluster', 400)
 
     # Clean up key associate with profile
     cumulus.aws.ec2.tasks.key.delete_key_pair.delay(_filter(profile),

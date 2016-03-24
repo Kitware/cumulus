@@ -192,69 +192,6 @@ class Volume(BaseResource):
         .param('limit', 'The max number of volumes to return',
                paramType='query', required=False, default=50))
 
-    def _add_volume(self, config, cluster, volume, path):
-        # Check that we don't already have a volume with this name
-        vol = config.setdefault('vol', [])
-        for v in vol:
-            if volume['name'] in v:
-                raise ValidationException('A volume with that name is already '
-                                          'exists', 'name')
-
-        # Add to volume list
-        volume_config = {
-            'volume_id': volume['ec2']['id'],
-            'mount_path': path
-        }
-
-        vol.append({
-            volume['name']: volume_config
-        })
-
-        if 'fs' in volume:
-            volume_config['fs'] = volume['fs']
-
-        template_name = cluster['template']
-        # Now add the volume to the cluster
-        for c in config['cluster']:
-            if template_name in c:
-                current_volumes = c[template_name].get('volumes', '')
-                current_volumes = [x for x in current_volumes.split(',') if x]
-
-                if volume['name'] in current_volumes:
-                    raise ValidationException('A volume with that name is '
-                                              'already attached', 'name')
-                current_volumes.append(volume['name'])
-
-                c[template_name]['volumes'] = ','.join(current_volumes)
-                break
-
-        return config
-
-    def _remove_volume(self, config, cluster, volume):
-        # Check that we don't already have a volume with this name
-        vol = config.get('vol', [])
-        to_delete = None
-        for v in vol:
-            if volume['name'] in v:
-                to_delete = v
-                break
-
-        vol.remove(to_delete)
-
-        # Now remove the volume from the cluster
-        template_name = cluster['template']
-        for c in config['cluster']:
-            if template_name in c:
-                current_volumes = c[template_name].get('volumes', '')
-                current_volumes = [x for x in current_volumes.split(',') if x]
-                current_volumes.remove(volume['name'])
-                c['default_cluster']['volumes'] = ','.join(current_volumes)
-                if not c['default_cluster']['volumes']:
-                    del c['default_cluster']['volumes']
-                break
-
-        return config
-
     @access.user
     @loadmodel(map={'clusterId': 'cluster'}, model='cluster', plugin='cumulus',
                level=AccessType.ADMIN)
@@ -285,18 +222,9 @@ class Volume(BaseResource):
         volumes = cluster.setdefault('volumes', [])
         volumes.append(volume['_id'])
 
-        # Now update the configuration for the cluster to include this volume
-        cluster_config_id = parse('config._id').find(cluster)[0].value
-        starcluster_config = self.model('starclusterconfig',
-                                        'cumulus').load(cluster_config_id,
-                                                        force=True)
-        self._add_volume(starcluster_config['config'], cluster, volume,
-                         body['path'])
-
         # Add cluster id to volume
         volume['clusterId'] = cluster['_id']
 
-        self.model('starclusterconfig', 'cumulus').save(starcluster_config)
         self.model('cluster', 'cumulus').save(cluster)
         self.model('volume', 'cumulus').save(volume)
 
@@ -305,7 +233,7 @@ class Volume(BaseResource):
         'required': ['path'],
         'properties': {
             'path': {'type': 'string',
-                     'description': 'Id of starcluster configuration'}
+                     'description': 'The path to mount the volume'}
         }
     }, 'volumes')
 
@@ -351,13 +279,6 @@ class Volume(BaseResource):
         cluster.setdefault('volumes', []).remove(volume['_id'])
         del volume['clusterId']
 
-        # Now remove from starcluster configuration for this cluster
-        cluster_config_id = parse('config._id').find(cluster)[0].value
-        starcluster_config = self.model('starclusterconfig', 'cumulus') \
-            .load(cluster_config_id, force=True)
-        self._remove_volume(starcluster_config['config'], cluster, volume)
-
-        self.model('starclusterconfig', 'cumulus').save(starcluster_config)
         self.model('cluster', 'cumulus').save(cluster)
         self.model('volume', 'cumulus').save(volume)
 

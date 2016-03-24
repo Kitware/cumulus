@@ -26,7 +26,6 @@ import os
 
 from tests import base
 import json
-import starcluster.config
 import cumulus
 from cumulus.transport.files.upload import upload_path
 

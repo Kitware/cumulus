@@ -21,8 +21,6 @@ from tests import base
 import json
 import mock
 import re
-import tempfile
-from easydict import EasyDict
 from botocore.exceptions import ClientError
 from cumulus.aws.ec2 import ClientErrorCode
 
@@ -50,8 +48,9 @@ class AwsTestCase(base.TestCase):
 
         self.assertListEqual(self.normalize(calls), expected, msg)
 
-    @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
-    def setUp(self, *args):
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    def setUp(self, get_ec2_client, *args):
         super(AwsTestCase, self).setUp()
 
         users = ({
@@ -78,29 +77,37 @@ class AwsTestCase(base.TestCase):
 
         self._group = self.model('group').createGroup('cumulus', self._cumulus)
 
-        # Create a config to use
-        self.config = {u'permission': [{u'http': {u'to_port': u'80', u'from_port': u'80', u'ip_protocol': u'tcp'}}, {u'http8080': {u'to_port': u'8080', u'from_port': u'8080', u'ip_protocol': u'tcp'}}, {u'https': {u'to_port': u'443', u'from_port': u'443', u'ip_protocol': u'tcp'}}, {u'paraview': {u'to_port': u'11111', u'from_port': u'11111', u'ip_protocol': u'tcp'}}, {u'ssh': {u'to_port': u'22', u'from_port': u'22', u'ip_protocol': u'tcp'}}], u'global': {u'default_template': u''}, u'aws': [{u'info': {u'aws_secret_access_key': u'3z/PSglaGt1MGtGJ', u'aws_region_name': u'us-west-2', u'aws_region_host': u'ec2.us-west-2.amazonaws.com', u'aws_access_key_id': u'AKRWOVFSYTVQ2Q', u'aws_user_id': u'cjh'}}], u'cluster': [
-            {u'default_cluster': {u'availability_zone': u'us-west-2a', u'master_instance_type': u't1.micro', u'node_image_id': u'ami-b2badb82', u'cluster_user': u'ubuntu', u'public_ips': u'True', u'keyname': u'cjh', u'cluster_size': u'2', u'plugins': u'requests-installer', u'node_instance_type': u't1.micro', u'permissions': u'ssh, http, paraview, http8080'}}], u'key': [{u'cjh': {u'key_location': u'/home/cjh/work/source/cumulus/cjh.pem'}}], u'plugin': [{u'requests-installer': {u'setup_class': u'starcluster.plugins.pypkginstaller.PyPkgInstaller', u'packages': u'requests, requests-toolbelt'}}]}
-
-        config_body = {
-            'name': 'test',
-            'config': self.config
+        # Create a AWS profile
+        self._availability_zone = 'cornwall-2b'
+        body = {
+            'name': 'setup',
+            'accessKeyId': 'mykeyId',
+            'secretAccessKey': 'mysecret',
+            'regionName': 'cornwall',
+            'availabilityZone': self._availability_zone
         }
 
-        r = self.request('/starcluster-configs', method='POST',
-                         type='application/json', body=json.dumps(config_body),
-                         user=self._cumulus)
+        ec2_client = get_ec2_client.return_value
+        ec2_client.describe_regions.return_value = {
+            'Regions': [{
+                'RegionName': 'cornwall',
+                'Endpoint': 'cornwall.ec2.amazon.com'
+                }]
+        }
+
+        create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
+        r = self.request(create_url, method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
         self.assertStatus(r, 201)
-        self._config_id = str(r.json['_id'])
+        self._profile_id = str(r.json['_id'])
+
+
         # Create EC2 cluster
         body = {
-            'config': [
-                {
-                    '_id': self._config_id
-                }
-            ],
             'name': 'testing',
-            'template': 'default_cluster'
+            'cluster_config': {},
+            'profile': self._profile_id
         }
 
         json_body = json.dumps(body)
@@ -109,14 +116,10 @@ class AwsTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
         self._cluster_id = str(r.json['_id'])
-        self._cluster_config_id = str(r.json['config']['_id'])
-
-
 
     @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     def test_create(self, generate_key_pair, get_ec2_client):
-
         ec2_client = get_ec2_client.return_value
         response = {
             'Error': {
@@ -459,7 +462,7 @@ class AwsTestCase(base.TestCase):
 
         self.assertFalse(profile, 'Expect profiles to be empty')
 
-        # Create and new profile and associate it with a configuration, this
+        # Create and new profile and associate it with a cluster, this
         # should prevent it from being deleted
         body = {
             'name': 'myprof',
@@ -475,30 +478,29 @@ class AwsTestCase(base.TestCase):
                          type='application/json', body=json.dumps(body),
                          user=self._user)
         self.assertStatus(r, 201)
+        profile = r.json
         profile_id = str(r.json['_id'])
 
-        config_body = {
+        cluster_body = {
             'name': 'profile_test',
-            'config': self.config,
-            'aws': {
-                'profileId': profile_id
-            }
+            'profile': profile_id,
+            'cluster_config': {}
         }
 
-        r = self.request('/starcluster-configs', method='POST',
-                         type='application/json', body=json.dumps(config_body),
-                         user=self._cumulus)
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json.dumps(cluster_body),
+                         user=self._user)
         self.assertStatus(r, 201)
-        config_id = str(r.json['_id'])
+        cluster_id = str(r.json['_id'])
 
         delete_url = '/user/%s/aws/profiles/%s' % (str(self._user['_id']), profile_id)
         r = self.request(delete_url, method='DELETE', user=self._user)
         self.assertStatus(r, 400)
 
-        # Now delete the config
-        r = self.request('/starcluster-configs/%s' % config_id, method='DELETE',
-                         type='application/json', body=json.dumps(config_body),
-                         user=self._cumulus)
+        # Now delete the cluster
+        r = self.request('/clusters/%s' % cluster_id, method='DELETE',
+                         type='application/json',
+                         user=self._user)
         self.assertStatusOk(r)
 
         r = self.request(delete_url, method='DELETE', user=self._user)
@@ -615,7 +617,7 @@ class AwsTestCase(base.TestCase):
         profile1['_id'] = profile1_id
         profile2['_id'] = profile2_id
 
-        self.assertEqual(r.json, [profile1, profile2], 'Check profiles where returned')
+        self.assertEqual(r.json[1:], [profile1, profile2], 'Check profiles where returned')
 
     @mock.patch('girder.plugins.cumulus.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')

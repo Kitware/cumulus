@@ -22,6 +22,7 @@ import json
 import mock
 import re
 from easydict import EasyDict
+from bson.objectid import ObjectId
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
@@ -77,21 +78,6 @@ class VolumeTestCase(base.TestCase):
 
         self._group = self.model('group').createGroup('cumulus', self._cumulus)
 
-        # Create a config to use
-        config = {u'permission': [{u'http': {u'to_port': u'80', u'from_port': u'80', u'ip_protocol': u'tcp'}}, {u'http8080': {u'to_port': u'8080', u'from_port': u'8080', u'ip_protocol': u'tcp'}}, {u'https': {u'to_port': u'443', u'from_port': u'443', u'ip_protocol': u'tcp'}}, {u'paraview': {u'to_port': u'11111', u'from_port': u'11111', u'ip_protocol': u'tcp'}}, {u'ssh': {u'to_port': u'22', u'from_port': u'22', u'ip_protocol': u'tcp'}}], u'global': {u'default_template': u''}, u'aws': [{u'info': {u'aws_secret_access_key': u'3z/PSglaGt1MGtGJ', u'aws_region_name': u'us-west-2', u'aws_region_host': u'ec2.us-west-2.amazonaws.com', u'aws_access_key_id': u'AKRWOVFSYTVQ2Q', u'aws_user_id': u'cjh'}}], u'cluster': [
-            {u'default_cluster': {u'availability_zone': u'us-west-2a', u'master_instance_type': u't1.micro', u'node_image_id': u'ami-b2badb82', u'cluster_user': u'ubuntu', u'public_ips': u'True', u'keyname': u'cjh', u'cluster_size': u'2', u'plugins': u'requests-installer', u'node_instance_type': u't1.micro', u'permissions': u'ssh, http, paraview, http8080'}}], u'key': [{u'cjh': {u'key_location': u'/home/cjh/work/source/cumulus/cjh.pem'}}], u'plugin': [{u'requests-installer': {u'setup_class': u'starcluster.plugins.pypkginstaller.PyPkgInstaller', u'packages': u'requests, requests-toolbelt'}}]}
-
-        config_body = {
-            'name': 'test',
-            'config': config
-        }
-
-        r = self.request('/starcluster-configs', method='POST',
-                         type='application/json', body=json.dumps(config_body),
-                         user=self._cumulus)
-        self.assertStatus(r, 201)
-        self._config_id = str(r.json['_id'])
-
         # Create a traditional cluster
         body = {
             'config': {
@@ -110,30 +96,6 @@ class VolumeTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
         self._trad_cluster_id = str(r.json['_id'])
-
-        with open('plugins/cumulus/plugin_tests/fixtures/test.ini') as fp:
-            self._ini_file = fp.readlines()
-
-        self._ini_file.append('')
-
-        # Create EC2 cluster
-        body = {
-            'config': [
-                {
-                    '_id': self._config_id
-                }
-            ],
-            'name': 'testing',
-            'template': 'default_cluster'
-        }
-
-        json_body = json.dumps(body)
-
-        r = self.request('/clusters', method='POST',
-                         type='application/json', body=json_body, user=self._user)
-        self.assertStatus(r, 201)
-        self._cluster_id = str(r.json['_id'])
-        self._cluster_config_id = str(r.json['config']['_id'])
 
         # Create a AWS profile
         self._availability_zone = 'cornwall-2b'
@@ -166,6 +128,20 @@ class VolumeTestCase(base.TestCase):
                          user=self._another_user)
         self.assertStatus(r, 201)
         self._another_profile_id = str(r.json['_id'])
+
+        # Create EC2 cluster
+        body = {
+            'profile': self._profile_id,
+            'cluster_config': {},
+            'name': 'testing'
+        }
+
+        json_body = json.dumps(body)
+
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 201)
+        self._cluster_id = str(r.json['_id'])
 
     @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
     def test_create(self, get_ec2_client):
@@ -464,13 +440,26 @@ class VolumeTestCase(base.TestCase):
 
         self.assertStatusOk(r)
 
-        r = self.request('/starcluster-configs/%s' % self._cluster_config_id, method='GET',
+        r = self.request('/clusters/%s' % self._cluster_id, method='GET',
                          type='application/json', user=self._cumulus)
         self.assertStatusOk(r)
-        expected = {u'plugin': [{u'requests-installer': {u'setup_class': u'starcluster.plugins.pypkginstaller.PyPkgInstaller', u'packages': u'requests, requests-toolbelt'}}], u'vol': [{u'test': {u'fs': u'ext4', u'mount_path': u'/data', u'volume_id': u'vol-1'}}], u'global': {u'default_template': u''}, u'aws': [{u'info': {u'aws_user_id': u'cjh', u'aws_region_name': u'us-west-2', u'aws_region_host': u'ec2.us-west-2.amazonaws.com', u'aws_access_key_id': u'AKRWOVFSYTVQ2Q', u'aws_secret_access_key': u'3z/PSglaGt1MGtGJ'}}], u'cluster': [{u'default_cluster': {u'plugins': u'requests-installer', u'volumes': u'test', u'availability_zone': u'us-west-2a', u'master_instance_type': u't1.micro', u'cluster_user': u'ubuntu',
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              u'public_ips': u'True', u'keyname': u'cjh', u'cluster_size': u'2', u'node_image_id': u'ami-b2badb82', u'node_instance_type': u't1.micro', u'permissions': u'ssh, http, paraview, http8080'}}], u'key': [{u'cjh': {u'key_location': u'/home/cjh/work/source/cumulus/cjh.pem'}}], u'permission': [{u'http': {u'to_port': u'80', u'from_port': u'80', u'ip_protocol': u'tcp'}}, {u'http8080': {u'to_port': u'8080', u'from_port': u'8080', u'ip_protocol': u'tcp'}}, {u'https': {u'to_port': u'443', u'from_port': u'443', u'ip_protocol': u'tcp'}}, {u'paraview': {u'to_port': u'11111', u'from_port': u'11111', u'ip_protocol': u'tcp'}}, {u'ssh': {u'to_port': u'22', u'from_port': u'22', u'ip_protocol': u'tcp'}}]}
-        self.assertEqual(
-            expected, r.json, 'Config was not successfully updated')
+
+        expected = {
+            u'profile': str(self._profile_id),
+            u'status': u'created',
+            u'name': u'testing',
+            u'cluster_config': {},
+            u'userId': str(self._user['_id']),
+            u'volumes': [volume_id],
+            u'type': u'ec2',
+            u'_id': self._cluster_id,
+            u'config': {
+                u'scheduler': {
+                    u'type': u'sge'
+                }
+            }
+        }
+        self.assertEqual(r.json, expected)
 
         # Try to attach volume that is already attached
         ec2_client.reset_mock()
@@ -581,12 +570,26 @@ class VolumeTestCase(base.TestCase):
         self.assertEqual(len(ec2_client.detach_volume.call_args_list),
                          1, "detach was not called")
 
-        r = self.request('/starcluster-configs/%s' % self._cluster_config_id, method='GET',
+        r = self.request('/clusters/%s' % self._cluster_id, method='GET',
                          type='application/json', user=self._cumulus)
-        expected = {u'plugin': [{u'requests-installer': {u'setup_class': u'starcluster.plugins.pypkginstaller.PyPkgInstaller', u'packages': u'requests, requests-toolbelt'}}], u'vol': [], u'global': {u'default_template': u''}, u'aws': [{u'info': {u'aws_user_id': u'cjh', u'aws_region_name': u'us-west-2', u'aws_region_host': u'ec2.us-west-2.amazonaws.com', u'aws_access_key_id': u'AKRWOVFSYTVQ2Q', u'aws_secret_access_key': u'3z/PSglaGt1MGtGJ'}}], u'cluster': [{u'default_cluster': {u'plugins': u'requests-installer', u'availability_zone': u'us-west-2a', u'master_instance_type': u't1.micro', u'cluster_user': u'ubuntu', u'public_ips': u'True', u'keyname': u'cjh',
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  u'cluster_size': u'2', u'node_image_id': u'ami-b2badb82', u'node_instance_type': u't1.micro', u'permissions': u'ssh, http, paraview, http8080'}}], u'key': [{u'cjh': {u'key_location': u'/home/cjh/work/source/cumulus/cjh.pem'}}], u'permission': [{u'http': {u'to_port': u'80', u'from_port': u'80', u'ip_protocol': u'tcp'}}, {u'http8080': {u'to_port': u'8080', u'from_port': u'8080', u'ip_protocol': u'tcp'}}, {u'https': {u'to_port': u'443', u'from_port': u'443', u'ip_protocol': u'tcp'}}, {u'paraview': {u'to_port': u'11111', u'from_port': u'11111', u'ip_protocol': u'tcp'}}, {u'ssh': {u'to_port': u'22', u'from_port': u'22', u'ip_protocol': u'tcp'}}]}
         self.assertStatusOk(r)
-        self.assertEqual(expected, r.json, 'Config was not updated correctly')
+
+        expected = {
+            u'profile': str(self._profile_id),
+            u'status': u'created',
+            u'name': u'testing',
+            u'cluster_config': {},
+            u'userId': str(self._user['_id']),
+            u'volumes': [],
+            u'type': u'ec2',
+            u'_id': self._cluster_id,
+            u'config': {
+                u'scheduler': {
+                    u'type': u'sge'
+                }
+            }
+        }
+        self.assertEqual(r.json, expected)
 
     @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
     def test_find_volume(self, get_ec2_client):

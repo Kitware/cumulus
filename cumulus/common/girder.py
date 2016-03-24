@@ -70,9 +70,14 @@ def create_status_notifications(resource_name, notification, resource):
 
 
 def send_status_notification(resource_type, resource):
+    try:
+        status = resource['status'].name
+    except AttributeError:
+        status = resource['status']
+
     notification = {
         '_id': resource['_id'],
-        'status': resource['status']
+        'status': status
     }
 
     create_status_notifications(resource_type, notification, resource)

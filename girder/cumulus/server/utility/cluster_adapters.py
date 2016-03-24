@@ -157,6 +157,10 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         return self.cluster
 
     def terminate(self):
+        if self.cluster['status'] == ClusterStatus.terminated or \
+           self.cluster['status'] == ClusterStatus.terminating:
+            return
+
         self.update_status(ClusterStatus.terminating)
 
         base_url = getApiUrl()
@@ -204,7 +208,8 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         cumulus.ansible.tasks.cluster.start_cluster \
             .delay(self.cluster.get('playbook', self.DEFAULT_PLAYBOOK),
-                   request_body['playbook'],  # provision playbook
+                   # provision playbook
+                   request_body.get('playbook', self.DEFAULT_PLAYBOOK),
                    self.cluster, profile, secret_key,
                    {'cluster_state': 'running'}, girder_token, log_write_url)
 
@@ -214,100 +219,16 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         """
         self.update_status(ClusterStatus[request_body['status']])
 
-#     def delete(self):
-#         """
-#         Adapters may implement this if they support a delete operation.
-#         """
-#         pass
-
-
-class Ec2ClusterAdapter(AbstractClusterAdapter):
-    def validate(self):
-        query = {
-            'name': self.cluster['name'],
-            'userId': getCurrentUser()['_id'],
-            'type': 'ec2'
-        }
-
-        if '_id' in self.cluster:
-            query['_id'] = {'$ne': self.cluster['_id']}
-
-        duplicate = self.model('cluster', 'cumulus').findOne(query,
-                                                             fields=['_id'])
-        if duplicate:
-            raise ValidationException(
-                'A cluster with that name already exists.', 'name')
-
-        # Check the template exists
-        config = self.model('starclusterconfig', 'cumulus').load(
-            self.cluster['config']['_id'], force=True)
-        config = config['config']
-
-        found = False
-
-        if 'cluster' in config:
-            for template in config['cluster']:
-                name, _ = template.iteritems().next()
-
-                if self.cluster['template'] == name:
-                    found = True
-                    break
-
-        if not found:
-            raise ValidationException(
-                'A cluster template \'%s\' not found in configuration.'
-                % self.cluster['template'], 'template')
-
-        return self.cluster
-
-    def start(self, request_body):
-        if self.cluster['status'] == 'running':
-            raise RestException('Cluster already running.', code=400)
-
-        on_start_submit = None
-        if request_body and 'onStart' in request_body and \
-           'submitJob' in request_body['onStart']:
-            on_start_submit = request_body['onStart']['submitJob']
-
-        base_url = getApiUrl()
-        log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
-        girder_token = get_task_token()['_id']
-        cumulus.starcluster.tasks.cluster.start_cluster \
-            .delay(self.cluster,
-                   log_write_url=log_write_url,
-                   on_start_submit=on_start_submit,
-                   girder_token=girder_token)
-
-    def terminate(self):
-        base_url = getApiUrl()
-        log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
-
-        if self.cluster['status'] == 'terminated' or \
-           self.cluster['status'] == 'terminating':
-            return
-
-        girder_token = get_task_token()['_id']
-        cumulus.starcluster.tasks.cluster.terminate_cluster \
-            .delay(self.cluster,
-                   log_write_url=log_write_url,
-                   girder_token=girder_token)
-
-    def update(self, body):
-        # Don't return the access object
-        del self.cluster['access']
-        # Don't return the log
-        del self.cluster['log']
-
-        return self.cluster
-
     def delete(self):
-        super(Ec2ClusterAdapter, self).delete()
-        if self.cluster['status'] in ['running', 'initializing']:
+        """
+         Adapters may implement this if they support a delete operation.
+        """
+        if self.cluster['status'] in [ClusterStatus.running,
+                                      ClusterStatus.launching,
+                                      ClusterStatus.launched,
+                                      ClusterStatus.provisioning,
+                                      ClusterStatus.provisioned]:
             raise RestException('Cluster is active', code=400)
-
-        # Remove the config associated with the cluster first
-        self.model('starclusterconfig', 'cumulus').remove(
-            {'_id': self.cluster['config']['_id']})
 
 
 def _validate_key(key):
@@ -441,7 +362,7 @@ class NewtClusterAdapter(AbstractClusterAdapter):
 
 
 type_to_adapter = {
-    ClusterType.EC2: Ec2ClusterAdapter,
+    ClusterType.EC2: AnsibleClusterAdapter,
     ClusterType.ANSIBLE: AnsibleClusterAdapter,
     ClusterType.TRADITIONAL: TraditionClusterAdapter,
     ClusterType.NEWT: NewtClusterAdapter
