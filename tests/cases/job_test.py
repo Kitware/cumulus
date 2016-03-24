@@ -24,7 +24,7 @@ import cumulus
 import json
 import re
 import os
-from cumulus.starcluster.tasks import job
+from cumulus.tasks import job
 from celery.app import task
 
 
@@ -45,7 +45,7 @@ class JobTestCase(unittest.TestCase):
     def setUp(self):
         self._get_status_called  = False
         self._set_status_called  = False
-        self._upload_job_output = cumulus.starcluster.tasks.job.upload_job_output.delay = mock.Mock()
+        self._upload_job_output = cumulus.tasks.job.upload_job_output.delay = mock.Mock()
 
     def normalize(self, data):
         str_data = json.dumps(data, default=str)
@@ -60,7 +60,7 @@ class JobTestCase(unittest.TestCase):
 
         self.assertListEqual(self.normalize(calls), expected, msg)
 
-    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
+    @mock.patch('cumulus.tasks.job.get_connection')
     def test_monitor_job_terminated(self, get_connection):
         conn = get_connection.return_value.__enter__.return_value
 
@@ -119,7 +119,7 @@ class JobTestCase(unittest.TestCase):
         self.assertTrue(self._get_status_called, 'Expect get status endpoint to be hit')
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
 
-    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
+    @mock.patch('cumulus.tasks.job.get_connection')
     def test_monitor_job_complete(self, get_connection):
         conn = get_connection.return_value.__enter__.return_value
         conn.stat.return_value.st_size = 0
@@ -183,7 +183,7 @@ class JobTestCase(unittest.TestCase):
         expected_calls = [[[{u'config': {u'_id': u'dummy', u'scheduler': {u'type': u'sge'}}, u'name': u'dummy', u'type': u'ec2', u'_id': u'dummy'}, {u'status': u'uploading', u'output': [{u'itemId': u'dummy'}], u'_id': u'dummy', u'queueJobId': u'dummy', u'name': u'dummy', u'dir': u'/home/test/dummy'}], {u'girder_token': u's', u'log_write_url': 1, u'job_dir': u'/home/test/dummy'}]]
         self.assertCalls(self._upload_job_output.call_args_list, expected_calls)
 
-    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
+    @mock.patch('cumulus.tasks.job.get_connection')
     @mock.patch('cumulus.celery.monitor.Task.retry')
     def test_monitor_job_running(self, retry, get_connection):
         conn = get_connection.return_value.__enter__.return_value
@@ -248,7 +248,7 @@ class JobTestCase(unittest.TestCase):
 
 
     @mock.patch('cumulus.celery.monitor.Task.retry')
-    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
+    @mock.patch('cumulus.tasks.job.get_connection')
     def test_monitor_job_queued(self, get_connection, *args):
         conn = get_connection.return_value.__enter__.return_value
         job_id = 'dummy'
@@ -308,7 +308,7 @@ class JobTestCase(unittest.TestCase):
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
 
     @mock.patch('cumulus.celery.monitor.Task.retry')
-    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
+    @mock.patch('cumulus.tasks.job.get_connection')
     def test_monitor_job_tail_output(self, get_connection, retry, *args):
 
         job_id = 'dummy'
@@ -373,8 +373,8 @@ class JobTestCase(unittest.TestCase):
         self.assertTrue(self._set_status_called, 'Expect set status endpoint to be hit')
 
     @mock.patch('cumulus.celery.command.Task.retry')
-    @mock.patch('cumulus.starcluster.tasks.job.monitor_job')
-    @mock.patch('cumulus.starcluster.tasks.job.get_connection', autospec=True)
+    @mock.patch('cumulus.tasks.job.monitor_job')
+    @mock.patch('cumulus.tasks.job.get_connection', autospec=True)
     def test_submit_job(self, get_connection, *args):
 
         cluster = {
@@ -578,7 +578,7 @@ class JobTestCase(unittest.TestCase):
         self.assertEqual(conn.execute.call_args_list[1], mock.call('qconf -sp mype'))
         self.assertEqual(job_model['params']['numberOfSlots'], 10)
 
-    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
+    @mock.patch('cumulus.tasks.job.get_connection')
     @mock.patch('cumulus.celery.monitor.Task.retry')
     def test_monitor_jobs_queued_retry(self, retry, get_connection):
         conn = get_connection.return_value.__enter__.return_value
@@ -667,7 +667,7 @@ class JobTestCase(unittest.TestCase):
         # Make sure we are rescheduled
         self.assertTrue(retry.call_args_list)
 
-    @mock.patch('cumulus.starcluster.tasks.job.get_connection')
+    @mock.patch('cumulus.tasks.job.get_connection')
     @mock.patch('cumulus.celery.monitor.Task.retry')
     def test_monitor_jobs_queued_no_retry(self, retry, get_connection):
         conn = get_connection.return_value.__enter__.return_value

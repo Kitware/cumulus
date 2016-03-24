@@ -20,6 +20,9 @@
 from __future__ import absolute_import
 import sys
 import collections
+import cumulus
+import logging
+from cumulus.logging import StarClusterLogHandler
 
 
 def check_status(request):
@@ -37,3 +40,25 @@ def update_dict(d, u):
             d[k] = u[k]
 
     return d
+
+
+def get_job_logger(job, girder_token):
+    job_url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl, job['_id'])
+
+    return get_post_logger(job['_id'], girder_token, job_url)
+
+
+def get_cluster_logger(cluster, girder_token):
+    cluster_url = '%s/clusters/%s/log' % (cumulus.config.girder.baseUrl,
+                                          cluster['_id'])
+
+    return get_post_logger(cluster['_id'], girder_token, cluster_url)
+
+
+def get_post_logger(name, girder_token, post_url):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    handler = StarClusterLogHandler(girder_token, post_url, logging.DEBUG)
+    logger.addHandler(handler)
+
+    return logger

@@ -27,7 +27,7 @@ from bson.objectid import ObjectId, InvalidId
 
 from cumulus.constants import ClusterType, ClusterStatus
 from cumulus.common.girder import get_task_token
-import cumulus.starcluster.tasks.cluster
+import cumulus.tasks.cluster
 import cumulus.ansible.tasks.cluster
 
 
@@ -91,8 +91,8 @@ class AbstractClusterAdapter(ModelImporter):
         log_url = '%s/jobs/%s/log' % (getApiUrl(), job['_id'])
 
         girder_token = get_task_token()['_id']
-        cumulus.starcluster.tasks.job.submit(girder_token, self.cluster, job,
-                                             log_url)
+        cumulus.tasks.job.submit(girder_token, self.cluster, job,
+                                 log_url)
 
 
 class AnsibleClusterAdapter(AbstractClusterAdapter):
@@ -297,7 +297,7 @@ class TraditionClusterAdapter(AbstractClusterAdapter):
         log_write_url = '%s/clusters/%s/log' % (getApiUrl(),
                                                 self.cluster['_id'])
         girder_token = get_task_token()['_id']
-        cumulus.starcluster.tasks.cluster.test_connection \
+        cumulus.tasks.cluster.test_connection \
             .delay(self.cluster,
                    log_write_url=log_write_url,
                    girder_token=girder_token)
@@ -348,7 +348,7 @@ class NewtClusterAdapter(AbstractClusterAdapter):
                                                 self.cluster['_id'])
 
         girder_token = get_task_token(self.cluster)['_id']
-        cumulus.starcluster.tasks.cluster.test_connection \
+        cumulus.tasks.cluster.test_connection \
             .delay(self.cluster,
                    log_write_url=log_write_url,
                    girder_token=girder_token)
@@ -357,8 +357,8 @@ class NewtClusterAdapter(AbstractClusterAdapter):
         log_url = '%s/jobs/%s/log' % (getApiUrl(), job['_id'])
 
         girder_token = get_task_token(self.cluster)['_id']
-        cumulus.starcluster.tasks.job.submit(girder_token, self.cluster, job,
-                                             log_url)
+        cumulus.tasks.job.submit(girder_token, self.cluster, job,
+                                 log_url)
 
 
 type_to_adapter = {

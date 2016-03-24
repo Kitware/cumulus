@@ -20,7 +20,7 @@
 # from cumulus.starcluster.tasks.job import submit
 from cumulus.celery import command
 from cumulus.common import check_status
-from cumulus.starcluster.common import get_cluster_logger
+from cumulus.common import get_cluster_logger
 import cumulus
 from cumulus.transport import get_connection
 

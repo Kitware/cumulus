@@ -26,7 +26,7 @@ from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, getApiUrl, loadmodel
 from .base import BaseResource
 
-from cumulus.starcluster import tasks
+from cumulus import tasks
 from cumulus.constants import JobState
 
 

@@ -5,7 +5,7 @@ import os
 from cumulus.queue import get_queue_adapter
 from cumulus.queue.abstract import AbstractQueueAdapter
 from cumulus.constants import QueueType
-from cumulus.starcluster.tasks import job
+from cumulus.tasks import job
 
 
 class SlurmQueueAdapterTestCase(unittest.TestCase):

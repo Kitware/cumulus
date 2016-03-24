@@ -37,8 +37,8 @@ register('oid_safe_json', oid_safe_dumps, oid_safe_loads,
 
 _includes = [
     'cumulus.ansible.tasks.cluster',
-    'cumulus.starcluster.tasks.cluster',
-    'cumulus.starcluster.tasks.job',
+    'cumulus.tasks.cluster',
+    'cumulus.tasks.job',
     'cumulus.ssh.tasks.key',
     'cumulus.aws.ec2.tasks.key'
 ]
@@ -48,13 +48,13 @@ _includes += taskflow_modules
 
 # Route short tasks to their own queue
 _routes = {
-    'cumulus.starcluster.tasks.job.monitor_job': {
+    'cumulus.tasks.job.monitor_job': {
         'queue': 'monitor'
     },
-    'cumulus.starcluster.tasks.job.monitor_jobs': {
+    'cumulus.tasks.job.monitor_jobs': {
         'queue': 'monitor'
     },
-    'cumulus.starcluster.tasks.job.monitor_process': {
+    'cumulus.tasks.job.monitor_process': {
         'queue': 'monitor'
     },
     'cumulus.task.status.monitor_status': {

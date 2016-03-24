@@ -20,8 +20,8 @@
 from __future__ import absolute_import
 import traceback
 from cumulus.common import check_status
-from cumulus.starcluster.common import get_post_logger, get_job_logger
-from cumulus.starcluster.common import get_cluster_logger
+from cumulus.common import get_post_logger, get_job_logger
+from cumulus.common import get_cluster_logger
 from cumulus.celery import command, monitor
 import cumulus
 import cumulus.girderclient
@@ -497,7 +497,7 @@ class Complete(JobState):
             cluster_log_url = '%s/clusters/%s/log' % \
                 (cumulus.config.girder.baseUrl, self.cluster['_id'])
             command.send_task(
-                'cumulus.starcluster.tasks.cluster.terminate_cluster',
+                'cumulus.tasks.cluster.terminate_cluster',
                 args=(self.cluster,),
                 kwargs={'log_write_url': cluster_log_url,
                         'girder_token': self.girder_token})
@@ -736,7 +736,7 @@ def upload_job_output_to_item(cluster, job, log_write_url=None, job_dir=None,
             cluster_log_url = '%s/clusters/%s/log' % \
                 (cumulus.config.girder.baseUrl, cluster['_id'])
             on_complete = signature(
-                'cumulus.starcluster.tasks.cluster.terminate_cluster',
+                'cumulus.tasks.cluster.terminate_cluster',
                 args=(cluster,), kwargs={'log_write_url': cluster_log_url,
                                          'girder_token': girder_token})
 
@@ -782,7 +782,7 @@ def upload_job_output_to_folder(cluster, job, log_write_url=None, job_dir=None,
         cluster_log_url = '%s/clusters/%s/log' % \
             (cumulus.config.girder.baseUrl, cluster['_id'])
         command.send_task(
-            'cumulus.starcluster.tasks.cluster.terminate_cluster',
+            'cumulus.tasks.cluster.terminate_cluster',
             args=(cluster,), kwargs={'log_write_url': cluster_log_url,
                                      'girder_token': girder_token})
 

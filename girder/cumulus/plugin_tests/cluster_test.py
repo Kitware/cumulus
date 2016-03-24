@@ -462,7 +462,7 @@ class ClusterTestCase(base.TestCase):
         self.assertEqual(len(start_cluster.call_args_list), 1)
 
 
-    @mock.patch('cumulus.starcluster.tasks.job.submit')
+    @mock.patch('cumulus.tasks.job.submit')
     def test_submit_job(self, submit):
         body = {
             'profile': str(self._user_profile['_id']),
@@ -698,7 +698,7 @@ class ClusterTestCase(base.TestCase):
         self.assertCalls(
             generate_key.call_args_list, expected)
 
-    @mock.patch('cumulus.starcluster.tasks.cluster.test_connection.delay')
+    @mock.patch('cumulus.tasks.cluster.test_connection.delay')
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
     def test_start_trad(self, generate_key, test_connection):
         body = {

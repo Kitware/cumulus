@@ -24,7 +24,7 @@ import json
 import re
 import os
 
-from cumulus.starcluster.tasks import cluster
+from cumulus.tasks import cluster
 from __builtin__ import True
 
 class ClusterTestCase(unittest.TestCase):
