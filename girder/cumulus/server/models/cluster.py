@@ -36,7 +36,7 @@ def preprocess_cluster(cluster):
     # Convert model status into enum
     try:
         # For now only do this for ansible
-        if cluster['type'] == ClusterType.ANSIBLE:
+        if cluster['type'] in [ClusterType.ANSIBLE, ClusterType.EC2]:
             cluster['status'] = ClusterStatus(int(cluster['status']))
     except (ValueError, AssertionError, TypeError):
         # Assume 'old style' string status
@@ -56,7 +56,7 @@ class Cluster(BaseModel):
         self.exposeFields(level=AccessType.READ,
                           fields=('_id', 'status', 'name', 'config',
                                   'cluster_config', 'template', 'profile',
-                                  'type', 'userId', 'assetstoreId'))
+                                  'type', 'userId', 'assetstoreId', 'volumes'))
 
     def load(self, id, level=AccessType.ADMIN, user=None, objectId=True,
              force=False, fields=None, exc=False):
@@ -134,7 +134,8 @@ class Cluster(BaseModel):
 
         return cluster
 
-    def create_ansible(self, user, name, playbook, cluster_config, profile):
+    def create_ansible(self, user, name, playbook, cluster_config, profile,
+                       cluster_type=ClusterType.ANSIBLE):
         try:
             query = {
                 'userId': user['_id'],
@@ -155,27 +156,19 @@ class Cluster(BaseModel):
             'name': name,
             'playbook': playbook,
             'cluster_config': cluster_config,
+            # TODO merge these two ...
             'profile': profile['_id'],
+            'aws': {
+                'profileId': profile['_id']
+            },
             'log': [],
             'status': ClusterStatus.created,
-            'type': ClusterType.ANSIBLE
-        }
-
-        return self._create(user, cluster)
-
-    def create_ec2(self, user, config_id, name, template):
-        cluster = {
-            'name': name,
-            'template': template,
-            'log': [],
-            'status': 'created',
             'config': {
-                '_id': config_id,
                 'scheduler': {
                     'type': 'sge'
                 }
             },
-            'type': ClusterType.EC2
+            'type': cluster_type
         }
 
         return self._create(user, cluster)

@@ -22,6 +22,8 @@ import json
 import mock
 import re
 from easydict import EasyDict
+from bson.objectid import ObjectId
+from cumulus.constants import ClusterStatus
 
 from cumulus.transport.files import get_assetstore_url_base
 
@@ -77,22 +79,37 @@ class ClusterTestCase(base.TestCase):
 
         self._group = self.model('group').createGroup('cumulus', self._cumulus)
 
-        # Create a config to use
-        config = {u'permission': [{u'http': {u'to_port': u'80', u'from_port': u'80', u'ip_protocol': u'tcp'}}, {u'http8080': {u'to_port': u'8080', u'from_port': u'8080', u'ip_protocol': u'tcp'}}, {u'https': {u'to_port': u'443', u'from_port': u'443', u'ip_protocol': u'tcp'}}, {u'paraview': {u'to_port': u'11111', u'from_port': u'11111', u'ip_protocol': u'tcp'}}, {u'ssh': {u'to_port': u'22', u'from_port': u'22', u'ip_protocol': u'tcp'}}], u'global': {u'default_template': u''}, u'aws': [{u'info': {u'aws_secret_access_key': u'3z/PSglaGt1MGtGJ', u'aws_region_name': u'us-west-2', u'aws_region_host': u'ec2.us-west-2.amazonaws.com', u'aws_access_key_id': u'AKRWOVFSYTVQ2Q', u'aws_user_id': u'cjh'}}], u'cluster': [
-            {u'default_cluster': {u'availability_zone': u'us-west-2a', u'master_instance_type': u't1.micro', u'node_image_id': u'ami-b2badb82', u'cluster_user': u'ubuntu', u'public_ips': u'True', u'keyname': u'cjh', u'cluster_size': u'2', u'plugins': u'requests-installer', u'node_instance_type': u't1.micro', u'permissions': u'ssh, http, paraview, http8080'}}], u'key': [{u'cjh': {u'key_location': u'/home/cjh/work/source/cumulus/cjh.pem'}}], u'plugin': [{u'requests-installer': {u'setup_class': u'starcluster.plugins.pypkginstaller.PyPkgInstaller', u'packages': u'requests, requests-toolbelt'}}]}
-
-        config_body = {
-            'name': 'test',
-            'config': config
-        }
-
-        r = self.request('/starcluster-configs', method='POST',
-                         type='application/json', body=json.dumps(config_body),
-                         user=self._cumulus)
-        self.assertStatus(r, 201)
-        self._config_id = r.json['_id']
-
         self._valid_key = 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDJ0wahxwaNbCDdbRll9FypQRXQv5PXQSTh1IeSynTcZZWSyQH4JhoI0lb3/IW7GllIkWblEuyv2SHzXMKRaaFuwmnU1zsY6Y55N6DJt0e9TvieT8MfaM2e7qqaN+0RS2aFb8iw3i+G80tmFVJWuNm7AITVVPf60Nbc5Bgk9qVIa4BakJ3SmW0p/iHT3CStb/k+psevFYyYCEw5l3+3ejPh9b/3423yRzq5r0cyOw8y8fIe4JV8MlE4z2huc/o9Xpw8mzNim7QdobNOylwJsvIYtB4d+MTqvsnt16e22BS/FKuTXx6jGRFFtYNWwwDQe9IIxYb6dPs1XPKVx081nRUwNjar2um41XUOhPx1N5+LfbrYkACVEZiEkW/Ph6hu0PsYQXbL00sWzrzIunixepn5c2dMnDvugvGQA54Z0EXgIYHnetJp2Xck1pJH6oNSSyA+5Mx5QAH5MFNL3YOnGxGBLrkUfK9Ff7QOiZdqXbZoXXS49WtL42Jsv8SgFu3w5NLffvD6/vCOBHwWxh+8VLg5n28M7pZ8+xyMBidkGkG9di2PfV4XsSAeoIc5utgbUJFT6URr2pW9KT4FxTq/easgiJFZUz48SNAjcBneElB9bjAaGf47BPfCNsIAWU2c9MZJWjURpWtzfk21k2/BAfBPs2VNb8dapY6dNinxLqbPIQ== your_email@example.com'
+
+        # Create a dummy profile
+        self._user_profile = {
+            'status' : 'available',
+            'secretAccessKey' : 'secret',
+            'availabilityZone' : 'us-west-1a',
+            'name' : 'test',
+            'regionHost' : 'ec2.us-west-1.amazonaws.com',
+            'userId' : ObjectId(self._user['_id']),
+            'accessKeyId' : 'id',
+            'publicIPs' : False,
+            'regionName' : 'us-west-1'
+        }
+        self._user_profile = self.model('aws', 'cumulus').save(
+            self._user_profile, validate=False)
+
+        self._another_user_profile = {
+            'status' : 'available',
+            'secretAccessKey' : 'secret',
+            'availabilityZone' : 'us-west-1a',
+            'name' : 'test',
+            'regionHost' : 'ec2.us-west-1.amazonaws.com',
+            'userId' : ObjectId(self._another_user['_id']),
+            'accessKeyId' : 'id',
+            'publicIPs' : False,
+            'regionName' : 'us-west-1'
+        }
+        self._another_user_profile = self.model('aws', 'cumulus').save(
+            self._another_user_profile, validate=False)
+
 
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
     def test_create(self, generate_key_pair):
@@ -112,12 +129,14 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 400)
 
-        body['config'][0]['_id'] = '546a1844ff34c70456111185'
+        body['cluster_config'] = {}
+        json_body = json.dumps(body)
+
         r = self.request('/clusters', method='POST',
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 400)
 
-        body['config'][0]['_id'] = str(self._config_id)
+        body['profile'] = str(self._user_profile['_id'])
         json_body = json.dumps(body)
 
         r = self.request('/clusters', method='POST',
@@ -136,6 +155,8 @@ class ClusterTestCase(base.TestCase):
         self.assertStatus(r, 400)
 
         # Try creating with the same name as another user, this should work
+        body['profile'] = str(self._another_user_profile['_id'])
+        json_body = json.dumps(body)
         r = self.request('/clusters', method='POST',
                          type='application/json', body=json_body, user=self._another_user)
         self.assertStatus(r, 201)
@@ -156,19 +177,18 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
 
-        # Try invalid template name
-        body['template'] = 'mycluster'
-        json_body = json.dumps(body)
-        r = self.request('/clusters', method='POST',
-                         type='application/json', body=json_body, user=self._user)
-        self.assertStatus(r, 400)
-
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.EasyEC2')
-    def test_create_using_aws_profile(self, EasyEC2, generate_key_pair):
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    def test_create_using_aws_profile(self, get_ec2_client, generate_key_pair):
         # First create a profile
-        instance = EasyEC2.return_value
-        instance.get_region.return_value = EasyDict({'endpoint': 'cornwall.ec2.amazon.com'})
+        region_host = 'cornwall.ec2.amazon.com'
+        ec2_client = get_ec2_client.return_value
+        ec2_client.describe_regions.return_value = {
+            'Regions': [{
+                'RegionName': 'cornwall',
+                'Endpoint': region_host
+                }]
+        }
 
         body = {
             'name': 'myprof',
@@ -187,14 +207,9 @@ class ClusterTestCase(base.TestCase):
 
         # First test invalid profileId
         body = {
-            'config': [
-                {
-                    '_id': self._config_id,
-                    'aws': {
-                        'profileId': '546a1844ff34c70456111385'
-                    }
-                }
-            ],
+            'profile': '546a1844ff34c70456111385',
+            'cluster_config': {
+            },
             'name': 'mycluster',
             'template': 'default_cluster'
         }
@@ -206,13 +221,9 @@ class ClusterTestCase(base.TestCase):
 
     def test_get(self):
         body = {
-            'config': [
-                {
-                    '_id': self._config_id
-                }
-            ],
-            'name': 'test',
-            'template': 'default_cluster'
+            'profile': str(self._user_profile['_id']),
+            'cluster_config': {},
+            'name': 'test'
         }
 
         json_body = json.dumps(body)
@@ -226,22 +237,7 @@ class ClusterTestCase(base.TestCase):
                          user=self._user)
         self.assertStatusOk(r)
 
-        expected_cluster = {
-            u'status': u'created',
-            u'_id': cluster_id,
-            u'name': u'test',
-            u'template': u'default_cluster',
-            u'type': u'ec2',
-            u'userId': str(self._user['_id'])
-        }
-        config_id = r.json['config']['_id']
-        del r.json['config']
-        self.assertEqual(r.json, expected_cluster)
-
-        # Ensure user can get full config
-        r = self.request('/starcluster-configs/%s' % str(config_id),
-                         method='GET', user=self._user)
-        self.assertStatus(r, 403)
+        self.assertEqual(r.json['_id'], cluster_id)
 
         # Check for 404
         r = self.request('/clusters/546a1844ff34c70456111185', method='GET',
@@ -250,7 +246,7 @@ class ClusterTestCase(base.TestCase):
 
     def test_update(self):
         status_body = {
-            'status': 'testing'
+            'status': 'terminating'
         }
 
         r = self.request(
@@ -261,13 +257,9 @@ class ClusterTestCase(base.TestCase):
         self.assertStatus(r, 404)
 
         body = {
-            'config': [
-                {
-                    '_id': self._config_id
-                }
-            ],
-            'name': 'test',
-            'template': 'default_cluster'
+            'profile': str(self._user_profile['_id']),
+            'cluster_config': {},
+            'name': 'test'
         }
 
         json_body = json.dumps(body)
@@ -276,7 +268,6 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
         cluster_id = r.json['_id']
-        config_id = r.json['config']['_id']
 
         r = self.request(
             '/clusters/%s' % str(cluster_id), method='PATCH',
@@ -284,8 +275,17 @@ class ClusterTestCase(base.TestCase):
             user=self._cumulus)
 
         self.assertStatusOk(r)
-        expected_cluster = {u'status': u'testing', u'userId': str(self._user['_id']), u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}},
-                            u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}
+        expected_cluster = {
+            u'_id': cluster_id,
+            u'cluster_config': {   },
+            u'config': {   u'scheduler': {   u'type': u'sge'}},
+            u'name': u'test',
+            u'profile': str(self._user_profile['_id']),
+            u'status': u'terminating',
+            u'type': u'ec2',
+            u'userId': str(self._user['_id'])
+        }
+
         self.assertEqual(r.json, expected_cluster)
 
         # Check we get the right server side events
@@ -299,7 +299,7 @@ class ClusterTestCase(base.TestCase):
         data = notification['data']
         self.assertEqual(notification_type, 'cluster.status')
         expected = {
-            u'status': u'testing',
+            u'status': u'terminating',
             u'_id': cluster_id
         }
         self.assertEqual(data, expected, 'Unexpected notification data')
@@ -309,8 +309,17 @@ class ClusterTestCase(base.TestCase):
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._user)
         self.assertStatusOk(r)
-        expected_status = {u'status': u'testing', u'userId': str(self._user['_id']), u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}},
-                           u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}
+        expected_status =  {
+            u'_id': cluster_id,
+            u'cluster_config': {   },
+            u'config': {   u'scheduler': {   u'type': u'sge'}},
+            u'name': u'test',
+            u'profile': str(self._user_profile['_id']),
+            u'status': 'terminating',
+            u'type': u'ec2',
+            u'userId': str(self._user['_id'])
+        }
+
         self.assertEquals(r.json, expected_status)
 
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
@@ -387,11 +396,8 @@ class ClusterTestCase(base.TestCase):
 
     def test_log(self):
         body = {
-            'config': [
-                {
-                    '_id': self._config_id
-                }
-            ],
+            'profile': str(self._user_profile['_id']),
+            'cluster_config': {},
             'name': 'test',
             'template': 'default_cluster'
         }
@@ -435,16 +441,12 @@ class ClusterTestCase(base.TestCase):
         self.assertStatusOk(r)
         self.assertEquals(len(r.json['log']), 1)
 
-    @mock.patch('cumulus.starcluster.tasks.cluster.start_cluster.delay')
+    @mock.patch('cumulus.ansible.tasks.cluster.start_cluster.delay')
     def test_start(self, start_cluster):
         body = {
-            'config': [
-                {
-                    '_id': self._config_id
-                }
-            ],
             'name': 'test',
-            'template': 'default_cluster'
+            'profile': str(self._user_profile['_id']),
+            'cluster_config': {},
         }
 
         json_body = json.dumps(body)
@@ -453,26 +455,19 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
         cluster_id = r.json['_id']
-        config_id = r.json['config']['_id']
 
         r = self.request('/clusters/%s/start' % str(cluster_id), method='PUT',
                          type='application/json', body=json_body, user=self._user)
-        self.assertStatusOk(r)
 
-        expected_start_call = [[[{u'status': u'created', u'userId': str(self._user['_id']), u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}}, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}], {
-            u'on_start_submit': None, u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % str(cluster_id)}]]
-        self.assertCalls(start_cluster.call_args_list, expected_start_call)
+        self.assertEqual(len(start_cluster.call_args_list), 1)
 
-    @mock.patch('cumulus.starcluster.tasks.job.submit')
+
+    @mock.patch('cumulus.tasks.job.submit')
     def test_submit_job(self, submit):
         body = {
-            'config': [
-                {
-                    '_id': self._config_id
-                }
-            ],
-            'name': 'test',
-            'template': 'default_cluster'
+            'profile': str(self._user_profile['_id']),
+            'cluster_config': {},
+            'name': 'test'
         }
 
         json_body = json.dumps(body)
@@ -481,7 +476,6 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
         cluster_id = r.json['_id']
-        config_id = r.json['config']['_id']
 
         # Create a job
         body = {
@@ -534,20 +528,37 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body={}, user=self._user)
         self.assertStatusOk(r)
 
-        expected_submit_call = [[[u'token', {u'status': u'running', u'userId': str(self._user['_id']), u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}}, u'_id': cluster_id, u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}, {u'status': u'created', u'userId': str(self._user['_id']), u'commands': [u''], u'name': u'test', u'onComplete': {u'cluster': u'terminate'}, u'clusterId': cluster_id, u'input': [
-            {u'itemId': u'546a1844ff34c70456111185', u'path': u''}], u'output': [{u'itemId': u'546a1844ff34c70456111185'}], u'_id': job_id}, u'http://127.0.0.1/api/v1/jobs/%s/log' % job_id], {}]]
+        expected_submit_call = \
+        [   [   [   u'token',
+             {   u'_id': cluster_id,
+                 u'cluster_config': {   },
+                 u'config': {   u'scheduler': {   u'type': u'sge'}},
+                 u'name': u'test',
+                 u'profile': str(self._user_profile['_id']),
+                 u'status': u'running',
+                 u'type': u'ec2',
+                 u'userId': str(self._user['_id'])},
+             {   u'_id': job_id,
+                 u'clusterId': cluster_id,
+                 u'commands': [u''],
+                 u'input': [   {   u'itemId': u'546a1844ff34c70456111185',
+                                   u'path': u''}],
+                 u'name': u'test',
+                 u'onComplete': {   u'cluster': u'terminate'},
+                 u'output': [{   u'itemId': u'546a1844ff34c70456111185'}],
+                 u'status': u'created',
+                 u'userId': str(self._user['_id'])},
+             u'http://127.0.0.1/api/v1/jobs/%s/log' % job_id],
+         {   }]]
+
         self.assertCalls(submit.call_args_list, expected_submit_call)
 
-    @mock.patch('cumulus.starcluster.tasks.cluster.terminate_cluster.delay')
+    @mock.patch('cumulus.ansible.tasks.cluster.run_ansible.delay')
     def test_terminate(self, terminate_cluster):
         body = {
-            'config': [
-                {
-                    '_id': self._config_id
-                }
-            ],
-            'name': 'test',
-            'template': 'default_cluster'
+            'profile': str(self._user_profile['_id']),
+            'cluster_config': {},
+            'name': 'test'
         }
 
         json_body = json.dumps(body)
@@ -556,7 +567,6 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
         cluster_id = r.json['_id']
-        config_id = r.json['config']['_id']
 
         # Move cluster into running state
         status_body = {
@@ -566,23 +576,50 @@ class ClusterTestCase(base.TestCase):
         r = self.request(
             '/clusters/%s/terminate' % str(cluster_id), method='PUT',
             type='application/json', body=json.dumps(status_body),
-            user=self._cumulus)
+            user=self._user)
 
         self.assertStatusOk(r)
 
-        expected_terminate_call = [[[{u'status': u'created', u'userId': str(self._user['_id']), u'config': {u'_id': config_id, u'scheduler': {u'type': u'sge'}}, u'_id': str(cluster_id),
-                                      u'name': u'test', u'template': u'default_cluster', u'type': u'ec2'}], {u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % str(cluster_id)}]]
+        group_id = self.model('cluster', 'cumulus').get_group_id()
+        expected = \
+            [   [   [   u'default',
+                 {   u'_id': cluster_id,
+                     u'access': {   u'groups': [   {   u'id': str(group_id),
+                                                       u'level': 2}],
+                                    u'users': [   {   u'id': str(self._user['_id']),
+                                                      u'level': 2}]},
+                     u'aws': {   u'profileId': str(self._user_profile['_id'])},
+                     u'cluster_config': {   },
+                     u'config': {   u'scheduler': {   u'type': u'sge'}},
+                     u'log': [],
+                     u'name': u'test',
+                     u'playbook': u'default',
+                     u'profile': str(self._user_profile['_id']),
+                     u'status': u'terminating',
+                     u'type': u'ec2',
+                     u'userId': str(self._user['_id'])},
+                 {   u'_id': str(self._user_profile['_id']),
+                     u'accessKeyId': u'id',
+                     u'availabilityZone': u'us-west-1a',
+                     u'name': u'test',
+                     u'publicIPs': False,
+                     u'regionHost': u'ec2.us-west-1.amazonaws.com',
+                     u'regionName': u'us-west-1',
+                     u'status': u'available'},
+                 u'secret',
+                 {   u'cluster_state': u'absent'},
+                 u'token',
+                 u'http://127.0.0.1/api/v1/clusters/%s/log' % cluster_id,
+                 u'terminated'],
+             {   }]]
 
         self.assertCalls(
-            terminate_cluster.call_args_list, expected_terminate_call)
+            terminate_cluster.call_args_list, expected)
 
     def test_delete(self):
         body = {
-            'config': [
-                {
-                    '_id': self._config_id
-                }
-            ],
+            'cluster_config': {},
+            'profile': str(self._user_profile['_id']),
             'name': 'test',
             'template': 'default_cluster'
         }
@@ -661,7 +698,7 @@ class ClusterTestCase(base.TestCase):
         self.assertCalls(
             generate_key.call_args_list, expected)
 
-    @mock.patch('cumulus.starcluster.tasks.cluster.test_connection.delay')
+    @mock.patch('cumulus.tasks.cluster.test_connection.delay')
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
     def test_start_trad(self, generate_key, test_connection):
         body = {
@@ -736,13 +773,10 @@ class ClusterTestCase(base.TestCase):
     def test_find(self, generate_key):
         # Create a EC2 cluster
         body = {
-            'config': [
-                {
-                    '_id': self._config_id
-                }
-            ],
-            'name': 'test',
-            'template': 'default_cluster'
+            'profile': str(self._user_profile['_id']),
+            'cluster_config': {
+            },
+            'name': 'test'
         }
 
         json_body = json.dumps(body)
@@ -751,7 +785,6 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
         ec2_cluster_id = r.json['_id']
-        ec2_cluster_config_id = r.json['config']['_id']
 
         # Create a traditional cluster
         body = {
@@ -780,21 +813,7 @@ class ClusterTestCase(base.TestCase):
             '/clusters', method='GET', params=params, user=self._user)
         self.assertStatusOk(r)
         self.assertEqual(len(r.json), 1, 'Only expecting a single cluster')
-        expected_cluster = {
-            u'status': u'created',
-            u'userId': str(self._user['_id']),
-            u'type': u'ec2',
-            u'template': u'default_cluster',
-            u'_id': ec2_cluster_id,
-            u'config': {
-                u'_id': ec2_cluster_config_id,
-                u'scheduler': {
-                    u'type': u'sge'
-                }
-            },
-            u'name': u'test'
-        }
-        self.assertEqual(r.json[0], expected_cluster, 'Returned cluster doesn\'t match')
+        self.assertEqual(r.json[0]['_id'], ec2_cluster_id, 'Returned cluster doesn\'t match')
 
         # Search for the trad cluster
         params = {

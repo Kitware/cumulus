@@ -26,8 +26,7 @@ from girder.api.describe import Description
 from girder.api.v1.notification import sseMessage
 from girder.constants import AccessType
 from girder.api.docs import addModel
-from girder.api.rest import RestException, getBodyJson, getCurrentUser
-from girder.models.model_base import ValidationException
+from girder.api.rest import RestException, getBodyJson
 from .base import BaseResource
 from cumulus.constants import ClusterType, ClusterStatus
 from .utility.cluster_adapters import get_cluster_adapter
@@ -69,101 +68,10 @@ class Cluster(BaseResource):
                                           json.load(cherrypy.request.body))
     handle_log_record.description = None
 
-    def _find_section(self, name_to_find, sections):
-        for section in sections:
-            (name, values) = section.iteritems().next()
-            if name == name_to_find:
-                return values
-
-        return None
-
-    def _merge_sections(self, sections1, sections2):
-        for section in sections1:
-            (name, values) = section.iteritems().next()
-            matching_section = self._find_section(name, sections2)
-            if matching_section:
-                values = dict((k.lower(), v) for k, v in values.iteritems())
-                matching_section.update(values)
-            else:
-                sections2.append(section)
-
-    def _merge_configs(self, configs):
-        merged_config = None
-        for c in reversed(configs):
-            if not merged_config:
-                merged_config = c
-            else:
-                for (section_type, sections) in c.iteritems():
-                    if section_type in merged_config:
-                        self._merge_sections(sections,
-                                             merged_config[section_type])
-                    else:
-                        merged_config[section_type] = sections
-
-        return merged_config
-
-    def _create_config(self, config):
-        config_model = self.model('starclusterconfig', 'cumulus')
-
-        loaded_config = []
-
-        if not isinstance(config, list):
-            config = [config]
-
-        profile_id = None
-        for c in config:
-            if not profile_id:
-                profile_id = parse('aws.profileId').find(c)
-                if profile_id:
-                    profile_id = profile_id[0].value
-                    # Check this a valid profile
-                    profile = self.model('aws', 'cumulus')\
-                                  .load(profile_id, user=getCurrentUser())
-
-                    if not profile:
-                        raise ValidationException('Invalid profile id')
-
-            if '_id' in c:
-
-                if not c['_id']:
-                    raise RestException('Invalid configuration id', 400)
-
-                c = config_model.load(c['_id'], force=True)
-                c = c['config']
-
-            loaded_config.append(c)
-
-        doc = {
-            'config': self._merge_configs(loaded_config)
-        }
-
-        if profile_id:
-            doc['aws'] = {
-                'profileId': profile_id
-            }
-
-        config = config_model.create(doc)
-
-        return config['_id']
-
     def _create_ec2(self, params, body):
+        return self._create_ansible(params, body, cluster_type=ClusterType.EC2)
 
-        self.requireParams(['name', 'template', 'config'], body)
-
-        name = body['name']
-        template = body['template']
-        config = body['config']
-
-        config_id = self._create_config(config)
-
-        user = self.getCurrentUser()
-
-        cluster = self._model.create_ec2(user, config_id, name, template)
-        cluster = self._model.filter(cluster, user)
-
-        return cluster
-
-    def _create_ansible(self, params, body):
+    def _create_ansible(self, params, body, cluster_type=ClusterType.ANSIBLE):
 
         self.requireParams(['name',
                             'cluster_config', 'profile'], body)
@@ -177,7 +85,8 @@ class Cluster(BaseResource):
         user = self.getCurrentUser()
 
         cluster = self._model.create_ansible(user, name, playbook,
-                                             cluster_config, profile)
+                                             cluster_config, profile,
+                                             cluster_type=cluster_type)
         cluster = self._model.filter(cluster, user)
 
         return cluster
@@ -418,7 +327,7 @@ class Cluster(BaseResource):
         if 'status' in body:
             try:
                 # For now only do for ansible clusters
-                if cluster['type'] == ClusterType.ANSIBLE:
+                if cluster['type'] in [ClusterType.ANSIBLE, ClusterType.EC2]:
                     cluster['status'] = ClusterStatus[body['status']]
                 else:
                     cluster['status'] = body['status']

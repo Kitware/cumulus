@@ -23,11 +23,11 @@ import os
 import stat
 from paramiko.rsakey import RSAKey
 import requests
-import starcluster.logger
+
 
 import cumulus
 from cumulus.celery import command
-from cumulus.common import check_status
+from cumulus.common import check_status, get_cluster_logger
 
 
 def _key_path(profile):
@@ -42,7 +42,7 @@ def generate_key_pair(cluster, girder_token=None):
     cluster_id = cluster['_id']
     status_url = '%s/clusters/%s' \
         % (cumulus.config.girder.baseUrl, cluster_id)
-    log = starcluster.logger.get_starcluster_logger()
+    log = get_cluster_logger(cluster, girder_token)
     headers = {'Girder-Token':  girder_token}
 
     try:

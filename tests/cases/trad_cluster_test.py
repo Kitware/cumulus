@@ -23,7 +23,7 @@ import httmock
 import json
 import re
 
-from cumulus.starcluster.tasks import cluster
+from cumulus.tasks import cluster
 
 class TradClusterTestCase(unittest.TestCase):
 
@@ -46,9 +46,8 @@ class TradClusterTestCase(unittest.TestCase):
         self.assertListEqual(self.normalize(calls), expected, msg)
 
 
-    @mock.patch('cumulus.starcluster.logging.StarClusterLogHandler')
-    @mock.patch('cumulus.starcluster.tasks.cluster.get_connection')
-    def test_connection(self, get_connection, StarClusterLogHandler):
+    @mock.patch('cumulus.tasks.cluster.get_connection')
+    def test_connection(self, get_connection):
 
         def valid(self):
             return True

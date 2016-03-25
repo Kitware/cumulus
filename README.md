@@ -1,4 +1,4 @@
 cumulus
 =======
-A REST API for creating and using StarClusters or [Ansible](cumulus/ansible/README.md)
+A RESTful API for creating and using clusters in the cloud
 

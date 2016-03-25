@@ -17,17 +17,29 @@
 #  limitations under the License.
 ###############################################################################
 
-from .cluster import Cluster
-from .job import Job
-from .script import Script
-from .volume import Volume
-import aws
+from __future__ import absolute_import
+import logging
+import sys
+import requests
+import json
+import traceback
 
 
-def load(info):
-    info['apiRoot'].clusters = Cluster()
-    info['apiRoot'].jobs = Job()
-    info['apiRoot'].scripts = Script()
-    info['apiRoot'].volumes = Volume()
-    # Augment user resource with aws profiles
-    aws.load(info['apiRoot'])
+class RESTfulLogHandler(logging.Handler):
+
+    def __init__(self, token, url, level=logging.NOTSET):
+        super(RESTfulLogHandler, self).__init__(level)
+        self._url = url
+        self._headers = {'Girder-Token':  token}
+
+    def emit(self, record):
+        json_str = json.dumps(record.__dict__, default=str)
+        r = None
+        try:
+            r = requests.post(self._url, headers=self._headers, data=json_str)
+            r.raise_for_status()
+        except Exception:
+            if r:
+                print >> sys.stderr, 'Unable to POST log record: %s' % r.content
+            else:
+                print >> sys.stderr, traceback.format_exc()

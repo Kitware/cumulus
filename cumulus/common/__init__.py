@@ -19,31 +19,16 @@
 
 from __future__ import absolute_import
 import sys
-import urllib2
 import collections
+import cumulus
+import logging
+from cumulus.logging import RESTfulLogHandler
 
 
 def check_status(request):
     if request.status_code != 200:
         print >> sys.stderr, request.content
         request.raise_for_status()
-
-
-def get_config_url(base_url, config_id):
-    return '%s/starcluster-configs/%s?format=ini' \
-           % (base_url, config_id)
-
-
-def create_config_request(girder_token, base_url, config_id):
-    config_url = get_config_url(base_url, config_id)
-
-    headers = {
-        'Girder-Token': girder_token
-    }
-
-    config_request = urllib2.Request(config_url, headers=headers)
-
-    return config_request
 
 
 def update_dict(d, u):
@@ -55,3 +40,25 @@ def update_dict(d, u):
             d[k] = u[k]
 
     return d
+
+
+def get_job_logger(job, girder_token):
+    job_url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl, job['_id'])
+
+    return get_post_logger(job['_id'], girder_token, job_url)
+
+
+def get_cluster_logger(cluster, girder_token):
+    cluster_url = '%s/clusters/%s/log' % (cumulus.config.girder.baseUrl,
+                                          cluster['_id'])
+
+    return get_post_logger(cluster['_id'], girder_token, cluster_url)
+
+
+def get_post_logger(name, girder_token, post_url):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    handler = RESTfulLogHandler(girder_token, post_url, logging.DEBUG)
+    logger.addHandler(handler)
+
+    return logger

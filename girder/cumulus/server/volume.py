@@ -20,6 +20,7 @@
 import cherrypy
 from jsonpath_rw import parse
 from bson.objectid import ObjectId
+from botocore.exceptions import ClientError
 
 from girder.api import access
 from girder.api.describe import Description
@@ -30,12 +31,10 @@ from girder.models.model_base import ValidationException
 from girder.api.rest import loadmodel
 from .base import BaseResource
 
-from starcluster.exception import VolumeDoesNotExist, ZoneDoesNotExist
-
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
 from cumulus.constants import ClusterType
-from cumulus.starcluster.common import get_easy_ec2
+from cumulus.aws.ec2 import get_ec2_client
 
 
 class Volume(BaseResource):
@@ -84,25 +83,37 @@ class Volume(BaseResource):
         if not profile:
             raise RestException('Invalid profile', 400)
 
-        ec2 = get_easy_ec2(profile)
+        client = get_ec2_client(profile)
 
         if 'zone' in body:
             # Check that the zone is valid
             try:
                 zone = body['zone']
-                ec2.get_zone(zone)
-            except ZoneDoesNotExist:
-                raise ValidationException('Zone does not exist in region',
-                                          'zone')
+                client.describe_availability_zones(
+                    ZoneNames=[zone])
+            except ClientError as ce:
+                code = parse('Error.Code').find(ce.reponse)
+                if code:
+                    code = code[0].value
+                else:
+                    raise
+
+                if code == 'InvalidParameterValue':
+                    raise ValidationException('Zone does not exist in region',
+                                              'zone')
+                else:
+                    raise
 
         # Use the zone from the profile
         else:
             zone = profile['availabilityZone']
 
         volume = self._create_ebs(body, zone)
-        vol = ec2.create_volume(body['size'], zone)
+        vol = client.create_volume(
+            Size=body['size'], AvailabilityZone=zone)
+
         # Now set the EC2 volume id
-        volume['ec2']['id'] = vol.id
+        volume['ec2']['id'] = vol['VolumeId']
         self.model('volume', 'cumulus').save(volume)
 
         cherrypy.response.status = 201
@@ -181,69 +192,6 @@ class Volume(BaseResource):
         .param('limit', 'The max number of volumes to return',
                paramType='query', required=False, default=50))
 
-    def _add_volume(self, config, cluster, volume, path):
-        # Check that we don't already have a volume with this name
-        vol = config.setdefault('vol', [])
-        for v in vol:
-            if volume['name'] in v:
-                raise ValidationException('A volume with that name is already '
-                                          'exists', 'name')
-
-        # Add to volume list
-        volume_config = {
-            'volume_id': volume['ec2']['id'],
-            'mount_path': path
-        }
-
-        vol.append({
-            volume['name']: volume_config
-        })
-
-        if 'fs' in volume:
-            volume_config['fs'] = volume['fs']
-
-        template_name = cluster['template']
-        # Now add the volume to the cluster
-        for c in config['cluster']:
-            if template_name in c:
-                current_volumes = c[template_name].get('volumes', '')
-                current_volumes = [x for x in current_volumes.split(',') if x]
-
-                if volume['name'] in current_volumes:
-                    raise ValidationException('A volume with that name is '
-                                              'already attached', 'name')
-                current_volumes.append(volume['name'])
-
-                c[template_name]['volumes'] = ','.join(current_volumes)
-                break
-
-        return config
-
-    def _remove_volume(self, config, cluster, volume):
-        # Check that we don't already have a volume with this name
-        vol = config.get('vol', [])
-        to_delete = None
-        for v in vol:
-            if volume['name'] in v:
-                to_delete = v
-                break
-
-        vol.remove(to_delete)
-
-        # Now remove the volume from the cluster
-        template_name = cluster['template']
-        for c in config['cluster']:
-            if template_name in c:
-                current_volumes = c[template_name].get('volumes', '')
-                current_volumes = [x for x in current_volumes.split(',') if x]
-                current_volumes.remove(volume['name'])
-                c['default_cluster']['volumes'] = ','.join(current_volumes)
-                if not c['default_cluster']['volumes']:
-                    del c['default_cluster']['volumes']
-                break
-
-        return config
-
     @access.user
     @loadmodel(map={'clusterId': 'cluster'}, model='cluster', plugin='cumulus',
                level=AccessType.ADMIN)
@@ -258,9 +206,9 @@ class Volume(BaseResource):
         profile_id = parse('aws.profileId').find(volume)[0].value
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
-        ec2 = get_easy_ec2(profile)
         volume_id = parse('ec2.id').find(volume)[0].value
-        status = self._get_status(ec2, volume_id)
+        client = get_ec2_client(profile)
+        status = self._get_status(client, volume_id)
 
         if status != VolumeState.AVAILABLE:
             raise RestException('This volume is not available to attach '
@@ -274,18 +222,9 @@ class Volume(BaseResource):
         volumes = cluster.setdefault('volumes', [])
         volumes.append(volume['_id'])
 
-        # Now update the configuration for the cluster to include this volume
-        cluster_config_id = parse('config._id').find(cluster)[0].value
-        starcluster_config = self.model('starclusterconfig',
-                                        'cumulus').load(cluster_config_id,
-                                                        force=True)
-        self._add_volume(starcluster_config['config'], cluster, volume,
-                         body['path'])
-
         # Add cluster id to volume
         volume['clusterId'] = cluster['_id']
 
-        self.model('starclusterconfig', 'cumulus').save(starcluster_config)
         self.model('cluster', 'cumulus').save(cluster)
         self.model('volume', 'cumulus').save(volume)
 
@@ -294,7 +233,7 @@ class Volume(BaseResource):
         'required': ['path'],
         'properties': {
             'path': {'type': 'string',
-                     'description': 'Id of starcluster configuration'}
+                     'description': 'The path to mount the volume'}
         }
     }, 'volumes')
 
@@ -325,17 +264,13 @@ class Volume(BaseResource):
         profile_id = parse('aws.profileId').find(volume)[0].value
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
-        ec2 = get_easy_ec2(profile)
+        client = get_ec2_client(profile)
         volume_id = parse('ec2.id').find(volume)[0].value
-        status = self._get_status(ec2, volume_id)
+        status = self._get_status(client, volume_id)
 
         # Call ec2 to do the detach
         if status == VolumeState.INUSE:
-            try:
-                vol = ec2.get_volume(volume_id)
-                vol.detach()
-            except VolumeDoesNotExist:
-                pass
+            client.detach_volume(VolumeId=volume_id)
 
         # First remove from cluster
         cluster = self.model('cluster', 'cumulus').load(volume['clusterId'],
@@ -344,13 +279,6 @@ class Volume(BaseResource):
         cluster.setdefault('volumes', []).remove(volume['_id'])
         del volume['clusterId']
 
-        # Now remove from starcluster configuration for this cluster
-        cluster_config_id = parse('config._id').find(cluster)[0].value
-        starcluster_config = self.model('starclusterconfig', 'cumulus') \
-            .load(cluster_config_id, force=True)
-        self._remove_volume(starcluster_config['config'], cluster, volume)
-
-        self.model('starclusterconfig', 'cumulus').save(starcluster_config)
         self.model('cluster', 'cumulus').save(cluster)
         self.model('volume', 'cumulus').save(volume)
 
@@ -371,10 +299,10 @@ class Volume(BaseResource):
         profile_id = parse('aws.profileId').find(volume)[0].value
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
-        ec2 = get_easy_ec2(profile)
+
+        client = get_ec2_client(profile)
         volume_id = parse('ec2.id').find(volume)[0].value
-        vol = ec2.get_volume(volume_id)
-        vol.delete()
+        client.delete_volume(VolumeId=volume_id)
 
         self.model('volume', 'cumulus').remove(volume)
 
@@ -382,10 +310,19 @@ class Volume(BaseResource):
         Description('Delete a volume')
         .param('id', 'The volume id.', paramType='path', required=True))
 
-    def _get_status(self, ec2, volume_id):
-        v = ec2.get_volume(volume_id)
+    def _get_status(self, client, volume_id):
+        response = client.describe_volumes(
+            VolumeIds=[volume_id]
+        )
 
-        return v.update()
+        state = parse('Volumes[0].State').find(response)
+        if state:
+            state = state[0].value
+        else:
+            raise RestException('Unable to extract volume state from: %s'
+                                % state)
+
+        return state
 
     @access.user
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
@@ -400,9 +337,9 @@ class Volume(BaseResource):
         profile_id = parse('aws.profileId').find(volume)[0].value
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
-        ec2 = get_easy_ec2(profile)
+        client = get_ec2_client(profile)
 
-        return {'status': self._get_status(ec2, ec2_id)}
+        return {'status': self._get_status(client, ec2_id)}
 
     get_status.description = (
         Description('Get the status of a volume')

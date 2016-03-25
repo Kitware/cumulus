@@ -24,8 +24,8 @@ import traceback
 import cumulus
 
 from cumulus.celery import command
-from cumulus.starcluster.common import get_easy_ec2
 from cumulus.common import check_status
+from cumulus.aws.ec2 import get_ec2_client
 
 
 def _key_path(profile):
@@ -35,9 +35,14 @@ def _key_path(profile):
 @command.task
 def generate_key_pair(aws_profile, girder_token):
     try:
-        ec2 = get_easy_ec2(aws_profile)
+        client = get_ec2_client(aws_profile)
         key_path = _key_path(aws_profile)
-        ec2.create_keypair(aws_profile['_id'], output_file=key_path)
+        key_pair = client.create_key_pair(KeyName=aws_profile['_id'])
+
+        with open(key_path, 'wb') as fp:
+            fp.write(key_pair['KeyMaterial'])
+        os.chmod(key_path, 0400)
+
         aws_profile['status'] = 'available'
 
     except Exception as ex:

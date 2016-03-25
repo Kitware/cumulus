@@ -38,10 +38,10 @@ class KeyTestCase(unittest.TestCase):
         self._errorMessage = None
         self._expected_status = 'creating'
 
-    @mock.patch('cumulus.aws.ec2.tasks.key.get_easy_ec2')
-    def test_key_generate(self, get_simple_ec2):
-        ec2 = get_simple_ec2.return_value
-        ec2.create_keypair.side_effect = Exception('some error')
+    @mock.patch('cumulus.aws.ec2.tasks.key.get_ec2_client')
+    def test_key_generate(self, get_ec2_client):
+        ec2_client = get_ec2_client.return_value
+        ec2_client.create_keypair.side_effect = Exception('some error')
 
         profile = {
             '_id': '55c3a698f6571011a48f6817',
@@ -83,7 +83,7 @@ class KeyTestCase(unittest.TestCase):
         # Now mock out EC2 and check for success
         self._update = False
         self._expected_status = 'available'
-        ec2.create_keypair.side_effect = None
+        ec2_client.create_keypair.side_effect = None
         with httmock.HTTMock(update):
             key.generate_key_pair(profile, 'girder-token')
 

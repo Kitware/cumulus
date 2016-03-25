@@ -17,10 +17,9 @@
 #  limitations under the License.
 ###############################################################################
 
-from starcluster.awsutils import EasyEC2
-from starcluster.exception import RegionDoesNotExist, ZoneDoesNotExist
-from boto.exception import EC2ResponseError
 from bson.objectid import ObjectId
+from botocore.exceptions import ClientError
+from jsonpath_rw import parse
 
 from girder.constants import AccessType
 
@@ -28,6 +27,7 @@ from .base import BaseModel
 from girder.models.model_base import ValidationException
 from girder.api.rest import getCurrentUser
 from cumulus.common.girder import create_status_notifications
+from cumulus.aws.ec2 import get_ec2_client, ClientErrorCode
 
 
 class Aws(BaseModel):
@@ -40,6 +40,43 @@ class Aws(BaseModel):
         self.exposeFields(level=AccessType.READ, fields=(
             '_id', 'name', 'accessKeyId', 'regionName', 'regionHost',
             'availabilityZone', 'status', 'errorMessage', 'publicIPs'))
+
+    def _validate_region(self, client, doc):
+        try:
+            response = client.describe_regions(RegionNames=[doc['regionName']])
+            endpoint = parse('Regions[0].Endpoint').find(response)
+            if endpoint:
+                endpoint = endpoint[0].value
+            else:
+                raise ValidationException('Unable to extract region endpoint.')
+
+            doc['regionHost'] = endpoint
+        except ClientError as ce:
+            code = parse('Error.Code').find(ce.response)
+            if code:
+                code = code[0].value
+            else:
+                raise
+
+            if code == ClientErrorCode.InvalidParameterValue:
+                raise ValidationException('Invalid region', 'regionName')
+
+    def _validate_zone(self, client, doc):
+        try:
+            client = get_ec2_client(doc)
+            client.describe_availability_zones(
+                ZoneNames=[doc['availabilityZone']])
+
+        except ClientError as ce:
+            code = parse('Error.Code').find(ce.response)
+            if code:
+                code = code[0].value
+            else:
+                raise
+
+            if code == ClientErrorCode.InvalidParameterValue:
+                raise ValidationException(
+                    'Invalid zone', 'availabilityZone')
 
     def validate(self, doc):
         name = doc['name']
@@ -63,23 +100,28 @@ class Aws(BaseModel):
             raise ValidationException('A profile with that name already exists',
                                       'name')
 
-        ec2 = EasyEC2(doc['accessKeyId'],
-                      doc['secretAccessKey'])
-
+        client = None
+        # First validate the credentials
         try:
-            region = ec2.get_region(doc['regionName'])
-            # Only do the rest of the validation if this is a new profile (not
-            # a key update )
-            if '_id' not in doc:
-                ec2.connect_to_region(doc['regionName'])
-                ec2.get_zone(doc['availabilityZone'])
-                doc['regionHost'] = region.endpoint
-        except EC2ResponseError:
-            raise ValidationException('Invalid AWS credentials')
-        except RegionDoesNotExist:
-            raise ValidationException('Invalid region', 'regionName')
-        except ZoneDoesNotExist:
-            raise ValidationException('Invalid zone', 'availabilityZone')
+            client = get_ec2_client(doc)
+        except ClientError as ce:
+            code = parse('Error.Code').find(ce.response)
+            if code:
+                code = code[0].value
+            else:
+                raise
+
+            if code == ClientErrorCode.AuthFailure:
+                raise ValidationException('Invalid AWS credentials')
+
+        # Now validate the region
+        self._validate_region(client, doc)
+
+        # Only do the rest of the validation if this is a new profile (not
+        # a key update )
+        if '_id' not in doc:
+            # Now validate the zone
+            self._validate_zone(client, doc)
 
         return doc
 
