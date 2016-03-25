@@ -133,7 +133,7 @@ def delete_profile(user, profile, params):
                                                     get_task_token()['_id'])
 
     client = get_ec2_client(profile)
-    client.delete_key(KeyName=profile['_id'])
+    client.delete_key_pair(KeyName=str(profile['_id']))
 
     ModelImporter.model('aws', 'cumulus').remove(profile)
 
