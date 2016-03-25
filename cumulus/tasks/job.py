@@ -157,7 +157,7 @@ def download_job_input_folders(cluster, job, log_write_url=None,
 
 @command.task
 def download_job_input(cluster, job, log_write_url=None, girder_token=None):
-    job_url = '%s/jobs/%s/log' % cumulus.config.girder.baseUrl, job['_id']
+    job_url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl, job['_id'])
     log = get_post_logger(job['_id'], girder_token, job_url)
 
     # Create job directory
