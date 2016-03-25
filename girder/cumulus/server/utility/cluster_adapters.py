@@ -28,6 +28,7 @@ from bson.objectid import ObjectId, InvalidId
 from cumulus.constants import ClusterType, ClusterStatus
 from cumulus.common.girder import get_task_token
 import cumulus.tasks.cluster
+import cumulus.tasks.job
 import cumulus.ansible.tasks.cluster
 
 
