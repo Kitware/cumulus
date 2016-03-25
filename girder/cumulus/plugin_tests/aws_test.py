@@ -164,13 +164,13 @@ class AwsTestCase(base.TestCase):
                 'Code': ClientErrorCode.InvalidParameterValue
             }
         }
-        ec2_client.describe_zones.side_effect = ClientError(response, '')
+        ec2_client.describe_availability_zones.side_effect = ClientError(response, '')
         r = self.request(create_url, method='POST',
                          type='application/json', body=json.dumps(body),
                          user=self._user)
         self.assertStatus(r, 400)
 
-        ec2_client.describe_zones.side_effect = None
+        ec2_client.describe_availability_zones.side_effect = None
         ec2_client.describe_regions.side_effect = None
         ec2_client.describe_regions.return_value = {
             'Regions': [{

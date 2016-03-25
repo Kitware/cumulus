@@ -64,7 +64,8 @@ class Aws(BaseModel):
     def _validate_zone(self, client, doc):
         try:
             client = get_ec2_client(doc)
-            client.describe_zones(ZoneNames=[doc['availabilityZone']])
+            client.describe_availability_zones(
+                ZoneNames=[doc['availabilityZone']])
 
         except ClientError as ce:
             code = parse('Error.Code').find(ce.response)
