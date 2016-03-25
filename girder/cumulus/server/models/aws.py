@@ -103,9 +103,7 @@ class Aws(BaseModel):
         client = None
         # First validate the credentials
         try:
-            profile = doc.copy()
-            del profile['regionName']
-            client = get_ec2_client(profile)
+            client = get_ec2_client(doc)
         except ClientError as ce:
             code = parse('Error.Code').find(ce.response)
             if code:
