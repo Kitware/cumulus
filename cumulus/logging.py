@@ -25,10 +25,10 @@ import json
 import traceback
 
 
-class StarClusterLogHandler(logging.Handler):
+class RESTfulLogHandler(logging.Handler):
 
     def __init__(self, token, url, level=logging.NOTSET):
-        super(StarClusterLogHandler, self).__init__(level)
+        super(RESTfulLogHandler, self).__init__(level)
         self._url = url
         self._headers = {'Girder-Token':  token}
 

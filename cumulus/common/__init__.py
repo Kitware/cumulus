@@ -22,7 +22,7 @@ import sys
 import collections
 import cumulus
 import logging
-from cumulus.logging import StarClusterLogHandler
+from cumulus.logging import RESTfulLogHandler
 
 
 def check_status(request):
@@ -58,7 +58,7 @@ def get_cluster_logger(cluster, girder_token):
 def get_post_logger(name, girder_token, post_url):
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
-    handler = StarClusterLogHandler(girder_token, post_url, logging.DEBUG)
+    handler = RESTfulLogHandler(girder_token, post_url, logging.DEBUG)
     logger.addHandler(handler)
 
     return logger
