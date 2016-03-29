@@ -50,6 +50,7 @@ class TransportTestCase(unittest.TestCase):
             'config': {
                 'ssh': {
                     'user': 'bob',
+                    'key': self._cluster_id,
                     'passphrase': 'test'
                 },
                 'host': 'localhost'
