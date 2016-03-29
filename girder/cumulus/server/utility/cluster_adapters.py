@@ -210,7 +210,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         cumulus.ansible.tasks.cluster.start_cluster \
             .delay(self.cluster.get('playbook', self.DEFAULT_PLAYBOOK),
                    # provision playbook
-                   request_body.get('playbook', self.DEFAULT_PLAYBOOK),
+                   request_body.get('playbook', 'gridengine/site'),
                    self.cluster, profile, secret_key,
                    {'cluster_state': 'running'}, girder_token, log_write_url)
 
