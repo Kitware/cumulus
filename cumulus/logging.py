@@ -23,23 +23,33 @@ import sys
 import requests
 import json
 import traceback
+import types
+
+
+class LogRecordEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, type):
+            return obj.__name__
+        elif isinstance(obj, types.TracebackType):
+            return traceback.format_tb(obj)
+        else:
+            return str(obj)
 
 
 class RESTfulLogHandler(logging.Handler):
 
-    def __init__(self, token, url, level=logging.NOTSET):
+    def __init__(self, girder_token, url, level=logging.NOTSET):
         super(RESTfulLogHandler, self).__init__(level)
         self._url = url
-        self._headers = {'Girder-Token':  token}
+        self._headers = {'Girder-Token':  girder_token}
 
     def emit(self, record):
-        json_str = json.dumps(record.__dict__, default=str)
+        json_str = json.dumps(record.__dict__, cls=LogRecordEncoder)
         r = None
         try:
             r = requests.post(self._url, headers=self._headers, data=json_str)
             r.raise_for_status()
         except Exception:
+            traceback.print_stack()
             if r:
                 print >> sys.stderr, 'Unable to POST log record: %s' % r.content
-            else:
-                print >> sys.stderr, traceback.format_exc()

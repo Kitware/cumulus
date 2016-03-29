@@ -19,14 +19,10 @@
 from __future__ import absolute_import
 import logging
 import importlib
-import traceback
-import types
 
 from functools import wraps
 import json
 import threading
-
-import requests
 
 from girder_client import GirderClient, HttpError
 
@@ -38,6 +34,7 @@ from celery import current_task
 from celery.utils.log import get_task_logger
 
 import cumulus.celery
+from cumulus.logging import RESTfulLogHandler
 
 
 logger = get_task_logger(__name__)
@@ -79,7 +76,7 @@ def _get_task_logger(id, girder_api_url, girder_token):
     # Only add new new handler if we don't already have one.
     if not logger.handlers:
         url = '%s/tasks/%s/log' % (girder_api_url, id)
-        logger.addHandler(TaskFlowLogHandler(girder_token, url))
+        logger.addHandler(RESTfulLogHandler(girder_token, url))
 
     return logger
 
@@ -154,29 +151,6 @@ def to_taskflow(taskflow):
     return taskflow
 
 
-class LogRecordEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, type):
-            return obj.__name__
-        elif isinstance(obj, types.TracebackType):
-            return traceback.format_tb(obj)
-        else:
-            return str(obj)
-
-
-class TaskFlowLogHandler(logging.Handler):
-
-    def __init__(self, girder_token, url):
-        super(TaskFlowLogHandler, self).__init__()
-        self._url = url
-        self._headers = {'Girder-Token':  girder_token}
-
-    def emit(self, record):
-        json_str = json.dumps(record.__dict__, cls=LogRecordEncoder)
-        r = requests.post(self._url, headers=self._headers, data=json_str)
-        r.raise_for_status()
-
-
 class TaskFlow(dict):
     """
     This is the base class users derive that taskflows from. In the future more
@@ -200,7 +174,7 @@ class TaskFlow(dict):
         # Only add new new handler if we don't already have one.
         if not self.logger.handlers:
             url = '%s/taskflows/%s/log' % (girder_api_url, id)
-            self.logger.addHandler(TaskFlowLogHandler(girder_token, url))
+            self.logger.addHandler(RESTfulLogHandler(girder_token, url))
 
     @property
     def id(self):

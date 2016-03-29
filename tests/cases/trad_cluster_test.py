@@ -78,12 +78,19 @@ class TradClusterTestCase(unittest.TestCase):
         set_status = httmock.urlmatch(
             path=r'^%s$' % status_update_url, method='PATCH')(_set_status)
 
-        with httmock.HTTMock(set_status):
-            cluster.test_connection(cluster_model, **{'girder_token': 's', 'log_write_url': 'http://localhost/log'})
+        def _log(url, request):
+            return httmock.response(200, None, {}, request=request)
+
+        log_url = '/api/v1/clusters/%s/log' % cluster_id
+        log = httmock.urlmatch(
+            path=r'^%s$' % log_url, method='POST')(_log)
+
+        with httmock.HTTMock(set_status, log):
+            cluster.test_connection(cluster_model, **{'girder_token': 's'})
 
         self.assertTrue(self._set_status_called, 'Set status endpoint not called')
         self.assertTrue(self._set_status_valid,
-                        'Set status endpoint called in incorrect content: %s'
+                        'Set status endpoint called with incorrect content: %s'
                             % self._set_status_request)
 
         # Mock our conn calls and try again
