@@ -60,8 +60,9 @@ class SshClusterConnection(AbstractConnection):
         else:
             passphrase = None
 
+        key_name = parse('config.ssh.key').find(self._cluster)[0].value
         key_path = os.path.join(cumulus.config.ssh.keyStore,
-                                self._cluster['_id'])
+                                key_name)
 
         private_key = self._load_rsa_key(key_path, passphrase)
 
