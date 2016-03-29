@@ -218,7 +218,8 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         """
         Adapters may implement this if they support a update operation.
         """
-        self.update_status(ClusterStatus[request_body['status']])
+        if 'status' in request_body:
+            self.update_status(ClusterStatus[request_body['status']])
 
     def delete(self):
         """
