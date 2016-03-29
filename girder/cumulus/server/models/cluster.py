@@ -166,6 +166,10 @@ class Cluster(BaseModel):
             'config': {
                 'scheduler': {
                     'type': 'sge'
+                },
+                'ssh': {
+                    'user': cluster_config['ansible_ssh_user'],
+                    'key': str(profile['_id'])
                 }
             },
             'type': cluster_type
@@ -182,7 +186,12 @@ class Cluster(BaseModel):
             'type': ClusterType.TRADITIONAL
         }
 
-        return self._create(user, cluster)
+        # Set the key name
+        cluster = self._create(user, cluster)
+        cluster['config']['ssh']['key'] = cluster['_id']
+        self.save(cluster)
+
+        return cluster
 
     def create_newt(self, user, name, config):
 

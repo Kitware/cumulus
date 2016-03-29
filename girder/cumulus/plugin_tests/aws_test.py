@@ -106,7 +106,9 @@ class AwsTestCase(base.TestCase):
         # Create EC2 cluster
         body = {
             'name': 'testing',
-            'cluster_config': {},
+            'cluster_config': {
+                'ansible_ssh_user': 'ubuntu'
+            },
             'profile': self._profile_id
         }
 
@@ -484,7 +486,9 @@ class AwsTestCase(base.TestCase):
         cluster_body = {
             'name': 'profile_test',
             'profile': profile_id,
-            'cluster_config': {}
+            'cluster_config': {
+                'ansible_ssh_user': 'ubuntu'
+            }
         }
 
         r = self.request('/clusters', method='POST',

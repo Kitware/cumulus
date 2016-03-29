@@ -42,7 +42,7 @@ Sample output:
 """
 
 
-def instance_filter(instance):
+def instance_filter(instance, cluster_id):
     """
     What determines if an instance should be returned for the inventory, where
     instance is a boto.ec2.instance.
@@ -50,7 +50,7 @@ def instance_filter(instance):
     return (instance.state == 'running' and
             'ec2_pod' in instance.tags and
             'ec2_pod_instance_name' in instance.tags and
-            instance.tags['ec2_pod'] == os.environ.get('CLUSTER_ID'))
+            instance.tags['ec2_pod'] == cluster_id)
 
 
 def get_instance_vars(instance):
@@ -73,7 +73,7 @@ def instances_by_name(instances):
                    key=lambda instance: instance.tags['ec2_pod_instance_name'])
 
 
-def get_inventory():
+def get_inventory(aws_access_key_id, aws_secret_access_key, cluster_id):
     """
     Retrieve the inventory from a set of regions in an Ansible Dynamic
     Inventory compliant format (see
@@ -90,12 +90,13 @@ def get_inventory():
     for region in get_regions():
         ec2 = boto.ec2.connect_to_region(
             region,
-            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'))
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key)
 
         region_instances = sum([x.instances for x in
                                 ec2.get_all_reservations()], [])
-        instances += [x for x in region_instances if instance_filter(x)]
+        instances += [x for x in region_instances
+                      if instance_filter(x, cluster_id)]
 
     # Build up main inventory, instance_name is something like "head" or "node"
     # instance_name_instances are the boto.ec2.instance objects that have an
@@ -134,4 +135,6 @@ if __name__ == '__main__':
             raise Exception('Required env var %s not given to Cumulus'
                             'inventory.' % required_env_var)
 
-    print(json.dumps(get_inventory()))
+    print(json.dumps(get_inventory(os.environ.get('AWS_ACCESS_KEY_ID'),
+                                   os.environ.get('AWS_SECRET_ACCESS_KEY'),
+                                   os.environ.get('CLUSTER_ID'))))

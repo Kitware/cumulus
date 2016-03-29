@@ -1,5 +1,6 @@
 from cumulus.celery import command
 from cumulus.common import check_status
+from cumulus.ansible.tasks.dynamic_inventory.ec2 import get_inventory
 from inventory import AnsibleInventory
 import cumulus
 import requests
@@ -8,6 +9,7 @@ import json
 import subprocess
 from celery.utils.log import get_task_logger
 import select
+from jsonpath_rw import parse
 
 logger = get_task_logger(__name__)
 
@@ -123,7 +125,7 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
                 'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path(),
                 'PRIVATE_KEY_FILE': _key_path(profile)})
 
-    inventory = os.path.join(os.path.dirname(__file__), 'dynamic-inventory')
+    inventory = os.path.join(os.path.dirname(__file__), 'dynamic_inventory')
 
     ansible = run_playbook(playbook, inventory, playbook_variables,
                            env=env, verbose=3)
@@ -143,6 +145,32 @@ def start_cluster(launch_playbook, provision_playbook, cluster, profile,
 
     provision_cluster(provision_playbook, cluster, profile, secret_key,
                       extra_vars, girder_token, log_write_url, 'provisioned')
+
+    # Update the hostname for the cluster
+    inventory = get_inventory(
+        aws_access_key_id=profile['accessKeyId'],
+        aws_secret_access_key=secret_key,
+        cluster_id=cluster['_id'])
+
+    master = parse('master.hosts[0]').find(inventory)
+    if master:
+        master = master[0].value
+    else:
+        raise Exception('Unable to extract cluster master host.')
+
+    status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
+                                     cluster['_id'])
+    updates = {
+        'config': {
+            'host': master
+        }
+    }
+    headers = {'Girder-Token':  girder_token}
+    r = requests.patch(status_url, headers=headers, json=updates)
+    check_status(r)
+
+    # Now update the cluster state to 'running'
+    check_girder_cluster_status(cluster, girder_token, 'running')
 
 
 @command.task

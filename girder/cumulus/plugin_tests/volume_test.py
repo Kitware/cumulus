@@ -132,7 +132,9 @@ class VolumeTestCase(base.TestCase):
         # Create EC2 cluster
         body = {
             'profile': self._profile_id,
-            'cluster_config': {},
+            'cluster_config': {
+                'ansible_ssh_user': 'ubuntu'
+            },
             'name': 'testing'
         }
 
@@ -448,7 +450,9 @@ class VolumeTestCase(base.TestCase):
             u'profile': str(self._profile_id),
             u'status': u'created',
             u'name': u'testing',
-            u'cluster_config': {},
+            u'cluster_config': {
+                u'ansible_ssh_user': u'ubuntu'
+            },
             u'userId': str(self._user['_id']),
             u'volumes': [volume_id],
             u'type': u'ec2',
@@ -456,6 +460,10 @@ class VolumeTestCase(base.TestCase):
             u'config': {
                 u'scheduler': {
                     u'type': u'sge'
+                },
+                u'ssh': {
+                    u'user': u'ubuntu',
+                    u'key': str(self._profile_id)
                 }
             }
         }
@@ -578,7 +586,9 @@ class VolumeTestCase(base.TestCase):
             u'profile': str(self._profile_id),
             u'status': u'created',
             u'name': u'testing',
-            u'cluster_config': {},
+            u'cluster_config': {
+                u'ansible_ssh_user': u'ubuntu'
+            },
             u'userId': str(self._user['_id']),
             u'volumes': [],
             u'type': u'ec2',
@@ -586,6 +596,10 @@ class VolumeTestCase(base.TestCase):
             u'config': {
                 u'scheduler': {
                     u'type': u'sge'
+                },
+                u'ssh': {
+                    u'user': u'ubuntu',
+                    u'key': str(self._profile_id)
                 }
             }
         }

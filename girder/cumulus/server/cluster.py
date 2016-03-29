@@ -209,7 +209,7 @@ class Cluster(BaseResource):
 
     @access.user
     def start(self, id, params):
-        body = None
+        body = {}
 
         if cherrypy.request.body:
             request_body = cherrypy.request.body.read().decode('utf8')
@@ -342,7 +342,7 @@ class Cluster(BaseResource):
 
         if 'config' in body:
             # Need to check we aren't try to update immutable fields
-            immutable_paths = ['_id', 'ssh.user', 'host']
+            immutable_paths = ['_id', 'ssh.user']
             for path in immutable_paths:
                 if parse(path).find(body['config']):
                     raise RestException("The '%s' field can't be updated"

@@ -30,4 +30,4 @@ def get_connection(girder_token, cluster):
     elif cluster['type'] == 'newt':
         return NewtClusterConnection(girder_token, cluster)
     else:
-        raise Exception('Unsupported cluster type')
+        raise Exception('Unsupported cluster type: %s' % cluster['type'])

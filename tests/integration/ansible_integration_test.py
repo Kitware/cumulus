@@ -94,7 +94,7 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
         self._wait_for_status(profile_status_url, 'available')
 
 
-    def create_cluster(self):
+    def create_cluster(self, cluster_type='ansible'):
         body = {
             'cluster_config': {
                 'master_instance_type': 't2.nano',
@@ -107,7 +107,7 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
             },
             'profile': self._profile_id,
             'name': 'AnsibleIntegrationTest',
-            'type': 'ansible',
+            'type': cluster_type,
             'playbook': 'sge'
         }
 

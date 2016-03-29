@@ -54,12 +54,15 @@ class SshClusterConnection(AbstractConnection):
         username = parse('config.ssh.user').find(self._cluster)[0].value
         hostname = parse('config.host').find(self._cluster)[0].value
         passphrase \
-            = parse('config.ssh.passphrase').find(self._cluster)[0].value
-        if not passphrase:
+            = parse('config.ssh.passphrase').find(self._cluster)
+        if passphrase:
+            passphrase = passphrase[0].value
+        else:
             passphrase = None
 
+        key_name = parse('config.ssh.key').find(self._cluster)[0].value
         key_path = os.path.join(cumulus.config.ssh.keyStore,
-                                self._cluster['_id'])
+                                key_name)
 
         private_key = self._load_rsa_key(key_path, passphrase)
 
