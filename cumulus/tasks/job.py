@@ -250,7 +250,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
             if len(output) != 1:
                 raise Exception('Unable to fetch users home directory.')
 
-            user_home = output[0]
+            user_home = output[0].strip()
             job_dir = job_directory(cluster, job, user_home=user_home)
             job['dir'] = job_dir
 
