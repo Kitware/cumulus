@@ -102,7 +102,7 @@ class BaseIntegrationTest(unittest.TestCase):
 
     def create_input(self, folder_name='CumulusInput'):
 
-        r = self._client.createFolder(self._private_folder_id, 'CumulusInput')
+        r = self._client.createFolder(self._private_folder_id, folder_name)
         self._input_folder_id = r['_id']
         size = len(self._data)
 
@@ -141,7 +141,7 @@ class BaseIntegrationTest(unittest.TestCase):
         job = self._client.post('jobs', data=json.dumps(body))
         self._job_id = job['_id']
 
-    def submit_job(self, job_params={}):
+    def submit_job(self, job_params={}, timeout=None):
         url = 'clusters/%s/job/%s/submit' % (self._cluster_id, self._job_id)
 
         self._client.put(url, data=json.dumps(job_params))
@@ -156,7 +156,7 @@ class BaseIntegrationTest(unittest.TestCase):
             elif r['status'] == 'complete':
                 break
 
-            if time.time() - start > self._job_timeout:
+            if time.time() - start > timeout:
                 self.fail('Job didn\'t complete in timeout')
 
     def assert_output(self):

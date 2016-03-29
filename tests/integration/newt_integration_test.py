@@ -133,7 +133,7 @@ class NewtIntegrationTest(BaseIntegrationTest):
             self.create_input()
             self.create_output_folder()
             self.create_job()
-            self.submit_job()
+            self.submit_job(timeout=self._job_timeout)
             self.assert_output()
         except HttpError as error:
             self.fail(error.responseText)
