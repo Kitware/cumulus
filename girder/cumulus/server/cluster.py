@@ -209,7 +209,7 @@ class Cluster(BaseResource):
 
     @access.user
     def start(self, id, params):
-        body = None
+        body = {}
 
         if cherrypy.request.body:
             request_body = cherrypy.request.body.read().decode('utf8')
