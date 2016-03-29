@@ -123,7 +123,7 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
                 'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path(),
                 'PRIVATE_KEY_FILE': _key_path(profile)})
 
-    inventory = os.path.join(os.path.dirname(__file__), 'dynamic-inventory')
+    inventory = os.path.join(os.path.dirname(__file__), 'dynamic_inventory')
 
     ansible = run_playbook(playbook, inventory, playbook_variables,
                            env=env, verbose=3)
