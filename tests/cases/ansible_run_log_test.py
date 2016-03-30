@@ -121,14 +121,15 @@ class AnsibleRunTestCase(unittest.TestCase):
                     "message": "localhost",
                     "type": "play"}]
 
+
         # Same length
         self.assertEquals(len(sources), len(targets))
 
         for source, target in zip(sources, targets):
 
             # target keys are a subset of source
-            self.assertTrue(set(target.keys()) <= set(source.keys()))
+            self.assertTrue(set(target.keys()) <= set(source['msg'].keys()))
 
             # target and source values are equal
             for key in target.keys():
-                self.assertEquals(source[key], target[key])
+                self.assertEquals(source['msg'][key], target[key])

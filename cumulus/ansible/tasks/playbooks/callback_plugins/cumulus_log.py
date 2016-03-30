@@ -1,6 +1,7 @@
 import requests
 import datetime as dt
 import cumulus
+from cumulus.common import get_post_logger
 import os
 import sys
 
@@ -20,6 +21,9 @@ class CallbackModule(object):
     def __init__(self):
         self.current_task = None
         self.current_play = None
+        self.logger = get_post_logger('cumulus_log', self.girder_token,
+                                      self.log_write_url)
+
 
     @property
     def cluster_id(self):
@@ -36,21 +40,18 @@ class CallbackModule(object):
     def log(self, status, message, type='task', data=None):
         if self.log_write_url is not None and \
            self.girder_token is not None:
-            logged_at = dt.datetime.now().isoformat()
             msg = {'status': status,
-                   'created': logged_at,
                    'type': type,
                    'message': message,
                    'data': data}
 
-            r = requests.post(self.log_write_url,
-                              json=msg,
-                              headers={
-                                  'Girder-Token': self.girder_token,
-                                  'Content-Type': 'application/json'
-                              })
+            if status == ERROR:
+                self.logger.error(msg)
+            if status in [UNREACHABLE, WARNING]:
+                self.logger.warn(msg)
+            else:
+                self.logger.info(msg)
 
-            assert r.status_code == 200
 
     def on_any(self, *args, **kwargs):
         pass
