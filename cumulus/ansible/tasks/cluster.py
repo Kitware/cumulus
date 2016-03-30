@@ -14,14 +14,16 @@ from jsonpath_rw import parse
 logger = get_task_logger(__name__)
 
 
+def get_playbook_directory():
+    return os.path.join(os.path.dirname(__file__), 'playbooks')
+
+
 def get_playbook_path(name):
-    return os.path.join(os.path.dirname(__file__),
-                        'playbooks/' + name + '.yml')
+    return os.path.join(get_playbook_directory(), name + '.yml')
 
 
 def get_callback_plugins_path():
-    return os.path.join(os.path.dirname(__file__),
-                        'playbooks',
+    return os.path.join(get_playbook_directory(),
                         'callback_plugins')
 
 
