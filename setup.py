@@ -33,16 +33,12 @@ def get_data_files(path, include=None, exclude=None):
     """
     include = re.compile("|".join(include) if include is not None else ".*")
 
-    # Use negative lookahead r'(?!x)x' to ensure we never match default exclude
-    # never matching default exclude means we always include the file
-    # See: http://stackoverflow.com/questions/1723182/a-regex-that-will-never-be-matched-by-anything
-    exclude = re.compile("|".join(exclude) if exclude is not None else r'(?!x)x')
-
     for directory, subdirectories, files in os.walk(path):
         filtered = [f for f in [os.path.join(directory, f) for f in files]
-                    if (include.match(f) and not exclude.match(f))]
+                    if (include.match(f) and
+                        (not exclude or exclude.match(f)))]
 
-        if len(filtered):
+        if filtered:
             yield (directory, filtered)
 
 setup(
