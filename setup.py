@@ -18,6 +18,32 @@
 ###############################################################################
 
 from setuptools import setup, find_packages
+import os
+import re
+
+def get_data_files(path, include=None, exclude=None):
+    """Recursively produce a list appropriate for setup's data_files option.
+
+    :param path: Path to descend
+    :param include: white list of regular expressions (can include directories)
+    :param exclude: black list of regular expressions (can include directories)
+    :returns: list of tuples [(directory, [file, file, ...]), ...]
+    :rtype: list
+
+    """
+    include = re.compile("|".join(include) if include is not None else ".*")
+
+    # Use negative lookahead r'(?!x)x' to ensure we never match default exclude
+    # never matching default exclude means we always include the file
+    # See: http://stackoverflow.com/questions/1723182/a-regex-that-will-never-be-matched-by-anything
+    exclude = re.compile("|".join(exclude) if exclude is not None else r'(?!x)x')
+
+    for directory, subdirectories, files in os.walk(path):
+        filtered = [f for f in [os.path.join(directory, f) for f in files]
+                    if (include.match(f) and not exclude.match(f))]
+
+        if len(filtered):
+            yield (directory, filtered)
 
 setup(
     name="cumulus",
@@ -30,5 +56,10 @@ setup(
                                     "tests.*", "tests"]),
     package_data={
         "": ["*.json", "*.sh"],
-        "cumulus": ["conf/*.json", "templates/*.sh", "templates/*/*.sh"],
-    })
+        "cumulus": ["conf/*.json",
+                    "templates/*.sh",
+                    "templates/*/*.sh"]
+    },
+    data_files=list(get_data_files("cumulus/ansible/tasks/playbooks/",
+                                   exclude=[".*pyc$"]))
+)
