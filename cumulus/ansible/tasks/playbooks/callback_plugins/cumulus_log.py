@@ -1,5 +1,4 @@
 import requests
-import datetime as dt
 import cumulus
 from cumulus.common import get_post_logger
 import os
@@ -23,7 +22,6 @@ class CallbackModule(object):
         self.current_play = None
         self.logger = get_post_logger('cumulus_log', self.girder_token,
                                       self.log_write_url)
-
 
     @property
     def cluster_id(self):
@@ -51,7 +49,6 @@ class CallbackModule(object):
                 self.logger.warn(msg)
             else:
                 self.logger.info(msg)
-
 
     def on_any(self, *args, **kwargs):
         pass
