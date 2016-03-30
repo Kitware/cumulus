@@ -34,7 +34,7 @@ def get_data_files(path, include=None, exclude=None):
     include = re.compile("|".join(include) if include is not None else ".*")
 
     if exclude is not None:
-        exclude = "|".join(exclude)
+        exclude = re.compile("|".join(exclude))
 
     for directory, subdirectories, files in os.walk(path):
         filtered = [f for f in [os.path.join(directory, f) for f in files]
