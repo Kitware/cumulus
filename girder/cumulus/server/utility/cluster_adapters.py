@@ -223,7 +223,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
     def delete(self):
         """
-         Adapters may implement this if they support a delete operation.
+        Adapters may implement this if they support a delete operation.
         """
         if self.cluster['status'] in [ClusterStatus.running,
                                       ClusterStatus.launching,
