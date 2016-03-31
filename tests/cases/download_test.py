@@ -5,7 +5,8 @@ import json
 from jsonpath_rw import parse
 
 import cumulus
-from  cumulus.transport.files.download import download_path
+from cumulus.transport.files.download import download_path
+from cumulus.transport.files.download import _ensure_path
 
 class DownloadTestCase(unittest.TestCase):
 
@@ -95,7 +96,22 @@ class DownloadTestCase(unittest.TestCase):
         create_folder = httmock.urlmatch(
             path=r'^%s$' % folder_url, method='POST')(_create_folder)
 
-        with httmock.HTTMock(create_item, create_file, create_folder):
+        # Mock list folder
+        def _list_folder(url, request):
+            content = []
+            content = json.dumps(content)
+            headers = {
+                'content-length': len(content),
+                'content-type': 'application/json'
+            }
+
+            return httmock.response(200, content, headers, request=request)
+
+        folder_url = '/api/v1/folder'
+        list_folder = httmock.urlmatch(
+            path=r'^%s$' % folder_url, method='GET')(_list_folder)
+
+        with httmock.HTTMock(create_item, create_file, create_folder, list_folder):
             download_path(cluster_connection, girder_token, parent, path,
                 'sftp_assetstores', assetstore_id, upload=False)
 
@@ -104,4 +120,113 @@ class DownloadTestCase(unittest.TestCase):
         self.assertEqual(len(self._file_requests), 2)
         self.assertEqual(len(self._folder_requests), 1)
 
+    def test_ensure_path(self):
+        girder_client = mock.MagicMock()
 
+        # First test with path already in girder_folders
+        folders = []
+        for i in range(0, 3):
+            folders.append({
+                '_id': 'folderId%d' % i
+            })
+        girder_client.createFolder.side_effect = folders
+        girder_client.listFolder.return_value = []
+        girder_folders = {
+            'a/b': 'id'
+        }
+        parent = 'dummy'
+        path = 'a/b/c/d/e'
+        folder_id = _ensure_path(girder_client, girder_folders, parent, path)
+
+        expect_girder_folders = {
+            'a/b/c': 'folderId0',
+            'a/b/c/d': 'folderId1',
+            'a/b/c/d/e': 'folderId2',
+            'a/b': 'id'
+        }
+        self.assertEqual(girder_folders, expect_girder_folders)
+        self.assertEqual(folder_id, 'folderId2')
+
+        # Test with empty girder_folders ( all paths need to be created )
+        folders = []
+        for i in range(0, 5):
+            folders.append({
+                '_id': 'folderId%d' % i
+            })
+        girder_client.createFolder.side_effect = folders
+        girder_client.listFolder.return_value = []
+        girder_folders = {}
+        parent = 'dummy'
+        path = 'a/b/c/d/e'
+        folder_id = _ensure_path(girder_client, girder_folders, parent, path)
+
+        expect_girder_folders = {
+            'a': 'folderId0',
+            'a/b': 'folderId1',
+            'a/b/c': 'folderId2',
+            'a/b/c/d': 'folderId3',
+            'a/b/c/d/e': 'folderId4'
+        }
+        self.assertEqual(girder_folders, expect_girder_folders)
+        self.assertEqual(folder_id, 'folderId4')
+
+        # Test with folders already in Girder
+        folders = []
+        for i in range(0, 3):
+            folders.append({
+                '_id': 'folderId%d' % i
+            })
+        girder_client.createFolder.side_effect = folders
+        girder_client.listFolder.side_effect = [
+            [{
+                '_id': 'girderFolder0'
+            }],
+            [{
+                '_id': 'girderFolder1'
+            }],
+            []
+        ]
+        girder_folders = {}
+        parent = 'dummy'
+        path = 'a/b/c/d/e'
+        folder_id = _ensure_path(girder_client, girder_folders, parent, path)
+
+        expect_girder_folders = {
+            'a': 'girderFolder0',
+            'a/b': 'girderFolder1',
+            'a/b/c': 'folderId0',
+            'a/b/c/d': 'folderId1',
+            'a/b/c/d/e': 'folderId2'
+        }
+        self.assertEqual(girder_folders, expect_girder_folders)
+        self.assertEqual(folder_id, 'folderId2')
+
+        # Test with folders already in Girder and already in girder_folders
+        folders = []
+        for i in range(0, 3):
+            folders.append({
+                '_id': 'folderId%d' % i
+            })
+        girder_client.createFolder.side_effect = folders
+        girder_client.listFolder.side_effect = [
+            [{
+                '_id': 'girderFolder0'
+            }],
+            []
+        ]
+        girder_folders = {
+            'a': 'dummy'
+        }
+        parent = 'dummy'
+        path = 'a/b/c/d/e'
+        folder_id = _ensure_path(girder_client, girder_folders, parent, path)
+
+        expect_girder_folders = {
+            'a': 'dummy',
+            'a/b': 'girderFolder0',
+            'a/b/c': 'folderId0',
+            'a/b/c/d': 'folderId1',
+            'a/b/c/d/e': 'folderId2'
+        }
+        self.assertEqual(girder_folders, expect_girder_folders)
+        self.assertEqual(folder_id, 'folderId2')

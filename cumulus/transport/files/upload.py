@@ -24,9 +24,19 @@ import requests
 
 import cumulus
 from cumulus.common import check_status
+from cumulus.transport import get_connection
 
 
 def _upload_file(cluster_connection, girder_client, file, path):
+    """
+    Upload a file to a cluster
+
+    :param cluster_connection: The connection to access the cluster by.
+    :param girder_client: The Grider client for Girder access.
+    :param file: The Girder file object.
+    :param path: The path on the cluster to upload to.
+    """
+
     r = requests.get(
         '%s/file/%s/download' % (girder_client.urlBase, file['_id']),
         headers={'Girder-Token': girder_client.token}, stream=True)
@@ -76,3 +86,19 @@ def upload_path(cluster_connection, girder_token, folder_id, path):
     cluster_connection.makedirs(path)
 
     _upload_path(cluster_connection, girder_client, folder_id, path)
+
+
+def upload_file(cluster, girder_token, file, path):
+    """
+    Upload a file to a cluster
+
+    :param cluster: The cluster to upload to.
+    :param girder_tokebn: The Grider token for Girder access.
+    :param file: The Girder file object.
+    :param path: The path on the cluster to upload to.
+    """
+    girder_client = GirderClient(apiUrl=cumulus.config.girder.baseUrl)
+    girder_client.token = girder_token
+    with get_connection(girder_token, cluster) as conn:
+        conn.makedirs(os.path.dirname(path))
+        _upload_file(conn, girder_client, file, path)
