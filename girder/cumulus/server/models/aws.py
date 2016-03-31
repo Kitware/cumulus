@@ -18,7 +18,7 @@
 ###############################################################################
 
 from bson.objectid import ObjectId
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, EndpointConnectionError
 from jsonpath_rw import parse
 
 from girder.constants import AccessType
@@ -60,6 +60,8 @@ class Aws(BaseModel):
 
             if code == ClientErrorCode.InvalidParameterValue:
                 raise ValidationException('Invalid region', 'regionName')
+        except EndpointConnectionError as ece:
+            raise ValidationException(ece.message)
 
     def _validate_zone(self, client, doc):
         try:
@@ -77,6 +79,8 @@ class Aws(BaseModel):
             if code == ClientErrorCode.InvalidParameterValue:
                 raise ValidationException(
                     'Invalid zone', 'availabilityZone')
+        except EndpointConnectionError as ece:
+            raise ValidationException(ece.message)
 
     def validate(self, doc):
         name = doc['name']
@@ -104,6 +108,7 @@ class Aws(BaseModel):
         # First validate the credentials
         try:
             client = get_ec2_client(doc)
+            client.describe_account_attributes()
         except ClientError as ce:
             code = parse('Error.Code').find(ce.response)
             if code:
@@ -113,6 +118,8 @@ class Aws(BaseModel):
 
             if code == ClientErrorCode.AuthFailure:
                 raise ValidationException('Invalid AWS credentials')
+        except EndpointConnectionError as ece:
+            raise ValidationException(ece.message)
 
         # Now validate the region
         self._validate_region(client, doc)
