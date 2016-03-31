@@ -10,18 +10,21 @@ import subprocess
 from celery.utils.log import get_task_logger
 import select
 from jsonpath_rw import parse
+import pkg_resources as pr
 
 logger = get_task_logger(__name__)
 
 
+def get_playbook_directory():
+    return pr.resource_filename('cumulus', 'ansible/tasks/playbooks')
+
+
 def get_playbook_path(name):
-    return os.path.join(os.path.dirname(__file__),
-                        'playbooks/' + name + '.yml')
+    return os.path.join(get_playbook_directory(), name + '.yml')
 
 
 def get_callback_plugins_path():
-    return os.path.join(os.path.dirname(__file__),
-                        'playbooks',
+    return os.path.join(get_playbook_directory(),
                         'callback_plugins')
 
 

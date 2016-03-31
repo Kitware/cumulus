@@ -20,38 +20,146 @@
 import os
 import stat
 import json
+import re
 
 from girder_client import GirderClient
 
 import cumulus
+from cumulus.transport import get_connection
+from cumulus.transport.files import get_assetstore_url_base, get_assetstore_id
 
 
-def _import_path(cluster_connection, girder_client, parent, path,
+def _include(path, includes, excludes):
+    """
+    :params path: The file path to check whether to include
+    :params includes: List of include regexs to apply
+    :params excludes: List of exclude regexs to apply
+
+    :returns True if the file path should be included, False
+
+    """
+    # If there are no regexs include the path
+    if not includes and not excludes:
+        return True
+
+    include = not includes
+    for i in includes:
+        if re.match(i, path):
+            include = True
+            break
+
+    for e in excludes:
+        if re.match(e, path):
+            include = False
+            break
+
+    return include
+
+
+def _ensure_path(girder_client, girder_folders, parent, path):
+    """
+    Ensure that a particular path exists in Girder as a set of folders. If
+    it doesn't exist create it.
+
+    :params girder_client: The Girder client to use to access Girder.
+    :params girder_folders: A map of paths to existing Girder folder ids.
+    :params parent: The parent Girder folder that this path should exist in.
+    :params path: The path that should exist.
+
+    :returns The folderId for the last folder in the path.
+    """
+    if path in girder_folders:
+        return girder_folders[path]
+
+    parts = path.split('/')
+
+    # First identify the folders we have already have in Girder
+    index = 0
+    for i in range(len(parts), 0, -1):
+        if '/'.join(parts[:i]) in girder_folders:
+            index = i
+            break
+
+    # Now walk through the parts of the path we need to create
+    parent_id = parent
+    i = index + 1
+    parent_created = False
+    for name in parts[index:]:
+        path = '/'.join(parts[:i])
+        # Check if the folder already exists
+        if not parent_created:
+            folders = girder_client.listFolder(parent_id, name=name)
+            if folders:
+                girder_folders[path] = folders[0]['_id']
+                parent_id = folders[0]['_id']
+                i += 1
+                continue
+
+        # Create the folder
+        folder = girder_client.createFolder(parent_id, name,
+                                            parentType='folder')
+        # Don't bother checking if folders have already been created ...
+        parent_created = True
+        parent_id = folder['_id']
+        girder_folders[path] = parent_id
+
+        i += 1
+
+    return parent_id
+
+
+def _import_path(cluster_connection, girder_client, parent, root_path,
                  assetstore_url, assetstore_id, upload=False,
-                 parent_type='folder'):
+                 include=[], exclude=[], path='.', girder_folders={}):
+    """
+    :params cluster_connection: The cluster connection to access the cluster.
+    :params girder_client: The Girder client to use to access Girder.
+    :params parent: The target folder to import the path into.
+    :params root_path: The path on the cluster being imported.
+    :params assetstore_url: The url for the assetstore to use for the import.
+    :params assetstore_id: The id of the asseststore to import into.
+    :params upload: Indicate if the import should upload the file data or just
+                    the metadata, the default is False.
+    :params include: List of include regexs
+    :params exclude: List of exclude regexs,
+    :params path: The current subdirectory of root_path that is being imported.
+    """
 
-    if path[0] != '/':
+    if root_path[0] != '/':
         # If we don't have a full path, assume the path is relative to the users
         # home directory.
         home = cluster_connection.execute('pwd')[0]
-        path = os.path.abspath(os.path.join(home, path))
+        root_path = os.path.abspath(os.path.join(home, root_path))
 
-    for p in cluster_connection.list(path):
+    cluster_path = os.path.normpath(os.path.join(root_path, path))
+    for p in cluster_connection.list(cluster_path):
         name = p['name']
 
-        full_path = os.path.join(path, name)
+        full_path = os.path.normpath(os.path.join(path, name))
         if name in ['.', '..']:
             continue
-        if stat.S_ISDIR(p['mode']):
 
-            folder = girder_client.createFolder(parent, name,
-                                                parentType=parent_type)
-            _import_path(cluster_connection, girder_client, folder['_id'],
-                         full_path, assetstore_url, assetstore_id,
-                         upload=upload, parent_type='folder')
+        if stat.S_ISDIR(p['mode']):
+            _import_path(cluster_connection, girder_client, parent,
+                         root_path, assetstore_url, assetstore_id,
+                         upload=upload, path=full_path,
+                         include=include,
+                         exclude=exclude, girder_folders=girder_folders)
         else:
+
+            # Should we include this path?
+            if not _include(full_path, include, exclude):
+                continue
+
+            # Create any folders we might need
+            if path == '.':
+                folder_id = parent
+            else:
+                folder_id = _ensure_path(girder_client, girder_folders, parent,
+                                         path)
+
             size = p['size']
-            item = girder_client.createItem(parent, name, '')
+            item = girder_client.createItem(folder_id, name, '')
 
             if not upload:
 
@@ -60,19 +168,60 @@ def _import_path(cluster_connection, girder_client, parent, path,
                     'name': name,
                     'itemId': item['_id'],
                     'size': size,
-                    'path': full_path
+                    'path': os.path.join(root_path, full_path)
                 }
                 girder_client.post(url, data=json.dumps(body))
             else:
-                with girder_client.get(path) as stream:
+                cluster_path = os.path.normpath(
+                    os.path.join(root_path, full_path))
+                with cluster_connection.get(cluster_path) as stream:
                     girder_client.uploadFile(item['_id'], stream, name, size,
                                              parentType='item')
 
 
 def download_path(cluster_connection, girder_token, parent, path,
-                  assetstore_url, assetstore_id, upload=False):
+                  assetstore_url, assetstore_id, upload=False, include=[],
+                  exclude=[]):
+    """
+    Download a given path on a cluster into an assetstore.
+
+    :params cluster_connection: The cluster connection to access the cluster.
+    :params girder_token: The Girder token to use to access Girder.
+    :params parent: The target folder to import the path into.
+    :params path: The path on the cluster to download.
+    :params assetstore_url: The url for the assetstore to use for the import.
+    :params assetstore_id: The id of the asseststore to import into.
+    :params upload: Indicate if the import should upload the file data or just
+                    the metadata, the default is False.
+    :params include: List of include regexs
+    :params exclude: List of exclude regexs,
+    """
     girder_client = GirderClient(apiUrl=cumulus.config.girder.baseUrl)
     girder_client.token = girder_token
 
     _import_path(cluster_connection, girder_client, parent, path,
-                 assetstore_url, assetstore_id, upload=upload)
+                 assetstore_url, assetstore_id, upload=upload, include=include,
+                 exclude=exclude)
+
+
+def download_path_from_cluster(cluster, girder_token, parent, path,
+                               upload=False, include=[], exclude=[]):
+    """
+    Download a given path on a cluster into an assetstore.
+
+    :params cluster: The cluster to to download the path from.
+    :params girder_token: The Girder token to use to access Girder.
+    :params parent: The target folder to import the path into.
+    :params path: The path on the cluster to download.
+    :params upload: Indicate if the import should upload the file data or just
+                    the metadata, the default is False.
+    :params include: List of include regexs
+    :params exclude: List of exclude regexs,
+    """
+    assetstore_base_url = get_assetstore_url_base(cluster)
+    assetstore_id = get_assetstore_id(girder_token, cluster)
+
+    with get_connection(girder_token, cluster) as conn:
+        download_path(conn, girder_token, parent, path, assetstore_base_url,
+                      assetstore_id, upload=upload, include=include,
+                      exclude=exclude)

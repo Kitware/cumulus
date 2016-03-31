@@ -25,11 +25,7 @@ from jsonpath_rw import parse
 import mock
 
 import cumulus
-try:
-    from cumulus.aws.ec2.tasks import key
-except:
-    import traceback
-    traceback.print_exc()
+from cumulus.aws.ec2.tasks import key
 
 class KeyTestCase(unittest.TestCase):
 
@@ -41,7 +37,7 @@ class KeyTestCase(unittest.TestCase):
     @mock.patch('cumulus.aws.ec2.tasks.key.get_ec2_client')
     def test_key_generate(self, get_ec2_client):
         ec2_client = get_ec2_client.return_value
-        ec2_client.create_keypair.side_effect = Exception('some error')
+        ec2_client.create_key_pair.side_effect = Exception('some error')
 
         profile = {
             '_id': '55c3a698f6571011a48f6817',
@@ -83,7 +79,10 @@ class KeyTestCase(unittest.TestCase):
         # Now mock out EC2 and check for success
         self._update = False
         self._expected_status = 'available'
-        ec2_client.create_keypair.side_effect = None
+        ec2_client.create_key_pair.side_effect = None
+        ec2_client.create_key_pair.return_value = {
+            'KeyMaterial': 'dummy'
+        }
         with httmock.HTTMock(update):
             key.generate_key_pair(profile, 'girder-token')
 
