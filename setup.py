@@ -18,17 +18,47 @@
 ###############################################################################
 
 from setuptools import setup, find_packages
+import os
+import re
+
+def get_data_files(path, include=None, exclude=None):
+    """Recursively produce a list appropriate for setup's data_files option.
+
+    :param path: Path to descend
+    :param include: white list of regular expressions (can include directories)
+    :param exclude: black list of regular expressions (can include directories)
+    :returns: list of tuples [(directory, [file, file, ...]), ...]
+    :rtype: list
+
+    """
+    include = re.compile("|".join(include) if include is not None else ".*")
+
+    if exclude is not None:
+        exclude = re.compile("|".join(exclude))
+
+    for directory, subdirectories, files in os.walk(path):
+        filtered = [f for f in [os.path.join(directory, f) for f in files]
+                    if (include.match(f) and
+                        (exclude is None or not exclude.match(f)))]
+
+        if filtered:
+            yield (directory, filtered)
 
 setup(
     name="cumulus",
     version="0.1.0",
     description="A RESTful API for the creation & management of HPC clusters",
-    author="Chris Haris",
+    author="Chris Harris",
     author_email="chris.harris@kitware.com",
     url="https://github.com/Kitware/cumulus",
     packages=find_packages(exclude=["*.tests", "*.tests.*",
                                     "tests.*", "tests"]),
     package_data={
         "": ["*.json", "*.sh"],
-        "cumulus": ["conf/*.json", "templates/*.sh", "templates/*/*.sh"],
-    })
+        "cumulus": ["conf/*.json",
+                    "templates/*.sh",
+                    "templates/*/*.sh"]
+    },
+    data_files=list(get_data_files("cumulus/ansible/tasks/playbooks/",
+                                   exclude=[".*pyc$"]))
+)
