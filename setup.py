@@ -48,7 +48,7 @@ setup(
     name="cumulus",
     version="0.1.0",
     description="A RESTful API for the creation & management of HPC clusters",
-    author="Chris Haris",
+    author="Chris Harris",
     author_email="chris.harris@kitware.com",
     url="https://github.com/Kitware/cumulus",
     packages=find_packages(exclude=["*.tests", "*.tests.*",

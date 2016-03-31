@@ -5,29 +5,14 @@ import shutil
 import tempfile
 from cumulus.ansible.tasks.cluster import get_playbook_directory
 from cumulus.ansible.tasks.cluster import run_playbook as _run_playbook
-import requests
 import multiprocessing
 import time
 import json
 
+
 def flaskProcess(requests_file):
-    from flask import g
     from flask import Flask
     from flask import request
-
-    import logging
-    from logging.handlers import SysLogHandler
-
-    logger = logging.getLogger("flask_process")
-    logger.setLevel(logging.INFO)
-
-    sysh = SysLogHandler(address=('localhost', 514))
-    sysh.setLevel(logging.INFO)
-
-    formatter = logging.Formatter('%(asctime)s | %(name)s | %(levelname)s | %(message)s')
-    sysh.setFormatter(formatter)
-
-    logger.addHandler(sysh)
 
     app = Flask(__name__)
 
@@ -45,27 +30,26 @@ class AnsibleRunTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Create a temporary directory
-        tempd = tempfile.mkdtemp()
-        cls.tempdir = os.path.join(tempd, "playbooks")
+        cls.tempdir = tempfile.mkdtemp()
+        cls.playbookdir = os.path.join(cls.tempdir, "playbooks")
 
         # Copy in the playbook directory from the source tree
-        shutil.copytree(get_playbook_directory(), cls.tempdir)
+        shutil.copytree(get_playbook_directory(), cls.playbookdir)
 
         # Copy in test fixtures
         fixtures = os.path.join(os.path.dirname(__file__),
                                 "fixtures", "ansible", "*.yml")
         for pth in glob.glob(fixtures):
-            shutil.copy(pth, cls.tempdir)
+            shutil.copy(pth, cls.playbookdir)
 
         # Copy dummy inventory
         shutil.copy(os.path.join(os.path.dirname(__file__),
                                  "fixtures", "ansible", "inventory"),
-                    cls.tempdir)
-
+                    cls.playbookdir)
 
     @classmethod
     def tearDownClass(cls):
-        shutil.rmtree(os.path.normpath(os.path.join(cls.tempdir, "../")))
+        shutil.rmtree(cls.tempdir)
 
     def setUp(self):
         self.requests_file = os.path.join(self.tempdir, "requests.txt")
@@ -78,11 +62,10 @@ class AnsibleRunTestCase(unittest.TestCase):
         time.sleep(0.3)
 
     def tearDown(self):
-        os.remove(self.requests_file)
+        if os.path.exists(self.requests_file):
+            os.remove(self.requests_file)
         self.webserver.terminate()
         self.webserver.join()
-
-        pass
 
     def run_playbook(self, playbook, extra_vars=None):
         env = os.environ.copy()
@@ -92,8 +75,8 @@ class AnsibleRunTestCase(unittest.TestCase):
             'CLUSTER_ID': 'mock_cluster_id'})
 
         _run_playbook(
-            os.path.join(self.tempdir, playbook),
-            inventory=os.path.join(self.tempdir, "inventory"),
+            os.path.join(self.playbookdir, playbook),
+            inventory=os.path.join(self.playbookdir, "inventory"),
             extra_vars=extra_vars,
             env=env)
 
@@ -106,19 +89,19 @@ class AnsibleRunTestCase(unittest.TestCase):
         sources = self.run_playbook("test_run_playbook.yml")
         targets = [{"status": "starting",
                     "data": None,
-                    "message": "localhost",
+                    "msg": "localhost",
                     "type": "play"},
                    {"status": "starting",
                     "data": None,
-                    "message": "debug Works!",
+                    "msg": "debug Works!",
                     "type": "task"},
                    {"status": "finished",
                     "data": {"msg": "Hello world!", "verbose_always": True,
                              "host": "localhost", "module_name": "debug"},
-                    "message": "debug Works!", "type": "task"},
+                    "msg": "debug Works!", "type": "task"},
                    {"status": "finished",
                     "data": None,
-                    "message": "localhost",
+                    "msg": "localhost",
                     "type": "play"}]
 
 
@@ -128,8 +111,8 @@ class AnsibleRunTestCase(unittest.TestCase):
         for source, target in zip(sources, targets):
 
             # target keys are a subset of source
-            self.assertTrue(set(target.keys()) <= set(source['msg'].keys()))
+            self.assertTrue(set(target.keys()) <= set(source.keys()))
 
             # target and source values are equal
             for key in target.keys():
-                self.assertEquals(source['msg'][key], target[key])
+                self.assertEquals(source[key], target[key])

@@ -40,15 +40,14 @@ class CallbackModule(object):
            self.girder_token is not None:
             msg = {'status': status,
                    'type': type,
-                   'message': message,
                    'data': data}
 
             if status == ERROR:
-                self.logger.error(msg)
+                self.logger.error(message, extra=msg)
             if status in [UNREACHABLE, WARNING]:
-                self.logger.warn(msg)
+                self.logger.warn(message, extra=msg)
             else:
-                self.logger.info(msg)
+                self.logger.info(message, extra=msg)
 
     def on_any(self, *args, **kwargs):
         pass
