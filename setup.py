@@ -39,7 +39,7 @@ def get_data_files(path, include=None, exclude=None):
     for directory, subdirectories, files in os.walk(path):
         filtered = [f for f in [os.path.join(directory, f) for f in files]
                     if (include.match(f) and
-                        (not exclude or exclude.match(f)))]
+                        (exclude is None or not exclude.match(f)))]
 
         if filtered:
             yield (directory, filtered)
