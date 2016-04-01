@@ -20,6 +20,7 @@
 import cherrypy
 import json
 from jsonpath_rw import parse
+from bson.objectid import ObjectId
 
 from girder.api import access
 from girder.api.describe import Description
@@ -522,7 +523,7 @@ class Cluster(BaseResource):
             job_id, user=user, level=AccessType.ADMIN)
 
         # Set the clusterId on the job for termination
-        job['clusterId'] = id
+        job['clusterId'] = ObjectId(id)
 
         # Add any job parameters to be used when templating job script
         body = cherrypy.request.body.read().decode('utf8')
