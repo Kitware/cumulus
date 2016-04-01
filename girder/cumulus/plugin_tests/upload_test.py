@@ -34,7 +34,9 @@ from docutils.parsers.rst.directives import path
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
-    cherrypy.server.socket_port = 8080
+    port = 9080
+    cherrypy.server.socket_port = port
+    cumulus.config.girder.baseUrl = 'http://localhost:%d/api/v1' % port
     base.startServer(mock=False)
 
 
