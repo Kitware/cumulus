@@ -773,7 +773,7 @@ def upload_job_output_to_folder(cluster, job, log_write_url=None, job_dir=None,
         job['status'] = JobState.ERROR
         url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl, job['_id'])
         logger = get_post_logger('job', girder_token, url)
-        logger.error(e.responseText)
+        logger.exception(e.responseText)
         r = requests.patch(status_url, headers=headers,
                            json={'status': JobState.ERROR})
         check_status(r)
