@@ -38,6 +38,12 @@ def _include(path, includes, excludes):
     :returns True if the file path should be included, False
 
     """
+    if includes is None:
+        includes = []
+
+    if excludes is None:
+        excludes = []
+
     # If there are no regexs include the path
     if not includes and not excludes:
         return True
@@ -110,7 +116,7 @@ def _ensure_path(girder_client, girder_folders, parent, path):
 
 def _import_path(cluster_connection, girder_client, parent, root_path,
                  assetstore_url, assetstore_id, upload=False,
-                 include=[], exclude=[], path='.', girder_folders={}):
+                 include=None, exclude=None, path='.', girder_folders=None):
     """
     :params cluster_connection: The cluster connection to access the cluster.
     :params girder_client: The Girder client to use to access Girder.
@@ -124,6 +130,8 @@ def _import_path(cluster_connection, girder_client, parent, root_path,
     :params exclude: List of exclude regexs,
     :params path: The current subdirectory of root_path that is being imported.
     """
+    if girder_folders is None:
+        girder_folders = {}
 
     if root_path[0] != '/':
         # If we don't have a full path, assume the path is relative to the users
@@ -180,8 +188,8 @@ def _import_path(cluster_connection, girder_client, parent, root_path,
 
 
 def download_path(cluster_connection, girder_token, parent, path,
-                  assetstore_url, assetstore_id, upload=False, include=[],
-                  exclude=[]):
+                  assetstore_url, assetstore_id, upload=False, include=None,
+                  exclude=None):
     """
     Download a given path on a cluster into an assetstore.
 
@@ -205,7 +213,7 @@ def download_path(cluster_connection, girder_token, parent, path,
 
 
 def download_path_from_cluster(cluster, girder_token, parent, path,
-                               upload=False, include=[], exclude=[]):
+                               upload=False, include=None, exclude=None):
     """
     Download a given path on a cluster into an assetstore.
 
