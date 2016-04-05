@@ -155,7 +155,7 @@ def start_cluster(launch_playbook, provision_playbook, cluster, profile,
         aws_secret_access_key=secret_key,
         cluster_id=cluster['_id'])
 
-    master = parse('master.hosts[0]').find(inventory)
+    master = parse('head.hosts[0]').find(inventory)
     if master:
         master = master[0].value
     else:
