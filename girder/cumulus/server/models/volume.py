@@ -38,7 +38,7 @@ class Volume(BaseModel):
 
         self.exposeFields(level=AccessType.READ,
                           fields=('_id', 'config', 'ec2', 'fs', 'name', 'size',
-                                  'type', 'zone', 'aws'))
+                                  'type', 'zone', 'profileId'))
 
     def validate(self, volume):
         if not volume['name']:
@@ -47,7 +47,7 @@ class Volume(BaseModel):
         if not volume['type']:
             raise ValidationException('Type must not be empty.', 'type')
 
-        profile_id = parse('aws.profileId').find(volume)
+        profile_id = parse('profileId').find(volume)
         if profile_id:
             profile_id = profile_id[0].value
             profile = self.model('aws', 'cumulus').load(profile_id,
@@ -56,7 +56,7 @@ class Volume(BaseModel):
             if not profile:
                 raise ValidationException('Invalid profile id')
 
-            volume['aws']['profileId'] = profile['_id']
+            volume['profileId'] = profile['_id']
 
         volume_adapter = get_volume_adapter(volume)
         volume = volume_adapter.validate()
@@ -72,9 +72,7 @@ class Volume(BaseModel):
             'ec2': {
                 'id': None
             },
-            'aws': {
-                'profileId': profileId
-            }
+            'profileId': profileId
         }
 
         if fs:

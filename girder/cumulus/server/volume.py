@@ -58,7 +58,7 @@ class Volume(BaseResource):
         name = body['name']
         size = body['size']
         fs = body.get('fs', None)
-        profileId = body['aws']['profileId']
+        profileId = body['profileId']
 
         return self.model('volume', 'cumulus').create_ebs(user, profileId, name,
                                                           zone, size, fs)
@@ -66,13 +66,12 @@ class Volume(BaseResource):
     @access.user
     def create(self, params):
         body = getBodyJson()
-        self.requireParams(['name', 'type', 'size', 'aws'], body)
-        self.requireParams(['profileId'], body['aws'])
+        self.requireParams(['name', 'type', 'size', 'profileId'], body)
 
         if not VolumeType.is_valid_type(body['type']):
                 raise RestException('Invalid volume type.', code=400)
 
-        profile_id = parse('aws.profileId').find(body)
+        profile_id = parse('profileId').find(body)
         if not profile_id:
             raise RestException('A profile id must be provided', 400)
 
@@ -203,7 +202,7 @@ class Volume(BaseResource):
         if cluster['type'] != ClusterType.EC2:
             raise RestException('Invalid cluster type', 400)
 
-        profile_id = parse('aws.profileId').find(volume)[0].value
+        profile_id = parse('profileId').find(volume)[0].value
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
         volume_id = parse('ec2.id').find(volume)[0].value
@@ -261,7 +260,7 @@ class Volume(BaseResource):
             raise RestException('Volume is not attached', 400)
 
         user = getCurrentUser()
-        profile_id = parse('aws.profileId').find(volume)[0].value
+        profile_id = parse('profileId').find(volume)[0].value
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
         client = get_ec2_client(profile)
@@ -296,7 +295,7 @@ class Volume(BaseResource):
             raise RestException('Unable to delete attached volume')
 
         # Call EC2 to delete volume
-        profile_id = parse('aws.profileId').find(volume)[0].value
+        profile_id = parse('profileId').find(volume)[0].value
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
 
@@ -334,7 +333,7 @@ class Volume(BaseResource):
             return {'status': 'creating'}
 
         # If we have an ec2 id delegate the call to ec2
-        profile_id = parse('aws.profileId').find(volume)[0].value
+        profile_id = parse('profileId').find(volume)[0].value
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
         client = get_ec2_client(profile)
