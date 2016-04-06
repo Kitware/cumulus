@@ -70,9 +70,6 @@ def get_playbook_variables(cluster, profile, extra_vars):
     # Update with variables passed in from the cluster adapater
     playbook_variables.update(extra_vars)
 
-    # Update with variables passed in as apart of the cluster configuration
-    playbook_variables.update(cluster.get('cluster_config', {}))
-
     # If no keyname is provided use the one associated with the profile
     if 'aws_keyname' not in playbook_variables:
         playbook_variables['aws_keyname'] = profile['_id']
@@ -139,15 +136,18 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
 
 @command.task
 def start_cluster(launch_playbook, provision_playbook, cluster, profile,
-                  secret_key, extra_vars, girder_token, log_write_url):
-    run_ansible(launch_playbook, cluster, profile, secret_key, extra_vars,
-                girder_token, log_write_url, 'launched')
+                  secret_key, launch_extra_vars, provision_extra_vars,
+                  girder_token, log_write_url, master_name=None):
+
+    run_ansible(launch_playbook, cluster, profile, secret_key,
+                launch_extra_vars, girder_token, log_write_url, 'launched')
 
     # todo cluster statuses should be updated in celery tasks?
     check_girder_cluster_status(cluster, girder_token, 'provisioning')
 
     provision_cluster(provision_playbook, cluster, profile, secret_key,
-                      extra_vars, girder_token, log_write_url, 'provisioned')
+                      provision_extra_vars, girder_token, log_write_url,
+                      'provisioned')
 
     # Update the hostname for the cluster
     inventory = get_inventory(
@@ -155,22 +155,25 @@ def start_cluster(launch_playbook, provision_playbook, cluster, profile,
         aws_secret_access_key=secret_key,
         cluster_id=cluster['_id'])
 
-    master = parse('head.hosts[0]').find(inventory)
-    if master:
-        master = master[0].value
-    else:
-        raise Exception('Unable to extract cluster master host.')
+    # If master_name has been provide extract out the master host and
+    # update the cluster with it.
+    if master_name:
+        master = parse('%s.hosts[0]' % master_name).find(inventory)
+        if master:
+            master = master[0].value
+        else:
+            raise Exception('Unable to extract cluster master host.')
 
-    status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
-                                     cluster['_id'])
-    updates = {
-        'config': {
-            'host': master
+        status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
+                                         cluster['_id'])
+        updates = {
+            'config': {
+                'host': master
+            }
         }
-    }
-    headers = {'Girder-Token':  girder_token}
-    r = requests.patch(status_url, headers=headers, json=updates)
-    check_status(r)
+        headers = {'Girder-Token':  girder_token}
+        r = requests.patch(status_url, headers=headers, json=updates)
+        check_status(r)
 
     # Now update the cluster state to 'running'
     check_girder_cluster_status(cluster, girder_token, 'running')

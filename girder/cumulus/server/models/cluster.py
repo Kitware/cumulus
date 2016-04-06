@@ -55,7 +55,7 @@ class Cluster(BaseModel):
 
         self.exposeFields(level=AccessType.READ,
                           fields=('_id', 'status', 'name', 'config',
-                                  'cluster_config', 'template', 'profile',
+                                  'template', 'profileId',
                                   'type', 'userId', 'assetstoreId', 'volumes'))
 
     def load(self, id, level=AccessType.ADMIN, user=None, objectId=True,
@@ -134,7 +134,7 @@ class Cluster(BaseModel):
 
         return cluster
 
-    def create_ansible(self, user, name, playbook, cluster_config, profile,
+    def create_ansible(self, user, name, spec, launch_params, profile,
                        cluster_type=ClusterType.ANSIBLE):
         try:
             query = {
@@ -154,13 +154,7 @@ class Cluster(BaseModel):
 
         cluster = {
             'name': name,
-            'playbook': playbook,
-            'cluster_config': cluster_config,
-            # TODO merge these two ...
-            'profile': profile['_id'],
-            'aws': {
-                'profileId': profile['_id']
-            },
+            'profileId': profile['_id'],
             'log': [],
             'status': ClusterStatus.created,
             'config': {
@@ -168,8 +162,12 @@ class Cluster(BaseModel):
                     'type': 'sge'
                 },
                 'ssh': {
-                    'user': cluster_config['ansible_ssh_user'],
+                    'user': 'ubuntu',
                     'key': str(profile['_id'])
+                },
+                'launch': {
+                    'spec': spec,
+                    'params': launch_params
                 }
             },
             'type': cluster_type
