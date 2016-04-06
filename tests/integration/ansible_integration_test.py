@@ -96,19 +96,22 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
 
     def create_cluster(self, cluster_type='ansible'):
         body = {
-            'cluster_config': {
-                'master_instance_type': 't2.nano',
-                'master_instance_ami': 'ami-03de3c63',
-                'node_instance_count': 2,
-                'node_instance_type': 't2.nano',
-                'node_instance_ami': 'ami-03de3c63',
-                'ansible_ssh_user': 'ubuntu',
-                'terminate_wait_timeout': 240
+            'config': {
+                'launch': {
+                    'spec': 'sge',
+                    'params': {
+                        'master_instance_type': 't2.nano',
+                        'master_instance_ami': 'ami-03de3c63',
+                        'node_instance_count': 1,
+                        'node_instance_type': 't2.nano',
+                        'node_instance_ami': 'ami-03de3c63',
+                        'terminate_wait_timeout': 240
+                    }
+                }
             },
-            'profile': self._profile_id,
+            'profileId': self._profile_id,
             'name': 'AnsibleIntegrationTest',
-            'type': cluster_type,
-            'playbook': 'sge'
+            'type': cluster_type
         }
 
         r = self._client.post('clusters', data=json.dumps(body))
@@ -124,7 +127,10 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
     def provision_cluster(self):
         cluster_url = 'clusters/%s/provision' % self._cluster_id
         self._client.put(cluster_url, data=json.dumps({
-            'playbook': 'gridengine/site'
+            'spec': 'gridengine/site',
+            'ssh': {
+                'user': 'ubuntu'
+            }
         }))
 
         status_url = 'clusters/%s/status' % self._cluster_id
