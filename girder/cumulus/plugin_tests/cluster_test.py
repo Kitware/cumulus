@@ -620,7 +620,9 @@ class ClusterTestCase(base.TestCase):
                         },
                         u'launch': {
                             u'spec': u'default',
-                            u'params': { }
+                            u'params': {
+                                u'cluster_state': u'absent'
+                            }
                         }
                      },
                      u'log': [],
