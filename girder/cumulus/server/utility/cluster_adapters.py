@@ -101,7 +101,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     """
     This defines the interface to be used by all cluster adapters.
     """
-    DEFAULT_PLAYBOOK = 'default'
+    DEFAULT_PLAYBOOK = 'ec2'
 
     def update_status(self, status):
         assert type(status) is ClusterStatus, \
@@ -232,7 +232,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         # Launch
         launch_playbook = get_property(
-            'config.launch.spec', self.cluster, default='sge')
+            'config.launch.spec', self.cluster, default=self.DEFAULT_PLAYBOOK)
         launch_playbook_params = get_property(
             'config.launch.params', self.cluster, default={})
         launch_playbook_params['cluster_state'] = 'running'
@@ -249,8 +249,8 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         # If we are launching sge, then set the name of the master node
         master_name = None
-        if launch_playbook == 'sge':
-            master_name = 'master'
+        if launch_playbook == self.DEFAULT_PLAYBOOK:
+            master_name = 'head'
 
         cumulus.ansible.tasks.cluster.start_cluster \
             .delay(launch_playbook,

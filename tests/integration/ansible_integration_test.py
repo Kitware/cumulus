@@ -98,7 +98,7 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
         body = {
             'config': {
                 'launch': {
-                    'spec': 'sge',
+                    'spec': 'ec2',
                     'params': {
                         'master_instance_type': 't2.nano',
                         'master_instance_ami': 'ami-03de3c63',

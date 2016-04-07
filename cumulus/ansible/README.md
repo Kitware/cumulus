@@ -25,7 +25,7 @@
      "type": "ansible",
      "config": {
        "launch": {
-         "spec": "sge",
+         "spec": "ec2",
          "params": {
            "master_instance_type": "t2.micro",
            "master_instance_ami": "ami-03de3c63",
