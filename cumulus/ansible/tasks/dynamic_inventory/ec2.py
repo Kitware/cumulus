@@ -59,6 +59,7 @@ def get_instance_vars(instance):
     inventory output. instance is a boto.ec2.instance.
     """
     return {
+        'instance_id': instance.id,
         'private_ip': instance.private_ip_address,
         'ansible_ssh_private_key_file': os.environ.get('PRIVATE_KEY_FILE', '')
     }
