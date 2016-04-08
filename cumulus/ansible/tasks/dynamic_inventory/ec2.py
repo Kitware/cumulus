@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import boto.ec2
+import boto3.ec2
 from itertools import groupby
 import json
 import os
@@ -42,16 +42,6 @@ Sample output:
 """
 
 
-def instance_filter(instance, cluster_id):
-    """
-    What determines if an instance should be returned for the inventory, where
-    instance is a boto.ec2.instance.
-    """
-    return (instance.state == 'running' and
-            'ec2_pod' in instance.tags and
-            'ec2_pod_instance_name' in instance.tags and
-            instance.tags['ec2_pod'] == cluster_id)
-
 
 def get_instance_vars(instance):
     """
@@ -71,7 +61,9 @@ def instances_by_name(instances):
     tag.
     """
     return groupby(instances,
-                   key=lambda instance: instance.tags['ec2_pod_instance_name'])
+                   key=lambda instance:
+                   {i['Key']:i['Value']
+                    for i in instance.tags}['ec2_pod_instance_name'])
 
 
 def get_inventory(aws_access_key_id, aws_secret_access_key, cluster_id):
@@ -89,15 +81,17 @@ def get_inventory(aws_access_key_id, aws_secret_access_key, cluster_id):
 
     # Gather all instances that pass instance_filter into instances
     for region in get_regions():
-        ec2 = boto.ec2.connect_to_region(
+        ec2 = boto3.resource(
+            'ec2',
             region,
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key)
 
-        region_instances = sum([x.instances for x in
-                                ec2.get_all_reservations()], [])
-        instances += [x for x in region_instances
-                      if instance_filter(x, cluster_id)]
+        region_instances = ec2.instances.filter(Filters=[
+            {'Name': 'tag:ec2_pod', 'Values': [cluster_id]},
+            {'Name': 'instance-state-name', 'Values': ['running']}])
+
+        instances += [i for i in region_instances]
 
     # Build up main inventory, instance_name is something like "head" or "node"
     # instance_name_instances are the boto.ec2.instance objects that have an
@@ -105,11 +99,11 @@ def get_inventory(aws_access_key_id, aws_secret_access_key, cluster_id):
     for (instance_name, instance_name_instances) in instances_by_name(
             instances):
         inventory[instance_name] = {
-            'hosts': [x.ip_address for x in instance_name_instances]
+            'hosts': [x.public_ip_address for x in instance_name_instances]
         }
 
     # Build up _meta/hostvars for individual instances
-    hostvars = {instance.ip_address: get_instance_vars(instance)
+    hostvars = {instance.public_ip_address: get_instance_vars(instance)
                 for instance in instances}
 
     if hostvars:
