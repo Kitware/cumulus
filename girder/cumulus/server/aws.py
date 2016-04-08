@@ -115,9 +115,7 @@ create_profile.description = (
 def delete_profile(user, profile, params):
 
     query = {
-        'aws': {
-            'profileId': profile['_id']
-        }
+        'profileId': profile['_id']
     }
 
     if ModelImporter.model('volume', 'cumulus').findOne(query):

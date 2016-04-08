@@ -30,6 +30,7 @@ from cumulus.common.girder import get_task_token
 import cumulus.tasks.cluster
 import cumulus.tasks.job
 import cumulus.ansible.tasks.cluster
+from cumulus.common.jsonpath import get_property
 
 
 class AbstractClusterAdapter(ModelImporter):
@@ -100,7 +101,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     """
     This defines the interface to be used by all cluster adapters.
     """
-    DEFAULT_PLAYBOOK = 'default'
+    DEFAULT_PLAYBOOK = 'ec2'
 
     def update_status(self, status):
         assert type(status) is ClusterStatus, \
@@ -137,7 +138,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         return profile, secret
 
-    def launch(self, **kwargs):
+    def launch(self):
         # if id is None // Exception
         # TODO: add assert if status > launching, error
 
@@ -147,12 +148,16 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
 
-        profile, secret_key = self._get_profile(self.cluster['profile'])
+        profile, secret_key = self._get_profile(self.cluster['profileId'])
+        playbook = get_property(
+            'config.launch.spec', self.cluster, default=self.DEFAULT_PLAYBOOK)
+        playbook_params = get_property(
+            'config.launch.params', self.cluster, default={})
+        playbook_params['cluster_state'] = 'running'
 
         cumulus.ansible.tasks.cluster.run_ansible \
-            .delay(self.cluster.get('playbook', self.DEFAULT_PLAYBOOK),
-                   self.cluster, profile, secret_key,
-                   {'cluster_state': 'running'}, girder_token, log_write_url,
+            .delay(playbook, self.cluster, profile, secret_key,
+                   playbook_params, girder_token, log_write_url,
                    'launched')
 
         return self.cluster
@@ -168,14 +173,19 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
 
-        profile, secret_key = self._get_profile(self.cluster['profile'])
+        profile, secret_key = self._get_profile(self.cluster['profileId'])
+
+        playbook = get_property(
+            'config.launch.spec', self.cluster, default=self.DEFAULT_PLAYBOOK)
+        playbook_params = get_property(
+            'config.launch.params', self.cluster, default={})
+        playbook_params['cluster_state'] = 'absent'
 
         cumulus.ansible.tasks.cluster.run_ansible \
-            .delay(self.DEFAULT_PLAYBOOK, self.cluster, profile, secret_key,
-                   {'cluster_state': 'absent'},
-                   girder_token, log_write_url, 'terminated')
+            .delay(playbook, self.cluster, profile, secret_key,
+                   playbook_params, girder_token, log_write_url, 'terminated')
 
-    def provision(self, **kwargs):
+    def provision(self):
         # status must be >= launched.
         self.update_status(ClusterStatus.provisioning)
 
@@ -183,12 +193,21 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
 
-        profile, secret_key = self._get_profile(self.cluster['profile'])
-        playbook = kwargs.get('playbook', self.DEFAULT_PLAYBOOK)
+        profile, secret_key = self._get_profile(self.cluster['profileId'])
+
+        playbook = get_property(
+            'config.provision.spec', self.cluster,
+            default=self.DEFAULT_PLAYBOOK)
+        playbook_params = get_property(
+            'config.provision.params', self.cluster, default={})
+        provision_ssh_user = get_property(
+            'config.provision.ssh.user', self.cluster, default='ubuntu')
+        playbook_params['cluster_state'] = 'running'
+        playbook_params['ansible_ssh_user'] = provision_ssh_user
 
         cumulus.ansible.tasks.cluster.provision_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
-                   {'cluster_state': 'running'},
+                   playbook_params,
                    girder_token, log_write_url, 'provisioned')
 
         return self.cluster
@@ -202,17 +221,44 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         self.update_status(ClusterStatus.launching)
 
+        self.cluster['config'].setdefault('provision', {})\
+            .setdefault('params', {}).update(request_body)
+        self.cluster = self.model('cluster', 'cumulus').save(self.cluster)
+
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
-        profile, secret_key = self._get_profile(self.cluster['profile'])
+        profile, secret_key = self._get_profile(self.cluster['profileId'])
+
+        # Launch
+        launch_playbook = get_property(
+            'config.launch.spec', self.cluster, default=self.DEFAULT_PLAYBOOK)
+        launch_playbook_params = get_property(
+            'config.launch.params', self.cluster, default={})
+        launch_playbook_params['cluster_state'] = 'running'
+
+        # Provision
+        provision_playbook = get_property(
+            'config.provision.spec', self.cluster, default='gridengine/site')
+        provision_playbook_params = get_property(
+            'config.provision.params', self.cluster, default={})
+        provision_ssh_user = get_property(
+            'config.provision.ssh.user', self.cluster, default='ubuntu')
+        provision_playbook_params['ansible_ssh_user'] = provision_ssh_user
+        provision_playbook_params['cluster_state'] = 'running'
+
+        # If we are launching sge, then set the name of the master node
+        master_name = None
+        if launch_playbook == self.DEFAULT_PLAYBOOK:
+            master_name = 'head'
 
         cumulus.ansible.tasks.cluster.start_cluster \
-            .delay(self.cluster.get('playbook', self.DEFAULT_PLAYBOOK),
+            .delay(launch_playbook,
                    # provision playbook
-                   request_body.get('playbook', 'gridengine/site'),
+                   provision_playbook,
                    self.cluster, profile, secret_key,
-                   {'cluster_state': 'running'}, girder_token, log_write_url)
+                   launch_playbook_params, provision_playbook_params,
+                   girder_token, log_write_url, master_name=master_name)
 
     def update(self, request_body):
         """

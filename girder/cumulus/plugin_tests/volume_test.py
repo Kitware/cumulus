@@ -131,10 +131,7 @@ class VolumeTestCase(base.TestCase):
 
         # Create EC2 cluster
         body = {
-            'profile': self._profile_id,
-            'cluster_config': {
-                'ansible_ssh_user': 'ubuntu'
-            },
+            'profileId': self._profile_id,
             'name': 'testing'
         }
 
@@ -158,9 +155,7 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'aws': {
-                'profileId': self._profile_id
-            }
+            'profileId': self._profile_id
         }
 
         r = self.request('/volumes', method='POST',
@@ -175,9 +170,7 @@ class VolumeTestCase(base.TestCase):
             u'ec2': {
                 u'id': volume_id
             },
-            u'aws': {
-                u'profileId': self._profile_id
-            }
+            u'profileId': self._profile_id
         }
         del r.json['_id']
         self.assertEqual(r.json, expected, 'Unexpected volume returned')
@@ -195,9 +188,7 @@ class VolumeTestCase(base.TestCase):
             'zone': 'us-west-2a',
             'type': 'ebs',
             'fs': 'ext4',
-            'aws': {
-                'profileId': self._profile_id
-            }
+            'profileId': self._profile_id
         }
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
@@ -212,9 +203,7 @@ class VolumeTestCase(base.TestCase):
             u'ec2': {
                 u'id': volume_id
             },
-            u'aws': {
-                u'profileId': self._profile_id
-            }
+            u'profileId': self._profile_id
         }
         del r.json['_id']
 
@@ -232,9 +221,7 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'aws': {
-                'profileId': self._profile_id
-            }
+            'profileId': self._profile_id
         }
 
         r = self.request('/volumes', method='POST',
@@ -248,9 +235,7 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'aws': {
-                'profileId': self._profile_id
-            }
+            'profileId': self._profile_id
         }
 
         r = self.request('/volumes', method='POST',
@@ -263,9 +248,7 @@ class VolumeTestCase(base.TestCase):
             'name': 'zoneless',
             'size': 20,
             'type': 'ebs',
-            'aws': {
-                'profileId': self._profile_id
-            }
+            'profileId': self._profile_id
         }
 
         r = self.request('/volumes', method='POST',
@@ -297,9 +280,7 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'aws': {
-                'profileId': self._profile_id
-            }
+            'profileId': self._profile_id
         }
 
         r = self.request('/volumes', method='POST',
@@ -317,9 +298,7 @@ class VolumeTestCase(base.TestCase):
             u'type':
             u'ebs',
             u'size': 20,
-            u'aws': {
-                u'profileId': self._profile_id
-            }
+            u'profileId': self._profile_id
         }
 
         r = self.request('/volumes/%s' % volume_id, method='GET',
@@ -348,9 +327,7 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'aws': {
-                'profileId': self._profile_id
-            }
+            'profileId': self._profile_id
         }
 
         r = self.request('/volumes', method='POST',
@@ -420,9 +397,7 @@ class VolumeTestCase(base.TestCase):
             'zone': 'us-west-2a',
             'type': 'ebs',
             'fs': 'ext4',
-            'aws': {
-                'profileId': self._profile_id
-            }
+            'profileId': self._profile_id
         }
 
         r = self.request('/volumes', method='POST',
@@ -447,12 +422,9 @@ class VolumeTestCase(base.TestCase):
         self.assertStatusOk(r)
 
         expected = {
-            u'profile': str(self._profile_id),
+            u'profileId': str(self._profile_id),
             u'status': u'created',
             u'name': u'testing',
-            u'cluster_config': {
-                u'ansible_ssh_user': u'ubuntu'
-            },
             u'userId': str(self._user['_id']),
             u'volumes': [volume_id],
             u'type': u'ec2',
@@ -464,6 +436,10 @@ class VolumeTestCase(base.TestCase):
                 u'ssh': {
                     u'user': u'ubuntu',
                     u'key': str(self._profile_id)
+                },
+                u'launch': {
+                    u'spec': u'default',
+                    u'params': {}
                 }
             }
         }
@@ -533,9 +509,7 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'aws': {
-                'profileId': self._profile_id
-            }
+            'profileId': self._profile_id
         }
 
         r = self.request('/volumes', method='POST',
@@ -583,12 +557,9 @@ class VolumeTestCase(base.TestCase):
         self.assertStatusOk(r)
 
         expected = {
-            u'profile': str(self._profile_id),
+            u'profileId': str(self._profile_id),
             u'status': u'created',
             u'name': u'testing',
-            u'cluster_config': {
-                u'ansible_ssh_user': u'ubuntu'
-            },
             u'userId': str(self._user['_id']),
             u'volumes': [],
             u'type': u'ec2',
@@ -600,6 +571,10 @@ class VolumeTestCase(base.TestCase):
                 u'ssh': {
                     u'user': u'ubuntu',
                     u'key': str(self._profile_id)
+                },
+                u'launch': {
+                    u'spec': u'default',
+                    u'params': {}
                 }
             }
         }
@@ -624,9 +599,7 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'aws': {
-                'profileId': self._profile_id
-            }
+            'profileId': self._profile_id
         }
 
         r = self.request('/volumes', method='POST',
@@ -640,9 +613,7 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'aws': {
-                'profileId': self._another_profile_id
-            }
+            'profileId': self._another_profile_id
         }
 
         r = self.request('/volumes', method='POST',
@@ -707,9 +678,7 @@ class VolumeTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'aws': {
-                'profileId': self._profile_id
-            }
+            'profileId': self._profile_id
         }
 
         r = self.request('/volumes', method='POST',

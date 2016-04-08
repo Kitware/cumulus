@@ -106,10 +106,7 @@ class AwsTestCase(base.TestCase):
         # Create EC2 cluster
         body = {
             'name': 'testing',
-            'cluster_config': {
-                'ansible_ssh_user': 'ubuntu'
-            },
-            'profile': self._profile_id
+            'profileId': self._profile_id
         }
 
         json_body = json.dumps(body)
@@ -485,9 +482,13 @@ class AwsTestCase(base.TestCase):
 
         cluster_body = {
             'name': 'profile_test',
-            'profile': profile_id,
-            'cluster_config': {
-                'ansible_ssh_user': 'ubuntu'
+            'profileId': profile_id,
+            'config': {
+                'launch': {
+                    'params': {
+                        'ansible_ssh_user': 'ubuntu'
+                    }
+                }
             }
         }
 
@@ -538,9 +539,7 @@ class AwsTestCase(base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'aws': {
-                'profileId': profile_id
-            }
+            'profileId': profile_id
         }
 
         r = self.request('/volumes', method='POST',

@@ -27,12 +27,13 @@ from girder.api.describe import Description
 from girder.api.v1.notification import sseMessage
 from girder.constants import AccessType
 from girder.api.docs import addModel
-from girder.api.rest import RestException, getBodyJson
+from girder.api.rest import RestException, getBodyJson, loadmodel
 from .base import BaseResource
 from cumulus.constants import ClusterType, ClusterStatus
 from .utility.cluster_adapters import get_cluster_adapter
 from cumulus.ssh.tasks.key import generate_key_pair
 from cumulus.common import update_dict
+from cumulus.common.jsonpath import get_property
 
 
 class Cluster(BaseResource):
@@ -74,19 +75,16 @@ class Cluster(BaseResource):
 
     def _create_ansible(self, params, body, cluster_type=ClusterType.ANSIBLE):
 
-        self.requireParams(['name',
-                            'cluster_config', 'profile'], body)
+        self.requireParams(['name', 'profileId'], body)
 
         name = body['name']
-        playbook = body['playbook'] if 'playbook' in body.keys() else 'default'
-        cluster_config = body['cluster_config']
-        profile = body['profile']
-        # Create some configuration item here
-        # config_id = self._create_config(config)
+        playbook = get_property('config.launch.spec', body, default='default')
+        launch_params = get_property('config.launch.params', body, default={})
+        profile_id = body['profileId']
         user = self.getCurrentUser()
 
         cluster = self._model.create_ansible(user, name, playbook,
-                                             cluster_config, profile,
+                                             launch_params, profile_id,
                                              cluster_type=cluster_type)
         cluster = self._model.filter(cluster, user)
 
@@ -208,20 +206,20 @@ class Cluster(BaseResource):
             dataType='ClusterParameters',
             required=True, paramType='body'))
 
-    @access.user
-    def start(self, id, params):
+    def _get_body(self):
         body = {}
-
         if cherrypy.request.body:
             request_body = cherrypy.request.body.read().decode('utf8')
             if request_body:
                 body = json.loads(request_body)
 
-        user = self.getCurrentUser()
-        cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+        return body
 
-        if not cluster:
-            raise RestException('Cluster not found.', code=404)
+    @access.user
+    @loadmodel(model='cluster', plugin='cumulus', level=AccessType.ADMIN)
+    def start(self, cluster, params):
+        body = self._get_body()
+        user = self.getCurrentUser()
 
         cluster = self._model.filter(cluster, user, passphrase=False)
         adapter = get_cluster_adapter(cluster)
@@ -260,8 +258,15 @@ class Cluster(BaseResource):
             dataType='ClusterStartParams', required=False))
 
     @access.user
-    def launch(self, id, params):
-        return self._launch_or_provision('launch', id, params)
+    @loadmodel(model='cluster', plugin='cumulus', level=AccessType.ADMIN)
+    def launch(self, cluster, params):
+
+        # Update any launch parameters passed in message body
+        body = self._get_body()
+        cluster['config']['launch']['params'].update(body)
+        cluster = self._model.save(cluster)
+
+        return self._launch_or_provision('launch', cluster)
 
     launch.description = (Description(
         'Start a cluster with ansible'
@@ -270,18 +275,32 @@ class Cluster(BaseResource):
         'The cluster id to start.', paramType='path', required=True))
 
     @access.user
-    def provision(self, id, params):
-        user = self.getCurrentUser()
-        cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
+    @loadmodel(model='cluster', plugin='cumulus', level=AccessType.ADMIN)
+    def provision(self, cluster, params):
 
-        if not cluster:
-            raise RestException('Cluster not found.', code=404)
-        elif cluster['status'] not in (ClusterStatus.launched,
-                                       ClusterStatus.provisioned,
-                                       ClusterStatus.running):
+        if cluster['status'] not in (ClusterStatus.launched,
+                                     ClusterStatus.provisioned,
+                                     ClusterStatus.running):
             raise RestException('Cluster can not be provisioned.', code=400)
 
-        return self._launch_or_provision('provision', id, params)
+        body = self._get_body()
+        provision_ssh_user = get_property('ssh.user', body)
+        if provision_ssh_user:
+            cluster['config'].setdefault('provision', {})['ssh'] = {
+                'user': provision_ssh_user
+            }
+            del body['ssh']
+
+        if 'spec' in body:
+            cluster['config'].setdefault('provision', {})['spec'] \
+                = body['spec']
+            del body['spec']
+
+        cluster['config'].setdefault('provision', {})\
+            .setdefault('params', {}).update(body)
+        cluster = self._model.save(cluster)
+
+        return self._launch_or_provision('provision', cluster)
 
     provision.description = (Description(
         'Provision a cluster with ansible'
@@ -292,25 +311,13 @@ class Cluster(BaseResource):
         'body', 'Parameter used when provisioning cluster', paramType='body',
         dataType='list', required=False))
 
-    def _launch_or_provision(self, process, id, params):
+    def _launch_or_provision(self, process, cluster):
         assert process in ['launch', 'provision']
-        body = {}
-
-        if cherrypy.request.body:
-            request_body = cherrypy.request.body.read().decode('utf8')
-            if request_body:
-                body = json.loads(request_body)
-
         user = self.getCurrentUser()
-        cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
-
-        if not cluster:
-            raise RestException('Cluster not found.', code=404)
-
         cluster = self._model.filter(cluster, user, passphrase=False)
         adapter = get_cluster_adapter(cluster)
 
-        return getattr(adapter, process)(**body)
+        return getattr(adapter, process)()
 
     @access.user
     def update(self, id, params):

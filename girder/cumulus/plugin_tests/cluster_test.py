@@ -128,8 +128,7 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 400)
 
-        body['cluster_config'] = {
-            'ansible_ssh_user': 'ubuntu'
+        body['config'] = {
         }
         json_body = json.dumps(body)
 
@@ -137,7 +136,7 @@ class ClusterTestCase(base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 400)
 
-        body['profile'] = str(self._user_profile['_id'])
+        body['profileId'] = str(self._user_profile['_id'])
         json_body = json.dumps(body)
 
         r = self.request('/clusters', method='POST',
@@ -156,7 +155,7 @@ class ClusterTestCase(base.TestCase):
         self.assertStatus(r, 400)
 
         # Try creating with the same name as another user, this should work
-        body['profile'] = str(self._another_user_profile['_id'])
+        body['profileId'] = str(self._another_user_profile['_id'])
         json_body = json.dumps(body)
         r = self.request('/clusters', method='POST',
                          type='application/json', body=json_body, user=self._another_user)
@@ -208,11 +207,8 @@ class ClusterTestCase(base.TestCase):
 
         # First test invalid profileId
         body = {
-            'profile': '546a1844ff34c70456111385',
-            'cluster_config': {
-            },
-            'name': 'mycluster',
-            'template': 'default_cluster'
+            'profileId': '546a1844ff34c70456111385',
+            'name': 'mycluster'
         }
 
         r = self.request('/clusters', method='POST',
@@ -222,10 +218,7 @@ class ClusterTestCase(base.TestCase):
 
     def test_get(self):
         body = {
-            'profile': str(self._user_profile['_id']),
-            'cluster_config': {
-                'ansible_ssh_user': 'ubuntu'
-            },
+            'profileId': str(self._user_profile['_id']),
             'name': 'test'
         }
 
@@ -260,10 +253,7 @@ class ClusterTestCase(base.TestCase):
         self.assertStatus(r, 404)
 
         body = {
-            'profile': str(self._user_profile['_id']),
-            'cluster_config': {
-                'ansible_ssh_user': 'ubuntu'
-            },
+            'profileId': str(self._user_profile['_id']),
             'name': 'test'
         }
 
@@ -282,9 +272,6 @@ class ClusterTestCase(base.TestCase):
         self.assertStatusOk(r)
         expected_cluster = {
             u'_id': cluster_id,
-            u'cluster_config': {
-                u'ansible_ssh_user': u'ubuntu'
-            },
             u'config': {
                 u'scheduler': {
                     u'type': u'sge'
@@ -292,15 +279,18 @@ class ClusterTestCase(base.TestCase):
                 u'ssh': {
                     u'user': u'ubuntu',
                     u'key': str(self._user_profile['_id'])
+                },
+                u'launch': {
+                    u'spec': u'default',
+                    u'params': { }
                 }
             },
             u'name': u'test',
-            u'profile': str(self._user_profile['_id']),
+            u'profileId': str(self._user_profile['_id']),
             u'status': u'terminating',
             u'type': u'ec2',
             u'userId': str(self._user['_id'])
         }
-
         self.assertEqual(r.json, expected_cluster)
 
         # Check we get the right server side events
@@ -326,9 +316,6 @@ class ClusterTestCase(base.TestCase):
         self.assertStatusOk(r)
         expected_status =  {
             u'_id': cluster_id,
-            u'cluster_config': {
-                u'ansible_ssh_user': u'ubuntu'
-            },
             u'config': {
                 u'scheduler': {
                     u'type': u'sge'
@@ -336,10 +323,14 @@ class ClusterTestCase(base.TestCase):
                 u'ssh': {
                     u'user': u'ubuntu',
                     u'key': str(self._user_profile['_id'])
+                },
+                u'launch': {
+                    u'spec': u'default',
+                    u'params': { }
                 }
             },
             u'name': u'test',
-            u'profile': str(self._user_profile['_id']),
+            u'profileId': str(self._user_profile['_id']),
             u'status': 'terminating',
             u'type': u'ec2',
             u'userId': str(self._user['_id'])
@@ -421,12 +412,8 @@ class ClusterTestCase(base.TestCase):
 
     def test_log(self):
         body = {
-            'profile': str(self._user_profile['_id']),
-            'cluster_config': {
-                'ansible_ssh_user': 'ubuntu'
-            },
-            'name': 'test',
-            'template': 'default_cluster'
+            'profileId': str(self._user_profile['_id']),
+            'name': 'test'
         }
 
         json_body = json.dumps(body)
@@ -472,10 +459,7 @@ class ClusterTestCase(base.TestCase):
     def test_start(self, start_cluster):
         body = {
             'name': 'test',
-            'profile': str(self._user_profile['_id']),
-            'cluster_config': {
-                'ansible_ssh_user': 'ubuntu'
-            },
+            'profileId': str(self._user_profile['_id'])
         }
 
         json_body = json.dumps(body)
@@ -494,10 +478,7 @@ class ClusterTestCase(base.TestCase):
     @mock.patch('cumulus.tasks.job.submit')
     def test_submit_job(self, submit):
         body = {
-            'profile': str(self._user_profile['_id']),
-            'cluster_config': {
-                'ansible_ssh_user': 'ubuntu'
-            },
+            'profileId': str(self._user_profile['_id']),
             'name': 'test'
         }
 
@@ -562,9 +543,6 @@ class ClusterTestCase(base.TestCase):
         expected_submit_call = \
         [   [   [   u'token',
              {   u'_id': cluster_id,
-                 u'cluster_config': {
-                    u'ansible_ssh_user': u'ubuntu'
-                 },
                  u'config': {
                     u'scheduler': {
                         u'type': u'sge'
@@ -572,10 +550,14 @@ class ClusterTestCase(base.TestCase):
                     u'ssh': {
                         u'user': u'ubuntu',
                         u'key': str(self._user_profile['_id'])
+                    },
+                    u'launch': {
+                        u'spec': u'default',
+                        u'params': { }
                     }
                 },
                  u'name': u'test',
-                 u'profile': str(self._user_profile['_id']),
+                 u'profileId': str(self._user_profile['_id']),
                  u'status': u'running',
                  u'type': u'ec2',
                  u'userId': str(self._user['_id'])},
@@ -597,10 +579,7 @@ class ClusterTestCase(base.TestCase):
     @mock.patch('cumulus.ansible.tasks.cluster.run_ansible.delay')
     def test_terminate(self, terminate_cluster):
         body = {
-            'profile': str(self._user_profile['_id']),
-            'cluster_config': {
-                'ansible_ssh_user': 'ubuntu'
-            },
+            'profileId': str(self._user_profile['_id']),
             'name': 'test'
         }
 
@@ -631,10 +610,6 @@ class ClusterTestCase(base.TestCase):
                                                        u'level': 2}],
                                     u'users': [   {   u'id': str(self._user['_id']),
                                                       u'level': 2}]},
-                     u'aws': {   u'profileId': str(self._user_profile['_id'])},
-                     u'cluster_config': {
-                        u'ansible_ssh_user': u'ubuntu'
-                     },
                      u'config': {
                         u'scheduler': {
                             u'type': u'sge'
@@ -642,12 +617,17 @@ class ClusterTestCase(base.TestCase):
                         u'ssh': {
                             u'user': u'ubuntu',
                             u'key': str(self._user_profile['_id'])
+                        },
+                        u'launch': {
+                            u'spec': u'default',
+                            u'params': {
+                                u'cluster_state': u'absent'
+                            }
                         }
                      },
                      u'log': [],
                      u'name': u'test',
-                     u'playbook': u'default',
-                     u'profile': str(self._user_profile['_id']),
+                     u'profileId': str(self._user_profile['_id']),
                      u'status': u'terminating',
                      u'type': u'ec2',
                      u'userId': str(self._user['_id'])},
@@ -671,12 +651,8 @@ class ClusterTestCase(base.TestCase):
 
     def test_delete(self):
         body = {
-            'cluster_config': {
-                'ansible_ssh_user': 'ubuntu'
-            },
-            'profile': str(self._user_profile['_id']),
-            'name': 'test',
-            'template': 'default_cluster'
+            'profileId': str(self._user_profile['_id']),
+            'name': 'test'
         }
 
         json_body = json.dumps(body)
@@ -828,10 +804,7 @@ class ClusterTestCase(base.TestCase):
     def test_find(self, generate_key):
         # Create a EC2 cluster
         body = {
-            'profile': str(self._user_profile['_id']),
-            'cluster_config': {
-                'ansible_ssh_user': 'ubuntu'
-            },
+            'profileId': str(self._user_profile['_id']),
             'name': 'test'
         }
 

@@ -1,3 +1,11 @@
+- name: Setup groups for gridengine playbook
+  hosts: localhost
+  tasks:
+  - add_host:  name={{item}} groups=master
+    with_items: "{{groups['head']}}"
+  - add_host:  name={{item}} groups=exec
+    with_items: "{{groups['data']}}"
+
 - name: Master setup
   hosts: master
   become: yes
@@ -5,13 +13,17 @@
     - master
 
 - name: Install mpich2
-  hosts: all
+  hosts:
+    - master
+    - exec
   become: yes
   roles:
     - mpich2
 
 - name: Exec host setup
-  hosts: all
+  hosts:
+    - master
+    - exec
   become: yes
   roles:
     - exec

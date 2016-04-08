@@ -19,6 +19,7 @@
 
 import argparse
 import unittest
+import json
 
 from ansible_integration_test import AnsibleIntegrationTest
 from girder_client import HttpError
@@ -37,7 +38,14 @@ class EC2IntegrationTest(AnsibleIntegrationTest):
 
     def start_cluster(self):
         cluster_url = 'clusters/%s/start' % self._cluster_id
-        self._client.put(cluster_url)
+        body = {
+            'spec': 'gridengine/site',
+            'ssh': {
+                'user': 'ubuntu'
+            }
+        }
+
+        self._client.put(cluster_url, data=json.dumps(body))
 
         status_url = 'clusters/%s/status' % self._cluster_id
         self._wait_for_status(status_url, 'running', timeout=1200)

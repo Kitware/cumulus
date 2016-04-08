@@ -52,7 +52,7 @@ class AbstractVolumeAdapter(ModelImporter):
 class EbsVolumeAdapter(AbstractVolumeAdapter):
 
     def validate(self):
-        profile_id = parse('aws.profileId').find(self.volume)[0].value
+        profile_id = parse('profileId').find(self.volume)[0].value
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
 

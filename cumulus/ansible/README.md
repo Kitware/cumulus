@@ -22,17 +22,20 @@
 
 ```json
     {"name": "test cluster",
-    "type": "ansible",
-	"playbook": "sge",
-	"cluster_config": {
-         "master_instance_type": "t2.micro",
-         "master_instance_ami": "ami-03de3c63",
-         "node_instance_count": 2,
-         "node_instance_type": "t2.micro",
-         "node_instance_ami": "ami-03de3c63",
-         "ansible_ssh_user": "ubuntu"
+     "type": "ansible",
+     "config": {
+       "launch": {
+         "spec": "ec2",
+         "params": {
+           "master_instance_type": "t2.micro",
+           "master_instance_ami": "ami-03de3c63",
+           "node_instance_count": 2,
+           "node_instance_type": "t2.micro",
+           "node_instance_ami": "ami-03de3c63"
+         }
+       }
      },
-     "profile": "<<profile_id>>"}
+     "profileId": "<<profile_id>>"}
 ```
 
 + ```master_instance_type``` describes the instance type of the master node,
@@ -40,17 +43,21 @@
 + ```node_instance_type``` describes the instance type of the slave nodes,
 + ```node_instance_ami``` describes the instance ami to use for the slave nodes
 + ```node_instance_count``` the number of slave nodes to start.
-+ ```ansible_ssh_user``` login that ansible will use for ssh
 
-Other variables may be passed into cluster_config.  These will override any variables set in the playbook or used by ansible.
+
+Other variables may be passed into config.launch.params.  These will override any variables set in the playbook or used by ansible.
 
 ## Launch the cluster
 Hit the **/cluster/<<cluster_id>>/launch** endpoint
 
 ## Provision the cluster
-Hit the **/cluster/<<cluster_id>>/provision** endpoint. You must pass in data that includes a playbook, e.g.:
+Hit the **/cluster/<<cluster_id>>/provision** endpoint. You must pass in data that includes a spec (aka playbook), e.g.:
 
 ```json
-	{ "playbook": "gridengine/site"}
+  { "spec": "gridengine/site",
+    "ssh": {
+      "user": "ubuntu"
+    }
+  }
 ```
-	
++ ```ssh.user``` login that ansible will use for ssh
