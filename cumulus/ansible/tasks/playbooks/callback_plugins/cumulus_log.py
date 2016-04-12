@@ -39,6 +39,13 @@ class CallbackModule(CallbackBase):
         return os.environ.get('LOG_WRITE_URL')
 
     def log(self, status, message, type='task', data=None):
+
+        data = {} if data is None else data
+
+        invocation = data.pop("invocation", None)
+        if invocation is not None:
+            data['module_name'] = invocation['module_name']
+
         if self.log_write_url is not None and \
            self.girder_token is not None:
             msg = {'status': status,
@@ -52,22 +59,10 @@ class CallbackModule(CallbackBase):
             else:
                 self.logger.info(message, extra=msg)
 
-    def _filter_res(self, res):
-        try:
-            res2 = res.copy()
-            res2['module_name'] = res2['invocation']['module_name']
-            res2.pop('invocation', None)
-        except AttributeError:
-            res2 = {'error': res}
-
-        return res2
-
     def runner_on_failed(self, host, res, ignore_errors=False):
         if self.cluster_id is not None and \
            self.girder_token is not None:
-            res2 = self._filter_res(res)
-            res2['host'] = host
-            self.log(ERROR, self.current_task, data=res2)
+            self.log(ERROR, self.current_task, data=res)
 
             # Update girder with the new status
             status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
@@ -83,24 +78,18 @@ class CallbackModule(CallbackBase):
                 r.raise_for_status()
 
     def runner_on_ok(self, host, res):
-        res2 = self._filter_res(res)
-        res2['host'] = host
-        self.log(FINISHED, self.current_task, data=res2)
+        self.log(FINISHED, self.current_task, data=res)
 
     def runner_on_skipped(self, host, item=None):
-        res2 = {'host': host}
-        self.log(SKIPPED, self.current_task, data=res2)
+        res = {'host': host}
+        self.log(SKIPPED, self.current_task, data=res)
 
     def runner_on_unreachable(self, host, res):
-        res2 = self._filter_res(res)
-        res2['host'] = host
-        self.log(UNREACHABLE, self.current_task, data=res2)
-
+        self.log(UNREACHABLE, self.current_task, data=res)
 
     def playbook_on_task_start(self, name, is_conditional):
         self.current_task = name
         self.log(STARTING, name)
-
 
     def playbook_on_play_start(self, name):
         if self.current_play is not None:
@@ -108,7 +97,6 @@ class CallbackModule(CallbackBase):
 
         self.current_play = name
         self.log(STARTING, name, type='play')
-
 
     def playbook_on_stats(self, stats):
         if self.current_play is not None:

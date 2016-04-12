@@ -53,6 +53,8 @@ class AnsibleRunTestCase(unittest.TestCase):
 
     def setUp(self):
         self.requests_file = os.path.join(self.tempdir, "requests.txt")
+        with open(self.requests_file, 'a'):
+            os.utime(self.requests_file, None)
 
         # Launch Flask webserver
         self.webserver = multiprocessing.Process(target=flaskProcess,
@@ -74,6 +76,7 @@ class AnsibleRunTestCase(unittest.TestCase):
             'GIRDER_TOKEN': 'mock_girder_token',
             'CLUSTER_ID': 'mock_cluster_id'})
 
+
         _run_playbook(
             os.path.join(self.playbookdir, playbook),
             inventory=os.path.join(self.playbookdir, "inventory"),
@@ -88,21 +91,25 @@ class AnsibleRunTestCase(unittest.TestCase):
     def test_run(self):
         sources = self.run_playbook("test_run_playbook.yml")
         targets = [{"status": "starting",
-                    "data": None,
-                    "msg": "localhost",
+                    "data": {},
+                    "msg": "Test Playbook",
                     "type": "play"},
                    {"status": "starting",
-                    "data": None,
-                    "msg": "debug Works!",
+                    "data": {},
+                    "msg": "TASK: debug",
                     "type": "task"},
                    {"status": "finished",
-                    "data": {"msg": "Hello world!", "verbose_always": True,
-                             "host": "localhost", "module_name": "debug"},
-                    "msg": "debug Works!", "type": "task"},
+                    "data":  {"msg": "Works!",
+                              "_ansible_verbose_always": True,
+                              "_ansible_no_log": False},
+                    "msg": "TASK: debug",
+                    "type": "task"},
                    {"status": "finished",
-                    "data": None,
-                    "msg": "localhost",
+                    "data": {},
+                    "msg": "Test Playbook",
                     "type": "play"}]
+
+
 
 
         # Same length
