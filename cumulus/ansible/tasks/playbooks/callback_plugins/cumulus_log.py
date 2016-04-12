@@ -42,7 +42,7 @@ class CallbackModule(CallbackBase):
 
         data = {} if data is None else data
 
-        invocation = data.pop("invocation", None)
+        invocation = data.pop('invocation', None)
         if invocation is not None:
             data['module_name'] = invocation['module_name']
 
