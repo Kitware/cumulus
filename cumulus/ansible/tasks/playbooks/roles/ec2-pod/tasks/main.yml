@@ -2,14 +2,14 @@
 
   - name: variables | control | compute
     set_fact:
-        do_add: >
-            {{ state == "running" }}
-        do_create: >
-            {{ state == "running" or state == "stopped" }}
-        do_destroy: >
-            {{ state == "absent" }}
-        do_wait: >
-            {{ state == "running" }}
+      do_add: >-
+        {{ state == "running" }}
+      do_create: >-
+        {{ state == "running" or state == "stopped" }}
+      do_destroy: >-
+        {{ state == "absent" }}
+      do_wait: >-
+        {{ state == "running" }}
 
 
   - name: hosts spec | process
@@ -19,7 +19,7 @@
 
   - name: instances | update lists | compute
     set_fact:
-        update_lists: >
+        update_lists: >-
             {{ cluster_name|compute_ec2_update_lists(hosts,
                                              aws_access_key,
                                              aws_secret_key,
@@ -31,7 +31,7 @@
 
   - name: instances | terminate set | compute
     set_fact:
-        terminate_set: >
+        terminate_set: >-
             {{ (update_lists.terminate
                 if (update_lists.terminate|length > 0)
                 else [])|union(update_lists.start
@@ -44,7 +44,7 @@
       aws_access_key: "{{ aws_access_key }}"
       aws_secret_key: "{{ aws_secret_key }}"
       name: ec2_pod_{{ cluster_name }}
-      description: >
+      description: >-
         security group for ec2 pod: {{ cluster_name }}
       region: "{{ region }}"
       rules: "{{ rules }}"
@@ -80,7 +80,7 @@
       aws_access_key: "{{ aws_access_key }}"
       aws_secret_key: "{{ aws_secret_key }}"
       count_tag:
-        Name: >
+        Name: >-
           {{ item.value.name|default(
             ["ec2_pod", cluster_name, item.key]|join("_")) }}
         ec2_pod: "{{ cluster_name }}"
@@ -89,7 +89,7 @@
       group: ec2_pod_{{ cluster_name }}
       image: "{{ item.value.image|default(default_image) }}"
       instance_tags:
-        Name: >
+        Name: >-
           {{ item.value.name|default(
             ["ec2_pod", cluster_name, item.key]|join("_")) }}
         ec2_pod: "{{ cluster_name }}"
@@ -123,7 +123,7 @@
   - name: instances | ansible groups | add
     add_host:
         hostname: "{{ item.hostname }}"
-        groups: >
+        groups: >-
             {{ item.groups|join(",") }}
     with_items: "{{ instances|default([None]) }}"
     when: do_add|bool
@@ -142,7 +142,7 @@
       aws_access_key: "{{ aws_access_key }}"
       aws_secret_key: "{{ aws_secret_key }}"
 
-      description: >
+      description: >-
         security group for ec2 pod: {{ cluster_name }}
       region: "{{ region }}"
       name: ec2_pod_{{ cluster_name }}
