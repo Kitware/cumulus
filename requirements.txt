@@ -9,4 +9,4 @@ Jinja2==2.7.3
 six==1.9.0
 jsonpath-rw==1.4.0
 enum34==1.0.4
-ansible==1.9.4
+ansible==2.0.1
