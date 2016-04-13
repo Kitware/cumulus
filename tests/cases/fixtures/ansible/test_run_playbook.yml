@@ -1,6 +1,7 @@
-- hosts: localhost
+- name: Test Playbook
+  hosts: localhost
   connection: local
   gather_facts: false
   become: false
   tasks:
-    - debug: "Works!"
+    - debug: msg="Works!"
