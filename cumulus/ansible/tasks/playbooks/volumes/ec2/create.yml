@@ -1,0 +1,30 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    regionName: "us-west-2"
+  tasks:
+    - set_fact:
+        cluster_id: "{{ lookup('env', 'CLUSTER_ID') }}"
+      when: cluster_id is not defined
+
+    - fail:
+        msg: "Cluster ID must be passed in or set as CLUSTER_ID in the environment"
+      when: cluster_id == ""
+
+    - ec2_vol:
+        volume_size: 11
+        region: "{{ regionName }}"
+        zone: "{{ regionName }}a"
+        instance: "{{ instance_id | default(omit)}}"
+      register: vol
+
+    - debug: msg="{{ vol.volume_id }}"
+
+    - ec2_tag:
+        resource: "{{ vol.volume_id }}"
+        region: "{{ regionName }}"
+        state: present
+        tags:
+          Name: "ec2_pod_{{ cluster_id }}_volume"
+          ec2_pod: "{{ cluster_id }}"
