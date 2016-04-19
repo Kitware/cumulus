@@ -23,4 +23,7 @@
 {% if account -%}
 #SBATCH --account={{account}}
 {% endif -%}
+{% if qualityOfService -%}
+#SBATCH --qos={{qualityOfService}}
+{% endif -%}
 
