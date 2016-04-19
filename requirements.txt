@@ -10,3 +10,4 @@ six==1.9.0
 jsonpath-rw==1.4.0
 enum34==1.0.4
 ansible==2.0.1
+girder_client==1.1.3
