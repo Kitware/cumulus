@@ -22,6 +22,8 @@ import sys
 import collections
 import cumulus
 import logging
+import random
+import string
 from cumulus.logging import RESTfulLogHandler
 
 
@@ -64,3 +66,10 @@ def get_post_logger(name, girder_token, post_url):
         logger.addHandler(handler)
 
     return logger
+
+def generate_passphrase():
+    passphrase = ''.join(random.SystemRandom()
+                     .choice(string.ascii_letters + string.punctuation +
+                             string.digits) for _ in range(64))
+
+    return passphrase

@@ -169,7 +169,8 @@ class Cluster(BaseModel):
                 },
                 'ssh': {
                     'user': 'ubuntu',
-                    'key': str(profile['_id'])
+                    'key': str(profile['_id']),
+                    'passphrase': profile['ssh']['passphrase']
                 },
                 'launch': {
                     'spec': spec,

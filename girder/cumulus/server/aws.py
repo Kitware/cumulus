@@ -154,7 +154,8 @@ delete_profile.description = (
 def update_profile(user, profile, params):
     body = getBodyJson()
     properties = ['accessKeyId', 'secretAccessKey', 'status', 'errorMessage',
-                  'publicIPs', 'cloudProvider']
+                  'publicIPs', 'cloudProvider', 'ssh']
+
     for prop in properties:
         if prop in body:
             profile[prop] = body[prop]

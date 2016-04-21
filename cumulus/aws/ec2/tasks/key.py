@@ -20,11 +20,13 @@
 import os
 import requests
 import traceback
+from StringIO import StringIO
+import paramiko
 
 import cumulus
 
 from cumulus.celery import command
-from cumulus.common import check_status
+from cumulus.common import check_status, generate_passphrase
 from cumulus.aws.ec2 import get_ec2_client
 
 
@@ -38,12 +40,19 @@ def generate_key_pair(aws_profile, girder_token):
         client = get_ec2_client(aws_profile)
         key_path = _key_path(aws_profile)
         key_pair = client.create_key_pair(KeyName=aws_profile['_id'])
+        passphrase = generate_passphrase()
+        key_file_stream = StringIO(key_pair['KeyMaterial'])
+        key = paramiko.RSAKey.from_private_key(key_file_stream)
 
         with open(key_path, 'wb') as fp:
-            fp.write(key_pair['KeyMaterial'])
+            key.write_private_key(fp, password=passphrase)
+
         os.chmod(key_path, 0400)
 
         aws_profile['status'] = 'available'
+        aws_profile['ssh'] = {
+            'passphrase': passphrase
+        }
 
     except Exception as ex:
         aws_profile['status'] = 'error'

@@ -25,7 +25,7 @@ import string
 
 import cumulus
 from cumulus.celery import command
-from cumulus.common import check_status, get_cluster_logger
+from cumulus.common import check_status, get_cluster_logger, generate_passphrase
 
 
 def _key_path(profile):
@@ -45,9 +45,7 @@ def generate_key_pair(cluster, girder_token=None):
 
     try:
         new_key = RSAKey.generate(bits=4096)
-        passphrase = ''.join(random.SystemRandom()
-                             .choice(string.ascii_uppercase +
-                                     string.digits) for _ in range(64))
+        passphrase = generate_passphrase()
         key_path = os.path.join(cumulus.config.ssh.keyStore, cluster_id)
 
         new_key.write_private_key_file(key_path, password=passphrase)
