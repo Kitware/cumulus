@@ -137,10 +137,10 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
 @command.task
 def start_cluster(launch_playbook, provision_playbook, cluster, profile,
                   secret_key, launch_extra_vars, provision_extra_vars,
-                  girder_token, log_write_url, master_name=None):
+                  girder_token, log_write_url):
 
-    run_ansible(launch_playbook, cluster, profile, secret_key,
-                launch_extra_vars, girder_token, log_write_url, 'launched')
+    launch_cluster(launch_playbook, cluster, profile, secret_key,
+                   launch_extra_vars, girder_token, log_write_url, 'launched')
 
     # todo cluster statuses should be updated in celery tasks?
     check_girder_cluster_status(cluster, girder_token, 'provisioning')
@@ -155,8 +155,35 @@ def start_cluster(launch_playbook, provision_playbook, cluster, profile,
         aws_secret_access_key=secret_key,
         cluster_id=cluster['_id'])
 
-    # If master_name has been provide extract out the master host and
-    # update the cluster with it.
+    # Now update the cluster state to 'running'
+    check_girder_cluster_status(cluster, girder_token, 'running')
+
+
+@command.task
+def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
+                   girder_token, log_write_url, post_status, master_name=None):
+    playbook = get_playbook_path(playbook)
+    playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
+
+    env = os.environ.copy()
+    env.update({'AWS_ACCESS_KEY_ID': profile['accessKeyId'],
+                'AWS_SECRET_ACCESS_KEY': secret_key,
+                'GIRDER_TOKEN': girder_token,
+                'LOG_WRITE_URL': log_write_url,
+                'CLUSTER_ID': cluster['_id']})
+
+    inventory = AnsibleInventory(['localhost'])
+
+    with inventory.to_tempfile() as inventory_path:
+        ansible = run_playbook(playbook, inventory_path, playbook_variables,
+                               env=env, verbose=3)
+
+    # Grab the post-launch inventory (opportunity to do validation here)
+    inventory = get_inventory(
+        aws_access_key_id=profile['accessKeyId'],
+        aws_secret_access_key=secret_key,
+        cluster_id=cluster['_id'])
+
     if master_name:
         master = parse('%s.hosts[0]' % master_name).find(inventory)
         if master:
@@ -175,13 +202,13 @@ def start_cluster(launch_playbook, provision_playbook, cluster, profile,
         r = requests.patch(status_url, headers=headers, json=updates)
         check_status(r)
 
-    # Now update the cluster state to 'running'
-    check_girder_cluster_status(cluster, girder_token, 'running')
+    check_ansible_return_code(ansible, cluster, girder_token)
+    check_girder_cluster_status(cluster, girder_token, post_status)
 
 
 @command.task
-def run_ansible(playbook, cluster, profile, secret_key, extra_vars,
-                girder_token, log_write_url, post_status):
+def terminate_cluster(playbook, cluster, profile, secret_key, extra_vars,
+                      girder_token, log_write_url, post_status):
     playbook = get_playbook_path(playbook)
     playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
 

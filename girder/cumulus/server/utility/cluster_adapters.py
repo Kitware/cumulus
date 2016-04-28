@@ -155,14 +155,20 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             'config.launch.params', self.cluster, default={})
         playbook_params['cluster_state'] = 'running'
 
-        cumulus.ansible.tasks.cluster.run_ansible \
+        # If we are launching sge, then set the name of the master node
+        master_name = None
+        if playbook == self.DEFAULT_PLAYBOOK:
+            master_name = 'head'
+
+        cumulus.ansible.tasks.cluster.launch_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
                    playbook_params, girder_token, log_write_url,
-                   'launched')
+                   'launched', master_name=master_name)
 
         return self.cluster
 
     def terminate(self):
+
         if self.cluster['status'] == ClusterStatus.terminated or \
            self.cluster['status'] == ClusterStatus.terminating:
             return
@@ -181,7 +187,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             'config.launch.params', self.cluster, default={})
         playbook_params['cluster_state'] = 'absent'
 
-        cumulus.ansible.tasks.cluster.run_ansible \
+        cumulus.ansible.tasks.cluster.terminate_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
                    playbook_params, girder_token, log_write_url, 'terminated')
 
@@ -246,11 +252,6 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             'config.provision.ssh.user', self.cluster, default='ubuntu')
         provision_playbook_params['ansible_ssh_user'] = provision_ssh_user
         provision_playbook_params['cluster_state'] = 'running'
-
-        # If we are launching sge, then set the name of the master node
-        master_name = None
-        if launch_playbook == self.DEFAULT_PLAYBOOK:
-            master_name = 'head'
 
         cumulus.ansible.tasks.cluster.start_cluster \
             .delay(launch_playbook,
