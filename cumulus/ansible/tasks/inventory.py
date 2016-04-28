@@ -1,6 +1,7 @@
 import re
 import tempfile
 import os
+import json
 from contextlib import contextmanager
 
 
@@ -201,6 +202,81 @@ class AnsibleInventory(object):
     def to_file(self, path):
         with open(path, 'wb') as fh:
             fh.write(self.to_string())
+
+    # Note: from_json expects json to be in a format that is ammenable
+    #       to dynamic inventories. e.g:
+    #       http://docs.ansible.com/ansible/developing_inventory.html
+    #       This is fundimentally less expressive than the ini style
+    #       config - this means converting from an ini config to json,
+    #       then from json back to an ini style config IS NOT LOSSLESS
+    @staticmethod
+    def from_json(json_string):
+        sections = []
+        global_hosts = []
+
+        d = json.loads(json_string)
+
+        for key, items in d.items():
+            if key != "_meta":
+                g = AnsibleInventoryGroup(key)
+                for host in items:
+                    g.items.append(AnsibleInventoryHost(host))
+                sections.append(g)
+            else:
+                for host, variables in items["hostvars"].items():
+                    global_hosts.append(
+                        AnsibleInventoryHost(host, **variables))
+
+        return AnsibleInventory(global_hosts, sections)
+
+    def to_json(self, with_meta=True):
+        d = {"_meta": {"hostvars": {}}} if with_meta else {}
+        for host in self.global_hosts:
+            if with_meta and host.variables:
+                d['_meta']['hostvars'][host.host] = host.variables
+
+        for sec in self.sections:
+            d[sec.name] = []
+            if isinstance(sec, AnsibleInventoryGroup):
+                for host in sec.items:
+                    # Note: Ignores variables here
+                    #       just appends the host name
+                    d[sec.name].append(host.host)
+                    if with_meta:
+                        if host.host in d['_meta']['hostvars']:
+                            # Its not clear whether this should be an update
+                            # or an overwrite from the ansible documentation.
+                            # It doesn't appear that the dynamic inventory
+                            # allows for hosts in specific groups to override
+                            # or change hostvars based on a specific group,
+                            # e.g.:
+                            # ------
+                            # localhost foo=bar
+                            #
+                            # [section1]
+                            # localhost foo=baz
+                            #
+                            # [section2]
+                            # locahost bar=baz
+                            #
+                            # ------
+                            # Should localhost's vars be:
+                            #
+                            #  {"foo": "bar"},  <= Only accept global variables
+                            #  {"foo": "bar", "bar": "baz"} <= Add missing but
+                            #                                    do not update.
+                            #  {"foo": "baz", "bar": "baz"} <= Merge w/ update
+                            #
+                            # This script is implemented with a merge w/update
+                            # strategy (because it is easy to implement), the
+                            # "correct" strategy is unclear when generating
+                            # dynamic inventories.
+                            d['_meta']['hostvars'][host.host].update(
+                                host.variables)
+                        else:
+                            d['_meta']['hostvars'][host.host] = host.variables
+
+        return json.dumps(d)
 
     @contextmanager
     def to_tempfile(self):
