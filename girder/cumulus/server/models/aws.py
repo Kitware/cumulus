@@ -39,7 +39,8 @@ class Aws(BaseModel):
         self.ensureIndices(['userId', 'name'])
         self.exposeFields(level=AccessType.READ, fields=(
             '_id', 'name', 'accessKeyId', 'regionName', 'regionHost',
-            'availabilityZone', 'status', 'errorMessage', 'publicIPs'))
+            'availabilityZone', 'status', 'errorMessage', 'publicIPs',
+            'type'))
 
     def _validate_region(self, client, doc):
         try:
@@ -132,12 +133,14 @@ class Aws(BaseModel):
 
         return doc
 
-    def create_profile(self, userId, name, access_key_id, secret_access_key,
-                       region_name, availability_zone, public_ips):
+    def create_profile(self, userId, name, profile_type, access_key_id,
+                       secret_access_key, region_name, availability_zone,
+                       public_ips):
 
         user = getCurrentUser()
         profile = {
             'name': name,
+            'type': profile_type,
             'accessKeyId': access_key_id,
             'secretAccessKey': secret_access_key,
             'regionName': region_name,
