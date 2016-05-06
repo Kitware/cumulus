@@ -18,6 +18,11 @@
           to_port: 22
           cidr_ip: "{{ source_cidr_ip |default('0.0.0.0/0') }}"
 
+        - proto: tcp # http websocket
+          from_port: 9000
+          to_port: 9000
+          cidr_ip: "{{ source_cidr_ip |default('0.0.0.0/0') }}"
+
         - proto: all
           group_name: "ec2_pod_{{cluster_id}}"
           group_desc: "Ec2 security group for cluster {{ cluster_id }}"
