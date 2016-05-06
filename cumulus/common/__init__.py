@@ -58,7 +58,9 @@ def get_cluster_logger(cluster, girder_token):
 def get_post_logger(name, girder_token, post_url):
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
-    handler = RESTfulLogHandler(girder_token, post_url, logging.DEBUG)
-    logger.addHandler(handler)
+    # Only add new new handler if we don't already have one.
+    if not logger.handlers:
+        handler = RESTfulLogHandler(girder_token, post_url, logging.DEBUG)
+        logger.addHandler(handler)
 
     return logger
