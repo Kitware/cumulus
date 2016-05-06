@@ -28,14 +28,18 @@ from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getCurrentUser, getBodyJson
 from girder.models.model_base import ValidationException
-from girder.api.rest import loadmodel
+from girder.api.rest import loadmodel, getApiUrl
 from .base import BaseResource
 
+import cumulus
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
 from cumulus.constants import ClusterType
 from cumulus.aws.ec2 import get_ec2_client
+from bson.objectid import ObjectId, InvalidId
+from cumulus.common.girder import get_task_token
 
+import cumulus.ansible.tasks.volume
 
 class Volume(BaseResource):
 
@@ -44,6 +48,7 @@ class Volume(BaseResource):
         self.resourceName = 'volumes'
         self.route('POST', (), self.create)
         self.route('GET', (':id', ), self.get)
+        self.route('PATCH', (':id', ), self.patch)
         self.route('GET', (), self.find)
         self.route('GET', (':id', 'status'), self.get_status)
         self.route('PUT', (':id', 'clusters', ':clusterId', 'attach'),
@@ -63,8 +68,53 @@ class Volume(BaseResource):
         return self.model('volume', 'cumulus').create_ebs(user, profileId, name,
                                                           zone, size, fs)
 
+    # NOTE:  this is a blind copy from cluster_adapters.py
+    # should really be refactored into something more reusable
+    def _get_profile(self, profile_id):
+        user = getCurrentUser()
+        query = {'userId': user['_id']}
+        try:
+            query['_id'] = ObjectId(profile_id)
+        except InvalidId:
+            query['name'] = profile_id
+
+        profile = self.model('aws', 'cumulus').findOne(query)
+        secret = profile['secretAccessKey']
+
+        profile = self.model('aws', 'cumulus').filter(profile, user)
+
+        if profile is None:
+            raise ValidationException('Profile must be specified!')
+
+        profile['_id'] = str(profile['_id'])
+
+        return profile, secret
+
+
+    @access.user
+    def patch(self, id, params):
+        import pudb; pu.db
+        body = getBodyJson()
+        user = self.getCurrentUser()
+
+        volume = self._model.load(id, user=user, level=AccessType.WRITE)
+
+        if not volume:
+            raise RestException('Volume not found.', code=404)
+
+        if 'ec2' in body:
+            if 'ec2' not in volume:
+                volume['ec2'] = {}
+            volume['ec2'].update(body['ec2'])
+
+        volume = self._model.save(volume)
+
+        return self._model.filter(volume, user)
+
+
     @access.user
     def create(self, params):
+
         body = getBodyJson()
         self.requireParams(['name', 'type', 'size', 'profileId'], body)
 
@@ -77,43 +127,27 @@ class Volume(BaseResource):
 
         profile_id = profile_id[0].value
 
-        profile = self.model('aws', 'cumulus').load(profile_id,
-                                                    user=getCurrentUser())
+        profile, secret_key = self._get_profile(profile_id)
+
         if not profile:
             raise RestException('Invalid profile', 400)
 
-        client = get_ec2_client(profile)
-
+        # TODO:  Validate zone using provider
         if 'zone' in body:
-            # Check that the zone is valid
-            try:
-                zone = body['zone']
-                client.describe_availability_zones(
-                    ZoneNames=[zone])
-            except ClientError as ce:
-                code = parse('Error.Code').find(ce.reponse)
-                if code:
-                    code = code[0].value
-                else:
-                    raise
-
-                if code == 'InvalidParameterValue':
-                    raise ValidationException('Zone does not exist in region',
-                                              'zone')
-                else:
-                    raise
-
-        # Use the zone from the profile
+            zone = body['zone']
         else:
             zone = profile['availabilityZone']
 
         volume = self._create_ebs(body, zone)
-        vol = client.create_volume(
-            Size=body['size'], AvailabilityZone=zone)
 
-        # Now set the EC2 volume id
-        volume['ec2']['id'] = vol['VolumeId']
-        self.model('volume', 'cumulus').save(volume)
+        girder_callback_info = {
+            "girder_api_url": getApiUrl(),
+            "girder_token": get_task_token()['_id']}
+
+        cumulus.ansible.tasks.volume.create_volume\
+            .delay(profile, volume, secret_key, girder_callback_info)
+
+        # self.model('volume', 'cumulus').save(volume)
 
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/volumes/%s' % volume['_id']
@@ -299,9 +333,9 @@ class Volume(BaseResource):
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
 
-        client = get_ec2_client(profile)
+        # client = get_ec2_client(profile)
         volume_id = parse('ec2.id').find(volume)[0].value
-        client.delete_volume(VolumeId=volume_id)
+        # client.delete_volume(VolumeId=volume_id)
 
         self.model('volume', 'cumulus').remove(volume)
 

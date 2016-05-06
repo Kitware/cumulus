@@ -22,6 +22,10 @@ def get_callback_plugins_path():
     return os.path.join(get_playbook_directory(),
                         'callback_plugins')
 
+def get_library_path():
+    return os.path.join(get_playbook_directory(),
+                        'library')
+
 
 def run_playbook(playbook, inventory, extra_vars=None,
                  verbose=None, env=None):

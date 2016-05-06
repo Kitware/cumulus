@@ -1,30 +1,45 @@
 ---
 - hosts: localhost
   connection: local
-  vars:
-    regionName: "us-west-2"
   tasks:
-    - set_fact:
-        cluster_id: "{{ lookup('env', 'CLUSTER_ID') }}"
-      when: cluster_id is not defined
+    - fail:
+        msg: "Profile ID must be passed in as profile_id"
+      when: profile_id is not defined or profile_id == ""
 
     - fail:
-        msg: "Cluster ID must be passed in or set as CLUSTER_ID in the environment"
-      when: cluster_id == ""
+        msg: "Volume Name must be passed in as volume_name"
+      when: volume_name is not defined or volume_name == ""
+
+    - fail:
+        msg: "Volume Size must be passed in as volume_size"
+      when: volume_size is not defined or volume_size == ""
+
+    - fail:
+        msg: "Girder Volume ID must be passed in as girder_volume_id"
+      when: girder_volume_id is not defined or girder_volume_id == ""
+
 
     - ec2_vol:
-        volume_size: 11
-        region: "{{ regionName }}"
-        zone: "{{ regionName }}a"
-        instance: "{{ instance_id | default(omit)}}"
+        name: "ec2_{{ profile_id }}_{{ volume_name }}"
+        volume_size: "{{ volume_size }}"
+        region: "{{ volume_zone[:-1] }}"
+        zone: "{{ volume_zone }}"
       register: vol
-
-    - debug: msg="{{ vol.volume_id }}"
 
     - ec2_tag:
         resource: "{{ vol.volume_id }}"
-        region: "{{ regionName }}"
+        region: "{{ volume_zone[:-1] }}"
         state: present
         tags:
-          Name: "ec2_pod_{{ cluster_id }}_volume"
-          ec2_pod: "{{ cluster_id }}"
+          profile_id: "{{ profile_id }}"
+
+    # Patch the volume ID back to girder
+    - girder:
+        apiUrl: "{{ girder_api_url }}"
+        token: "{{ girder_token }}"
+        patch:
+          path: "volumes/{{ girder_volume_id }}"
+          data:
+            ec2:
+              id: "{{ vol.volume_id }}"
+      when: girder_api_url is defined and girder_token is defined
