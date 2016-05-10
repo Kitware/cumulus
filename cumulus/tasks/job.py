@@ -255,13 +255,21 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
             job['dir'] = job_dir
 
             slots = -1
+
+            # Try job parameters first
+            slots = job_params.get('numberOfSlots', slots)
+
+            if slots == -1:
+                # Try the cluster
+                slots = cluster['config'].get('numberOfSlots', slots)
+
             parallel_env = _get_parallel_env(cluster, job)
             if parallel_env:
                 job_params['parallelEnvironment'] = parallel_env
 
                 # If the number of slots has not been provided we will get
                 # the number of slots from the parallel environment
-                if ('numberOfSlots' not in cluster['config']):
+                if slots == -1:
                     slots = get_queue_adapter(cluster, conn) \
                         .number_of_slots(parallel_env)
                     if slots > 0:
