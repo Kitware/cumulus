@@ -18,11 +18,6 @@
           to_port: 22
           cidr_ip: "{{ source_cidr_ip |default('0.0.0.0/0') }}"
 
-        - proto: tcp # http websocket
-          from_port: 9000
-          to_port: 9000
-          cidr_ip: "{{ source_cidr_ip |default('0.0.0.0/0') }}"
-
         - proto: all
           group_name: "ec2_pod_{{cluster_id}}"
           group_desc: "Ec2 security group for cluster {{ cluster_id }}"
@@ -44,5 +39,5 @@
       state: "{{ cluster_state }}"
       region: "{{ cluster_region }}"
       default_image: ami-e0f7e081
-      rules: "{{ ec2_pod_spec.rules }}"
+      rules: "{{ ec2_pod_spec.rules | union(extra_rules|default([]))}}"
       hosts: "{{ ec2_pod_spec.hosts }}"
