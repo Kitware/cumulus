@@ -22,6 +22,7 @@ import cumulus
 import requests
 import os
 from celery.utils.log import get_task_logger
+from jsonpath_rw import parse
 
 from cumulus.ansible.tasks.utils import get_playbook_path
 from cumulus.ansible.tasks.utils import check_girder_cluster_status
@@ -33,6 +34,14 @@ from cumulus.ansible.tasks.volume import detach_volume
 
 logger = get_task_logger(__name__)
 
+def _get_passphrase(profile):
+    passphrase = parse('ssh.passphrase').find(profile)
+    if passphrase:
+        passphrase = passphrase[0].value
+    else:
+        passphrase = None
+
+    return passphrase
 
 @command.task
 def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
@@ -54,7 +63,8 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
     inventory = os.path.join(os.path.dirname(__file__), 'providers', 'ec2.py')
 
     ansible = run_playbook(playbook, inventory, playbook_variables,
-                           env=env, verbose=3)
+                           env=env, verbose=3,
+                           passphrase=_get_passphrase(profile))
 
     check_girder_cluster_status(cluster, girder_token, post_status)
     check_ansible_return_code(ansible, cluster, girder_token)

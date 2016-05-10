@@ -24,6 +24,7 @@ import requests
 from cumulus.common import check_status
 from celery.utils.log import get_task_logger
 from cumulus.ssh.tasks.key import _key_path
+from cumulus.ssh.agent import Agent
 
 logger = get_task_logger(__name__)
 
@@ -47,7 +48,7 @@ def get_library_path():
 
 
 def run_playbook(playbook, inventory, extra_vars=None,
-                 verbose=None, env=None):
+                 verbose=None, env=None, passphrase=None):
 
     env = env if env is not None else os.environ.copy()
 
@@ -61,11 +62,19 @@ def run_playbook(playbook, inventory, extra_vars=None,
 
     cmd.append(playbook)
 
+    agent = None
+    if passphrase:
+        agent = Agent(env['PRIVATE_KEY_FILE'], passphrase)
+        (socket_path, socket) = agent.listen()
+        env['SSH_AUTH_SOCK'] = socket_path
+
     p = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
 
     while True:
         reads = [p.stdout.fileno(), p.stderr.fileno()]
+        if agent:
+            reads.append(socket)
         ret = select.select(reads, [], [])
 
         for fd in ret[0]:
@@ -77,10 +86,14 @@ def run_playbook(playbook, inventory, extra_vars=None,
                 # Make sure we don't report these as errors
                 if err.strip() != '':
                     logger.error(err)
+            if fd == socket:
+                agent.accept()
 
         if p.poll() is not None:
             return p.wait()
 
+    if agent:
+        agent.close()
 
 def get_playbook_variables(cluster, profile, extra_vars):
     # Default variables all playbooks will need
