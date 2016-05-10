@@ -101,7 +101,7 @@ class Agent(object):
         self._conn.bind(self._file)
         self._conn.listen(1)
 
-        return self._file
+        return (self._file, self._conn)
 
     @property
     def key(self):
