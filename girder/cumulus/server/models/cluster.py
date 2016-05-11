@@ -146,6 +146,12 @@ class Cluster(BaseModel):
                 'name': profile}
 
         profile = self.model('aws', 'cumulus').findOne(query)
+        passphrase = parse('ssh.passphrase').find(profile)
+
+        if passphrase:
+            passphrase = passphrase[0].value
+        else:
+            passphrase = None
 
         if profile is None:
             raise ValidationException('Profile must be specified!')
@@ -172,6 +178,9 @@ class Cluster(BaseModel):
             },
             'type': cluster_type
         }
+
+        if passphrase:
+            cluster['config']['ssh']['passphrase'] = passphrase
 
         return self._create(user, cluster)
 
