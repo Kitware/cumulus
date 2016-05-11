@@ -63,7 +63,7 @@ def run_playbook(playbook, inventory, extra_vars=None,
     cmd.append(playbook)
 
     agent = None
-    if passphrase:
+    if passphrase and 'PRIVATE_KEY_FILE' in env:
         agent = Agent(env['PRIVATE_KEY_FILE'], passphrase)
         (socket_path, socket) = agent.listen()
         env['SSH_AUTH_SOCK'] = socket_path
@@ -86,7 +86,7 @@ def run_playbook(playbook, inventory, extra_vars=None,
                 # Make sure we don't report these as errors
                 if err.strip() != '':
                     logger.error(err)
-            if fd == socket:
+            if agent and fd == socket:
                 agent.accept()
 
         if p.poll() is not None:
