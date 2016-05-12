@@ -39,13 +39,6 @@ class EC2Provider(Provider):
                        {i['Key']: i['Value']
                         for i in instance.tags}['ec2_pod_instance_name'])
 
-    @staticmethod
-    def get_regions():
-        if os.environ.get('AWS_REGIONS', '') != '':
-            return set(os.environ.get('AWS_REGIONS').split(','))
-        else:
-            return set(['us-east-1', 'us-west-1', 'us-west-2'])
-
     def get_inventory(self, cluster_id):
         """
         Retrieve the inventory from a set of regions in an Ansible Dynamic
@@ -59,19 +52,11 @@ class EC2Provider(Provider):
         inventory = {}
         instances = []
 
-        # Gather all instances that pass instance_filter into instances
-        for region in self.get_regions():
-            ec2 = boto3.resource(
-                'ec2',
-                region,
-                aws_access_key_id=self.accessKeyId,
-                aws_secret_access_key=self.secretAccessKey)
+        region_instances = self.ec2.instances.filter(Filters=[
+            {'Name': 'tag:ec2_pod', 'Values': [cluster_id]},
+            {'Name': 'instance-state-name', 'Values': ['running']}])
 
-            region_instances = ec2.instances.filter(Filters=[
-                {'Name': 'tag:ec2_pod', 'Values': [cluster_id]},
-                {'Name': 'instance-state-name', 'Values': ['running']}])
-
-            instances += [i for i in region_instances]
+        instances += [i for i in region_instances]
 
         # Build up main inventory, instance_name is something like "head" or "node"
         # instance_name_instances are the boto.ec2.instance objects that have an
@@ -99,12 +84,26 @@ class EC2Provider(Provider):
     def get_volumes(self):
         pass
 
+    @property
+    def ec2(self):
+        try:
+            return boto3.resource(
+                'ec2',
+                self.regionName,
+                aws_access_key_id=self.accessKeyId,
+                aws_secret_access_key=self.secretAccessKey)
+        except AttributeError:
+            return boto3.resource(
+                'ec2',
+                os.environ['REGION_NAME'],
+                aws_access_key_id=self.accessKeyId,
+                aws_secret_access_key=self.secretAccessKey)
 Provider.register('ec2', EC2Provider)
 
 
 if __name__ == "__main__":
     REQUIRED_ENV_VARS = ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY',
-                         'CLUSTER_ID',)
+                         'CLUSTER_ID', 'REGION_NAME')
 
     for required_env_var in REQUIRED_ENV_VARS:
         if os.environ.get(required_env_var, '') == '':
