@@ -1,6 +1,6 @@
 from cumulus.celery import command
 from cumulus.common import check_status
-from cumulus.ansible.tasks.dynamic_inventory.ec2 import get_inventory
+from cumulus.ansible.tasks.providers import Provider
 from inventory import AnsibleInventory
 import cumulus
 import requests
@@ -149,19 +149,13 @@ def start_cluster(launch_playbook, provision_playbook, cluster, profile,
                       provision_extra_vars, girder_token, log_write_url,
                       'provisioned')
 
-    # Update the hostname for the cluster
-    inventory = get_inventory(
-        aws_access_key_id=profile['accessKeyId'],
-        aws_secret_access_key=secret_key,
-        cluster_id=cluster['_id'])
-
     # Now update the cluster state to 'running'
     check_girder_cluster_status(cluster, girder_token, 'running')
 
 
 @command.task
 def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
-                   girder_token, log_write_url, post_status, master_name=None):
+                   girder_token, log_write_url, post_status):
     playbook = get_playbook_path(playbook)
     playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
 
@@ -178,29 +172,19 @@ def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
         ansible = run_playbook(playbook, inventory_path, playbook_variables,
                                env=env, verbose=3)
 
-    # Grab the post-launch inventory (opportunity to do validation here)
-    inventory = get_inventory(
-        aws_access_key_id=profile['accessKeyId'],
-        aws_secret_access_key=secret_key,
-        cluster_id=cluster['_id'])
+    p = Provider(profile)
+    master = p.get_master_instance(cluster)
 
-    if master_name:
-        master = parse('%s.hosts[0]' % master_name).find(inventory)
-        if master:
-            master = master[0].value
-        else:
-            raise Exception('Unable to extract cluster master host.')
-
-        status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
-                                         cluster['_id'])
-        updates = {
-            'config': {
-                'host': master
-            }
+    status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
+                                     cluster['_id'])
+    updates = {
+        'config': {
+            'host': master.public_ip
         }
-        headers = {'Girder-Token':  girder_token}
-        r = requests.patch(status_url, headers=headers, json=updates)
-        check_status(r)
+    }
+    headers = {'Girder-Token':  girder_token}
+    r = requests.patch(status_url, headers=headers, json=updates)
+    check_status(r)
 
     check_ansible_return_code(ansible, cluster, girder_token)
     check_girder_cluster_status(cluster, girder_token, post_status)

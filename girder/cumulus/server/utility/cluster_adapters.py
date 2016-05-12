@@ -155,15 +155,10 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             'config.launch.params', self.cluster, default={})
         playbook_params['cluster_state'] = 'running'
 
-        # If we are launching sge, then set the name of the master node
-        master_name = None
-        if playbook == self.DEFAULT_PLAYBOOK:
-            master_name = 'head'
-
         cumulus.ansible.tasks.cluster.launch_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
                    playbook_params, girder_token, log_write_url,
-                   'launched', master_name=master_name)
+                   'launched')
 
         return self.cluster
 
