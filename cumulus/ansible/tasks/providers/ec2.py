@@ -132,22 +132,26 @@ class EC2Provider(Provider):
 
         return self._volume_cache[volume_id]
 
-    def get_volume_state(self, girder_volume):
+    def get_volume(self, girder_volume):
         aws_volume = self._get_volume(girder_volume)
+        volume = {'volume_id': aws_volume.id}
 
-        volume_status = parse('VolumeStatuses[0].VolumeStatus.Status')\
+        status = parse('VolumeStatuses[0].VolumeStatus.Status')\
             .find(aws_volume.describe_status())[0].value
 
-        if volume_status != 'ok':
-            if volume_status == 'insufficient-data':
-                return VolumeState.PROVISIONING
+        if status != 'ok':
+            if status == 'insufficient-data':
+                volume['state'] = VolumeState.PROVISIONING
             else:
-                return VolumeState.ERROR
+                volume['state'] = VolumeState.ERROR
 
+        # TODO add 'instance_id' here (None if not attached)
         if aws_volume.attachments:
-            return VolumeState.INUSE
+            volume['state'] =  VolumeState.INUSE
+        else:
+            volume['state'] = VolumeState.AVAILABLE
 
-        return VolumeState.AVAILABLE
+        return volume
 
 Provider.register('ec2', EC2Provider)
 

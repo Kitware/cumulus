@@ -35,5 +35,5 @@ class Provider(object):
     def get_volumes(self):
         raise NotImplementedError("Must be implemented by subclass")
 
-    def get_volume_state(self, volume_id):
+    def get_volume(self, volume_id):
         raise NotImplementedError("Must be implemented by subclass")

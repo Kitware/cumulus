@@ -360,19 +360,14 @@ class Volume(BaseResource):
     @access.user
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def get_status(self, volume, params):
-
-        ec2_id = parse('ec2.id').find(volume)[0].value
-
-        if len(ec2_id) < 1:
-            return {'status': 'creating'}
-
-        # If we have an ec2 id delegate the call to ec2
         profile_id = parse('profileId').find(volume)[0].value
+
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
-        client = get_ec2_client(profile)
 
-        return {'status': self._get_status(client, ec2_id)}
+        p = Provider(profile)
+
+        return {'status': p.get_volume(volume)['state']}
 
     get_status.description = (
         Description('Get the status of a volume')
