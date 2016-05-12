@@ -1,4 +1,6 @@
+from cumulus.constants import VolumeState
 from cumulus.ansible.tasks.inventory import AnsibleInventory
+from jsonpath_rw import parse
 import boto3.ec2
 from itertools import groupby
 import json
@@ -17,6 +19,8 @@ class EC2Provider(Provider):
                 self.girder_profile_id)
 
             self.secretAccessKey = profile.get('secreteAccessKey', None)
+
+        self._volume_cache = {}
 
     def _get_instance_vars(self, instance):
         """
@@ -98,6 +102,37 @@ class EC2Provider(Provider):
                 os.environ['REGION_NAME'],
                 aws_access_key_id=self.accessKeyId,
                 aws_secret_access_key=self.secretAccessKey)
+
+    def _get_volume(self, girder_volume, refresh_cache=False):
+        volume_id = parse('ec2.id').find(girder_volume)[0].value
+
+        try:
+            if refresh_cache:
+                self._volume_cache[volume_id] = self.ec2.Volume(volume_id)
+
+            return self._volume_cache[volume_id]
+        except KeyError:
+            self._volume_cache[volume_id] = self.ec2.Volume(volume_id)
+
+        return self._volume_cache[volume_id]
+
+    def get_volume_state(self, girder_volume):
+        aws_volume = self._get_volume(girder_volume)
+
+        volume_status = parse('VolumeStatuses[0].VolumeStatus.Status')\
+            .find(aws_volume.describe_status())[0].value
+
+        if volume_status != 'ok':
+            if volume_status == 'insufficient-data':
+                return VolumeState.PROVISIONING
+            else:
+                return VolumeState.ERROR
+
+        if aws_volume.attachments:
+            return VolumeState.INUSE
+
+        return VolumeState.AVAILABLE
+
 Provider.register('ec2', EC2Provider)
 
 

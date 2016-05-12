@@ -44,8 +44,10 @@ class VolumeType:
 
 
 class VolumeState:
+    PROVISIONING = 'provisioning'
     AVAILABLE = 'available'
     INUSE = 'in-use'
+    ERROR = 'error'
 
 
 class QueueType:
