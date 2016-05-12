@@ -85,6 +85,22 @@ class EC2Provider(Provider):
 
         return inventory
 
+    def get_master_instance(self, cluster):
+        cluster_id = str(cluster["_id"])
+
+        instances = list(self.ec2.instances.filter(Filters=[
+            {'Name': 'tag:ec2_pod_instance_name', 'Values': ['head']},
+            {'Name': 'tag:ec2_pod', 'Values': [cluster_id]},
+            {'Name': 'instance-state-name', 'Values': ['running']}]))
+
+        if len(instances) == 0:
+            raise Exception("No master node could be found!")
+        if len(instances) > 1:
+            raise Exception("More than one master node was found!")
+
+        return self._get_instance_vars(instances[0])
+
+
     def get_volumes(self):
         pass
 

@@ -29,6 +29,9 @@ class Provider(object):
     def get_inventory(self):
         raise NotImplementedError("Must be implemented by subclass")
 
+    def get_master_instance(self):
+        raise NotImplementedError("Must be implemented by subclass")
+
     def get_volumes(self):
         raise NotImplementedError("Must be implemented by subclass")
 
