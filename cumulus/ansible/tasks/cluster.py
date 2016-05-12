@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 ###############################################################################
 #  Copyright 2016 Kitware Inc.
 #
@@ -13,7 +16,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ###############################################################################
-
 from cumulus.celery import command
 from cumulus.common import check_status
 from cumulus.ansible.tasks.providers import CloudProvider
