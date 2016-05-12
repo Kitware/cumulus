@@ -35,6 +35,7 @@ SSH2_AGENT_REQUEST_IDENTITIES = 11
 SSH2_AGENT_REQUEST_SIGN = 13
 SSH2_AGENT_FAILURE = 5
 
+
 class Agent(object):
     """
     This class implements the SSH agent protocol to allow the use of encrypted
@@ -140,7 +141,6 @@ class Agent(object):
             except Agent.ConnectionException:
                 self._conn.close()
 
-
     def __init__(self, key_path, passphrase):
         """
         Create a new agent.
@@ -190,5 +190,3 @@ class Agent(object):
         """
         self._conn.close()
         shutil.rmtree(self._dir)
-
-

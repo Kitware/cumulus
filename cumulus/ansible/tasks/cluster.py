@@ -34,6 +34,7 @@ from cumulus.ansible.tasks.volume import detach_volume
 
 logger = get_task_logger(__name__)
 
+
 def _get_passphrase(profile):
     passphrase = parse('ssh.passphrase').find(profile)
     if passphrase:
@@ -42,6 +43,7 @@ def _get_passphrase(profile):
         passphrase = None
 
     return passphrase
+
 
 @command.task
 def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,

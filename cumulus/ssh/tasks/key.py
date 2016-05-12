@@ -16,14 +16,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ###############################################################################
-
-import random
-import string
 import os
 import stat
 from paramiko.rsakey import RSAKey
 import requests
-
+import random
+import string
 
 import cumulus
 from cumulus.celery import command

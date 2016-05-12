@@ -95,6 +95,7 @@ def run_playbook(playbook, inventory, extra_vars=None,
     if agent:
         agent.close()
 
+
 def get_playbook_variables(cluster, profile, extra_vars):
     # Default variables all playbooks will need
     playbook_variables = {
