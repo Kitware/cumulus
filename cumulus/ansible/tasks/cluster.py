@@ -11,6 +11,7 @@ from celery.utils.log import get_task_logger
 import select
 from jsonpath_rw import parse
 import pkg_resources as pr
+from cumulus.ssh.tasks.key import _key_path
 
 logger = get_task_logger(__name__)
 
@@ -64,7 +65,8 @@ def get_playbook_variables(cluster, profile, extra_vars):
     # Default variables all playbooks will need
     playbook_variables = {
         'cluster_region': profile['regionName'],
-        'cluster_id': cluster['_id']
+        'cluster_id': cluster['_id'],
+        'ansible_ssh_private_key': _key_path(profile)
     }
 
     # Update with variables passed in from the cluster adapater
@@ -110,7 +112,6 @@ def check_ansible_return_code(returncode, cluster, girder_token):
 @command.task
 def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
                       girder_token, log_write_url, post_status):
-    from cumulus.ssh.tasks.key import _key_path
 
     playbook = get_playbook_path(playbook)
     playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
@@ -122,8 +123,7 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
                 'LOG_WRITE_URL': log_write_url,
                 'CLUSTER_ID': cluster['_id'],
                 'ANSIBLE_HOST_KEY_CHECKING': 'false',
-                'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path(),
-                'PRIVATE_KEY_FILE': _key_path(profile)})
+                'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path()})
 
     inventory = os.path.join(os.path.dirname(__file__), 'dynamic_inventory')
 

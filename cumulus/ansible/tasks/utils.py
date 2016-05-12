@@ -7,6 +7,7 @@ import cumulus
 import requests
 from cumulus.common import check_status
 from celery.utils.log import get_task_logger
+from cumulus.ssh.tasks.key import _key_path
 
 logger = get_task_logger(__name__)
 
@@ -63,7 +64,8 @@ def get_playbook_variables(cluster, profile, extra_vars):
     # Default variables all playbooks will need
     playbook_variables = {
         'cluster_region': profile['regionName'],
-        'cluster_id': cluster['_id']
+        'cluster_id': cluster['_id'],
+        'ansible_ssh_private_key': _key_path(profile)
     }
 
     # Update with variables passed in from the cluster adapater

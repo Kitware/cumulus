@@ -26,8 +26,7 @@ class EC2Provider(Provider):
         return {
             'instance_id': instance.id,
             'private_ip': instance.private_ip_address,
-            'ansible_ssh_private_key_file': os.environ.get(
-                'PRIVATE_KEY_FILE', '')
+            'public_ip': instance.public_ip_address,
         }
 
     def _instances_by_name(self, instances):
