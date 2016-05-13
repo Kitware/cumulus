@@ -1,3 +1,12 @@
+class InstanceState():
+    PENDING = "pending"
+    RUNNING = "running"
+    SHUTTINGDOWN = "shutting-down"
+    TERMINATED = "terminated"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+
+
 class Provider(object):
     __provider_registry__ = {}
 

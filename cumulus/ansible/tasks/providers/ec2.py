@@ -6,11 +6,19 @@ from itertools import groupby
 import json
 import os
 
-from base import Provider
+from base import Provider, InstanceState
 from girder.api.rest import ModelImporter
 
-
 class EC2Provider(Provider):
+    InstanceState = {
+        0: InstanceState.PENDING,
+        16: InstanceState.RUNNING,
+        32: InstanceState.SHUTTINGDOWN,
+        48: InstanceState.TERMINATED,
+        64: InstanceState.STOPPING,
+        80: InstanceState.STOPPED
+    }
+
     def __init__(self, profile):
         super(EC2Provider, self).__init__(profile)
 
@@ -31,6 +39,7 @@ class EC2Provider(Provider):
             'instance_id': instance.id,
             'private_ip': instance.private_ip_address,
             'public_ip': instance.public_ip_address,
+            'state': self.InstanceState[instance.state['Code']],
         }
 
     def _instances_by_name(self, instances):
