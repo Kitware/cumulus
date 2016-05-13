@@ -1,15 +1,21 @@
 ---
 - hosts: head
   tasks:
-    - name: Fail if profile ID not set
+    - name: Fail if volume_id is not set
       fail:
-        msg: "Profile ID must be passed in as profile_id"
-      when: profile_id is not defined or profile_id == ""
+        msg: "Volume ID must be passed in as volume_id"
+      when: volume_id is not defined or volume_id == ""
 
-    - name: Fail if girder volume ID is not set
+    - name: Fail if instance_id is not set
       fail:
-        msg: "Girder Volume ID must be passed in as girder_volume_id"
-      when: girder_volume_id is not defined or girder_volume_id == ""
+        msg: "Instance ID must be passed in as girder_instance_id"
+      when: instance_id is not defined or instance_id == ""
+
+    - name: Fail if path is not set
+      fail:
+        msg: "Path must be passed in as path"
+      when: path is not defined or path == ""
+
 
     # make local action
     - ec2_vol:

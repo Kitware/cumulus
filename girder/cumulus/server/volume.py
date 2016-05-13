@@ -41,6 +41,8 @@ from cumulus.common.girder import get_task_token
 
 import cumulus.ansible.tasks.volume
 
+from cumulus.ansible.tasks.providers import Provider, InstanceState
+
 class Volume(BaseResource):
 
     def __init__(self):
@@ -93,7 +95,6 @@ class Volume(BaseResource):
 
     @access.user
     def patch(self, id, params):
-        import pudb; pu.db
         body = getBodyJson()
         user = self.getCurrentUser()
 
@@ -154,14 +155,6 @@ class Volume(BaseResource):
 
         return self._model.filter(volume, getCurrentUser())
 
-    addModel('AwsParameter', {
-        'id': 'ConfigParameter',
-        'required': ['_id'],
-        'properties': {
-            'profileId': {'type': 'string',
-                          'description': 'Id of AWS profile to use'}
-        }
-    }, 'volumes')
 
     addModel('VolumeParameters', {
         'id': 'VolumeParameters',
@@ -169,8 +162,8 @@ class Volume(BaseResource):
         'properties': {
             'name': {'type': 'string',
                      'description': 'The name to give the cluster.'},
-            'aws':  {'type': 'AwsParameter',
-                     'description': 'The AWS configuration'},
+            'profileId':  {'type': 'string',
+                           'description': 'Id of profile to use'},
             'type': {'type': 'string',
                      'description': 'The type of volume to create ( currently '
                      'only esb )'},
@@ -231,35 +224,44 @@ class Volume(BaseResource):
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def attach(self, volume, cluster, params):
         body = getBodyJson()
-        self.requireParams(['path'], body)
 
-        if cluster['type'] != ClusterType.EC2:
-            raise RestException('Invalid cluster type', 400)
+        self.requireParams(['path'], body)
+        path = body['path']
 
         profile_id = parse('profileId').find(volume)[0].value
-        profile = self.model('aws', 'cumulus').load(profile_id,
-                                                    user=getCurrentUser())
-        volume_id = parse('ec2.id').find(volume)[0].value
-        client = get_ec2_client(profile)
-        status = self._get_status(client, volume_id)
+        profile, secret_key = self._get_profile(profile_id)
 
-        if status != VolumeState.AVAILABLE:
+        girder_callback_info = {
+            "girder_api_url": getApiUrl(),
+            "girder_token": get_task_token()['_id']}
+
+        p = Provider(dict(secretAccessKey=secret_key, **profile))
+
+        aws_volume = p.get_volume(volume)
+        if aws_volume['state'] != VolumeState.AVAILABLE:
             raise RestException('This volume is not available to attach '
                                 'to a cluster',
                                 400)
 
-        if cluster['status'] == 'running':
-            raise RestException('Unable to attach volume to running cluster',
+        master = p.get_master_instance(cluster)
+        if master['state'] != InstanceState.RUNNING:
+            raise RestException('Master instance is not running!',
                                 400)
 
-        volumes = cluster.setdefault('volumes', [])
-        volumes.append(volume['_id'])
+        cumulus.ansible.tasks.volume.attach_volume\
+            .delay(profile, cluster, master, volume, path,
+                   secret_key, girder_callback_info)
 
-        # Add cluster id to volume
-        volume['clusterId'] = cluster['_id']
 
-        self.model('cluster', 'cumulus').save(cluster)
-        self.model('volume', 'cumulus').save(volume)
+        #
+        # volumes = cluster.setdefault('volumes', [])
+        # volumes.append(volume['_id'])
+        #
+        # # Add cluster id to volume
+        # volume['clusterId'] = cluster['_id']
+        #
+        # self.model('cluster', 'cumulus').save(cluster)
+        # self.model('volume', 'cumulus').save(volume)
 
     addModel('AttachParameters', {
         'id': 'AttachParameters',
