@@ -1,7 +1,7 @@
 from cumulus.celery import command
 from cumulus.common import check_status
 from cumulus.ansible.tasks.providers import Provider
-from inventory import AnsibleInventory
+from inventory import simple_inventory
 import cumulus
 import requests
 import os
@@ -166,7 +166,7 @@ def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
                 'LOG_WRITE_URL': log_write_url,
                 'CLUSTER_ID': cluster['_id']})
 
-    inventory = AnsibleInventory(['localhost'])
+    inventory = simple_inventory('localhost')
 
     with inventory.to_tempfile() as inventory_path:
         ansible = run_playbook(playbook, inventory_path, playbook_variables,
@@ -203,7 +203,7 @@ def terminate_cluster(playbook, cluster, profile, secret_key, extra_vars,
                 'LOG_WRITE_URL': log_write_url,
                 'CLUSTER_ID': cluster['_id']})
 
-    inventory = AnsibleInventory(['localhost'])
+    inventory = simple_inventory('localhost')
 
     with inventory.to_tempfile() as inventory_path:
         ansible = run_playbook(playbook, inventory_path, playbook_variables,

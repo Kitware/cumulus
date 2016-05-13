@@ -1,5 +1,5 @@
 from cumulus.celery import command
-from cumulus.ansible.tasks.inventory import AnsibleInventory
+from cumulus.ansible.tasks.inventory import simple_inventory
 
 from cumulus.ansible.tasks.utils import run_playbook
 from cumulus.ansible.tasks.utils import get_playbook_directory
@@ -33,7 +33,7 @@ def create_volume(profile, volume, secret_key, girder_callback_info):
                 'ANSIBLE_LIBRARY':get_library_path(),
                 'PRIVATE_KEY_FILE': _key_path(profile)})
 
-    inventory = AnsibleInventory(['localhost'])
+    inventory = simple_inventory('localhost')
 
     with inventory.to_tempfile() as inventory_path:
         run_playbook(playbook, inventory_path,
