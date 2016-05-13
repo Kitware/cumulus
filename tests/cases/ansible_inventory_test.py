@@ -262,3 +262,49 @@ localhost
         i = inventory.AnsibleInventory.from_json(source)
 
         self.assertEquals(i.to_string(), target)
+
+
+    def test_simple_inventory_string(self):
+        target = inventory.AnsibleInventory(['localhost'])
+        source = inventory.simple_inventory('localhost')
+
+        self.assertEquals(source.to_string(), target.to_string())
+
+    def test_simple_inventory_list(self):
+        target = inventory.AnsibleInventory(['localhost', 'localhost2'])
+        source = inventory.simple_inventory(['localhost', 'localhost2'])
+
+        self.assertEquals(source.to_string(), target.to_string())
+
+    def test_simple_inventory_dict(self):
+        target = inventory.AnsibleInventory([], sections=[
+            inventory.AnsibleInventoryGroup('test', ['localhost', 'localhost2'])])
+
+        source = inventory.simple_inventory(
+            {"test": ["localhost", "localhost2"]})
+
+        self.assertEquals(source.to_string(), target.to_string())
+
+    def test_simple_inventory_string_and_dict(self):
+        target = inventory.AnsibleInventory(['localhost'], sections=[
+            inventory.AnsibleInventoryGroup('test', ['localhost', 'localhost2'])])
+
+        source = inventory.simple_inventory(
+            'localhost',
+            {"test": ["localhost", "localhost2"]})
+
+        self.assertEquals(source.to_string(), target.to_string())
+
+    def test_simple_inventory_list_and_dict(self):
+        target = inventory.AnsibleInventory(
+            ['localhost', 'localhost2'],
+            sections=[
+                inventory.AnsibleInventoryGroup(
+                    'test',
+                    ['localhost', 'localhost2'])])
+
+        source = inventory.simple_inventory(
+            ['localhost', 'localhost2'],
+            {"test": ["localhost", "localhost2"]})
+
+        self.assertEquals(source.to_string(), target.to_string())

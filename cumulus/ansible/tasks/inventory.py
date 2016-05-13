@@ -288,3 +288,64 @@ class AnsibleInventory(object):
         yield path
 
         os.remove(path)
+
+
+def simple_inventory(a, b=None):
+    """Generate an inventory object from a list of arguments
+
+    This is a utility function designed to generate an AnsibleInventory
+    object from simple python built-in types. It is intended to cover
+    common use cases.  If simple_inventory does not meet your needs please
+    use the AnsibleInventory object and related classes (e.g.
+    AnsibleInventoryGroup) instead. simple_inventory takes one required
+    argument (a) and one optional argument (b).
+
+    If 'a' is a string and 'b' is not included we assume a single global host
+
+    if 'a' is a list and 'b' is not included we assume a list of global hosts
+
+    if 'a' is a dict and 'b' is not included we assume keys are group names
+        and that values are lists of hosts to include in that group
+
+    if 'a' is a string and 'b' is a dict we assume that 'a' is a single global
+        host and that 'b' is a dict where keys are groups,  and values are
+        lists of hosts in those groups.
+
+    if 'a' is a list and 'b' is a dict we assume that 'a' is a list of global
+        hosts and that 'b' is a dict where keys are groups, and values are
+        lists of hosts in those groups.
+
+    :param a: first argument
+    :type a: string, list, dict
+    :param b: list, dict, NoneType
+    :returns: an ansible inventory object
+    :rtype: AnsibleInventoryObject
+
+    """
+    # Simple string,  assume a single global host
+    if isinstance(a, basestring) and b is None:
+        return AnsibleInventory([a])
+
+    # List of items,  assume a list of global hosts
+    if isinstance(a, list) and b is None:
+        return AnsibleInventory(a)
+
+    # Assume a dict of group:list(hosts)
+    if isinstance(a, dict):
+        return AnsibleInventory(
+            [], sections=[AnsibleInventoryGroup(group, hosts)
+                          for group, hosts in a.items()])
+
+    # Assume a list of global hosts and group:list(hosts)
+    if isinstance(a, list) and isinstance(b, dict):
+        return AnsibleInventory(
+            a, sections=[AnsibleInventoryGroup(group, hosts)
+                         for group, hosts in b.items()])
+
+    if isinstance(a, basestring) and isinstance(b, dict):
+        return AnsibleInventory(
+            [a], sections=[AnsibleInventoryGroup(group, hosts)
+                           for group, hosts in b.items()])
+
+    raise Exception("simple_inventory could not parse arguments, "
+                    "maybe you want something more complicate?")
