@@ -1,0 +1,31 @@
+---
+- hosts: head
+  tasks:
+    - name: Fail if profile ID not set
+      fail:
+        msg: "Profile ID must be passed in as profile_id"
+      when: profile_id is not defined or profile_id == ""
+
+    - name: Fail if girder volume ID is not set
+      fail:
+        msg: "Girder Volume ID must be passed in as girder_volume_id"
+      when: girder_volume_id is not defined or girder_volume_id == ""
+
+    - mount:
+        name: "{{ path }}"
+        state: unmounted
+        # src & fstype are required but not actually used - this prevents us
+        # from having to keep the actual device path somewhere and pass it
+        # in See: https://github.com/ansible/ansible-modules-core/issues/1259
+        src: "EMPTY"
+        fstype: "EMPTY"
+      become: yes
+      become_user: root
+      register: unmount
+
+    - ec2_vol:
+        id: "{{ volume_id }}"
+        region: "{{ region }}"
+        instance: None
+      delegate_to: localhost
+      register: vol
