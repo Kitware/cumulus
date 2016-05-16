@@ -25,6 +25,7 @@ from girder.constants import AccessType
 from girder.api.rest import getCurrentUser
 
 import cumulus
+from cumulus.common.jsonpath import get_property
 
 def retrieve_credentials(event):
     cluster_id = event.info['authKey']
@@ -38,8 +39,9 @@ def retrieve_credentials(event):
         return
 
     username = parse('config.ssh.user').find(cluster)[0].value
-    key_path = os.path.join(cumulus.config.ssh.keyStore, cluster_id)
-    passphrase = parse('config.ssh.passphrase').find(cluster)[0].value
+    key_name = parse('config.ssh.key').find(cluster)[0].value
+    key_path = os.path.join(cumulus.config.ssh.keyStore, key_name)
+    passphrase = get_property('config.ssh.passphrase', cluster)
 
     if user != username:
         raise Exception('User doesn\'t match cluster user id ')

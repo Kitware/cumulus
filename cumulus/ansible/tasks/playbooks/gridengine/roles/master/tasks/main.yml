@@ -66,13 +66,6 @@
   tags:
     - master
 
-- name: Create allhosts host group
-  become_user: sgeadmin
-  shell: qconf -Ahgrp /tmp/allhosts
-  ignore_errors: true
-  tags:
-    - master
-
 - name: Template allhosts host group file
   become_user: sgeadmin
   template: src=allhosts.j2 dest=/tmp/allhosts
@@ -92,6 +85,27 @@
   ignore_errors: true
   tags:
     - master
+
+- name: Template master host group file
+  become_user: sgeadmin
+  template: src=master.j2 dest=/tmp/master
+  tags:
+    - master
+
+- name: Create master host group
+  become_user: sgeadmin
+  shell: qconf -Ahgrp /tmp/master
+  ignore_errors: true
+  tags:
+    - master
+
+- name: Clean master file
+  become_user: sgeadmin
+  file: path=/tmp/master state=absent
+  ignore_errors: true
+  tags:
+    - master
+
 
 - name: Template parallel environment configuration
   become_user: sgeadmin

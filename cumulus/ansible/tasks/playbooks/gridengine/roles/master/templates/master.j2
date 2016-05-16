@@ -1,0 +1,5 @@
+group_name @master
+
+hostlist {% for host in groups['master'] -%}
+    {{ '%s ' % hostvars[host].private_ip }}
+{%- endfor %}

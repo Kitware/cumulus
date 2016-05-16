@@ -186,7 +186,7 @@ class Cluster(BaseModel):
 
         # Set the key name
         cluster = self._create(user, cluster)
-        cluster['config']['ssh']['key'] = cluster['_id']
+        cluster['config']['ssh']['key'] = str(cluster['_id'])
         self.save(cluster)
 
         return cluster
