@@ -16,48 +16,54 @@
         msg: "Path must be passed in as path"
       when: path is not defined or path == ""
 
+    - block:
+        # make local action
+        - ec2_vol:
+            id: "{{ volume_id }}"
+            region: "{{ region }}"
+            instance: "{{ instance_id }}"
+            device_name: /dev/xvdf
+          delegate_to: localhost
+          register: vol
 
-    # make local action
-    - ec2_vol:
-        id: "{{ volume_id }}"
-        region: "{{ region }}"
-        instance: "{{ instance_id }}"
-        device_name: /dev/xvdf
-      delegate_to: localhost
-      register: vol
+        - filesystem:
+            fstype: ext4
+            dev: /dev/xvdf
+          become: yes
+          become_user: root
 
-    - filesystem:
-        fstype: ext4
-        dev: /dev/xvdf
-      become: yes
-      become_user: root
+        - mount:
+            name: "{{ path }}"
+            src: /dev/xvdf
+            state: mounted
+            fstype: ext4
+            opts: "rw,exec"
+          become: yes
+          become_user: root
 
-    - mount:
-        name: "{{ path }}"
-        src: /dev/xvdf
-        state: mounted
-        fstype: ext4
-        opts: "rw,exec"
-      become: yes
-      become_user: root
+        - file:
+            state: directory
+            path: "{{ path }}"
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+            mode: 0755
+          become: yes
+          become_user: root
 
-    - file:
-        state: directory
-        path: "{{ path }}"
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: 0755
-      become: yes
-      become_user: root
-
-
-# Patch the volume ID back to girder
-#    - girder:
-#        apiUrl: "{{ girder_api_url }}"
-#        token: "{{ girder_token }}"
-#        patch:
-#          path: "volumes/{{ girder_volume_id }}"
-#          data:
-#            ec2:
-#              instance_id: "<< add me >>"
-#      when: girder_api_url is defined and girder_token is defined
+        - girder:
+            apiUrl: "{{ girder_api_url }}"
+            token: "{{ girder_token }}"
+            put:
+              path: "volumes/{{ girder_volume_id }}/clusters/{{ girder_cluster_id }}/attach/complete"
+          delegate_to: localhost
+          when: girder_api_url is defined and girder_token is defined and girder_volume_id is defined and girder_cluster_id is defined
+      rescue:
+        - girder:
+            apiUrl: "{{ girder_api_url }}"
+            token: "{{ girder_token }}"
+            patch:
+              path: "volumes/{{ girder_volume_id }}"
+              data:
+                ec2:
+                  status: 'error'
+          when: girder_api_url is defined and girder_token is defined and girder_volume_id is defined and girder_cluster_id is defined

@@ -55,6 +55,9 @@ class Volume(BaseResource):
         self.route('GET', (':id', 'status'), self.get_status)
         self.route('PUT', (':id', 'clusters', ':clusterId', 'attach'),
                    self.attach)
+        self.route('PUT', (':id', 'clusters', ':clusterId',
+                           'attach', 'complete'),
+                   self.attach_complete)
         self.route('PUT', (':id', 'detach'), self.detach)
         self.route('DELETE', (':id', ), self.delete)
 
@@ -222,6 +225,28 @@ class Volume(BaseResource):
     @loadmodel(map={'clusterId': 'cluster'}, model='cluster', plugin='cumulus',
                level=AccessType.ADMIN)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
+    def attach_complete(self, volume, cluster, params):
+        cluster.setdefault('volumes', [])
+        cluster['volumes'].append(volume['_id'])
+        cluster['volumes'] = list(set(cluster['volumes']))
+
+        if 'ec2' in volume:
+            if 'ec2' not in volume:
+                volume['ec2'] = {}
+            volume['ec2'].update({'status': VolumeState.INUSE})
+
+        # Add cluster id to volume
+        volume['clusterId'] = cluster['_id']
+
+        self.model('cluster', 'cumulus').save(cluster)
+        self.model('volume', 'cumulus').save(volume)
+
+    attach_complete.description = None
+
+    @access.user
+    @loadmodel(map={'clusterId': 'cluster'}, model='cluster', plugin='cumulus',
+               level=AccessType.ADMIN)
+    @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def attach(self, volume, cluster, params):
         body = getBodyJson()
 
@@ -252,16 +277,6 @@ class Volume(BaseResource):
             .delay(profile, cluster, master, volume, path,
                    secret_key, girder_callback_info)
 
-
-        #
-        # volumes = cluster.setdefault('volumes', [])
-        # volumes.append(volume['_id'])
-        #
-        # # Add cluster id to volume
-        # volume['clusterId'] = cluster['_id']
-        #
-        # self.model('cluster', 'cumulus').save(cluster)
-        # self.model('volume', 'cumulus').save(volume)
 
     addModel('AttachParameters', {
         'id': 'AttachParameters',

@@ -48,6 +48,7 @@ def attach_volume(profile, cluster, instance, volume, path,
 
     extra_vars = {
         'girder_volume_id': volume['_id'],
+        'girder_cluster_id': cluster['_id'],
         'region': profile['regionName'],
         'volume_id': volume['ec2']['id'],
         'instance_id': instance['instance_id'],
@@ -69,4 +70,4 @@ def attach_volume(profile, cluster, instance, volume, path,
 
     with inventory.to_tempfile() as inventory_path:
         run_playbook(playbook, inventory_path,
-                     extra_vars, verbose=3, env=env)
+                     extra_vars, verbose=2, env=env)
