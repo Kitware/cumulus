@@ -179,7 +179,7 @@ def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
                                      cluster['_id'])
     updates = {
         'config': {
-            'host': master.public_ip
+            'host': master['public_ip']
         }
     }
     headers = {'Girder-Token':  girder_token}
