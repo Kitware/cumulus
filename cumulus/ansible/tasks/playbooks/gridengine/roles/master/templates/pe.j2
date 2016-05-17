@@ -1,6 +1,6 @@
 pe_name            orte
 {% set slots = [] %}
-{% for host in groups['exec'] + groups['master'] %}
+{% for host in groups.exec | default([]) + groups.master %}
 {% set _ = slots.append(hostvars[host].get('ansible_processor_count', 1)) %}
 {% endfor %}
 slots              {{ slots | sum }}
