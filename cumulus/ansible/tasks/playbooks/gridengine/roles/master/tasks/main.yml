@@ -11,12 +11,14 @@
 - name: Install NFS server package
   apt: name=nfs-kernel-server state=present
   become_user: root
+  when: '"exec" in groups'
   tags:
     - master
     - nfs-server
 
 - name: Stop NFS server
   service: name=nfs-kernel-server state=stopped
+  when: '"exec" in groups'
   tags:
     - master
     - nfs-server
@@ -25,12 +27,14 @@
 - name: Export /home via NFS
   become_user: root
   template: src=export.j2 dest=/etc/exports force=true
+  when: '"exec" in groups'
   tags:
     - master
     - nfs-server
 
 - name: Start NFS server
   service: name=nfs-kernel-server state=running
+  when: '"exec" in groups'
   tags:
     - master
     - nfs-server
@@ -46,7 +50,7 @@
   become_user: sgeadmin
   template: src=exec_host.j2 dest=/tmp/exec_host_{{item}}
   with_items:
-    - "{{ groups['exec'] + groups['master'] }}"
+    - "{{ groups.exec | default([]) + groups.master }}"
   tags:
     - master
 
@@ -55,7 +59,7 @@
   shell: qconf -Ae /tmp/exec_host_{{item}}
   ignore_errors: true
   with_items:
-    - "{{ groups['exec'] + groups['master'] }}"
+    - "{{ groups.exec | default([]) + groups.master }}"
   tags:
     - master
 
