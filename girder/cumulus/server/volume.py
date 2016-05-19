@@ -59,6 +59,7 @@ class Volume(BaseResource):
                            'attach', 'complete'),
                    self.attach_complete)
         self.route('PUT', (':id', 'detach'), self.detach)
+        self.route('PUT', (':id', 'detach', 'complete'), self.detach_complete)
         self.route('DELETE', (':id', ), self.delete)
 
         self._model = self.model('volume', 'cumulus')
@@ -243,9 +244,18 @@ class Volume(BaseResource):
             volume['ec2'].update({
                 'status': VolumeState.INUSE,
                 'path': path})
+            # TODO: removing msg should be refactored into
+            #       a general purpose 'update_status' function
+            #       on the volume model. This way msg only referes
+            #       to the current status.
+            try:
+                del volume['ec2']['msg']
+            except KeyError:
+                pass
 
             # Add cluster id to volume
             volume['clusterId'] = cluster['_id']
+
             self.model('cluster', 'cumulus').save(cluster)
             self.model('volume', 'cumulus').save(volume)
         else:
@@ -294,7 +304,6 @@ class Volume(BaseResource):
             .delay(profile, cluster, master, volume, path,
                    secret_key, girder_callback_info)
 
-
     addModel('AttachParameters', {
         'id': 'AttachParameters',
         'required': ['path'],
@@ -324,30 +333,40 @@ class Volume(BaseResource):
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def detach(self, volume, params):
 
-        if 'clusterId' not in volume:
-            raise RestException('Volume is not attached', 400)
-
-        user = getCurrentUser()
         profile_id = parse('profileId').find(volume)[0].value
-        profile = self.model('aws', 'cumulus').load(profile_id,
-                                                    user=getCurrentUser())
-        client = get_ec2_client(profile)
-        volume_id = parse('ec2.id').find(volume)[0].value
-        status = self._get_status(client, volume_id)
+        profile, secret_key = self._get_profile(profile_id)
 
-        # Call ec2 to do the detach
-        if status == VolumeState.INUSE:
-            client.detach_volume(VolumeId=volume_id)
+        girder_callback_info = {
+            "girder_api_url": getApiUrl(),
+            "girder_token": get_task_token()['_id']}
 
-        # First remove from cluster
+        p = Provider(dict(secretAccessKey=secret_key, **profile))
+
+        aws_volume = p.get_volume(volume)
+        if aws_volume['state'] != VolumeState.INUSE:
+            raise RestException('This volume is not attached '
+                                'to a cluster',
+                                400)
+
+        if 'clusterId' not in volume:
+            raise RestException('clusterId is not set on this volume!', 400)
+
+        try:
+            volume['ec2']['path']
+        except KeyError:
+            raise RestException('path is not set on this volume!', 400)
+
         cluster = self.model('cluster', 'cumulus').load(volume['clusterId'],
-                                                        user=user,
+                                                        user=getCurrentUser(),
                                                         level=AccessType.ADMIN)
-        cluster.setdefault('volumes', []).remove(volume['_id'])
-        del volume['clusterId']
+        master = p.get_master_instance(cluster)
+        if master['state'] != InstanceState.RUNNING:
+            raise RestException('Master instance is not running!',
+                                400)
 
-        self.model('cluster', 'cumulus').save(cluster)
-        self.model('volume', 'cumulus').save(volume)
+        cumulus.ansible.tasks.volume.detatch_volume\
+            .delay(profile, cluster, master, volume,
+                   secret_key, girder_callback_info)
 
     detach.description = (
         Description('Detach a volume from a cluster')
@@ -355,6 +374,32 @@ class Volume(BaseResource):
             'id',
             'The id of the attached volume', required=True,
             paramType='path'))
+
+    @access.user
+    @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
+    def detach_complete(self, volume, params):
+
+        # First remove from cluster
+        cluster = self.model('cluster', 'cumulus').load(volume['clusterId'],
+                                                        user=getCurrentUser(),
+                                                        level=AccessType.ADMIN)
+        cluster.setdefault('volumes', []).remove(volume['_id'])
+
+        del volume['clusterId']
+
+        for attr in ['path', 'msg']:
+            try:
+                del volume['ec2'][attr]
+            except KeyError:
+                pass
+
+        volume['ec2'].update({
+            'status': VolumeState.AVAILABLE}),
+
+        self.model('cluster', 'cumulus').save(cluster)
+        self.model('volume', 'cumulus').save(volume)
+
+    detach_complete.description = None
 
     @access.user
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
@@ -368,7 +413,7 @@ class Volume(BaseResource):
                                                     user=getCurrentUser())
 
         # client = get_ec2_client(profile)
-        volume_id = parse('ec2.id').find(volume)[0].value
+        # volume_id = parse('ec2.id').find(volume)[0].value
         # client.delete_volume(VolumeId=volume_id)
 
         self.model('volume', 'cumulus').remove(volume)
