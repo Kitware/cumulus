@@ -42,5 +42,5 @@
           data:
             ec2:
               id: "{{ vol.volume_id }}"
-              status: "{{ vol.status }}"
+              status: "{{ vol.volume.status }}"
       when: girder_api_url is defined and girder_token is defined
