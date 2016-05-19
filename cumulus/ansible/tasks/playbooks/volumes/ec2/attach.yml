@@ -69,4 +69,5 @@
                 ec2:
                   status: 'error'
                   msg: 'An error occured while attaching the volume, please check the logs'
+          delegate_to: localhost
           when: girder_api_url is defined and girder_token is defined and girder_volume_id is defined
