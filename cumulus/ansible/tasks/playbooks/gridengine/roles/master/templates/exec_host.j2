@@ -1,4 +1,4 @@
-hostname              {{hostvars[item].private_ip}}
+hostname              {{hostvars[item].private_ip|default(hostvars[item].ansible_hostname)}}
 load_scaling          NONE
 complex_values        slots={{ hostvars[item].get('ansible_processor_count', 1) }}
 user_lists            NONE
