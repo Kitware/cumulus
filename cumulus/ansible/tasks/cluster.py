@@ -172,7 +172,8 @@ def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
         ansible = run_playbook(playbook, inventory_path, playbook_variables,
                                env=env, verbose=3)
 
-    p = Provider(profile)
+    p = Provider(dict(secretAccessKey=secret_key, **profile))
+
     master = p.get_master_instance(cluster)
 
     status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
