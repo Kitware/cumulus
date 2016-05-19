@@ -97,11 +97,9 @@ class Volume(BaseResource):
 
 
     @access.user
-    def patch(self, id, params):
+    @loadmodel(model='volume', plugin='cumulus', level=AccessType.WRITE)
+    def patch(self, volume, params):
         body = getBodyJson()
-        user = self.getCurrentUser()
-
-        volume = self._model.load(id, user=user, level=AccessType.WRITE)
 
         if not volume:
             raise RestException('Volume not found.', code=404)
@@ -113,12 +111,18 @@ class Volume(BaseResource):
 
         volume = self._model.save(volume)
 
-        return self._model.filter(volume, user)
+        return self._model.filter(volume, getCurrentUser())
+
+    patch.description = (
+        Description('Patch a volume')
+        .param(
+            'body',
+            'The properties to use to create the volume.',
+            required=True, paramType='body'))
 
 
     @access.user
     def create(self, params):
-
         body = getBodyJson()
         self.requireParams(['name', 'type', 'size', 'profileId'], body)
 
@@ -226,20 +230,33 @@ class Volume(BaseResource):
                level=AccessType.ADMIN)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def attach_complete(self, volume, cluster, params):
-        cluster.setdefault('volumes', [])
-        cluster['volumes'].append(volume['_id'])
-        cluster['volumes'] = list(set(cluster['volumes']))
+        path = params.get("path", None)
 
-        if 'ec2' in volume:
+        if path is not None:
+            cluster.setdefault('volumes', [])
+            cluster['volumes'].append(volume['_id'])
+            cluster['volumes'] = list(set(cluster['volumes']))
+
             if 'ec2' not in volume:
                 volume['ec2'] = {}
-            volume['ec2'].update({'status': VolumeState.INUSE})
 
-        # Add cluster id to volume
-        volume['clusterId'] = cluster['_id']
+            volume['ec2'].update({
+                'status': VolumeState.INUSE,
+                'path': path})
 
-        self.model('cluster', 'cumulus').save(cluster)
-        self.model('volume', 'cumulus').save(volume)
+            # Add cluster id to volume
+            volume['clusterId'] = cluster['_id']
+            self.model('cluster', 'cumulus').save(cluster)
+            self.model('volume', 'cumulus').save(volume)
+        else:
+            if 'ec2' not in volume:
+                volume['ec2'] = {}
+
+            volume['ec2'].update({'status': VolumeState.ERROR})
+            volume['ec2'].update(
+                {'msg': 'Volume path was not communicated on complete'})
+
+            self.model('volume', 'cumulus').save(volume)
 
     attach_complete.description = None
 
