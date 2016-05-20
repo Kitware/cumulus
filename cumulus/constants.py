@@ -46,7 +46,10 @@ class VolumeType:
 class VolumeState:
     PROVISIONING = 'provisioning'
     AVAILABLE = 'available'
+    ATTACHING = 'attaching'
+    DETACHING = 'detaching'
     INUSE = 'in-use'
+    TERMINATING = 'terminating'
     ERROR = 'error'
 
 

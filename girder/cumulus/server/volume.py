@@ -156,7 +156,8 @@ class Volume(BaseResource):
         cumulus.ansible.tasks.volume.create_volume\
             .delay(profile, volume, secret_key, girder_callback_info)
 
-        # self.model('volume', 'cumulus').save(volume)
+        volume['ec2']['status'] = VolumeState.PROVISIONING
+        volume = self.model('volume', 'cumulus').save(volume)
 
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/volumes/%s' % volume['_id']
@@ -304,6 +305,12 @@ class Volume(BaseResource):
             .delay(profile, cluster, master, volume, path,
                    secret_key, girder_callback_info)
 
+        volume['ec2']['status'] = VolumeState.ATTACHING
+        volume = self.model('volume', 'cumulus').save(volume)
+
+        return self._model.filter(volume, getCurrentUser())
+
+
     addModel('AttachParameters', {
         'id': 'AttachParameters',
         'required': ['path'],
@@ -367,6 +374,12 @@ class Volume(BaseResource):
         cumulus.ansible.tasks.volume.detatch_volume\
             .delay(profile, cluster, master, volume,
                    secret_key, girder_callback_info)
+
+        volume['ec2']['status'] = VolumeState.DETACHING
+        volume = self.model('volume', 'cumulus').save(volume)
+
+        return self._model.filter(volume, getCurrentUser())
+
 
     detach.description = (
         Description('Detach a volume from a cluster')
