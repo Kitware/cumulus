@@ -61,6 +61,7 @@ class Volume(BaseResource):
         self.route('PUT', (':id', 'detach'), self.detach)
         self.route('PUT', (':id', 'detach', 'complete'), self.detach_complete)
         self.route('DELETE', (':id', ), self.delete)
+        self.route('PUT', (':id', 'delete', 'complete'), self.delete_complete)
 
         self._model = self.model('volume', 'cumulus')
 
@@ -422,18 +423,38 @@ class Volume(BaseResource):
 
         # Call EC2 to delete volume
         profile_id = parse('profileId').find(volume)[0].value
-        profile = self.model('aws', 'cumulus').load(profile_id,
-                                                    user=getCurrentUser())
 
-        # client = get_ec2_client(profile)
-        # volume_id = parse('ec2.id').find(volume)[0].value
-        # client.delete_volume(VolumeId=volume_id)
+        profile, secret_key = self._get_profile(profile_id)
 
-        self.model('volume', 'cumulus').remove(volume)
+        girder_callback_info = {
+            "girder_api_url": getApiUrl(),
+            "girder_token": get_task_token()['_id']}
+
+        p = Provider(dict(secretAccessKey=secret_key, **profile))
+
+        aws_volume = p.get_volume(volume)
+        if aws_volume['state'] != VolumeState.AVAILABLE:
+            raise RestException('Volume must be in an "%s" state to be deleted'
+                                % VolumeState.AVAILABLE, 400)
+
+        cumulus.ansible.tasks.volume.delete_volume\
+            .delay(profile, volume, secret_key, girder_callback_info)
+
+        volume['ec2']['status'] = VolumeState.TERMINATING
+        volume = self.model('volume', 'cumulus').save(volume)
+
+        return self._model.filter(volume, getCurrentUser())
 
     delete.description = (
         Description('Delete a volume')
         .param('id', 'The volume id.', paramType='path', required=True))
+
+    @access.user
+    @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
+    def delete_complete(self, volume, params):
+        self.model('volume', 'cumulus').remove(volume)
+
+    delete_complete.description = None
 
     def _get_status(self, client, volume_id):
         response = client.describe_volumes(

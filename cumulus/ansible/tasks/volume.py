@@ -105,3 +105,32 @@ def detatch_volume(profile, cluster, instance, volume,
     with inventory.to_tempfile() as inventory_path:
         run_playbook(playbook, inventory_path,
                      extra_vars, verbose=2, env=env)
+
+
+@command.task
+def delete_volume(profile, volume, secret_key, girder_callback_info):
+
+    playbook = os.path.join(get_playbook_directory(),
+                            'volumes', 'ec2', 'delete.yml')
+
+    extra_vars = {
+        'girder_volume_id': volume['_id'],
+        'volume_id': volume['ec2']['id'],
+        'region': profile['regionName'],
+        'ansible_ssh_private_key_file': _key_path(profile),
+    }
+
+    extra_vars.update(girder_callback_info)
+
+    env = os.environ.copy()
+    env.update({'AWS_ACCESS_KEY_ID': profile['accessKeyId'],
+                'AWS_SECRET_ACCESS_KEY': secret_key,
+                'ANSIBLE_HOST_KEY_CHECKING': 'false',
+                'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path(),
+                'ANSIBLE_LIBRARY': get_library_path()})
+
+    inventory = simple_inventory('localhost')
+
+    with inventory.to_tempfile() as inventory_path:
+        run_playbook(playbook, inventory_path,
+                     extra_vars, verbose=2, env=env)
