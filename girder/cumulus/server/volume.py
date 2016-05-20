@@ -118,10 +118,12 @@ class Volume(BaseResource):
     patch.description = (
         Description('Patch a volume')
         .param(
+            'id',
+            'The volume id.', paramType='path', required=True)
+        .param(
             'body',
             'The properties to use to create the volume.',
             required=True, paramType='body'))
-
 
     @access.user
     def create(self, params):
