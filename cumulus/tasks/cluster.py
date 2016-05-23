@@ -173,7 +173,7 @@ def test_connection(cluster, log_write_url=None, girder_token=None):
         with get_connection(girder_token, cluster) as conn:
             status = 'running'
             # Test can we can connect to cluster
-            output = conn.execute('ls')
+            output = conn.execute('pwd')
         if len(output) < 1:
             log.error('Unable connect to cluster')
             status = 'error'
