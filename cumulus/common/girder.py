@@ -103,6 +103,12 @@ def send_notification(resource_type, notif_type, resource):
 
     create_notifications(resource_type, notif_type, notification, resource)
 
+def send_log_notification(resource_name, resource, log):
+    notification = {
+        '_id': resource['_id'],
+        'log': log,
+    }
+    create_notifications(resource_name, 'log', notification, resource)
 
 def _get_group_id(group):
     group = ModelImporter.model('group').find({'name': group})
