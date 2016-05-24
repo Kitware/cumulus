@@ -21,7 +21,7 @@ from girder.models.model_base import ValidationException
 from bson.objectid import ObjectId
 from girder.constants import AccessType
 from .base import BaseModel
-from cumulus.common.girder import send_status_notification
+from cumulus.common.girder import send_notification
 
 
 class Job(BaseModel):
@@ -54,7 +54,7 @@ class Job(BaseModel):
         job['userId'] = user['_id']
 
         self.save(job)
-        send_status_notification('job', job)
+        send_notification('job', 'status', job)
 
         return doc
 
@@ -69,7 +69,7 @@ class Job(BaseModel):
 
         if status and job['status'] != status:
             job['status'] = status
-            send_status_notification('job', job)
+            send_notification('job', 'status', job)
             job = self.save(job)
 
         return job
@@ -80,7 +80,7 @@ class Job(BaseModel):
         new_status = job['status']
 
         if current_job['status'] != new_status:
-            send_status_notification('job', job)
+            send_notification('job', 'status', job)
 
         return self.save(job)
 

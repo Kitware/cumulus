@@ -75,34 +75,33 @@ def _get_profile(profile_id):
 
 def create_status_notification(resource_name, notification, user):
     expires = datetime.datetime.utcnow() + datetime.timedelta(seconds=30)
-    type = '%s.status' % resource_name
+    type = '%s.%s' % (resource_name, notif_type)
     ModelImporter.model('notification').createNotification(
         type=type, data=notification, user=user, expires=expires)
 
 
-def create_status_notifications(resource_name, notification, resource):
+def create_notifications(resource_name, notif_type, notification, resource):
     # Send notification to all users with admin access to this resource
-    # we need todo this as the user updating status will not always be the
+    # we need to do this as the user updating status will not always be the
     # owner (the one with admin access)
     for user_access in resource['access']['users']:
         if user_access['level'] == AccessType.ADMIN:
-            create_status_notification(resource_name, notification, {
-                '_id': user_access['id']
-            })
+            create_notification(resource_name, notif_type, notification,
+                                {'_id': user_access['id']})
 
 
-def send_status_notification(resource_type, resource):
+def send_notification(resource_type, notif_type, resource):
     try:
-        status = resource['status'].name
+        notification_msg = resource[notif_type].name
     except AttributeError:
-        status = resource['status']
+        notification_msg = resource[notif_type]
 
     notification = {
         '_id': resource['_id'],
-        'status': status
     }
+    notification[notif_type] = notification_msg
 
-    create_status_notifications(resource_type, notification, resource)
+    create_notifications(resource_type, notif_type, notification, resource)
 
 
 def _get_group_id(group):
