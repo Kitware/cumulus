@@ -90,18 +90,19 @@ def create_notifications(resource_name, notif_type, notification, resource):
                                 {'_id': user_access['id']})
 
 
-def send_notification(resource_type, notif_type, resource):
+def send_status_notification(resource_type, resource):
     try:
-        notification_msg = resource[notif_type].name
+        status = resource['status'].name
     except AttributeError:
-        notification_msg = resource[notif_type]
+        status = resource['status']
 
     notification = {
         '_id': resource['_id'],
+        'status': status,
     }
-    notification[notif_type] = notification_msg
 
-    create_notifications(resource_type, notif_type, notification, resource)
+    create_notifications(resource_type, 'status', notification, resource)
+
 
 def send_log_notification(resource_name, resource, log):
     notification = {
@@ -109,6 +110,7 @@ def send_log_notification(resource_name, resource, log):
         'log': log,
     }
     create_notifications(resource_name, 'log', notification, resource)
+
 
 def _get_group_id(group):
     group = ModelImporter.model('group').find({'name': group})

@@ -26,7 +26,7 @@ from .base import BaseModel
 from cumulus.constants import ClusterType, ClusterStatus, QueueType
 
 from ..utility.cluster_adapters import get_cluster_adapter
-from cumulus.common.girder import send_notification, \
+from cumulus.common.girder import send_status_notification, \
     check_group_membership
 import cumulus
 from cumulus import queue
@@ -130,7 +130,7 @@ class Cluster(BaseModel):
 
         self.save(cluster)
 
-        send_notification('cluster', 'status', cluster)
+        send_status_notification('cluster', cluster)
 
         return cluster
 
@@ -247,7 +247,7 @@ class Cluster(BaseModel):
         # If the status has changed create a notification
         new_status = cluster['status']
         if current_cluster['status'] != new_status:
-            send_notification('cluster', 'status', cluster)
+            send_status_notification('cluster', cluster)
 
         return self.save(cluster)
 

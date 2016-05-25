@@ -21,7 +21,7 @@ from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
 
 from cumulus.taskflow import TaskFlowState, TaskState
-from cumulus.common.girder import send_notification, send_log_notification
+from cumulus.common.girder import send_status_notification, send_log_notification
 
 MAX_RETRIES = 4
 
@@ -43,7 +43,7 @@ class Taskflow(AccessControlledModel):
         taskflow = self.setUserAccess(
             taskflow, user, level=AccessType.ADMIN, save=True)
 
-        send_notification('taskflow', 'status', taskflow)
+        send_status_notification('taskflow', taskflow)
 
         return taskflow
 
@@ -61,8 +61,9 @@ class Taskflow(AccessControlledModel):
             }
         }
 
+        result = self.update(query, update, multi=False)
         send_log_notification('taskflow', taskflow, log)
-        return self.update(query, update, multi=False)
+        return result
 
     def _to_paths(self, d, path=''):
         """
@@ -197,7 +198,4 @@ class Taskflow(AccessControlledModel):
 
         if taskflow['status'] != new_status:
             taskflow['status'] = new_status
-            send_notification('taskflow', 'status', taskflow)
-
-
-
+            send_status_notification('taskflow', taskflow)
