@@ -480,17 +480,19 @@ class Cluster(BaseResource):
         if not self._model.load(id, user=user, level=AccessType.READ):
             raise RestException('Cluster not found.', code=404)
 
+        number_of_log_records = len(self._model.log_records(user, id))
+
         def streamGen():
-            lastLogSeen = len(self._model.log_records(user, id))
             start = time.time()
             wait = MIN_POLL_INTERVAL
+            last_log_seen = number_of_log_records  # prevents UnboundLocalError
 
             while cherrypy.engine.state == cherrypy.engine.states.STARTED:
                 wait = min(wait + MIN_POLL_INTERVAL, MAX_POLL_INTERVAL)
 
-                records = self._model.log_records(user, id, lastLogSeen)
+                records = self._model.log_records(user, id, last_log_seen)
                 for i, logMessage in enumerate(records):
-                    lastLogSeen += 1
+                    last_log_seen += 1
                     wait = MIN_POLL_INTERVAL
                     start = time.time()
                     yield sseMessage(logMessage)

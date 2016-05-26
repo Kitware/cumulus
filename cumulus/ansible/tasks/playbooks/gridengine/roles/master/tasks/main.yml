@@ -11,12 +11,14 @@
 - name: Install NFS server package
   apt: name=nfs-kernel-server state=present
   become_user: root
+  when: '"exec" in groups'
   tags:
     - master
     - nfs-server
 
 - name: Stop NFS server
   service: name=nfs-kernel-server state=stopped
+  when: '"exec" in groups'
   tags:
     - master
     - nfs-server
@@ -25,12 +27,14 @@
 - name: Export /home via NFS
   become_user: root
   template: src=export.j2 dest=/etc/exports force=true
+  when: '"exec" in groups'
   tags:
     - master
     - nfs-server
 
 - name: Start NFS server
   service: name=nfs-kernel-server state=running
+  when: '"exec" in groups'
   tags:
     - master
     - nfs-server
@@ -46,16 +50,16 @@
   become_user: sgeadmin
   template: src=exec_host.j2 dest=/tmp/exec_host_{{item}}
   with_items:
-    - "{{ groups['exec'] + groups['master'] }}"
+    - "{{ groups.exec | default([]) + groups.master }}"
   tags:
     - master
 
 - name: Add exec hosts
   become_user: sgeadmin
-  shell: qconf -Ae /tmp/exec_host_{{item}}
+  shell: qconf -Me /tmp/exec_host_{{item}}
   ignore_errors: true
   with_items:
-    - "{{ groups['exec'] + groups['master'] }}"
+    - "{{ groups.exec | default([]) + groups.master }}"
   tags:
     - master
 
@@ -66,49 +70,90 @@
   tags:
     - master
 
-- name: Create allhosts host group
+- name: Check if @allhosts host group exists
   become_user: sgeadmin
-  shell: qconf -Ahgrp /tmp/allhosts
+  shell: qconf -shgrp @allhosts
   ignore_errors: true
+  register: qconf_shgrp
   tags:
-    - master
+  - master
 
 - name: Template allhosts host group file
   become_user: sgeadmin
   template: src=allhosts.j2 dest=/tmp/allhosts
+  when: qconf_shgrp.rc != 0
   tags:
     - master
 
 - name: Create allhosts host group
   become_user: sgeadmin
   shell: qconf -Ahgrp /tmp/allhosts
-  ignore_errors: true
+  when: qconf_shgrp.rc != 0
   tags:
     - master
 
 - name: Clean allhosts file
   become_user: sgeadmin
   file: path=/tmp/allhosts state=absent
-  ignore_errors: true
+  when: qconf_shgrp.rc != 0
   tags:
     - master
+
+- name: Check if master host group exists
+  become_user: sgeadmin
+  shell: qconf -shgrp @master
+  ignore_errors: true
+  register: qconf_shgrp
+  tags:
+  - master
+
+- name: Template master host group file
+  become_user: sgeadmin
+  template: src=master.j2 dest=/tmp/master
+  when: qconf_shgrp.rc != 0
+  tags:
+    - master
+
+- name: Create master host group
+  become_user: sgeadmin
+  shell: qconf -Ahgrp /tmp/master
+  when: qconf_shgrp.rc != 0
+  tags:
+    - master
+
+- name: Clean master file
+  become_user: sgeadmin
+  file: path=/tmp/master state=absent
+  when: qconf_shgrp.rc != 0
+  tags:
+    - master
+
+- name: Check if parallel environment exists
+  become_user: sgeadmin
+  shell: qconf -sp orte
+  ignore_errors: true
+  register: qconf_spl
+  tags:
+  - master
 
 - name: Template parallel environment configuration
   become_user: sgeadmin
   template: src=pe.j2 dest=/tmp/pe
+  when: qconf_spl.rc != 0
   tags:
   - master
 
 - name: Create parallel environment
   become_user: sgeadmin
   shell: qconf -Ap /tmp/pe
+  when: qconf_spl.rc != 0
   tags:
   - master
 
 - name: Clean up pe configuration
   become_user: root
   file: path=/tmp/pe state=absent
-  ignore_errors: true
+  when: qconf_spl.rc != 0
   tags:
     - master
 
@@ -118,17 +163,25 @@
   tags:
     - master
 
+- name: Check if all.q exists
+  become_user: sgeadmin
+  shell: qconf -sq all.q
+  ignore_errors: true
+  register: qconf_sq
+  tags:
+  - master
+
 - name: Create all.q
   become_user: sgeadmin
   shell: qconf -Aq /tmp/all.q
-  ignore_errors: true
+  when: qconf_sq.rc != 0
   tags:
     - master
 
 - name: Clean up all.q
   become_user: sgeadmin
   file: path=/tmp/all.q state=absent
-  ignore_errors: true
+  when: qconf_sq.rc != 0
   tags:
     - master
 
@@ -154,7 +207,6 @@
 - name: Clean up sched_conf
   become_user: sgeadmin
   file: path=/tmp/sched_conf state=absent
-  ignore_errors: true
   tags:
     - master
 
