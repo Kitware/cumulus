@@ -1,15 +1,15 @@
 from cumulus.constants import VolumeState
-from cumulus.ansible.tasks.inventory import AnsibleInventory
 from jsonpath_rw import parse
 import boto3.ec2
 from itertools import groupby
 import json
 import os
 
-from base import Provider, InstanceState
+from base import CloudProvider, InstanceState
 from girder.api.rest import ModelImporter
 
-class EC2Provider(Provider):
+
+class EC2Provider(CloudProvider):
     InstanceState = {
         0: InstanceState.PENDING,
         16: InstanceState.RUNNING,
@@ -71,9 +71,9 @@ class EC2Provider(Provider):
 
         instances += [i for i in region_instances]
 
-        # Build up main inventory, instance_name is something like "head" or "node"
-        # instance_name_instances are the boto.ec2.instance objects that have an
-        # ec2_pod_instance_name tag value of instance_name
+        # Build up main inventory, instance_name is something like "head" or
+        # "node" instance_name_instances are the boto.ec2.instance objects
+        # that have an ec2_pod_instance_name tag value of instance_name
         for (instance_name, instance_name_instances) \
                 in self._instances_by_name(instances):
 
@@ -108,7 +108,6 @@ class EC2Provider(Provider):
             raise Exception("More than one master node was found!")
 
         return self._get_instance_vars(instances[0])
-
 
     def get_volumes(self):
         pass
@@ -156,13 +155,13 @@ class EC2Provider(Provider):
 
         # TODO add 'instance_id' here (None if not attached)
         if aws_volume.attachments:
-            volume['state'] =  VolumeState.INUSE
+            volume['state'] = VolumeState.INUSE
         else:
             volume['state'] = VolumeState.AVAILABLE
 
         return volume
 
-Provider.register('ec2', EC2Provider)
+CloudProvider.register('ec2', EC2Provider)
 
 
 if __name__ == "__main__":
@@ -174,7 +173,7 @@ if __name__ == "__main__":
             raise Exception('Required env var %s not given to Cumulus'
                             'inventory.' % required_env_var)
 
-    p = Provider({
+    p = CloudProvider({
         "accessKeyId": os.environ.get("AWS_ACCESS_KEY_ID"),
         "secretAccessKey": os.environ.get("AWS_SECRET_ACCESS_KEY"),
         "type": "ec2"

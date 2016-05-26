@@ -41,7 +41,7 @@ from cumulus.common.girder import get_task_token
 
 import cumulus.ansible.tasks.volume
 
-from cumulus.ansible.tasks.providers import Provider, InstanceState
+from cumulus.ansible.tasks.providers import CloudProvider, InstanceState
 
 class Volume(BaseResource):
 
@@ -291,7 +291,7 @@ class Volume(BaseResource):
             "girder_api_url": getApiUrl(),
             "girder_token": get_task_token()['_id']}
 
-        p = Provider(dict(secretAccessKey=secret_key, **profile))
+        p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
         aws_volume = p.get_volume(volume)
         if aws_volume['state'] != VolumeState.AVAILABLE:
@@ -350,7 +350,7 @@ class Volume(BaseResource):
             "girder_api_url": getApiUrl(),
             "girder_token": get_task_token()['_id']}
 
-        p = Provider(dict(secretAccessKey=secret_key, **profile))
+        p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
         aws_volume = p.get_volume(volume)
         if aws_volume['state'] != VolumeState.INUSE:
@@ -432,7 +432,7 @@ class Volume(BaseResource):
             "girder_api_url": getApiUrl(),
             "girder_token": get_task_token()['_id']}
 
-        p = Provider(dict(secretAccessKey=secret_key, **profile))
+        p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
         aws_volume = p.get_volume(volume)
         if aws_volume['state'] != VolumeState.AVAILABLE:
@@ -480,7 +480,7 @@ class Volume(BaseResource):
         profile = self.model('aws', 'cumulus').load(profile_id,
                                                     user=getCurrentUser())
 
-        p = Provider(profile)
+        p = CloudProvider(profile)
 
         return {'status': p.get_volume(volume)['state']}
 

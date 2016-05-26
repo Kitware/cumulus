@@ -7,11 +7,11 @@ class InstanceState():
     STOPPED = "stopped"
 
 
-class Provider(object):
+class CloudProvider(object):
     __provider_registry__ = {}
 
     def __new__(cls, profile):
-        if cls == Provider:
+        if cls == CloudProvider:
             assert 'type' in profile, \
                 'Profile does not have a "type" attribute'
 
@@ -23,7 +23,7 @@ class Provider(object):
 
             return subcls(profile)
 
-        return super(Provider, cls).__new__(cls, profile)
+        return super(CloudProvider, cls).__new__(cls, profile)
 
     def __init__(self, profile):
         self.girder_profile_id = profile.pop('_id', None)

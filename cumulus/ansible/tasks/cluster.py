@@ -1,6 +1,6 @@
 from cumulus.celery import command
 from cumulus.common import check_status
-from cumulus.ansible.tasks.providers import Provider
+from cumulus.ansible.tasks.providers import CloudProvider
 from inventory import simple_inventory
 import cumulus
 import requests
@@ -55,7 +55,7 @@ def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
         ansible = run_playbook(playbook, inventory_path, playbook_variables,
                                env=env, verbose=3)
 
-    p = Provider(dict(secretAccessKey=secret_key, **profile))
+    p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
     master = p.get_master_instance(cluster)
 
