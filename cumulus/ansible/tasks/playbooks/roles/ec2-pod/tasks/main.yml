@@ -87,6 +87,7 @@
         ec2_pod_instance_name: "{{ item.key }}"
       exact_count: "{{ (item.value.count|default(1))|int }}"
       group: ec2_pod_{{ cluster_name }}
+      placement_group: "{{ placement_group | default(omit) }}"
       image: "{{ item.value.image|default(default_image) }}"
       instance_tags:
         Name: >-
