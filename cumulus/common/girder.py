@@ -91,6 +91,7 @@ def create_notifications(resource_name, notif_type, notification, resource):
 
 
 def send_status_notification(resource_type, resource):
+    # For some statuses (on ec2 clusters) status can be an enum
     try:
         status = resource['status'].name
     except AttributeError:

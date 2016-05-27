@@ -21,7 +21,8 @@ import datetime
 from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
 
-from cumulus.common.girder import send_status_notification
+from cumulus.common.girder import send_status_notification, \
+                                  send_log_notification
 
 class Task(AccessControlledModel):
 
@@ -116,8 +117,9 @@ class Task(AccessControlledModel):
                 'log': log
             }
         }
-
-        return self.update(query, update, multi=False)
+        result = self.update(query, update, multi=False)
+        send_log_notification('task', task, log)
+        return result
 
     def update_task(self, user, task, status=None):
         if status and task['status'] != status:
