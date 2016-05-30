@@ -973,33 +973,3 @@ class ClusterTestCase(base.TestCase):
         r = self.request('/clusters', method='POST',
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
-
-    def test_log_stream(self):
-        body = {
-            'profileId': str(self._user_profile['_id']),
-            'name': 'test'
-        }
-
-        json_body = json.dumps(body)
-
-        r = self.request('/clusters', method='POST',
-                         type='application/json', body=json_body, user=self._user)
-        self.assertStatus(r, 201)
-        cluster_id = r.json['_id']
-
-        # connect to cluster notification stream
-        stream_r = self.request('/clusters/%s/log/stream' % str(cluster_id), method='GET', user=self._user,
-                         isJson=False, params={'timeout': 0})
-        self.assertStatusOk(stream_r)
-
-        # add a log entry
-        log_entry = {
-            'msg': 'Some message'
-        }
-        r = self.request('/clusters/%s/log' % str(cluster_id), method='POST',
-                         type='application/json', body=json.dumps(log_entry), user=self._user)
-        self.assertStatusOk(r)
-
-        notifications = self.getSseMessages(stream_r)
-        self.assertEqual(len(notifications), 1, 'Expecting one notification')
-        self.assertEqual(notifications[0]['msg'], log_entry['msg'], 'Expecting a different log message')
