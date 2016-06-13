@@ -98,6 +98,10 @@ class EC2Provider(CloudProvider):
 
         return inventory
 
+    def running_instances(self, cluster_id):
+        return len([host for host in self.get_instances(cluster_id).keys()
+                    if host != '_meta'])
+
     def get_master_instance(self, cluster_id):
         cluster_id = str(cluster_id)
 

@@ -38,6 +38,9 @@ class CloudProvider(object):
     def get_inventory(self):
         raise NotImplementedError('Must be implemented by subclass')
 
+    def running_instances(self):
+        raise NotImplementedError('Must be implemented by subclass')
+
     def get_master_instance(self):
         raise NotImplementedError('Must be implemented by subclass')
 
