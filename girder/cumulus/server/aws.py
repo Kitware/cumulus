@@ -239,15 +239,8 @@ status.description = (
            level=AccessType.WRITE)
 def running_instances(user, profile, params):
 
-    client = get_ec2_client(profile)
-    count = len(client.describe_instances(
-                Filters=[{
-                    'Name': 'instance-state-name',
-                    'Values': ['running']
-                    }]))
-
     return {
-        'runninginstances': count
+        'runninginstances': get_ec2_client(profile).running_instances()
     }
 
 addModel('AwsProfileRunningInstances', {

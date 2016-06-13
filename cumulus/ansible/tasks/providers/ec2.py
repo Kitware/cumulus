@@ -169,6 +169,22 @@ class EC2Provider(CloudProvider):
 
         return volume
 
+    # Proxy these through to the boto3 client
+    def create_key_pair(self, *args, **kwargs):
+        return self.ec2.create_key_pair(*args, **kwargs)
+
+    def delete_key_pair(self, *args, **kwargs):
+        return self.ec2.delete_key_pair(*args, **kwargs)
+
+    def describe_account_attributes(self, *args, **kwargs):
+        return self.ec2.describe_account_attributes(*args, **kwargs)
+
+    def describe_availability_zones(self, *args, **kwargs):
+        return self.ec2.describe_availability_zones(*args, **kwargs)
+
+    def describe_regions(self, *args, **kwargs):
+        return self.describe_regions(*args, **kwargs)
+
 CloudProvider.register('ec2', EC2Provider)
 
 
