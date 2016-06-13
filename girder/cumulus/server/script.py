@@ -75,7 +75,7 @@ class Script(BaseResource):
     def create(self, params):
         user = self.getCurrentUser()
 
-        script = json.load(cherrypy.request.body)
+        script = json.loads(cherrypy.request.body.read().decode('utf8'))
 
         if 'name' not in script:
             raise RestException('Script name is required', code=400)
