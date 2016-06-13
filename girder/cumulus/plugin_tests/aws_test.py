@@ -23,6 +23,7 @@ import mock
 import re
 from botocore.exceptions import ClientError
 from cumulus.aws.ec2 import ClientErrorCode
+from cumulus.constants import VolumeState
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
@@ -127,7 +128,6 @@ class AwsTestCase(base.TestCase):
         }
         get_ec2_client.side_effect = ClientError(response, '')
 
-
         body = {
             'name': 'myprof',
             'accessKeyId': 'mykeyId',
@@ -187,6 +187,7 @@ class AwsTestCase(base.TestCase):
         expected = {
             u'availabilityZone': u'cornwall-2b',
             u'name': u'myprof',
+            u'type': u'ec2',
             u'regionHost': u'cornwall.ec2.amazon.com',
             u'accessKeyId': u'mykeyId',
             u'secretAccessKey': u'mysecret',
@@ -249,6 +250,7 @@ class AwsTestCase(base.TestCase):
         expected = {
             u'availabilityZone': u'cornwall-2b',
             u'name': u'myprof',
+            u'type': u'ec2',
             u'regionHost': u'cornwall.ec2.amazon.com',
             u'accessKeyId': u'mykeyId',
             u'secretAccessKey': u'mysecret',
@@ -334,6 +336,7 @@ class AwsTestCase(base.TestCase):
 
         expected = {
             'name': profile_name,
+            'type': 'ec2',
             'accessKeyId': change_value,
             'secretAccessKey': change_value,
             'regionName': 'cornwall',
@@ -369,6 +372,7 @@ class AwsTestCase(base.TestCase):
             u'status': u'error',
             u'availabilityZone': u'cornwall-2b',
             u'name': u'myprof',
+            u'type': u'ec2',
             u'regionHost': u'cornwall.ec2.amazon.com',
             u'errorMessage': u'some message',
             u'accessKeyId': u'cchange ...',
@@ -412,6 +416,7 @@ class AwsTestCase(base.TestCase):
             u'status': u'error',
             u'availabilityZone': u'cornwall-2b',
             u'name': u'myprof',
+            u'type': u'ec2',
             u'regionHost': u'cornwall.ec2.amazon.com',
             u'errorMessage': u'some message',
             u'accessKeyId': u'cchange ...',
@@ -421,13 +426,14 @@ class AwsTestCase(base.TestCase):
         }
         self.assertEqual(profile, expected, 'Profile values not updated')
 
-    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
+    @mock.patch('cumulus.ansible.tasks.volume.delete_volume.delay')
     @mock.patch('girder.plugins.cumulus.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.delete_key_pair.delay')
-    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay' )
+    @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
     def test_delete(self, get_ec2_client, generate_key_pair, delete_key_pair,
-                    aws_get_ec2_client, volume_get_ec2_client):
+                    aws_get_ec2_client, delete_volume_delay, create_volume_delay):
         region_host = 'cornwall.ec2.amazon.com'
         ec2_client = get_ec2_client.return_value
         ec2_client.describe_regions.return_value = {
@@ -498,20 +504,17 @@ class AwsTestCase(base.TestCase):
         self.assertStatus(r, 201)
         cluster_id = str(r.json['_id'])
 
-        delete_url = '/user/%s/aws/profiles/%s' % (str(self._user['_id']), profile_id)
-        r = self.request(delete_url, method='DELETE', user=self._user)
-        self.assertStatus(r, 400)
-
         # Now delete the cluster
         r = self.request('/clusters/%s' % cluster_id, method='DELETE',
                          type='application/json',
                          user=self._user)
         self.assertStatusOk(r)
 
+        delete_url = '/user/%s/aws/profiles/%s' % (str(self._user['_id']), profile_id)
         r = self.request(delete_url, method='DELETE', user=self._user)
         self.assertStatusOk(r)
 
-        # Create and new profile and associate it with a volume, this
+        # Create a new profile and associate it with a volume, this
         # should prevent it from being deleted
         body = {
             'name': 'myprof',
@@ -522,6 +525,8 @@ class AwsTestCase(base.TestCase):
             'availabilityZone': 'cornwall-2b'
         }
 
+
+
         create_url = '/user/%s/aws/profiles' % str(self._user['_id'])
         r = self.request(create_url, method='POST',
                          type='application/json', body=json.dumps(body),
@@ -529,35 +534,56 @@ class AwsTestCase(base.TestCase):
         self.assertStatus(r, 201)
         profile_id = str(r.json['_id'])
 
-        volume_id = 'vol-1'
-        volume_get_ec2_client.return_value.create_volume.return_value = {
-            'VolumeId': volume_id
-        }
-
         body = {
-            'name': 'test',
-            'size': 20,
-            'zone': 'us-west-2a',
-            'type': 'ebs',
-            'profileId': profile_id
+            "name": "some_volume",
+            "profileId": profile_id,
+            "size": 17,
+            "type": "ebs",
+            "zone": "us-west-2a"
         }
 
-        r = self.request('/volumes', method='POST',
+        create_volume_url = '/volumes'
+        r = self.request(create_volume_url, method='POST',
                          type='application/json', body=json.dumps(body),
                          user=self._user)
         self.assertStatus(r, 201)
         volume_id = str(r.json['_id'])
 
+
+        self.assertEquals(create_volume_delay.call_count, 1)
+
+        # Patch the volume so it looks available, normally ansible script does this
+        body = {
+            'ec2': {
+                'status': 'available',
+                'id': '0123456789'
+            }
+        }
+        patch_volume_url = '/volumes/%s' % volume_id
+        r = self.request(patch_volume_url, method='PATCH',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatusOk(r)
+
         delete_url = '/user/%s/aws/profiles/%s' % (str(self._user['_id']), profile_id)
         r = self.request(delete_url, method='DELETE', user=self._user)
         self.assertStatus(r, 400)
 
-        # Now delete the volume
-        r = self.request('/volumes/%s' % volume_id, method='DELETE',
-                 type='application/json', body=json.dumps(body),
-                 user=self._user)
+        # Patch the call to get_volume so we can pass the state test in delete
+        with mock.patch('girder.plugins.cumulus.volume.CloudProvider') as provider:
+            provider.return_value.get_volume.return_value = {'state': VolumeState.AVAILABLE}
+            # delete the volume
+            delete_volume_url = '/volumes/%s' % volume_id
+            r = self.request(delete_volume_url, method='DELETE', user=self._user)
+            self.assertStatusOk(r)
+
+        # delete_volume would normally call delete_complete
+        self.assertEquals(delete_volume_delay.call_count, 1)
+        delete_volume_complete_url = '/volumes/%s/delete/complete' % volume_id
+        r = self.request(delete_volume_complete_url, method='PUT', user=self._user)
         self.assertStatusOk(r)
 
+        # Deleting the profile should now be OK
         r = self.request(delete_url, method='DELETE', user=self._user)
         self.assertStatusOk(r)
 
@@ -575,6 +601,7 @@ class AwsTestCase(base.TestCase):
 
         profile1 = {
             'name': 'myprof1',
+            'type': 'ec2',
             'accessKeyId': 'mykeyId',
             'secretAccessKey': 'mysecret',
             'regionName': 'cornwall',
@@ -593,6 +620,7 @@ class AwsTestCase(base.TestCase):
 
         profile2 = {
             'name': 'myprof2',
+            'type': 'ec2',
             'accessKeyId': 'mykeyId',
             'secretAccessKey': 'mysecret',
             'regionName': 'cornwall',
@@ -620,7 +648,7 @@ class AwsTestCase(base.TestCase):
         profile1['_id'] = profile1_id
         profile2['_id'] = profile2_id
 
-        self.assertEqual(r.json[1:], [profile1, profile2], 'Check profiles where returned')
+        self.assertEqual(r.json[1:], [profile1, profile2], 'Check profiles were returned')
 
     @mock.patch('girder.plugins.cumulus.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
@@ -653,8 +681,7 @@ class AwsTestCase(base.TestCase):
         self.assertStatus(r, 201)
         profile_id = r.json['_id']
 
-
-        aws_get_ec2_client.return_value.describe_instances.return_value = [x for x in range(0, 10)]
+        aws_get_ec2_client.return_value.running_instances.return_value = 10
 
         running_instances_url = '/user/%s/aws/profiles/%s/runninginstances' % \
             (str(self._user['_id']), str(profile_id))
@@ -713,4 +740,3 @@ class AwsTestCase(base.TestCase):
             u'maxinstances': 100
         }
         self.assertEqual(expected, r.json, 'Unexpected response')
-
