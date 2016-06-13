@@ -49,7 +49,7 @@ class VolumeState:
     ATTACHING = 'attaching'
     DETACHING = 'detaching'
     INUSE = 'in-use'
-    TERMINATING = 'terminating'
+    DELETING = 'deleting'
     ERROR = 'error'
 
 

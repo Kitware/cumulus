@@ -418,7 +418,7 @@ class Volume(BaseResource):
         cumulus.ansible.tasks.volume.delete_volume\
             .delay(profile, volume, secret_key, girder_callback_info)
 
-        volume['ec2']['status'] = VolumeState.TERMINATING
+        volume['ec2']['status'] = VolumeState.DELETING
         volume = self.model('volume', 'cumulus').save(volume)
 
         return self._model.filter(volume, getCurrentUser())
