@@ -23,7 +23,6 @@ from jsonpath_rw import parse
 from girder.utility.model_importer import ModelImporter
 from girder.models.model_base import ValidationException
 from girder.api.rest import RestException, getApiUrl, getCurrentUser
-from bson.objectid import ObjectId, InvalidId
 
 from cumulus.constants import ClusterType, ClusterStatus
 from cumulus.common.girder import get_task_token, _get_profile

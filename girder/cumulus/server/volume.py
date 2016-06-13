@@ -4,14 +4,14 @@
 ###############################################################################
 #  Copyright 2015 Kitware Inc.
 #
-#  Licensed under the Apache License, Version 2.0 ( the "License" );
+#  Licensed under the Apache License, Version 2.0 ( the 'License' );
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
 #
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
 #  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
+#  distributed under the License is distributed on an 'AS IS' BASIS,
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
@@ -20,28 +20,24 @@
 import cherrypy
 from jsonpath_rw import parse
 from bson.objectid import ObjectId
-from botocore.exceptions import ClientError
 
 from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getCurrentUser, getBodyJson
-from girder.models.model_base import ValidationException
 from girder.api.rest import loadmodel, getApiUrl
 from .base import BaseResource
 
 import cumulus
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
-from cumulus.constants import ClusterType
-from cumulus.aws.ec2 import get_ec2_client
-from bson.objectid import ObjectId, InvalidId
 from cumulus.common.girder import get_task_token, _get_profile
 
 import cumulus.ansible.tasks.volume
 
 from cumulus.ansible.tasks.providers import CloudProvider, InstanceState
+
 
 class Volume(BaseResource):
 
@@ -72,8 +68,8 @@ class Volume(BaseResource):
         fs = body.get('fs', None)
         profileId = body['profileId']
 
-        return self.model('volume', 'cumulus').create_ebs(user, profileId, name,
-                                                          zone, size, fs)
+        return self.model('volume', 'cumulus').create_ebs(user, profileId,
+                                                          name, zone, size, fs)
 
     @access.user
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.WRITE)
@@ -130,8 +126,8 @@ class Volume(BaseResource):
         volume = self._create_ebs(body, zone)
 
         girder_callback_info = {
-            "girder_api_url": getApiUrl(),
-            "girder_token": get_task_token()['_id']}
+            'girder_api_url': getApiUrl(),
+            'girder_token': get_task_token()['_id']}
 
         cumulus.ansible.tasks.volume.create_volume\
             .delay(profile, volume, secret_key, girder_callback_info)
@@ -143,7 +139,6 @@ class Volume(BaseResource):
         cherrypy.response.headers['Location'] = '/volumes/%s' % volume['_id']
 
         return self._model.filter(volume, getCurrentUser())
-
 
     addModel('VolumeParameters', {
         'id': 'VolumeParameters',
@@ -212,7 +207,7 @@ class Volume(BaseResource):
                level=AccessType.ADMIN)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def attach_complete(self, volume, cluster, params):
-        path = params.get("path", None)
+        path = params.get('path', None)
 
         if path is not None:
             cluster.setdefault('volumes', [])
@@ -265,8 +260,8 @@ class Volume(BaseResource):
         profile, secret_key = _get_profile(profile_id)
 
         girder_callback_info = {
-            "girder_api_url": getApiUrl(),
-            "girder_token": get_task_token()['_id']}
+            'girder_api_url': getApiUrl(),
+            'girder_token': get_task_token()['_id']}
 
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
@@ -289,7 +284,6 @@ class Volume(BaseResource):
         volume = self.model('volume', 'cumulus').save(volume)
 
         return self._model.filter(volume, getCurrentUser())
-
 
     addModel('AttachParameters', {
         'id': 'AttachParameters',
@@ -324,8 +318,8 @@ class Volume(BaseResource):
         profile, secret_key = _get_profile(profile_id)
 
         girder_callback_info = {
-            "girder_api_url": getApiUrl(),
-            "girder_token": get_task_token()['_id']}
+            'girder_api_url': getApiUrl(),
+            'girder_token': get_task_token()['_id']}
 
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
@@ -405,8 +399,8 @@ class Volume(BaseResource):
         profile, secret_key = _get_profile(profile_id)
 
         girder_callback_info = {
-            "girder_api_url": getApiUrl(),
-            "girder_token": get_task_token()['_id']}
+            'girder_api_url': getApiUrl(),
+            'girder_token': get_task_token()['_id']}
 
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
