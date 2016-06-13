@@ -31,6 +31,7 @@ import cumulus.tasks.job
 import cumulus.ansible.tasks.cluster
 from cumulus.common.jsonpath import get_property
 
+
 class AbstractClusterAdapter(ModelImporter):
     """
     This defines the interface to be used by all cluster adapters.
@@ -232,7 +233,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
                    provision_playbook,
                    self.cluster, profile, secret_key,
                    launch_playbook_params, provision_playbook_params,
-                   girder_token, log_write_url, master_name=master_name)
+                   girder_token, log_write_url)
 
     def update(self, request_body):
         """
