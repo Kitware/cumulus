@@ -39,7 +39,7 @@ import re
 import inspect
 import time
 import uuid
-from StringIO import StringIO
+from six import StringIO
 from celery import signature
 from celery.exceptions import Retry
 from jinja2 import Environment, Template, PackageLoader
