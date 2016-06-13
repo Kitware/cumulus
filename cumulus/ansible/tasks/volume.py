@@ -74,8 +74,8 @@ def attach_volume(profile, cluster, instance, volume, path,
 
 
 @command.task
-def detatch_volume(profile, cluster, instance, volume,
-                   secret_key, girder_callback_info):
+def detach_volume(profile, cluster, instance, volume,
+                  secret_key, girder_callback_info):
 
     playbook = os.path.join(get_playbook_directory(),
                             'volumes', 'ec2', 'detach.yml')

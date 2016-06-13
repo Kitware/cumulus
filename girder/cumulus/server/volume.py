@@ -374,7 +374,7 @@ class Volume(BaseResource):
             raise RestException('Master instance is not running!',
                                 400)
 
-        cumulus.ansible.tasks.volume.detatch_volume\
+        cumulus.ansible.tasks.volume.detach_volume\
             .delay(profile, cluster, master, volume,
                    secret_key, girder_callback_info)
 
@@ -382,7 +382,6 @@ class Volume(BaseResource):
         volume = self.model('volume', 'cumulus').save(volume)
 
         return self._model.filter(volume, getCurrentUser())
-
 
     detach.description = (
         Description('Detach a volume from a cluster')

@@ -34,5 +34,5 @@
               data:
                 ec2:
                   status: 'error'
-                  msg: 'An error occured while detatching the volume, please check the logs'
+                  msg: 'An error occured while detaching the volume, please check the logs'
           when: girder_api_url is defined and girder_token is defined and girder_volume_id is defined
