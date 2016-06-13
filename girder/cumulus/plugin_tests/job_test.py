@@ -494,7 +494,7 @@ class JobTestCase(base.TestCase):
 
         self.assertStatus(r, 200)
         self.assertEqual(len(r.json), 2)
-        print r.json
+
         job_ids = [job['_id'] for job in r.json]
         self.assertTrue(job1['_id'] in job_ids)
         self.assertTrue(job2['_id'] in job_ids)
