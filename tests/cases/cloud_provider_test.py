@@ -1,6 +1,6 @@
 import unittest
 import os
-from cumulus.ansible.tasks.providers import CloudProvider
+from cumulus.ansible.tasks.providers import CloudProvider, EC2Provider
 
 class CloudProviderTestCase(unittest.TestCase):
     def setup(self):
@@ -9,13 +9,14 @@ class CloudProviderTestCase(unittest.TestCase):
     def tearDown(self):
         pass
 
-
     def test_empty_profile(self):
-        p = CloudProvider({})
+        with self.assertRaises(AssertionError) as context:
+            p = CloudProvider({})
+
+        self.assertTrue('Profile does not have a "type" attribute'
+                        in context.exception)
 
 
-#    p = CloudProvider({
-#        "accessKeyId": os.environ.get("AWS_ACCESS_KEY_ID"),
-#        "secretAccessKey": os.environ.get("AWS_SECRET_ACCESS_KEY"),
-#        "type": "ec2"
-#    })
+    def test_ec2_profile(self):
+        p = CloudProvider({'type': 'ec2'})
+        self.assertTrue(isinstance(p, EC2Provider))
