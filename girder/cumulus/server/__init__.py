@@ -21,7 +21,7 @@ from .cluster import Cluster
 from .job import Job
 from .script import Script
 from .volume import Volume
-import aws
+from . import aws
 
 
 def load(info):

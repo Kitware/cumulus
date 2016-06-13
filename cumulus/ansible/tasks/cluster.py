@@ -1,7 +1,7 @@
 from cumulus.celery import command
 from cumulus.common import check_status
 from cumulus.ansible.tasks.dynamic_inventory.ec2 import get_inventory
-from inventory import AnsibleInventory
+from .inventory import AnsibleInventory
 import cumulus
 import requests
 import os
