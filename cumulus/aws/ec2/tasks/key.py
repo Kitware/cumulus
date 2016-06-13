@@ -20,6 +20,7 @@
 import os
 import requests
 import traceback
+import stat
 
 import cumulus
 
@@ -41,7 +42,7 @@ def generate_key_pair(aws_profile, girder_token):
 
         with open(key_path, 'wb') as fp:
             fp.write(key_pair['KeyMaterial'])
-        os.chmod(key_path, 0400)
+        os.chmod(key_path, stat.S_IRUSR)
 
         aws_profile['status'] = 'available'
 
