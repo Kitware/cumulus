@@ -26,12 +26,11 @@ from girder.api.rest import RestException, getApiUrl, getCurrentUser
 from bson.objectid import ObjectId, InvalidId
 
 from cumulus.constants import ClusterType, ClusterStatus
-from cumulus.common.girder import get_task_token
+from cumulus.common.girder import get_task_token, _get_profile
 import cumulus.tasks.cluster
 import cumulus.tasks.job
 import cumulus.ansible.tasks.cluster
 from cumulus.common.jsonpath import get_property
-
 
 class AbstractClusterAdapter(ModelImporter):
     """
@@ -118,26 +117,6 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         """
         return self.cluster
 
-    def _get_profile(self, profile_id):
-        user = getCurrentUser()
-        query = {'userId': user['_id']}
-        try:
-            query['_id'] = ObjectId(profile_id)
-        except InvalidId:
-            query['name'] = profile_id
-
-        profile = self.model('aws', 'cumulus').findOne(query)
-        secret = profile['secretAccessKey']
-
-        profile = self.model('aws', 'cumulus').filter(profile, user)
-
-        if profile is None:
-            raise ValidationException('Profile must be specified!')
-
-        profile['_id'] = str(profile['_id'])
-
-        return profile, secret
-
     def launch(self):
         # if id is None // Exception
         # TODO: add assert if status > launching, error
@@ -148,7 +127,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
 
-        profile, secret_key = self._get_profile(self.cluster['profileId'])
+        profile, secret_key = _get_profile(self.cluster['profileId'])
         playbook = get_property(
             'config.launch.spec', self.cluster, default=self.DEFAULT_PLAYBOOK)
         playbook_params = get_property(
@@ -174,7 +153,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
 
-        profile, secret_key = self._get_profile(self.cluster['profileId'])
+        profile, secret_key = _get_profile(self.cluster['profileId'])
 
         playbook = get_property(
             'config.launch.spec', self.cluster, default=self.DEFAULT_PLAYBOOK)
@@ -194,7 +173,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
 
-        profile, secret_key = self._get_profile(self.cluster['profileId'])
+        profile, secret_key = _get_profile(self.cluster['profileId'])
 
         playbook = get_property(
             'config.provision.spec', self.cluster,
@@ -229,7 +208,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
-        profile, secret_key = self._get_profile(self.cluster['profileId'])
+        profile, secret_key = _get_profile(self.cluster['profileId'])
 
         # Launch
         launch_playbook = get_property(

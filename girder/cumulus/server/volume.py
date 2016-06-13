@@ -37,7 +37,7 @@ from cumulus.constants import VolumeState
 from cumulus.constants import ClusterType
 from cumulus.aws.ec2 import get_ec2_client
 from bson.objectid import ObjectId, InvalidId
-from cumulus.common.girder import get_task_token
+from cumulus.common.girder import get_task_token, _get_profile
 
 import cumulus.ansible.tasks.volume
 
@@ -74,29 +74,6 @@ class Volume(BaseResource):
 
         return self.model('volume', 'cumulus').create_ebs(user, profileId, name,
                                                           zone, size, fs)
-
-    # NOTE:  this is a blind copy from cluster_adapters.py
-    # should really be refactored into something more reusable
-    def _get_profile(self, profile_id):
-        user = getCurrentUser()
-        query = {'userId': user['_id']}
-        try:
-            query['_id'] = ObjectId(profile_id)
-        except InvalidId:
-            query['name'] = profile_id
-
-        profile = self.model('aws', 'cumulus').findOne(query)
-        secret = profile['secretAccessKey']
-
-        profile = self.model('aws', 'cumulus').filter(profile, user)
-
-        if profile is None:
-            raise ValidationException('Profile must be specified!')
-
-        profile['_id'] = str(profile['_id'])
-
-        return profile, secret
-
 
     @access.user
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.WRITE)
@@ -139,7 +116,7 @@ class Volume(BaseResource):
 
         profile_id = profile_id[0].value
 
-        profile, secret_key = self._get_profile(profile_id)
+        profile, secret_key = _get_profile(profile_id)
 
         if not profile:
             raise RestException('Invalid profile', 400)
@@ -285,7 +262,7 @@ class Volume(BaseResource):
         path = body['path']
 
         profile_id = parse('profileId').find(volume)[0].value
-        profile, secret_key = self._get_profile(profile_id)
+        profile, secret_key = _get_profile(profile_id)
 
         girder_callback_info = {
             "girder_api_url": getApiUrl(),
@@ -344,7 +321,7 @@ class Volume(BaseResource):
     def detach(self, volume, params):
 
         profile_id = parse('profileId').find(volume)[0].value
-        profile, secret_key = self._get_profile(profile_id)
+        profile, secret_key = _get_profile(profile_id)
 
         girder_callback_info = {
             "girder_api_url": getApiUrl(),
@@ -425,7 +402,7 @@ class Volume(BaseResource):
         # Call EC2 to delete volume
         profile_id = parse('profileId').find(volume)[0].value
 
-        profile, secret_key = self._get_profile(profile_id)
+        profile, secret_key = _get_profile(profile_id)
 
         girder_callback_info = {
             "girder_api_url": getApiUrl(),

@@ -39,6 +39,8 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
     ansible = run_playbook(playbook, inventory, playbook_variables,
                            env=env, verbose=3)
 
+    # todo cluster statuses should be updated in celery tasks?
+    check_girder_cluster_status(cluster, girder_token, post_status)
     check_ansible_return_code(ansible, cluster, girder_token)
 
 

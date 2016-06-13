@@ -22,11 +22,12 @@ import datetime
 from bson.objectid import ObjectId
 
 from girder.api.rest import ModelImporter, RestException, getCurrentUser
+from girder.models.model_base import ValidationException
 from girder.constants import AccessType
 
 import cumulus
 from cumulus.constants import ClusterType
-
+from bson.objectid import ObjectId, InvalidId
 
 def get_task_token(cluster=None):
     """
@@ -49,6 +50,28 @@ def get_task_token(cluster=None):
         user = user.next()
 
     return ModelImporter.model('token').createToken(user=user, days=7)
+
+
+def _get_profile(profile_id):
+    user = getCurrentUser()
+    query = {'userId': user['_id']}
+    try:
+        query['_id'] = ObjectId(profile_id)
+    except InvalidId:
+        query['name'] = profile_id
+
+    profile = ModelImporter.model('aws', 'cumulus').findOne(query)
+    secret = profile['secretAccessKey']
+
+    profile = ModelImporter.model('aws', 'cumulus').filter(profile, user)
+
+    if profile is None:
+        raise ValidationException('Profile must be specified!')
+
+    profile['_id'] = str(profile['_id'])
+
+    return profile, secret
+
 
 
 def create_status_notification(resource_name, notification, user):
