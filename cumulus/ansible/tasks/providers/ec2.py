@@ -23,10 +23,14 @@ class EC2Provider(CloudProvider):
         super(EC2Provider, self).__init__(profile)
 
         if not hasattr(self, "secretAccessKey"):
-            profile = ModelImporter.model('aws', 'cumulus').load(
-                self.girder_profile_id)
+            try:
+                profile = ModelImporter.model('aws', 'cumulus').load(
+                    self.girder_profile_id)
 
-            self.secretAccessKey = profile.get('secreteAccessKey', None)
+                self.secretAccessKey = profile.get('secreteAccessKey', None)
+            # Cumulus plugin libraries are not available
+            except ImportError:
+                self.secretAccessKey = None
 
         self._volume_cache = {}
 
