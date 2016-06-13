@@ -1,6 +1,6 @@
 group_name @allhosts
 
 hostlist {% for host in groups.exec | default([]) + groups.master -%}
-    {{ '%s ' % hostvars[host].private_ip }}
+    {{ '%s ' % hostvars[host].private_ip|default(hostvars[host].ansible_hostname) }}
 {%- endfor %}
 

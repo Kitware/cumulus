@@ -1,3 +1,3 @@
 {% for host in groups['exec'] %}
-  /home {{ hostvars[host].private_ip }}(async,no_root_squash,no_subtree_check,rw)
+  /home {{ hostvars[host].private_ip|default(hostvars[host].ansible_hostname) }}(async,no_root_squash,no_subtree_check,rw)
 {% endfor %}
