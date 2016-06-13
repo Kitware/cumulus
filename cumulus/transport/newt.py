@@ -180,7 +180,6 @@ class NewtClusterConnection(AbstractConnection):
         path = os.path.dirname(remote_path)
 
         # If not a full path then assume relative to users home
-        print path[0]
         if path[0] != '/':
             # Get the users home directory
             path = os.path.abspath(os.path.join(self._home_dir(), path))
