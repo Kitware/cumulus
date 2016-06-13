@@ -9,12 +9,37 @@ from celery.utils.log import get_task_logger
 
 from cumulus.ansible.tasks.utils import get_playbook_path
 from cumulus.ansible.tasks.utils import check_girder_cluster_status
-from cumulus.ansible.tasks.utils import provision_cluster
+from cumulus.ansible.tasks.utils import get_callback_plugins_path
 from cumulus.ansible.tasks.utils import get_playbook_variables
 from cumulus.ansible.tasks.utils import run_playbook
 from cumulus.ansible.tasks.utils import check_ansible_return_code
 
 logger = get_task_logger(__name__)
+
+
+@command.task
+def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
+                      girder_token, log_write_url, post_status):
+
+    playbook = get_playbook_path(playbook)
+    playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
+
+    env = os.environ.copy()
+    env.update({'AWS_ACCESS_KEY_ID': profile['accessKeyId'],
+                'AWS_SECRET_ACCESS_KEY': secret_key,
+                'GIRDER_TOKEN': girder_token,
+                'LOG_WRITE_URL': log_write_url,
+                'CLUSTER_ID': cluster['_id'],
+                'ANSIBLE_HOST_KEY_CHECKING': 'false',
+                'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path()})
+
+    inventory = os.path.join(os.path.dirname(__file__), 'dynamic_inventory')
+
+    ansible = run_playbook(playbook, inventory, playbook_variables,
+                           env=env, verbose=3)
+
+    check_ansible_return_code(ansible, cluster, girder_token)
+
 
 
 @command.task
