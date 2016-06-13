@@ -13,6 +13,7 @@ from cumulus.ansible.tasks.utils import get_callback_plugins_path
 from cumulus.ansible.tasks.utils import get_playbook_variables
 from cumulus.ansible.tasks.utils import run_playbook
 from cumulus.ansible.tasks.utils import check_ansible_return_code
+from cumulus.ansible.tasks.volume import detach_volume
 
 logger = get_task_logger(__name__)
 
@@ -102,6 +103,7 @@ def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
 @command.task
 def terminate_cluster(playbook, cluster, profile, secret_key, extra_vars,
                       girder_token, log_write_url, post_status):
+
     playbook = get_playbook_path(playbook)
     playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
 
@@ -111,6 +113,25 @@ def terminate_cluster(playbook, cluster, profile, secret_key, extra_vars,
                 'GIRDER_TOKEN': girder_token,
                 'LOG_WRITE_URL': log_write_url,
                 'CLUSTER_ID': cluster['_id']})
+
+    # if there are any volumes,  make sure to detach them first.
+    if 'volumes' in cluster and len(cluster['volumes']):
+        p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
+        master = p.get_master_instance(cluster['_id'])
+
+        for volume_id in cluster['volumes']:
+            r = requests.get('%s/volumes/%s' %
+                             (cumulus.config.girder.baseUrl, volume_id),
+                             headers={'Girder-Token':  girder_token})
+            check_status(r)
+            volume = r.json()
+
+            girder_callback_info = {
+                "girder_api_url": cumulus.config.girder.baseUrl,
+                "girder_token": girder_token}
+
+            detach_volume(profile, cluster, master, volume,
+                          secret_key, girder_callback_info)
 
     inventory = simple_inventory('localhost')
 
