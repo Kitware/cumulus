@@ -82,7 +82,7 @@ def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
 
     p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
-    master = p.get_master_instance(cluster)
+    master = p.get_master_instance(cluster['_id'])
 
     status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,
                                      cluster['_id'])

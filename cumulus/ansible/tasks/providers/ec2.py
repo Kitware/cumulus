@@ -94,8 +94,7 @@ class EC2Provider(CloudProvider):
 
         return inventory
 
-    def get_master_instance(self, cluster):
-        cluster_id = str(cluster["_id"])
+    def get_master_instance(self, cluster_id):
 
         instances = list(self.ec2.instances.filter(Filters=[
             {'Name': 'tag:ec2_pod_instance_name', 'Values': ['head']},

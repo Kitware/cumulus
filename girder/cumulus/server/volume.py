@@ -299,7 +299,7 @@ class Volume(BaseResource):
                                 'to a cluster',
                                 400)
 
-        master = p.get_master_instance(cluster)
+        master = p.get_master_instance(cluster['_id'])
         if master['state'] != InstanceState.RUNNING:
             raise RestException('Master instance is not running!',
                                 400)
@@ -369,7 +369,7 @@ class Volume(BaseResource):
         cluster = self.model('cluster', 'cumulus').load(volume['clusterId'],
                                                         user=getCurrentUser(),
                                                         level=AccessType.ADMIN)
-        master = p.get_master_instance(cluster)
+        master = p.get_master_instance(cluster['_id'])
         if master['state'] != InstanceState.RUNNING:
             raise RestException('Master instance is not running!',
                                 400)
