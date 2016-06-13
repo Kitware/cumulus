@@ -11,6 +11,7 @@ from cumulus.ssh.tasks.key import _key_path
 
 logger = get_task_logger(__name__)
 
+
 def get_playbook_directory():
     return pr.resource_filename('cumulus', 'ansible/tasks/playbooks')
 
@@ -22,6 +23,7 @@ def get_playbook_path(name):
 def get_callback_plugins_path():
     return os.path.join(get_playbook_directory(),
                         'callback_plugins')
+
 
 def get_library_path():
     return os.path.join(get_playbook_directory(),

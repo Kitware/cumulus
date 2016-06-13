@@ -19,7 +19,7 @@
 
 from __future__ import absolute_import
 import datetime
-from bson.objectid import ObjectId
+from bson.objectid import ObjectId, InvalidId
 
 from girder.api.rest import ModelImporter, RestException, getCurrentUser
 from girder.models.model_base import ValidationException
@@ -27,7 +27,7 @@ from girder.constants import AccessType
 
 import cumulus
 from cumulus.constants import ClusterType
-from bson.objectid import ObjectId, InvalidId
+
 
 def get_task_token(cluster=None):
     """
@@ -71,7 +71,6 @@ def _get_profile(profile_id):
     profile['_id'] = str(profile['_id'])
 
     return profile, secret
-
 
 
 def create_status_notification(resource_name, notification, user):

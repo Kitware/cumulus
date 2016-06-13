@@ -1,10 +1,10 @@
 class InstanceState():
-    PENDING = "pending"
-    RUNNING = "running"
-    SHUTTINGDOWN = "shutting-down"
-    TERMINATED = "terminated"
-    STOPPING = "stopping"
-    STOPPED = "stopped"
+    PENDING = 'pending'
+    RUNNING = 'running'
+    SHUTTINGDOWN = 'shutting-down'
+    TERMINATED = 'terminated'
+    STOPPING = 'stopping'
+    STOPPED = 'stopped'
 
 
 class CloudProvider(object):
@@ -18,7 +18,7 @@ class CloudProvider(object):
             try:
                 subcls = cls.__provider_registry__[profile['type']]
             except KeyError:
-                raise NotImplementedError("No provider for %s profiles"
+                raise NotImplementedError('No provider for %s profiles'
                                           % profile['type'])
 
             return subcls(profile)
@@ -36,13 +36,13 @@ class CloudProvider(object):
         cls.__provider_registry__[key] = subcls
 
     def get_inventory(self):
-        raise NotImplementedError("Must be implemented by subclass")
+        raise NotImplementedError('Must be implemented by subclass')
 
     def get_master_instance(self):
-        raise NotImplementedError("Must be implemented by subclass")
+        raise NotImplementedError('Must be implemented by subclass')
 
     def get_volumes(self):
-        raise NotImplementedError("Must be implemented by subclass")
+        raise NotImplementedError('Must be implemented by subclass')
 
     def get_volume(self, volume_id):
-        raise NotImplementedError("Must be implemented by subclass")
+        raise NotImplementedError('Must be implemented by subclass')

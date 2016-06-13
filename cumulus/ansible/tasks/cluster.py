@@ -44,7 +44,6 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
     check_ansible_return_code(ansible, cluster, girder_token)
 
 
-
 @command.task
 def start_cluster(launch_playbook, provision_playbook, cluster, profile,
                   secret_key, launch_extra_vars, provision_extra_vars,
@@ -129,8 +128,8 @@ def terminate_cluster(playbook, cluster, profile, secret_key, extra_vars,
             volume = r.json()
 
             girder_callback_info = {
-                "girder_api_url": cumulus.config.girder.baseUrl,
-                "girder_token": girder_token}
+                'girder_api_url': cumulus.config.girder.baseUrl,
+                'girder_token': girder_token}
 
             detach_volume(profile, cluster, master, volume,
                           secret_key, girder_callback_info)

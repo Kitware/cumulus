@@ -217,20 +217,20 @@ class AnsibleInventory(object):
         d = json.loads(json_string)
 
         for key, items in d.items():
-            if key != "_meta":
+            if key != '_meta':
                 g = AnsibleInventoryGroup(key)
                 for host in items:
                     g.items.append(AnsibleInventoryHost(host))
                 sections.append(g)
             else:
-                for host, variables in items["hostvars"].items():
+                for host, variables in items['hostvars'].items():
                     global_hosts.append(
                         AnsibleInventoryHost(host, **variables))
 
         return AnsibleInventory(global_hosts, sections)
 
     def to_json(self, with_meta=True):
-        d = {"_meta": {"hostvars": {}}} if with_meta else {}
+        d = {'_meta': {'hostvars': {}}} if with_meta else {}
         for host in self.global_hosts:
             if with_meta and host.variables:
                 d['_meta']['hostvars'][host.host] = host.variables
@@ -262,14 +262,14 @@ class AnsibleInventory(object):
                             # ------
                             # Should localhost's vars be:
                             #
-                            #  {"foo": "bar"},  <= Only accept global variables
-                            #  {"foo": "bar", "bar": "baz"} <= Add missing but
+                            #  {'foo': 'bar'},  <= Only accept global variables
+                            #  {'foo': 'bar', 'bar': 'baz'} <= Add missing but
                             #                                    do not update.
-                            #  {"foo": "baz", "bar": "baz"} <= Merge w/ update
+                            #  {'foo': 'baz', 'bar': 'baz'} <= Merge w/ update
                             #
                             # This script is implemented with a merge w/update
                             # strategy (because it is easy to implement), the
-                            # "correct" strategy is unclear when generating
+                            # 'correct' strategy is unclear when generating
                             # dynamic inventories.
                             d['_meta']['hostvars'][host.host].update(
                                 host.variables)
@@ -291,7 +291,7 @@ class AnsibleInventory(object):
 
 
 def simple_inventory(a, b=None):
-    """Generate an inventory object from a list of arguments
+    '''Generate an inventory object from a list of arguments
 
     This is a utility function designed to generate an AnsibleInventory
     object from simple python built-in types. It is intended to cover
@@ -321,7 +321,7 @@ def simple_inventory(a, b=None):
     :returns: an ansible inventory object
     :rtype: AnsibleInventoryObject
 
-    """
+    '''
     # Simple string,  assume a single global host
     if isinstance(a, basestring) and b is None:
         return AnsibleInventory([a])
@@ -347,5 +347,5 @@ def simple_inventory(a, b=None):
             [a], sections=[AnsibleInventoryGroup(group, hosts)
                            for group, hosts in b.items()])
 
-    raise Exception("simple_inventory could not parse arguments, "
-                    "maybe you want something more complicate?")
+    raise Exception('simple_inventory could not parse arguments, '
+                    'maybe you want something more complicate?')
