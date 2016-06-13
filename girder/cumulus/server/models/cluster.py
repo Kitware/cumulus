@@ -30,7 +30,7 @@ from cumulus.common.girder import send_status_notification, \
     check_group_membership
 import cumulus
 from cumulus import queue
-
+import six
 
 def preprocess_cluster(cluster):
     # Convert model status into enum
@@ -213,7 +213,7 @@ class Cluster(BaseModel):
             if not isinstance(value, dict):
                 return value
             else:
-                for (k, v) in value.iteritems():
+                for (k, v) in six.iteritems(value):
                     if '.' in str(k) or '$' in str(k):
                         k = k.replace('.', '\\u002e').replace('$', '\\u0024')
 

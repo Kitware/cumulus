@@ -22,6 +22,7 @@ import sys
 import collections
 import cumulus
 import logging
+import six
 from cumulus.logging import RESTfulLogHandler
 
 
@@ -32,7 +33,7 @@ def check_status(request):
 
 
 def update_dict(d, u):
-    for k, v in u.iteritems():
+    for k, v in six.iteritems(u):
         if isinstance(v, collections.Mapping):
             r = update_dict(d.get(k, {}), v)
             d[k] = r
