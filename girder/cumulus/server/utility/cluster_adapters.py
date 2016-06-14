@@ -283,8 +283,8 @@ def _validate_key(key):
     try:
         parts = key.split()
         key_type, key_string = parts[:2]
-        data = base64.decodestring(key_string)
-        return data[4:11] == key_type
+        data = base64.b64decode(key_string.encode('utf8'))
+        return data[4:11].decode('utf8') == key_type
     except Exception:
         return False
 
