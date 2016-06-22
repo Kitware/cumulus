@@ -83,6 +83,7 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
             'availabilityZone': 'us-west-2a',
             'name': 'testTest',
             'regionName': 'us-west-2',
+            'type': 'ec2',
             'secretAccessKey': self._aws_secret_access_key
         }
 

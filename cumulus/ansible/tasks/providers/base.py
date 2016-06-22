@@ -26,7 +26,7 @@ class CloudProvider(object):
         return super(CloudProvider, cls).__new__(cls, profile)
 
     def __init__(self, profile):
-        self.girder_profile_id = profile.pop('_id', None)
+        self.girder_profile_id = profile.get('_id', None)
 
         for key, value in profile.items():
             setattr(self, key, value)

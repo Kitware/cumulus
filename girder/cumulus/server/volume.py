@@ -445,14 +445,7 @@ class Volume(BaseResource):
     @access.user
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def get_status(self, volume, params):
-        profile_id = parse('profileId').find(volume)[0].value
-
-        profile = self.model('aws', 'cumulus').load(profile_id,
-                                                    user=getCurrentUser())
-
-        p = CloudProvider(profile)
-
-        return {'status': p.get_volume(volume)['state']}
+        return {'status': volume['ec2']['status']}
 
     get_status.description = (
         Description('Get the status of a volume')

@@ -149,6 +149,7 @@ class EC2Provider(CloudProvider):
         return self._volume_cache[volume_id]
 
     def get_volume(self, girder_volume):
+
         aws_volume = self._get_volume(girder_volume)
         volume = {'volume_id': aws_volume.id}
 
@@ -170,20 +171,28 @@ class EC2Provider(CloudProvider):
         return volume
 
     # Proxy these through to the boto3 client
+    # Note: these are left over from the original volume
+    #       implementation They may not make sense in terms
+    #       of a general cloud provider API.
+
+    @property
+    def client(self):
+        return self.ec2.meta.client
+
     def create_key_pair(self, *args, **kwargs):
-        return self.ec2.create_key_pair(*args, **kwargs)
+        return self.client.create_key_pair(*args, **kwargs)
 
     def delete_key_pair(self, *args, **kwargs):
-        return self.ec2.delete_key_pair(*args, **kwargs)
+        return self.client.delete_key_pair(*args, **kwargs)
 
     def describe_account_attributes(self, *args, **kwargs):
-        return self.ec2.describe_account_attributes(*args, **kwargs)
+        return self.client.describe_account_attributes(*args, **kwargs)
 
     def describe_availability_zones(self, *args, **kwargs):
-        return self.ec2.describe_availability_zones(*args, **kwargs)
+        return self.client.describe_availability_zones(*args, **kwargs)
 
     def describe_regions(self, *args, **kwargs):
-        return self.describe_regions(*args, **kwargs)
+        return self.client.describe_regions(*args, **kwargs)
 
 CloudProvider.register('ec2', EC2Provider)
 
