@@ -34,8 +34,8 @@ class EC2VolumeIntegrationTest(AnsibleIntegrationTest):
             name, girder_url, girder_user, girder_password, aws_access_key_id,
             aws_secret_access_key)
         self._volume_id = None
-        self._profile_id = "576acbf30640fd0a56df35e1"
-        self._cluster_id = "576acbf70640fd0a56df35e3"
+        self._profile_id = None
+        self._cluster_id = None
 
     def tearDown(self):
         super(EC2VolumeIntegrationTest, self).tearDown()
