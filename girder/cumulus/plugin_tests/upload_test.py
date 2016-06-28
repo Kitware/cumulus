@@ -104,13 +104,13 @@ class UploadTestCase(base.TestCase):
         self.assertEqual(len(cluster_connection.put.call_args_list), 3)
         _, (request, path), _ = cluster_connection.put.mock_calls[0]
         self.assertEqual(path, '/tmp/bill.txt')
-        self.assertEqual(request.read().strip(), 'bill')
+        self.assertEqual(request.read().decode('utf8').strip(), 'bill')
 
         _, (request, path), _ = cluster_connection.put.mock_calls[1]
         self.assertEqual(path, '/tmp/bob.txt')
-        self.assertEqual(request.read().strip(), 'bob')
+        self.assertEqual(request.read().decode('utf8').strip(), 'bob')
 
         _, (request, path), _ = cluster_connection.put.mock_calls[2]
         self.assertEqual(path, '/tmp/subfolder/will.txt')
-        self.assertEqual(request.read().strip(), 'will')
+        self.assertEqual(request.read().decode('utf8').strip(), 'will')
 
