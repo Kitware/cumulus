@@ -47,10 +47,10 @@ class UploadTestCase(base.TestCase):
             email='regularuser@email.com', login='regularuser',
             firstName='First', lastName='Last', password='goodpassword')
 
-        self._folder = self.model('folder').childFolders(
+        self._folder = six.next(self.model('folder').childFolders(
             self._user, parentType='user', force=True, filters={
                 'name': 'Public'
-            }).next()
+            }))
 
         item = self.model('item').createItem(
             name='bob.txt', creator=self._user, folder=self._folder)
