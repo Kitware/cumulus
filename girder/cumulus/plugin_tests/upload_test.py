@@ -17,20 +17,14 @@
 #  limitations under the License.
 ###############################################################################
 
-import urllib2
 import cherrypy
 import mock
-from easydict import EasyDict
-from jsonpath_rw import parse
 import os
+import six
 
 from tests import base
-import json
 import cumulus
 from cumulus.transport.files.upload import upload_path
-
-from girder.constants import ROOT_DIR
-from docutils.parsers.rst.directives import path
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
