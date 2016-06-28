@@ -66,6 +66,7 @@ def get_playbook_variables(cluster, profile, extra_vars):
     # Default variables all playbooks will need
     playbook_variables = {
         'cluster_region': profile['regionName'],
+        'cluster_zone': profile['availabilityZone'],
         'cluster_id': cluster['_id'],
         'ansible_ssh_private_key': _key_path(profile)
     }
