@@ -1,5 +1,6 @@
 import six
 
+
 def flatten_ec2_result(ec2_result):
     result = []
     for entry in ec2_result['results']:
