@@ -3,6 +3,7 @@ import httmock
 import mock
 import json
 from jsonpath_rw import parse
+import stat
 
 import cumulus
 from cumulus.transport.files.download import download_path
@@ -25,7 +26,7 @@ class DownloadTestCase(unittest.TestCase):
 
         folder = {
                   'name':  'folder',
-                  'mode': 0040000,
+                  'mode': stat.S_IFDIR,
                   'size': 1234
         }
 
