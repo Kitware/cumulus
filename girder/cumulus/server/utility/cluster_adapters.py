@@ -120,7 +120,8 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     def launch(self):
         # if id is None // Exception
         if self.cluster['status'] >= ClusterStatus.launching:
-            raise RestException('Cluster is either already launching, or launched.', code=400)
+            raise RestException('Cluster is either already launching, '
+                                'or launched.', code=400)
 
         self.update_status(ClusterStatus.launching)
 

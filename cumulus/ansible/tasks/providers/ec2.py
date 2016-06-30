@@ -26,6 +26,7 @@ import os
 from base import CloudProvider, InstanceState
 from girder.api.rest import ModelImporter
 
+
 class EC2Provider(CloudProvider):
     InstanceState = {
         0: InstanceState.PENDING,
@@ -225,7 +226,7 @@ if __name__ == '__main__':
     p = CloudProvider({
         'accessKeyId': os.environ.get('AWS_ACCESS_KEY_ID'),
         'secretAccessKey': os.environ.get('AWS_SECRET_ACCESS_KEY'),
-        'type': 'ec2'
+        'cloud-provider': 'ec2'
     })
 
     print(json.dumps(p.get_inventory(os.environ.get('CLUSTER_ID'))))

@@ -73,7 +73,6 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
 
 
     def create_profile(self):
-
         user = self._client.get('user/me')
         self._user_id = user['_id']
 
@@ -83,7 +82,7 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
             'availabilityZone': 'us-west-2a',
             'name': 'testTest',
             'regionName': 'us-west-2',
-            'type': 'ec2',
+            'cloud-provider': 'ec2',
             'secretAccessKey': self._aws_secret_access_key
         }
 

@@ -14,6 +14,7 @@
 #  limitations under the License.
 ###############################################################################
 
+
 class InstanceState():
     PENDING = 'pending'
     RUNNING = 'running'
@@ -28,14 +29,14 @@ class CloudProvider(object):
 
     def __new__(cls, profile):
         if cls == CloudProvider:
-            assert 'type' in profile, \
-                'Profile does not have a "type" attribute'
+            assert 'cloud-provider' in profile, \
+                'Profile does not have a "cloud-provider" attribute'
 
             try:
-                subcls = cls.__provider_registry__[profile['type']]
+                subcls = cls.__provider_registry__[profile['cloud-provider']]
             except KeyError:
                 raise NotImplementedError('No provider for %s profiles'
-                                          % profile['type'])
+                                          % profile['cloud-provider'])
 
             return subcls(profile)
 

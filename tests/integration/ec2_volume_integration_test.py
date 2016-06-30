@@ -64,9 +64,6 @@ class EC2VolumeIntegrationTest(AnsibleIntegrationTest):
 
 
 
-
-
-
     def create_volume(self):
         volume_url = 'volumes'
         body =  {

@@ -187,7 +187,7 @@ class AwsTestCase(base.TestCase):
         expected = {
             u'availabilityZone': u'cornwall-2b',
             u'name': u'myprof',
-            u'type': u'ec2',
+            u'cloud-provider': u'ec2',
             u'regionHost': u'cornwall.ec2.amazon.com',
             u'accessKeyId': u'mykeyId',
             u'secretAccessKey': u'mysecret',
@@ -250,7 +250,7 @@ class AwsTestCase(base.TestCase):
         expected = {
             u'availabilityZone': u'cornwall-2b',
             u'name': u'myprof',
-            u'type': u'ec2',
+            u'cloud-provider': u'ec2',
             u'regionHost': u'cornwall.ec2.amazon.com',
             u'accessKeyId': u'mykeyId',
             u'secretAccessKey': u'mysecret',
@@ -336,7 +336,7 @@ class AwsTestCase(base.TestCase):
 
         expected = {
             'name': profile_name,
-            'type': 'ec2',
+            'cloud-provider': 'ec2',
             'accessKeyId': change_value,
             'secretAccessKey': change_value,
             'regionName': 'cornwall',
@@ -372,7 +372,7 @@ class AwsTestCase(base.TestCase):
             u'status': u'error',
             u'availabilityZone': u'cornwall-2b',
             u'name': u'myprof',
-            u'type': u'ec2',
+            u'cloud-provider': u'ec2',
             u'regionHost': u'cornwall.ec2.amazon.com',
             u'errorMessage': u'some message',
             u'accessKeyId': u'cchange ...',
@@ -416,7 +416,7 @@ class AwsTestCase(base.TestCase):
             u'status': u'error',
             u'availabilityZone': u'cornwall-2b',
             u'name': u'myprof',
-            u'type': u'ec2',
+            u'cloud-provider': u'ec2',
             u'regionHost': u'cornwall.ec2.amazon.com',
             u'errorMessage': u'some message',
             u'accessKeyId': u'cchange ...',
@@ -601,7 +601,7 @@ class AwsTestCase(base.TestCase):
 
         profile1 = {
             'name': 'myprof1',
-            'type': 'ec2',
+            'cloud-provider': 'ec2',
             'accessKeyId': 'mykeyId',
             'secretAccessKey': 'mysecret',
             'regionName': 'cornwall',
@@ -620,7 +620,7 @@ class AwsTestCase(base.TestCase):
 
         profile2 = {
             'name': 'myprof2',
-            'type': 'ec2',
+            'cloud-provider': 'ec2',
             'accessKeyId': 'mykeyId',
             'secretAccessKey': 'mysecret',
             'regionName': 'cornwall',

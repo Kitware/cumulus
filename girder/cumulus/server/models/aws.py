@@ -40,7 +40,7 @@ class Aws(BaseModel):
         self.exposeFields(level=AccessType.READ, fields=(
             '_id', 'name', 'accessKeyId', 'regionName', 'regionHost',
             'availabilityZone', 'status', 'errorMessage', 'publicIPs',
-            'type'))
+            'cloud-provider'))
 
     def _validate_region(self, client, doc):
         try:
@@ -140,7 +140,7 @@ class Aws(BaseModel):
         user = getCurrentUser()
         profile = {
             'name': name,
-            'type': profile_type,
+            'cloud-provider': profile_type,
             'accessKeyId': access_key_id,
             'secretAccessKey': secret_access_key,
             'regionName': region_name,
