@@ -19,4 +19,5 @@ add_python_test(slurm)
 add_python_test(download)
 add_python_test(taskflow)
 add_python_test(ansible_inventory)
-add_python_test(ansible_run_log)
+# For now ansible only supports Python2
+add_python_test(ansible_run_log PY2_ONLY)
