@@ -49,8 +49,8 @@ class AssertCallsMixin(object):
 
     def assertArgs(self, actual, expected):
         self.assertEqual(len(actual), len(expected),
-                        'Number of args do not match: %d != %d' %
-                        (len(actual), len(expected)))
+                         'Number of args do not match: %d != %d' %
+                         (len(actual), len(expected)))
         for i in range(0, len(actual)):
             try:
                 self.assertEqual(actual[i], expected[i])
@@ -66,13 +66,12 @@ class AssertCallsMixin(object):
         self.assertArgs(actual_args, expected_args)
         self.assertEqual(actual_kwargs, expected_kwargs)
 
-
     def assertCalls(self, actual, expected):
         calls = self.normalize(actual)
 
         self.assertEqual(len(calls), len(expected),
-                        'Number of calls do not match: %d != %d' %
-                        (len(calls), len(expected)))
+                         'Number of calls do not match: %d != %d' %
+                         (len(calls), len(expected)))
 
         for i in range(0, len(calls)):
             try:

@@ -270,8 +270,8 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
                 # If the number of slots has not been provided we will get
                 # the number of slots from the parallel environment
                 if slots == -1:
-                    slots = int(get_queue_adapter(cluster, conn) \
-                        .number_of_slots(parallel_env))
+                    slots = int(get_queue_adapter(cluster, conn)
+                                .number_of_slots(parallel_env))
                     if slots > 0:
                         job_params['numberOfSlots'] = slots
 

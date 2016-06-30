@@ -21,6 +21,7 @@
 from enum import IntEnum
 import six
 
+
 class ClusterType:
     EC2 = 'ec2'
     ANSIBLE = 'ansible'
