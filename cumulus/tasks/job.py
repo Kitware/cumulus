@@ -358,8 +358,14 @@ class JobState(object):
     def __str__(self):
         return self.__class__.__name__.lower()
 
+    def __lt__(self, other):
+        return str(self) < str(other)
+
     def __cmp__(self, other):
-        return cmp(str(self), str(other))
+        a = str(self)
+        b = str(other)
+
+        return (a > b) - (a < b)
 
     def __hash__(self):
         return hash(str(self))
