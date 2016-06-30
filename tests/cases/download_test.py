@@ -44,7 +44,7 @@ class DownloadTestCase(unittest.TestCase):
             content = {
                 '_id': 'dummy'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -63,7 +63,7 @@ class DownloadTestCase(unittest.TestCase):
             content = {
                 '_id': 'dummy'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -82,7 +82,7 @@ class DownloadTestCase(unittest.TestCase):
             content = {
                 '_id': 'dummy'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -99,7 +99,7 @@ class DownloadTestCase(unittest.TestCase):
         # Mock list folder
         def _list_folder(url, request):
             content = []
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'

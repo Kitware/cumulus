@@ -41,7 +41,7 @@ def generate_key_pair(aws_profile, girder_token):
         key_pair = client.create_key_pair(KeyName=aws_profile['_id'])
 
         with open(key_path, 'wb') as fp:
-            fp.write(key_pair['KeyMaterial'])
+            fp.write(key_pair['KeyMaterial'].encode('utf8'))
         os.chmod(key_path, stat.S_IRUSR)
 
         aws_profile['status'] = 'available'

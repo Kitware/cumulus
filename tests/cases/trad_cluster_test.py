@@ -93,7 +93,7 @@ class TradClusterTestCase(AssertCallsMixin, unittest.TestCase):
                 }
             }
 
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'

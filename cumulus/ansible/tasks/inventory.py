@@ -207,7 +207,7 @@ class AnsibleInventory(object):
         _, path = tempfile.mkstemp()
 
         with open(path, 'wb') as fh:
-            fh.write(self.to_string())
+            fh.write(self.to_string().encode('utf8'))
 
         yield path
 

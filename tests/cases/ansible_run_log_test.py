@@ -19,7 +19,7 @@ def flaskProcess(requests_file):
     @app.route("/log", methods=["POST"])
     def test():
         with open(requests_file, "a") as fh:
-            fh.write(request.data + "\n")
+            fh.write((request.data + "\n").encode('uft8'))
         return "SUCCESS"
 
     app.run(debug=False, use_reloader=False)
