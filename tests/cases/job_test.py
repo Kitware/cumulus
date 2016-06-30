@@ -76,7 +76,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
             content = {
                 'status': 'terminating'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -139,7 +139,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
             content = {
                 'status': 'running'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -201,7 +201,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
             content = {
                 'status': 'running'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -265,7 +265,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
             content = {
                 'status': 'queued'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -327,7 +327,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
             content = {
                 'status': 'running'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -406,7 +406,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
             content = {
                 'status': 'queued'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -418,7 +418,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
             content = {
                 'status': 'queued'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -429,7 +429,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
         def _log(url, request):
             content = {
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -609,7 +609,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
             content = {
                 'status': 'queued'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -696,7 +696,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
             content = {
                 'status': 'complete'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
