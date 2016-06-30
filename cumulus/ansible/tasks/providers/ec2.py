@@ -162,7 +162,6 @@ class EC2Provider(CloudProvider):
             else:
                 volume['state'] = VolumeState.ERROR
 
-        # TODO add 'instance_id' here (None if not attached)
         if aws_volume.attachments:
             volume['state'] = VolumeState.INUSE
         else:

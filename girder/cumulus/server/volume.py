@@ -117,7 +117,6 @@ class Volume(BaseResource):
         if not profile:
             raise RestException('Invalid profile', 400)
 
-        # TODO:  Validate zone using provider
         if 'zone' in body:
             zone = body['zone']
         else:
