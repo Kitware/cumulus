@@ -48,7 +48,7 @@ def generate_key_pair(aws_profile, girder_token):
 
     except Exception as ex:
         aws_profile['status'] = 'error'
-        aws_profile['errorMessage'] = '%s: %s' % (type(ex).__name__, ex.message)
+        aws_profile['errorMessage'] = '%s: %s' % (type(ex).__name__, ex)
         traceback.print_exc()
 
     update_url = '%s/user/%s/aws/profiles/%s' % (cumulus.config.girder.baseUrl,

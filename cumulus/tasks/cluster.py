@@ -185,4 +185,4 @@ def test_connection(cluster, log_write_url=None, girder_token=None):
         r = requests.patch(cluster_url, headers=headers,
                            json={'status': 'error'})
         # Log the error message
-        log.exception(ex.message)
+        log.exception(ex)
