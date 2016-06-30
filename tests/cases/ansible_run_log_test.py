@@ -84,7 +84,7 @@ class AnsibleRunTestCase(unittest.TestCase):
             env=env)
 
         with open(self.requests_file, "rb") as fh:
-            contents = fh.read()
+            contents = fh.read().decode('utf8')
 
         return [json.loads(l) for l in contents.split("\n") if l != '']
 

@@ -52,9 +52,9 @@ def run_playbook(playbook, inventory, extra_vars=None,
 
         for fd in ret[0]:
             if fd == p.stdout.fileno():
-                logger.info(p.stdout.readline())
+                logger.info(p.stdout.readline().decode('utf8'))
             if fd == p.stderr.fileno():
-                logger.error(p.stderr.readline())
+                logger.error(p.stderr.readline().decode('utf8'))
 
         if p.poll() is not None:
             return p.wait()
