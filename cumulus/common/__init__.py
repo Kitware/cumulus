@@ -28,7 +28,7 @@ from cumulus.logging import RESTfulLogHandler
 
 def check_status(request):
     if request.status_code != 200:
-        print(request.content, file=sys.stderr)
+        six.print_(request.content, file=sys.stderr)
         request.raise_for_status()
 
 

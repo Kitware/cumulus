@@ -24,6 +24,7 @@ import cumulus
 import json
 from celery.app import task
 import sys
+import six
 
 from cumulus.tasks import job
 from cumulus.testing import AssertCallsMixin
@@ -215,7 +216,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
             self._set_status_called = json.loads(request.body) == expected
 
             if not self._set_status_called:
-                print(json.loads(request.body), file=sys.stderr)
+                six.print_(json.loads(request.body), file=sys.stderr)
 
             return httmock.response(200, None, {}, request=request)
 
@@ -341,7 +342,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
             self._set_status_called = json.loads(request.body) == expected
 
             if not self._set_status_called:
-                print(json.loads(request.body), file=sys.stderr)
+                six.print_(json.loads(request.body), file=sys.stderr)
 
             return httmock.response(200, None, {}, request=request)
 
