@@ -56,7 +56,8 @@ def create_profile(user, params):
     requireParams(['name', 'accessKeyId', 'secretAccessKey', 'regionName',
                    'availabilityZone'], body)
 
-    profile_type = 'ec2' if 'cloud-provider' not in body.keys() else body['cloud-provider']
+    profile_type = 'ec2' if 'cloud-provider' not in body.keys() \
+                   else body['cloud-provider']
 
     model = ModelImporter.model('aws', 'cumulus')
     profile = model.create_profile(user['_id'], body['name'],
