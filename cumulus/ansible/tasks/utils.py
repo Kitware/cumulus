@@ -72,7 +72,11 @@ def run_playbook(playbook, inventory, extra_vars=None,
             if fd == p.stdout.fileno():
                 logger.info(p.stdout.readline())
             if fd == p.stderr.fileno():
-                logger.error(p.stderr.readline())
+                err = p.stderr.readline()
+                # Ansible produces a number of empty stderr lines
+                # Make sure we don't report these as errors
+                if err.strip() != '':
+                    logger.error(err)
 
         if p.poll() is not None:
             return p.wait()
