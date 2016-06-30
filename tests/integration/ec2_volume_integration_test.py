@@ -39,6 +39,30 @@ class EC2VolumeIntegrationTest(AnsibleIntegrationTest):
 
     def tearDown(self):
         super(EC2VolumeIntegrationTest, self).tearDown()
+        if self._volume_id:
+            # Try to detach to volume
+            try:
+                volume_url = 'volumes/%s/detach' % self._volume_id
+                r = self._client.put(volume_url)
+
+                volume_status_url = 'volumes/%s/status' % self._volume_id
+                self._wait_for_status(volume_status_url, 'available', timeout=60)
+
+            except HttpError as error:
+                # if it doesn't exist continue
+                if error.status != 400:
+                    raise error
+
+            # Try to delete the volume
+            try:
+                volume_url = 'volumes/%s' % self._volume_id
+                r = self._client.delete(volume_url)
+            except HttpError as error:
+                # if it doesn't exist continue
+                if error.status != 400:
+                    raise error
+
+
 
 
 
