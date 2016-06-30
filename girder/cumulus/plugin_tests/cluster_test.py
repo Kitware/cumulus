@@ -20,12 +20,11 @@
 from tests import base
 import json
 import mock
-import re
-from easydict import EasyDict
 from bson.objectid import ObjectId
-from cumulus.constants import ClusterStatus
 
 from cumulus.transport.files import get_assetstore_url_base
+from cumulus.testing import AssertCallsMixin
+
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
@@ -37,21 +36,7 @@ def tearDownModule():
     base.stopServer()
 
 
-class ClusterTestCase(base.TestCase):
-
-    def normalize(self, data):
-        str_data = json.dumps(data, default=str)
-        str_data = re.sub(r'[\w]{64}', 'token', str_data)
-
-        return json.loads(str_data)
-
-    def assertCalls(self, actual, expected, msg=None):
-        calls = []
-        for (args, kwargs) in self.normalize(actual):
-            calls.append((args, kwargs))
-
-        self.assertListEqual(self.normalize(calls), expected, msg)
-
+class ClusterTestCase(AssertCallsMixin, base.TestCase):
     def setUp(self):
         super(ClusterTestCase, self).setUp()
 

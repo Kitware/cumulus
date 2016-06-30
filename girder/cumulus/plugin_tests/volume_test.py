@@ -20,9 +20,7 @@
 from tests import base
 import json
 import mock
-import re
-from easydict import EasyDict
-from bson.objectid import ObjectId
+from cumulus.testing import AssertCallsMixin
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
@@ -33,20 +31,7 @@ def tearDownModule():
     base.stopServer()
 
 
-class VolumeTestCase(base.TestCase):
-
-    def normalize(self, data):
-        str_data = json.dumps(data, default=str)
-        str_data = re.sub(r'[\w]{64}', 'token', str_data)
-
-        return json.loads(str_data)
-
-    def assertCalls(self, actual, expected, msg=None):
-        calls = []
-        for (args, kwargs) in self.normalize(actual):
-            calls.append((args, kwargs))
-
-        self.assertListEqual(self.normalize(calls), expected, msg)
+class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')

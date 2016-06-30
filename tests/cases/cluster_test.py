@@ -18,33 +18,14 @@
 ###############################################################################
 
 import unittest
-import mock
-import httmock
-import json
-import re
-import os
 
-from cumulus.tasks import cluster
-from __builtin__ import True
+from cumulus.testing import AssertCallsMixin
 
-class ClusterTestCase(unittest.TestCase):
+class ClusterTestCase(AssertCallsMixin, unittest.TestCase):
 
     def setUp(self):
         self._get_status_called  = False
         self._set_status_called  = False
-
-    def normalize(self, data):
-        str_data = json.dumps(data, default=str)
-        str_data = re.sub(r'[\w]{64}', 'token', str_data)
-
-        return json.loads(str_data)
-
-    def assertCalls(self, actual, expected, msg=None):
-        calls = []
-        for (args, kwargs) in self.normalize(actual):
-            calls.append((args, kwargs))
-
-        self.assertListEqual(self.normalize(calls), expected, msg)
 
     def test_start_cluster_max_instance_limit(self):
         pass

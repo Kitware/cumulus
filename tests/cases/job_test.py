@@ -22,11 +22,10 @@ import mock
 import httmock
 import cumulus
 import json
-import re
-import os
-from cumulus.tasks import job
 from celery.app import task
 
+from cumulus.tasks import job
+from cumulus.testing import AssertCallsMixin
 
 class MockContext(task.Context):
 
@@ -40,25 +39,12 @@ class MockContext(task.Context):
 def capture_mock(func):
     pass
 
-class JobTestCase(unittest.TestCase):
+class JobTestCase(AssertCallsMixin, unittest.TestCase):
 
     def setUp(self):
         self._get_status_called  = False
         self._set_status_called  = False
         self._upload_job_output = cumulus.tasks.job.upload_job_output.delay = mock.Mock()
-
-    def normalize(self, data):
-        str_data = json.dumps(data, default=str)
-        str_data = re.sub(r'[\w]{64}', 'token', str_data)
-
-        return json.loads(str_data)
-
-    def assertCalls(self, actual, expected, msg=None):
-        calls = []
-        for (args, kwargs) in self.normalize(actual):
-            calls.append((args, kwargs))
-
-        self.assertListEqual(self.normalize(calls), expected, msg)
 
     @mock.patch('cumulus.tasks.job.get_connection')
     def test_monitor_job_terminated(self, get_connection):
