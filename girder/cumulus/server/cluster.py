@@ -585,7 +585,7 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        cluster = self._model.filter(cluster, user)
+        cluster = self._model.filter(cluster, user, int_enum_to_string=False)
         adapter = get_cluster_adapter(cluster)
         adapter.delete()
 
