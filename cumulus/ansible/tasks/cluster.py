@@ -47,10 +47,11 @@ def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
                 'GIRDER_TOKEN': girder_token,
                 'LOG_WRITE_URL': log_write_url,
                 'CLUSTER_ID': cluster['_id'],
+                'REGION_NAME': profile['regionName'],
                 'ANSIBLE_HOST_KEY_CHECKING': 'false',
                 'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path()})
 
-    inventory = os.path.join(os.path.dirname(__file__), 'dynamic_inventory')
+    inventory = os.path.join(os.path.dirname(__file__), 'providers', 'ec2.py')
 
     ansible = run_playbook(playbook, inventory, playbook_variables,
                            env=env, verbose=3)

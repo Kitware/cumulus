@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 ###############################################################################
 #  Copyright 2016 Kitware Inc.
 #
@@ -23,7 +25,6 @@ import os
 
 from base import CloudProvider, InstanceState
 from girder.api.rest import ModelImporter
-
 
 class EC2Provider(CloudProvider):
     InstanceState = {
