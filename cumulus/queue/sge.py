@@ -97,7 +97,7 @@ class SgeQueueAdapter(AbstractQueueAdapter):
                 slots = m.group(1)
                 break
 
-        if slots < 1:
+        if int(slots) < 1:
             raise Exception('Unable to retrieve number of slots')
 
         return slots
