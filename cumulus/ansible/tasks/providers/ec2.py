@@ -226,7 +226,7 @@ if __name__ == '__main__':
     p = CloudProvider({
         'accessKeyId': os.environ.get('AWS_ACCESS_KEY_ID'),
         'secretAccessKey': os.environ.get('AWS_SECRET_ACCESS_KEY'),
-        'cloud-provider': 'ec2'
+        'cloudProvider': 'ec2'
     })
 
     print(json.dumps(p.get_inventory(os.environ.get('CLUSTER_ID'))))

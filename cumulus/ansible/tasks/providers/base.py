@@ -29,14 +29,14 @@ class CloudProvider(object):
 
     def __new__(cls, profile):
         if cls == CloudProvider:
-            assert 'cloud-provider' in profile, \
-                'Profile does not have a "cloud-provider" attribute'
+            assert 'cloudProvider' in profile, \
+                'Profile does not have a "cloudProvider" attribute'
 
             try:
-                subcls = cls.__provider_registry__[profile['cloud-provider']]
+                subcls = cls.__provider_registry__[profile['cloudProvider']]
             except KeyError:
                 raise NotImplementedError('No provider for %s profiles'
-                                          % profile['cloud-provider'])
+                                          % profile['cloudProvider'])
 
             return subcls(profile)
 

@@ -56,8 +56,8 @@ def create_profile(user, params):
     requireParams(['name', 'accessKeyId', 'secretAccessKey', 'regionName',
                    'availabilityZone'], body)
 
-    profile_type = 'ec2' if 'cloud-provider' not in body.keys() \
-                   else body['cloud-provider']
+    profile_type = 'ec2' if 'cloudProvider' not in body.keys() \
+                   else body['cloudProvider']
 
     model = ModelImporter.model('aws', 'cumulus')
     profile = model.create_profile(user['_id'], body['name'],
@@ -154,7 +154,7 @@ delete_profile.description = (
 def update_profile(user, profile, params):
     body = getBodyJson()
     properties = ['accessKeyId', 'secretAccessKey', 'status', 'errorMessage',
-                  'publicIPs', 'cloud-provider']
+                  'publicIPs', 'cloudProvider']
     for prop in properties:
         if prop in body:
             profile[prop] = body[prop]
