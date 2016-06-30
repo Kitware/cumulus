@@ -503,7 +503,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
         job_id = r.json['_id']
 
         r = self.request('/clusters/%s/job/%s/submit' % (str(cluster_id), str(job_id)), method='PUT',
-                         type='application/json', body=json.dumps({}), user=self._user)
+                         type='application/json', body='', user=self._user)
         expected_response = {
             u'message': u'Cluster is not running', u'type': u'rest'}
         self.assertEqual(r.json, expected_response)
@@ -522,7 +522,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatusOk(r)
 
         r = self.request('/clusters/%s/job/%s/submit' % (str(cluster_id), str(job_id)), method='PUT',
-                         type='application/json', body=json.dumps({}), user=self._user)
+                         type='application/json', body='', user=self._user)
         self.assertStatusOk(r)
 
         expected_submit_call = \
@@ -781,7 +781,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatus(r, 201)
         _id = str(r.json['_id'])
         r = self.request('/clusters/%s/terminate' % _id, method='PUT',
-                         type='application/json', body=json.dumps({}), user=self._user)
+                         type='application/json', body='', user=self._user)
 
         self.assertStatus(r, 400)
 
