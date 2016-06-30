@@ -32,6 +32,7 @@ import cumulus
 from cumulus import queue
 import six
 
+
 def preprocess_cluster(cluster):
     # Convert model status into enum
     try:

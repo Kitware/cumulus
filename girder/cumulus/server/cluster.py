@@ -66,8 +66,9 @@ class Cluster(BaseResource):
         if not self._model.load(id, user=user, level=AccessType.ADMIN):
             raise RestException('Cluster not found.', code=404)
 
-        return self._model.add_log_record(user, id,
-                json.loads(cherrypy.request.body.read().decode('utf8')))
+        return self._model.add_log_record(
+            user, id, json.loads(cherrypy.request.body.read().decode('utf8')))
+
     handle_log_record.description = None
 
     def _create_ec2(self, params, body):
