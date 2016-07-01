@@ -252,8 +252,8 @@ localhost foo=other
 192.168.1.10
 
 '''
-        target = '{"_meta": {"hostvars": {"192.168.1.10": {}, "localhost": ' + \
-                 '{"foo": "other", "baz": "bar"}}}, "some_group": ' + \
+        target = '{"_meta": {"hostvars": {"localhost": {"baz": "bar", ' + \
+                 '"foo": "other"}, "192.168.1.10": {}}}, "some_group": ' + \
                  '["localhost", "192.168.1.10"], "another group": ' + \
                  '["192.168.1.10"]}'
         i = inventory.AnsibleInventory.from_string(source)
@@ -262,13 +262,13 @@ localhost foo=other
 
     def test_ansible_inventory_from_json(self):
         target = '''192.168.1.10
-localhost foo=other baz=bar
+localhost baz=bar foo=other
+
+[another group]
+192.168.1.10
 
 [some_group]
 localhost
-192.168.1.10
-
-[another group]
 192.168.1.10
 
 '''

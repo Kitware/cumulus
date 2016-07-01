@@ -3,6 +3,8 @@ import tempfile
 import os
 import json
 from contextlib import contextmanager
+from collections import OrderedDict
+import six
 
 
 class AnsibleInventoryHost(object):
@@ -16,7 +18,7 @@ class AnsibleInventoryHost(object):
     '''
     def __init__(self, host, **kwargs):
         self.host = host
-        self.variables = kwargs
+        self.variables = OrderedDict(sorted(kwargs.items()))
 
     def to_string(self):
         s = self.host
@@ -216,21 +218,22 @@ class AnsibleInventory(object):
 
         d = json.loads(json_string)
 
-        for key, items in d.items():
+        for key, items in sorted(d.items()):
             if key != '_meta':
                 g = AnsibleInventoryGroup(key)
                 for host in items:
                     g.items.append(AnsibleInventoryHost(host))
                 sections.append(g)
             else:
-                for host, variables in items['hostvars'].items():
+                for host, variables in sorted(items['hostvars'].items()):
                     global_hosts.append(
                         AnsibleInventoryHost(host, **variables))
 
         return AnsibleInventory(global_hosts, sections)
 
     def to_json(self, with_meta=True):
-        d = {'_meta': {'hostvars': {}}} if with_meta else {}
+        d = OrderedDict(_meta=OrderedDict(hostvars=OrderedDict())) \
+            if with_meta else OrderedDict()
         for host in self.global_hosts:
             if with_meta and host.variables:
                 d['_meta']['hostvars'][host.host] = host.variables
