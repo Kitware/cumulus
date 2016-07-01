@@ -14,7 +14,7 @@ class CloudProviderTestCase(unittest.TestCase):
             p = CloudProvider({})
 
         self.assertTrue('Profile does not have a "cloudProvider" attribute'
-                        in context.exception)
+                        in str(context.exception))
 
     def test_ec2_profile(self):
         p = CloudProvider({'cloudProvider': 'ec2'})
