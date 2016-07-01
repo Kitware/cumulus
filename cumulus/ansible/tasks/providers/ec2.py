@@ -23,7 +23,7 @@ from itertools import groupby
 import json
 import os
 
-from base import CloudProvider, InstanceState
+from .base import CloudProvider, InstanceState
 from girder.api.rest import ModelImporter
 
 
