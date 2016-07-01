@@ -40,7 +40,7 @@ class CloudProvider(object):
 
             return subcls(profile)
 
-        return super(CloudProvider, cls).__new__(cls, profile)
+        return super(CloudProvider, cls).__new__(cls)
 
     def __init__(self, profile):
         self.girder_profile_id = profile.get('_id', None)
