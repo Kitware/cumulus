@@ -326,7 +326,7 @@ def simple_inventory(a, b=None):
 
     '''
     # Simple string,  assume a single global host
-    if isinstance(a, basestring) and b is None:
+    if isinstance(a, six.string_types) and b is None:
         return AnsibleInventory([a])
 
     # List of items,  assume a list of global hosts
@@ -345,7 +345,7 @@ def simple_inventory(a, b=None):
             a, sections=[AnsibleInventoryGroup(group, hosts)
                          for group, hosts in b.items()])
 
-    if isinstance(a, basestring) and isinstance(b, dict):
+    if isinstance(a, six.string_types) and isinstance(b, dict):
         return AnsibleInventory(
             [a], sections=[AnsibleInventoryGroup(group, hosts)
                            for group, hosts in b.items()])
