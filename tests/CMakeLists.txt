@@ -21,3 +21,4 @@ add_python_test(taskflow)
 add_python_test(ansible_inventory)
 # For now ansible only supports Python2
 add_python_test(ansible_run_log PY2_ONLY)
+add_python_test(cloud_provider)

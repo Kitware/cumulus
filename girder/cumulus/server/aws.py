@@ -56,8 +56,12 @@ def create_profile(user, params):
     requireParams(['name', 'accessKeyId', 'secretAccessKey', 'regionName',
                    'availabilityZone'], body)
 
+    profile_type = 'ec2' if 'cloudProvider' not in body.keys() \
+                   else body['cloudProvider']
+
     model = ModelImporter.model('aws', 'cumulus')
     profile = model.create_profile(user['_id'], body['name'],
+                                   profile_type,
                                    body['accessKeyId'],
                                    body['secretAccessKey'], body['regionName'],
                                    body['availabilityZone'],
@@ -150,7 +154,7 @@ delete_profile.description = (
 def update_profile(user, profile, params):
     body = getBodyJson()
     properties = ['accessKeyId', 'secretAccessKey', 'status', 'errorMessage',
-                  'publicIPs']
+                  'publicIPs', 'cloudProvider']
     for prop in properties:
         if prop in body:
             profile[prop] = body[prop]
@@ -236,15 +240,8 @@ status.description = (
            level=AccessType.WRITE)
 def running_instances(user, profile, params):
 
-    client = get_ec2_client(profile)
-    count = len(client.describe_instances(
-                Filters=[{
-                    'Name': 'instance-state-name',
-                    'Values': ['running']
-                    }]))
-
     return {
-        'runninginstances': count
+        'runninginstances': get_ec2_client(profile).running_instances()
     }
 
 addModel('AwsProfileRunningInstances', {
