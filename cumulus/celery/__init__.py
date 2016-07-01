@@ -37,6 +37,7 @@ register('oid_safe_json', oid_safe_dumps, oid_safe_loads,
 
 _includes = [
     'cumulus.ansible.tasks.cluster',
+    'cumulus.ansible.tasks.volume',
     'cumulus.tasks.cluster',
     'cumulus.tasks.job',
     'cumulus.ssh.tasks.key',

@@ -4,14 +4,14 @@
 ###############################################################################
 #  Copyright 2015 Kitware Inc.
 #
-#  Licensed under the Apache License, Version 2.0 ( the "License" );
+#  Licensed under the Apache License, Version 2.0 ( the 'License' );
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
 #
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
 #  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
+#  distributed under the License is distributed on an 'AS IS' BASIS,
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
@@ -20,21 +20,23 @@
 import cherrypy
 from jsonpath_rw import parse
 from bson.objectid import ObjectId
-from botocore.exceptions import ClientError
 
 from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getCurrentUser, getBodyJson
-from girder.models.model_base import ValidationException
-from girder.api.rest import loadmodel
+from girder.api.rest import loadmodel, getApiUrl
 from .base import BaseResource
 
+import cumulus
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
-from cumulus.constants import ClusterType
-from cumulus.aws.ec2 import get_ec2_client
+from cumulus.common.girder import get_task_token, _get_profile
+
+import cumulus.ansible.tasks.volume
+
+from cumulus.ansible.tasks.providers import CloudProvider, InstanceState
 
 
 class Volume(BaseResource):
@@ -44,12 +46,18 @@ class Volume(BaseResource):
         self.resourceName = 'volumes'
         self.route('POST', (), self.create)
         self.route('GET', (':id', ), self.get)
+        self.route('PATCH', (':id', ), self.patch)
         self.route('GET', (), self.find)
         self.route('GET', (':id', 'status'), self.get_status)
         self.route('PUT', (':id', 'clusters', ':clusterId', 'attach'),
                    self.attach)
+        self.route('PUT', (':id', 'clusters', ':clusterId',
+                           'attach', 'complete'),
+                   self.attach_complete)
         self.route('PUT', (':id', 'detach'), self.detach)
+        self.route('PUT', (':id', 'detach', 'complete'), self.detach_complete)
         self.route('DELETE', (':id', ), self.delete)
+        self.route('PUT', (':id', 'delete', 'complete'), self.delete_complete)
 
         self._model = self.model('volume', 'cumulus')
 
@@ -60,8 +68,35 @@ class Volume(BaseResource):
         fs = body.get('fs', None)
         profileId = body['profileId']
 
-        return self.model('volume', 'cumulus').create_ebs(user, profileId, name,
-                                                          zone, size, fs)
+        return self.model('volume', 'cumulus').create_ebs(user, profileId,
+                                                          name, zone, size, fs)
+
+    @access.user
+    @loadmodel(model='volume', plugin='cumulus', level=AccessType.WRITE)
+    def patch(self, volume, params):
+        body = getBodyJson()
+
+        if not volume:
+            raise RestException('Volume not found.', code=404)
+
+        if 'ec2' in body:
+            if 'ec2' not in volume:
+                volume['ec2'] = {}
+            volume['ec2'].update(body['ec2'])
+
+        volume = self._model.save(volume)
+
+        return self._model.filter(volume, getCurrentUser())
+
+    patch.description = (
+        Description('Patch a volume')
+        .param(
+            'id',
+            'The volume id.', paramType='path', required=True)
+        .param(
+            'body',
+            'The properties to use to create the volume.',
+            required=True, paramType='body'))
 
     @access.user
     def create(self, params):
@@ -77,57 +112,32 @@ class Volume(BaseResource):
 
         profile_id = profile_id[0].value
 
-        profile = self.model('aws', 'cumulus').load(profile_id,
-                                                    user=getCurrentUser())
+        profile, secret_key = _get_profile(profile_id)
+
         if not profile:
             raise RestException('Invalid profile', 400)
 
-        client = get_ec2_client(profile)
-
         if 'zone' in body:
-            # Check that the zone is valid
-            try:
-                zone = body['zone']
-                client.describe_availability_zones(
-                    ZoneNames=[zone])
-            except ClientError as ce:
-                code = parse('Error.Code').find(ce.reponse)
-                if code:
-                    code = code[0].value
-                else:
-                    raise
-
-                if code == 'InvalidParameterValue':
-                    raise ValidationException('Zone does not exist in region',
-                                              'zone')
-                else:
-                    raise
-
-        # Use the zone from the profile
+            zone = body['zone']
         else:
             zone = profile['availabilityZone']
 
         volume = self._create_ebs(body, zone)
-        vol = client.create_volume(
-            Size=body['size'], AvailabilityZone=zone)
 
-        # Now set the EC2 volume id
-        volume['ec2']['id'] = vol['VolumeId']
-        self.model('volume', 'cumulus').save(volume)
+        girder_callback_info = {
+            'girder_api_url': getApiUrl(),
+            'girder_token': get_task_token()['_id']}
+
+        cumulus.ansible.tasks.volume.create_volume\
+            .delay(profile, volume, secret_key, girder_callback_info)
+
+        volume['ec2']['status'] = VolumeState.PROVISIONING
+        volume = self.model('volume', 'cumulus').save(volume)
 
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/volumes/%s' % volume['_id']
 
         return self._model.filter(volume, getCurrentUser())
-
-    addModel('AwsParameter', {
-        'id': 'ConfigParameter',
-        'required': ['_id'],
-        'properties': {
-            'profileId': {'type': 'string',
-                          'description': 'Id of AWS profile to use'}
-        }
-    }, 'volumes')
 
     addModel('VolumeParameters', {
         'id': 'VolumeParameters',
@@ -135,8 +145,8 @@ class Volume(BaseResource):
         'properties': {
             'name': {'type': 'string',
                      'description': 'The name to give the cluster.'},
-            'aws':  {'type': 'AwsParameter',
-                     'description': 'The AWS configuration'},
+            'profileId':  {'type': 'string',
+                           'description': 'Id of profile to use'},
             'type': {'type': 'string',
                      'description': 'The type of volume to create ( currently '
                      'only esb )'},
@@ -195,37 +205,84 @@ class Volume(BaseResource):
     @loadmodel(map={'clusterId': 'cluster'}, model='cluster', plugin='cumulus',
                level=AccessType.ADMIN)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
+    def attach_complete(self, volume, cluster, params):
+        path = params.get('path', None)
+
+        if path is not None:
+            cluster.setdefault('volumes', [])
+            cluster['volumes'].append(volume['_id'])
+            cluster['volumes'] = list(set(cluster['volumes']))
+
+            if 'ec2' not in volume:
+                volume['ec2'] = {}
+
+            volume['ec2'].update({
+                'status': VolumeState.INUSE,
+                'path': path})
+            # TODO: removing msg should be refactored into
+            #       a general purpose 'update_status' function
+            #       on the volume model. This way msg only referes
+            #       to the current status.
+            try:
+                del volume['ec2']['msg']
+            except KeyError:
+                pass
+
+            # Add cluster id to volume
+            volume['clusterId'] = cluster['_id']
+
+            self.model('cluster', 'cumulus').save(cluster)
+            self.model('volume', 'cumulus').save(volume)
+        else:
+            if 'ec2' not in volume:
+                volume['ec2'] = {}
+
+            volume['ec2'].update({'status': VolumeState.ERROR})
+            volume['ec2'].update(
+                {'msg': 'Volume path was not communicated on complete'})
+
+            self.model('volume', 'cumulus').save(volume)
+
+    attach_complete.description = None
+
+    @access.user
+    @loadmodel(map={'clusterId': 'cluster'}, model='cluster', plugin='cumulus',
+               level=AccessType.ADMIN)
+    @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def attach(self, volume, cluster, params):
         body = getBodyJson()
-        self.requireParams(['path'], body)
 
-        if cluster['type'] != ClusterType.EC2:
-            raise RestException('Invalid cluster type', 400)
+        self.requireParams(['path'], body)
+        path = body['path']
 
         profile_id = parse('profileId').find(volume)[0].value
-        profile = self.model('aws', 'cumulus').load(profile_id,
-                                                    user=getCurrentUser())
-        volume_id = parse('ec2.id').find(volume)[0].value
-        client = get_ec2_client(profile)
-        status = self._get_status(client, volume_id)
+        profile, secret_key = _get_profile(profile_id)
 
-        if status != VolumeState.AVAILABLE:
+        girder_callback_info = {
+            'girder_api_url': getApiUrl(),
+            'girder_token': get_task_token()['_id']}
+
+        p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
+
+        aws_volume = p.get_volume(volume)
+        if aws_volume['state'] != VolumeState.AVAILABLE:
             raise RestException('This volume is not available to attach '
                                 'to a cluster',
                                 400)
 
-        if cluster['status'] == 'running':
-            raise RestException('Unable to attach volume to running cluster',
+        master = p.get_master_instance(cluster['_id'])
+        if master['state'] != InstanceState.RUNNING:
+            raise RestException('Master instance is not running!',
                                 400)
 
-        volumes = cluster.setdefault('volumes', [])
-        volumes.append(volume['_id'])
+        cumulus.ansible.tasks.volume.attach_volume\
+            .delay(profile, cluster, master, volume, path,
+                   secret_key, girder_callback_info)
 
-        # Add cluster id to volume
-        volume['clusterId'] = cluster['_id']
+        volume['ec2']['status'] = VolumeState.ATTACHING
+        volume = self.model('volume', 'cumulus').save(volume)
 
-        self.model('cluster', 'cumulus').save(cluster)
-        self.model('volume', 'cumulus').save(volume)
+        return self._model.filter(volume, getCurrentUser())
 
     addModel('AttachParameters', {
         'id': 'AttachParameters',
@@ -256,30 +313,45 @@ class Volume(BaseResource):
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def detach(self, volume, params):
 
-        if 'clusterId' not in volume:
-            raise RestException('Volume is not attached', 400)
-
-        user = getCurrentUser()
         profile_id = parse('profileId').find(volume)[0].value
-        profile = self.model('aws', 'cumulus').load(profile_id,
-                                                    user=getCurrentUser())
-        client = get_ec2_client(profile)
-        volume_id = parse('ec2.id').find(volume)[0].value
-        status = self._get_status(client, volume_id)
+        profile, secret_key = _get_profile(profile_id)
 
-        # Call ec2 to do the detach
-        if status == VolumeState.INUSE:
-            client.detach_volume(VolumeId=volume_id)
+        girder_callback_info = {
+            'girder_api_url': getApiUrl(),
+            'girder_token': get_task_token()['_id']}
 
-        # First remove from cluster
+        p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
+
+        aws_volume = p.get_volume(volume)
+        if aws_volume['state'] != VolumeState.INUSE:
+            raise RestException('This volume is not attached '
+                                'to a cluster',
+                                400)
+
+        if 'clusterId' not in volume:
+            raise RestException('clusterId is not set on this volume!', 400)
+
+        try:
+            volume['ec2']['path']
+        except KeyError:
+            raise RestException('path is not set on this volume!', 400)
+
         cluster = self.model('cluster', 'cumulus').load(volume['clusterId'],
-                                                        user=user,
+                                                        user=getCurrentUser(),
                                                         level=AccessType.ADMIN)
-        cluster.setdefault('volumes', []).remove(volume['_id'])
-        del volume['clusterId']
+        master = p.get_master_instance(cluster['_id'])
+        if master['state'] != InstanceState.RUNNING:
+            raise RestException('Master instance is not running!',
+                                400)
 
-        self.model('cluster', 'cumulus').save(cluster)
-        self.model('volume', 'cumulus').save(volume)
+        cumulus.ansible.tasks.volume.detach_volume\
+            .delay(profile, cluster, master, volume,
+                   secret_key, girder_callback_info)
+
+        volume['ec2']['status'] = VolumeState.DETACHING
+        volume = self.model('volume', 'cumulus').save(volume)
+
+        return self._model.filter(volume, getCurrentUser())
 
     detach.description = (
         Description('Detach a volume from a cluster')
@@ -290,24 +362,70 @@ class Volume(BaseResource):
 
     @access.user
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
+    def detach_complete(self, volume, params):
+
+        # First remove from cluster
+        cluster = self.model('cluster', 'cumulus').load(volume['clusterId'],
+                                                        user=getCurrentUser(),
+                                                        level=AccessType.ADMIN)
+        cluster.setdefault('volumes', []).remove(volume['_id'])
+
+        del volume['clusterId']
+
+        for attr in ['path', 'msg']:
+            try:
+                del volume['ec2'][attr]
+            except KeyError:
+                pass
+
+        volume['ec2'].update({
+            'status': VolumeState.AVAILABLE}),
+
+        self.model('cluster', 'cumulus').save(cluster)
+        self.model('volume', 'cumulus').save(volume)
+
+    detach_complete.description = None
+
+    @access.user
+    @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def delete(self, volume, params):
         if 'clusterId' in volume:
             raise RestException('Unable to delete attached volume')
 
         # Call EC2 to delete volume
         profile_id = parse('profileId').find(volume)[0].value
-        profile = self.model('aws', 'cumulus').load(profile_id,
-                                                    user=getCurrentUser())
 
-        client = get_ec2_client(profile)
-        volume_id = parse('ec2.id').find(volume)[0].value
-        client.delete_volume(VolumeId=volume_id)
+        profile, secret_key = _get_profile(profile_id)
 
-        self.model('volume', 'cumulus').remove(volume)
+        girder_callback_info = {
+            'girder_api_url': getApiUrl(),
+            'girder_token': get_task_token()['_id']}
+
+        p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
+
+        aws_volume = p.get_volume(volume)
+        if aws_volume['state'] != VolumeState.AVAILABLE:
+            raise RestException('Volume must be in an "%s" state to be deleted'
+                                % VolumeState.AVAILABLE, 400)
+
+        cumulus.ansible.tasks.volume.delete_volume\
+            .delay(profile, volume, secret_key, girder_callback_info)
+
+        volume['ec2']['status'] = VolumeState.DELETING
+        volume = self.model('volume', 'cumulus').save(volume)
+
+        return self._model.filter(volume, getCurrentUser())
 
     delete.description = (
         Description('Delete a volume')
         .param('id', 'The volume id.', paramType='path', required=True))
+
+    @access.user
+    @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
+    def delete_complete(self, volume, params):
+        self.model('volume', 'cumulus').remove(volume)
+
+    delete_complete.description = None
 
     def _get_status(self, client, volume_id):
         response = client.describe_volumes(
@@ -326,19 +444,7 @@ class Volume(BaseResource):
     @access.user
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def get_status(self, volume, params):
-
-        ec2_id = parse('ec2.id').find(volume)[0].value
-
-        if len(ec2_id) < 1:
-            return {'status': 'creating'}
-
-        # If we have an ec2 id delegate the call to ec2
-        profile_id = parse('profileId').find(volume)[0].value
-        profile = self.model('aws', 'cumulus').load(profile_id,
-                                                    user=getCurrentUser())
-        client = get_ec2_client(profile)
-
-        return {'status': self._get_status(client, ec2_id)}
+        return {'status': volume['ec2']['status']}
 
     get_status.description = (
         Description('Get the status of a volume')

@@ -1,0 +1,54 @@
+---
+- hosts: head
+  tasks:
+
+    - name: Fail if girder volume ID is not set
+      fail:
+        msg: "Girder Volume ID must be passed in as girder_volume_id"
+      when: girder_volume_id is not defined or girder_volume_id == ""
+
+    - name: Fail if path is not set
+      fail:
+        msg: "Mount path must be passed in as path"
+      when: path is not defined or path == ""
+
+    - block:
+        - mount:
+            name: "{{ path }}"
+            state: unmounted
+            # src & fstype are required but not actually used - this prevents us
+            # from having to keep the actual device path somewhere and pass it
+            # in See: https://github.com/ansible/ansible-modules-core/issues/1259
+            src: "EMPTY"
+            fstype: "EMPTY"
+          become: yes
+          become_user: root
+          register: unmount
+
+        - ec2_vol:
+            id: "{{ volume_id }}"
+            region: "{{ region }}"
+            instance: None
+          delegate_to: localhost
+          register: vol
+
+        - girder:
+            apiUrl: "{{ girder_api_url }}"
+            token: "{{ girder_token }}"
+            put:
+              path: "volumes/{{ girder_volume_id }}/detach/complete"
+          delegate_to: localhost
+          when: girder_api_url is defined and girder_token is defined and girder_volume_id is defined and girder_cluster_id is defined
+
+      rescue:
+        - girder:
+            apiUrl: "{{ girder_api_url }}"
+            token: "{{ girder_token }}"
+            patch:
+              path: "volumes/{{ girder_volume_id }}"
+              data:
+                ec2:
+                  status: 'error'
+                  msg: 'An error occured while detaching the volume, please check the logs'
+          delegate_to: localhost
+          when: girder_api_url is defined and girder_token is defined and girder_volume_id is defined

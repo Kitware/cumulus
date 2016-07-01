@@ -1,6 +1,7 @@
 import re
 import tempfile
 import os
+import json
 from contextlib import contextmanager
 
 
@@ -202,6 +203,81 @@ class AnsibleInventory(object):
         with open(path, 'wb') as fh:
             fh.write(self.to_string())
 
+    # Note: from_json expects json to be in a format that is ammenable
+    #       to dynamic inventories. e.g:
+    #       http://docs.ansible.com/ansible/developing_inventory.html
+    #       This is fundimentally less expressive than the ini style
+    #       config - this means converting from an ini config to json,
+    #       then from json back to an ini style config IS NOT LOSSLESS
+    @staticmethod
+    def from_json(json_string):
+        sections = []
+        global_hosts = []
+
+        d = json.loads(json_string)
+
+        for key, items in d.items():
+            if key != '_meta':
+                g = AnsibleInventoryGroup(key)
+                for host in items:
+                    g.items.append(AnsibleInventoryHost(host))
+                sections.append(g)
+            else:
+                for host, variables in items['hostvars'].items():
+                    global_hosts.append(
+                        AnsibleInventoryHost(host, **variables))
+
+        return AnsibleInventory(global_hosts, sections)
+
+    def to_json(self, with_meta=True):
+        d = {'_meta': {'hostvars': {}}} if with_meta else {}
+        for host in self.global_hosts:
+            if with_meta and host.variables:
+                d['_meta']['hostvars'][host.host] = host.variables
+
+        for sec in self.sections:
+            d[sec.name] = []
+            if isinstance(sec, AnsibleInventoryGroup):
+                for host in sec.items:
+                    # Note: Ignores variables here
+                    #       just appends the host name
+                    d[sec.name].append(host.host)
+                    if with_meta:
+                        if host.host in d['_meta']['hostvars']:
+                            # Its not clear whether this should be an update
+                            # or an overwrite from the ansible documentation.
+                            # It doesn't appear that the dynamic inventory
+                            # allows for hosts in specific groups to override
+                            # or change hostvars based on a specific group,
+                            # e.g.:
+                            # ------
+                            # localhost foo=bar
+                            #
+                            # [section1]
+                            # localhost foo=baz
+                            #
+                            # [section2]
+                            # locahost bar=baz
+                            #
+                            # ------
+                            # Should localhost's vars be:
+                            #
+                            #  {'foo': 'bar'},  <= Only accept global variables
+                            #  {'foo': 'bar', 'bar': 'baz'} <= Add missing but
+                            #                                    do not update.
+                            #  {'foo': 'baz', 'bar': 'baz'} <= Merge w/ update
+                            #
+                            # This script is implemented with a merge w/update
+                            # strategy (because it is easy to implement), the
+                            # 'correct' strategy is unclear when generating
+                            # dynamic inventories.
+                            d['_meta']['hostvars'][host.host].update(
+                                host.variables)
+                        else:
+                            d['_meta']['hostvars'][host.host] = host.variables
+
+        return json.dumps(d)
+
     @contextmanager
     def to_tempfile(self):
         _, path = tempfile.mkstemp()
@@ -212,3 +288,64 @@ class AnsibleInventory(object):
         yield path
 
         os.remove(path)
+
+
+def simple_inventory(a, b=None):
+    '''Generate an inventory object from a list of arguments
+
+    This is a utility function designed to generate an AnsibleInventory
+    object from simple python built-in types. It is intended to cover
+    common use cases.  If simple_inventory does not meet your needs please
+    use the AnsibleInventory object and related classes (e.g.
+    AnsibleInventoryGroup) instead. simple_inventory takes one required
+    argument (a) and one optional argument (b).
+
+    If 'a' is a string and 'b' is not included we assume a single global host
+
+    if 'a' is a list and 'b' is not included we assume a list of global hosts
+
+    if 'a' is a dict and 'b' is not included we assume keys are group names
+        and that values are lists of hosts to include in that group
+
+    if 'a' is a string and 'b' is a dict we assume that 'a' is a single global
+        host and that 'b' is a dict where keys are groups,  and values are
+        lists of hosts in those groups.
+
+    if 'a' is a list and 'b' is a dict we assume that 'a' is a list of global
+        hosts and that 'b' is a dict where keys are groups, and values are
+        lists of hosts in those groups.
+
+    :param a: first argument
+    :type a: string, list, dict
+    :param b: list, dict, NoneType
+    :returns: an ansible inventory object
+    :rtype: AnsibleInventoryObject
+
+    '''
+    # Simple string,  assume a single global host
+    if isinstance(a, basestring) and b is None:
+        return AnsibleInventory([a])
+
+    # List of items,  assume a list of global hosts
+    if isinstance(a, list) and b is None:
+        return AnsibleInventory(a)
+
+    # Assume a dict of group:list(hosts)
+    if isinstance(a, dict):
+        return AnsibleInventory(
+            [], sections=[AnsibleInventoryGroup(group, hosts)
+                          for group, hosts in a.items()])
+
+    # Assume a list of global hosts and group:list(hosts)
+    if isinstance(a, list) and isinstance(b, dict):
+        return AnsibleInventory(
+            a, sections=[AnsibleInventoryGroup(group, hosts)
+                         for group, hosts in b.items()])
+
+    if isinstance(a, basestring) and isinstance(b, dict):
+        return AnsibleInventory(
+            [a], sections=[AnsibleInventoryGroup(group, hosts)
+                           for group, hosts in b.items()])
+
+    raise Exception('simple_inventory could not parse arguments, '
+                    'maybe you want something more complicate?')

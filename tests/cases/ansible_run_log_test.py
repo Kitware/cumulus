@@ -3,8 +3,8 @@ import os
 import glob
 import shutil
 import tempfile
-from cumulus.ansible.tasks.cluster import get_playbook_directory
-from cumulus.ansible.tasks.cluster import run_playbook as _run_playbook
+from cumulus.ansible.tasks.utils import get_playbook_directory
+from cumulus.ansible.tasks.utils import run_playbook as _run_playbook
 import multiprocessing
 import time
 import json

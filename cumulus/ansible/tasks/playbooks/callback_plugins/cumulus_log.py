@@ -12,6 +12,7 @@ FINISHED = 'finished'
 UNREACHABLE = 'unreachable'
 ERROR = 'error'
 WARNING = 'warning'
+INFO = 'info'
 
 
 class CallbackModule(CallbackBase):
@@ -62,7 +63,15 @@ class CallbackModule(CallbackBase):
     def runner_on_failed(self, host, res, ignore_errors=False):
         if self.cluster_id is not None and \
            self.girder_token is not None:
-            self.log(ERROR, self.current_task, data=res)
+
+            level = ERROR
+            if ignore_errors:
+                level = INFO
+
+            self.log(level, self.current_task, data=res)
+
+            if ignore_errors:
+                return
 
             # Update girder with the new status
             status_url = '%s/clusters/%s' % (cumulus.config.girder.baseUrl,

@@ -57,6 +57,7 @@
       aws_secret_key: "{{ aws_secret_key }}"
       instance_ids: "{{ terminate_set }}"
       region: "{{ region }}"
+      zone: "{{ zone }}"
       state: absent
       wait: yes
       wait_timeout: "{{ terminate_wait_timeout }}"
@@ -70,6 +71,7 @@
 
       instance_ids: "{{ update_lists.start }}"
       region: "{{ region }}"
+      zone: "{{ zone }}"
       state: running
       wait: yes
       wait_timeout: "{{ EC2_TIMEOUT }}"
@@ -98,6 +100,7 @@
       instance_type: "{{ item.value.type|default(default_instance_type) }}"
       key_name: "{{ item.value.ssh_key|default(default_ssh_key) }}"
       region: "{{ region }}"
+      zone: "{{ zone }}"
       volumes: "{{ item.value.volumes|default([]) }}"
       wait: yes
       wait_timeout: "{{ EC2_TIMEOUT }}"
@@ -116,6 +119,7 @@
       aws_secret_key: "{{ aws_secret_key }}"
       instance_ids: "{{ instances|get_ec2_hosts }}"
       region: "{{ region }}"
+      zone: "{{ zone }}"
       state: "{{ state }}"
       wait: yes
       wait_timeout: "{{ EC2_TIMEOUT }}"

@@ -1,0 +1,38 @@
+---
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Fail if girder volume ID is not set
+      fail:
+        msg: "Girder Volume ID must be passed in as girder_volume_id"
+      when: girder_volume_id is not defined or girder_volume_id == ""
+
+    - name: Fail if volume ID is not set
+      fail:
+        msg: "Volume ID must be passed in as volume_id"
+      when: volume_id is not defined or volume_id == ""
+
+    - block:
+        - ec2_vol:
+            id: "{{ volume_id }}"
+            region: "{{ region }}"
+            state: absent
+
+        - girder:
+            apiUrl: "{{ girder_api_url }}"
+            token: "{{ girder_token }}"
+            put:
+              path: "volumes/{{ girder_volume_id }}/delete/complete"
+          when: girder_api_url is defined and girder_token is defined and girder_volume_id is defined
+
+      rescue:
+        - girder:
+            apiUrl: "{{ girder_api_url }}"
+            token: "{{ girder_token }}"
+            patch:
+              path: "volumes/{{ girder_volume_id }}"
+              data:
+                ec2:
+                  status: 'error'
+                  msg: 'An error occured while detaching the volume, please check the logs'
+          when: girder_api_url is defined and girder_token is defined and girder_volume_id is defined

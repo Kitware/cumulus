@@ -576,7 +576,7 @@ class ClusterTestCase(base.TestCase):
 
         self.assertCalls(submit.call_args_list, expected_submit_call)
 
-    @mock.patch('cumulus.ansible.tasks.cluster.run_ansible.delay')
+    @mock.patch('cumulus.ansible.tasks.cluster.terminate_cluster.delay')
     def test_terminate(self, terminate_cluster):
         body = {
             'profileId': str(self._user_profile['_id']),
