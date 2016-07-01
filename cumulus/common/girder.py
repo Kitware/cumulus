@@ -73,7 +73,7 @@ def _get_profile(profile_id):
     return profile, secret
 
 
-def create_status_notification(resource_name, notification, user):
+def create_notification(resource_name, notif_type, notification, user):
     expires = datetime.datetime.utcnow() + datetime.timedelta(seconds=30)
     type = '%s.%s' % (resource_name, notif_type)
     ModelImporter.model('notification').createNotification(

@@ -21,9 +21,11 @@ from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
 
 from cumulus.taskflow import TaskFlowState, TaskState
-from cumulus.common.girder import send_status_notification, send_log_notification
+from cumulus.common.girder import send_status_notification, \
+    send_log_notification
 
 MAX_RETRIES = 4
+
 
 class Taskflow(AccessControlledModel):
 
@@ -94,7 +96,7 @@ class Taskflow(AccessControlledModel):
             '_id': taskflow['_id']
         }
         update = {
-            '$set': { }
+            '$set': {}
         }
 
         for (path, value) in self._to_paths(updates):
@@ -150,12 +152,13 @@ class Taskflow(AccessControlledModel):
         task_status = set(task_status)
 
         status = TaskFlowState.CREATED
-        if len(task_status) ==  1:
+        if len(task_status) == 1:
             status = task_status.pop()
         elif TaskState.ERROR in task_status:
             status = TaskFlowState.ERROR
         elif TaskState.RUNNING in task_status or \
-             (TaskState.COMPLETE in task_status and TaskState.CREATED in task_status):
+            (TaskState.COMPLETE in task_status and
+             TaskState.CREATED in task_status):
             status = TaskFlowState.RUNNING
 
         return status

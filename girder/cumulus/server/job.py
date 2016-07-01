@@ -18,7 +18,6 @@
 ###############################################################################
 
 import cherrypy
-import json
 
 from girder.api import access
 from girder.api.describe import Description, describeRoute
@@ -323,7 +322,7 @@ class Job(BaseResource):
         if not body:
             raise RestException('Log entry must be provided', code=400)
 
-        return self._model.append_to_log(user, id, body);
+        return self._model.append_to_log(user, id, body)
 
     append_to_log.description = None
 

@@ -22,7 +22,8 @@ from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
 
 from cumulus.common.girder import send_status_notification, \
-                                  send_log_notification
+    send_log_notification
+
 
 class Task(AccessControlledModel):
 
@@ -31,7 +32,6 @@ class Task(AccessControlledModel):
         self.ensureIndices(['taskFlowId', 'celeryTaskId'])
         self.exposeFields(level=AccessType.READ, fields=(
             '_id', 'taskFlowId', 'status', 'log', 'name', 'created'))
-
 
     def validate(self, doc):
         return doc
@@ -102,7 +102,7 @@ class Task(AccessControlledModel):
                 '$in': states
             }
 
-        return  self.find(query=query, fields=fields)
+        return self.find(query=query, fields=fields)
 
     def append_to_log(self, task, log):
         """
@@ -133,4 +133,3 @@ class Task(AccessControlledModel):
             send_status_notification('task', task)
 
         return task
-

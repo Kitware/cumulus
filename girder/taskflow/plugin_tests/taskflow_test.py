@@ -35,10 +35,10 @@ def tearDownModule():
     base.stopServer()
 
 
-class TaskTestCase(base.TestCase):
+class TaskFlowTestCase(base.TestCase):
 
     def setUp(self):
-        super(TaskTestCase, self).setUp()
+        super(TaskFlowTestCase, self).setUp()
 
         users = ({
             'email': 'cumulus@email.com',
@@ -64,25 +64,19 @@ class TaskTestCase(base.TestCase):
 
         self._group = self.model('group').createGroup('cumulus', self._cumulus)
 
+
+    def test_taskflow_sse(self):
         body = {
             'taskFlowClass': 'cumulus.taskflow.core.test.mytaskflows.SimpleTaskFlow',
             'name': 'test_taskflow'
         }
+
+        json_body = json.dumps(body)
+
         r = self.request('/taskflows', method='POST',
-                         type='application/json', body=json.dumps(body), user=self._user)
+                         type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
-        self._taskflow = r.json
-
-
-    def test_task_sse(self):
-        r = self.request('/taskflows/%s/tasks' % self._taskflow['_id'], method='POST',
-                     type='application/json',
-                     body=json.dumps({
-                        'celeryTaskId': '2016',
-                        'name': 'test_task'
-                     }), user=self._user)
-        self.assertStatus(r, 201)
-        task_id = r.json['_id']
+        taskflow_id = r.json['_id']
 
         # connect to cluster notification stream
         stream_r = self.request('/notification/stream', method='GET', user=self._user,
@@ -93,13 +87,12 @@ class TaskTestCase(base.TestCase):
         log_entry = {
             'msg': 'Some message'
         }
-        r = self.request('/tasks/%s/log' % task_id, method='POST',
+        r = self.request('/taskflows/%s/log' % str(taskflow_id), method='POST',
                          type='application/json', body=json.dumps(log_entry), user=self._user)
         self.assertStatusOk(r)
 
         notifications = self.getSseMessages(stream_r)
         # we get 2 notifications, 1 from the creation and 1 from the log
-        self.assertEqual(len(notifications), 3, 'Expecting three notification, received %d' % len(notifications))
+        self.assertEqual(len(notifications), 2, 'Expecting two notification, received %d' % len(notifications))
         self.assertEqual(notifications[0]['type'], 'taskflow.status', 'Expecting a message with type \'taskflow.status\'')
-        self.assertEqual(notifications[1]['type'], 'task.status', 'Expecting a message with type \'task.status\'')
-        self.assertEqual(notifications[2]['type'], 'task.log', 'Expecting a message with type \'task.log\'')
+        self.assertEqual(notifications[1]['type'], 'taskflow.log', 'Expecting a message with type \'taskflow.log\'')
