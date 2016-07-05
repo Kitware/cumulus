@@ -130,7 +130,7 @@ class DownloadTestCase(unittest.TestCase):
                 '_id': 'folderId%d' % i
             })
         girder_client.createFolder.side_effect = folders
-        girder_client.listFolder.return_value = []
+        girder_client.listFolder.return_value = iter([])
         girder_folders = {
             'a/b': 'id'
         }
@@ -154,7 +154,7 @@ class DownloadTestCase(unittest.TestCase):
                 '_id': 'folderId%d' % i
             })
         girder_client.createFolder.side_effect = folders
-        girder_client.listFolder.return_value = []
+        girder_client.listFolder.return_value = iter([])
         girder_folders = {}
         parent = 'dummy'
         path = 'a/b/c/d/e'
@@ -178,13 +178,13 @@ class DownloadTestCase(unittest.TestCase):
             })
         girder_client.createFolder.side_effect = folders
         girder_client.listFolder.side_effect = [
-            [{
+            iter([{
                 '_id': 'girderFolder0'
-            }],
-            [{
+            }]),
+            iter([{
                 '_id': 'girderFolder1'
-            }],
-            []
+            }]),
+            iter([])
         ]
         girder_folders = {}
         parent = 'dummy'
@@ -208,12 +208,12 @@ class DownloadTestCase(unittest.TestCase):
                 '_id': 'folderId%d' % i
             })
         girder_client.createFolder.side_effect = folders
-        girder_client.listFolder.side_effect = [
-            [{
+        girder_client.listFolder.side_effect = iter([
+            iter([{
                 '_id': 'girderFolder0'
-            }],
-            []
-        ]
+            }]),
+            iter([])
+        ])
         girder_folders = {
             'a': 'dummy'
         }
