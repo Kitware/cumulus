@@ -21,6 +21,7 @@ import os
 import stat
 import json
 import re
+import six
 
 from girder_client import GirderClient
 
@@ -95,11 +96,14 @@ def _ensure_path(girder_client, girder_folders, parent, path):
         # Check if the folder already exists
         if not parent_created:
             folders = girder_client.listFolder(parent_id, name=name)
-            if folders:
-                girder_folders[path] = folders[0]['_id']
-                parent_id = folders[0]['_id']
+            try:
+                folder_id = six.next(folders)['_id']
+                girder_folders[path] = folder_id
+                parent_id = folder_id
                 i += 1
                 continue
+            except StopIteration:
+                pass
 
         # Create the folder
         folder = girder_client.createFolder(parent_id, name,
