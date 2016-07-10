@@ -366,10 +366,15 @@ class TaskFlows(Resource):
     @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
-        Description('Get log entries for taskflow')
-        .param('id', 'The taskflow to get log entries for.', paramType='path')
-        .param('offset', 'A offset in to the log.', required=False,
-               paramType='query')
+        Description(
+        'Get log entries for task')
+        .param(
+            'id',
+            'The task to get log entries for.', paramType='path')
+        .param(
+            'offset',
+            'A offset in to the log.', required=False,
+            paramType='query')
     )
     def get_log(self, taskflow, params):
         offset = 0
