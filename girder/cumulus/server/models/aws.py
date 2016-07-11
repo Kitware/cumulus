@@ -26,7 +26,7 @@ from girder.constants import AccessType
 from .base import BaseModel
 from girder.models.model_base import ValidationException
 from girder.api.rest import getCurrentUser
-from cumulus.common.girder import create_status_notifications
+from cumulus.common.girder import create_notifications
 from cumulus.aws.ec2 import get_ec2_client, ClientErrorCode
 
 
@@ -176,7 +176,7 @@ class Aws(BaseModel):
                 '_id': profile_id,
                 'status': new_status
             }
-            create_status_notifications('profile', notification,
-                                        current_profile)
+            create_notifications('profile', 'status', notification,
+                                 current_profile)
 
         return self.save(profile)

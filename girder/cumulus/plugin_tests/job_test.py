@@ -494,7 +494,6 @@ class JobTestCase(base.TestCase):
 
         self.assertStatus(r, 200)
         self.assertEqual(len(r.json), 2)
-
         job_ids = [job['_id'] for job in r.json]
         self.assertTrue(job1['_id'] in job_ids)
         self.assertTrue(job2['_id'] in job_ids)
@@ -565,3 +564,49 @@ class JobTestCase(base.TestCase):
         r = self.request('/jobs/%s' %
                  str(job_id), method='DELETE', user=self._cumulus)
         self.assertStatus(r, 400)
+
+    def test_job_sse(self):
+        body = {
+            'onComplete': {
+                'cluster': 'terminate'
+            },
+            'input': [
+                {
+                    'itemId': '546a1844ff34c70456111185',
+                    'path': ''
+                }
+            ],
+            'commands': [
+                ''
+            ],
+            'name': 'test',
+            'output': [{
+                'itemId': '546a1844ff34c70456111185'
+            }]
+        }
+
+        json_body = json.dumps(body)
+
+        r = self.request('/jobs', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 201)
+        job_id = r.json['_id']
+
+        # connect to cluster notification stream
+        stream_r = self.request('/notification/stream', method='GET', user=self._user,
+                         isJson=False, params={'timeout': 0})
+        self.assertStatusOk(stream_r)
+
+        # add a log entry
+        log_entry = {
+            'msg': 'Some message'
+        }
+        r = self.request('/jobs/%s/log' % str(job_id), method='POST',
+                         type='application/json', body=json.dumps(log_entry), user=self._user)
+        self.assertStatusOk(r)
+
+        notifications = self.getSseMessages(stream_r)
+        # we get 2 notifications, 1 from the creation and 1 from the log
+        self.assertEqual(len(notifications), 2, 'Expecting two notification, received %d' % len(notifications))
+        self.assertEqual(notifications[0]['type'], 'job.status', 'Expecting a message with type \'job.status\'')
+        self.assertEqual(notifications[1]['type'], 'job.log', 'Expecting a message with type \'job.log\'')

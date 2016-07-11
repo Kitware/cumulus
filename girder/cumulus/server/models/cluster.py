@@ -27,7 +27,7 @@ from cumulus.constants import ClusterType, ClusterStatus, QueueType
 
 from ..utility.cluster_adapters import get_cluster_adapter
 from cumulus.common.girder import send_status_notification, \
-    check_group_membership
+    send_log_notification, check_group_membership
 import cumulus
 from cumulus import queue
 import six
@@ -211,7 +211,7 @@ class Cluster(BaseModel):
 
         return self._create(user, cluster)
 
-    def add_log_record(self, user, id, record):
+    def append_to_log(self, user, id, record):
         def mongo_safe_value(value):
             new_value = {}
 
@@ -226,11 +226,13 @@ class Cluster(BaseModel):
 
             return new_value
         # Load first to force access check
-        self.load(id, user=user, level=AccessType.WRITE)
+        log = mongo_safe_value(record)
+        cluster = self.load(id, user=user, level=AccessType.WRITE)
         self.update({'_id': ObjectId(id)},
                     {'$push': {
                         'log': mongo_safe_value(record)
                     }})
+        send_log_notification('cluster', cluster, log)
 
     def update_status(self, cluster, status, user=None):
         if user is None:

@@ -74,11 +74,8 @@ class Tasks(Resource):
     @access.user
     @loadmodel(model='task', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
-         Description('Get the task status')
-        .param(
-            'id',
-            'The id of task',
-            required=True, paramType='path')
+        Description('Get the task status')
+        .param('id', 'The id of task', required=True, paramType='path')
     )
     def status(self, task, params):
         return {'status': task['status']}
@@ -110,15 +107,10 @@ class Tasks(Resource):
     @access.user
     @loadmodel(model='task', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
-        Description(
-        'Get log entries for task')
-        .param(
-            'id',
-            'The task to get log entries for.', paramType='path')
-        .param(
-            'offset',
-            'A offset in to the log.', required=False,
-            paramType='query')
+        Description('Get log entries for task')
+        .param('id', 'The task to get log entries for.', paramType='path')
+        .param('offset', 'A offset in to the log.', required=False,
+               paramType='query')
     )
     def get_log(self, task, params):
         offset = 0

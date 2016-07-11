@@ -38,7 +38,7 @@ class Job(BaseResource):
         self.route('PATCH', (':id',), self.update)
         self.route('GET', (':id', 'status'), self.status)
         self.route('PUT', (':id', 'terminate'), self.terminate)
-        self.route('POST', (':id', 'log'), self.add_log_record)
+        self.route('POST', (':id', 'log'), self.append_to_log)
         self.route('GET', (':id', 'log'), self.log)
         self.route('GET', (':id', 'output'), self.output)
         self.route('DELETE', (':id', ), self.delete)
@@ -309,7 +309,7 @@ class Job(BaseResource):
         .responseClass('JobStatus'))
 
     @access.user
-    def add_log_record(self, id, params):
+    def append_to_log(self, id, params):
         user = self.getCurrentUser()
 
         job = self._model.load(id, user=user, level=AccessType.WRITE)
@@ -322,10 +322,9 @@ class Job(BaseResource):
         if not body:
             raise RestException('Log entry must be provided', code=400)
 
-        job['log'].append(body)
-        self._model.save(job)
+        return self._model.append_to_log(user, id, body)
 
-    add_log_record.description = None
+    append_to_log.description = None
 
     @access.user
     def log(self, id, params):

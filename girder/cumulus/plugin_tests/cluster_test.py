@@ -959,7 +959,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 201)
 
-    def test_log_stream(self):
+    def test_cluster_sse(self):
         body = {
             'profileId': str(self._user_profile['_id']),
             'name': 'test'
@@ -973,7 +973,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
         cluster_id = r.json['_id']
 
         # connect to cluster notification stream
-        stream_r = self.request('/clusters/%s/log/stream' % str(cluster_id), method='GET', user=self._user,
+        stream_r = self.request('/notification/stream', method='GET', user=self._user,
                          isJson=False, params={'timeout': 0})
         self.assertStatusOk(stream_r)
 
@@ -986,5 +986,8 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatusOk(r)
 
         notifications = self.getSseMessages(stream_r)
-        self.assertEqual(len(notifications), 1, 'Expecting one notification')
-        self.assertEqual(notifications[0]['msg'], log_entry['msg'], 'Expecting a different log message')
+
+        # we get 2 notifications, 1 from the creation and 1 from the log
+        self.assertEqual(len(notifications), 2, 'Expecting two notification, received %d' % len(notifications))
+        self.assertEqual(notifications[0]['type'], 'cluster.status', 'Expecting an event with type \'cluster.status\'')
+        self.assertEqual(notifications[1]['type'], 'cluster.log', 'Expecting a message with type \'cluster.log\'')
