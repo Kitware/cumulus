@@ -591,10 +591,6 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
         expected = \
             [   [   [   u'default',
                  {   u'_id': cluster_id,
-                     u'access': {   u'groups': [   {   u'id': str(group_id),
-                                                       u'level': 2}],
-                                    u'users': [   {   u'id': str(self._user['_id']),
-                                                      u'level': 2}]},
                      u'config': {
                         u'scheduler': {
                             u'type': u'sge'
@@ -610,7 +606,6 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
                             }
                         }
                      },
-                     u'log': [],
                      u'name': u'test',
                      u'profileId': str(self._user_profile['_id']),
                      u'status': u'terminating',
