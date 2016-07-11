@@ -24,7 +24,8 @@ class AnsibleTestCase(unittest.TestCase):
         self.assertEquals(case, h.to_string())
 
     def test_ansible_inventory_host_variables_to_string(self):
-        target = 'localhost foo=bar baz=bar'
+        targets = ['localhost foo=bar baz=bar', 'localhost baz=bar foo=bar']
+
         h = inventory.AnsibleInventoryHost('localhost', foo='bar', baz='bar')
 
         # Ensure variables have been set on host
@@ -34,7 +35,7 @@ class AnsibleTestCase(unittest.TestCase):
         self.assertEquals(h.variables['baz'], 'bar')
 
         # Test to_string
-        self.assertEquals(h.to_string(), target)
+        self.assertIn(h.to_string(), targets)
 
     def test_ansible_inventory_host_malformed_host(self):
         cases = ['localhost foo',
@@ -123,14 +124,15 @@ class AnsibleTestCase(unittest.TestCase):
         self.assertEquals(i.to_string(), script)
 
     def test_ansible_inventory_with_variables(self):
-        script = '''localhost foo=bar baz=bar
-'''
+        script = '''localhost foo=bar baz=bar\n'''
+        scripts = [script, '''localhost baz=bar foo=bar\n''']
+
         i = inventory.AnsibleInventory.from_string(script)
-        self.assertEquals(i.to_string(), script)
+        self.assertIn(i.to_string(), scripts)
 
     def test_ansible_inventory_with_groups(self):
-        script = '''localhost foo=bar baz=bar
-
+        headers= ['localhost foo=bar baz=bar', 'localhost baz=bar foo=bar' ]
+        body = '''
 [some_group]
 localhost foo=other
 192.168.1.10
@@ -139,6 +141,9 @@ localhost foo=other
 192.168.1.10
 
 '''
+        script = '%s\n%s' % (headers[0], body)
+        scripts = ['%s\n%s' % (h, body) for h in headers]
+
         i = inventory.AnsibleInventory.from_string(script)
         self.assertEquals(len(i.global_hosts), 1)
 
@@ -163,7 +168,7 @@ localhost foo=other
         self.assertEquals(i.sections[1].heading, '[another group]')
         self.assertEquals(i.sections[1].items[0].host, '192.168.1.10')
 
-        self.assertEquals(i.to_string(), script)
+        self.assertIn(i.to_string(), scripts)
 
     def test_ansible_inventory_tempfile_context_manager(self):
         target = '''localhost foo=bar baz=bar
@@ -176,13 +181,24 @@ localhost foo=other
 192.168.1.10
 
 '''
+        targets = [target, '''localhost baz=bar foo=bar
+
+[some_group]
+localhost foo=other
+192.168.1.10
+
+[another group]
+192.168.1.10
+
+'''
+ ]
         i = inventory.AnsibleInventory.from_string(target)
 
         with i.to_tempfile() as path:
             self.assertTrue(os.path.exists(path))
             with open(path, 'rb') as fh:
-                source = fh.read()
-                self.assertEquals(source, target)
+                source = fh.read().decode('utf8')
+                self.assertIn(source, targets)
 
         self.assertFalse(os.path.exists(path))
 
@@ -198,8 +214,8 @@ localhost foo=other
         self.assertEquals(source, i.global_hosts[0])
 
     def test_ansible_inventory_api(self):
-        target = '''localhost foo=bar baz=bar
-
+        headers = ['localhost foo=bar baz=bar', 'localhost baz=bar foo=bar' ]
+        body = '''
 [some_group]
 localhost foo=other
 192.168.1.10
@@ -208,6 +224,7 @@ localhost foo=other
 192.168.1.10
 
 '''
+        targets = [ '%s\n%s' % (h, body) for h in headers]
         i = inventory.AnsibleInventory(
             ['localhost foo=bar baz=bar'],
             sections=[
@@ -222,7 +239,7 @@ localhost foo=other
             ]
         )
 
-        self.assertEquals(i.to_string(), target)
+        self.assertIn(i.to_string(), targets)
 
     def test_ansible_inventory_to_json(self):
         source = '''localhost foo=bar baz=bar
@@ -235,8 +252,8 @@ localhost foo=other
 192.168.1.10
 
 '''
-        target = '{"_meta": {"hostvars": {"192.168.1.10": {}, "localhost": ' + \
-                 '{"foo": "other", "baz": "bar"}}}, "some_group": ' + \
+        target = '{"_meta": {"hostvars": {"localhost": {"baz": "bar", ' + \
+                 '"foo": "other"}, "192.168.1.10": {}}}, "some_group": ' + \
                  '["localhost", "192.168.1.10"], "another group": ' + \
                  '["192.168.1.10"]}'
         i = inventory.AnsibleInventory.from_string(source)
@@ -245,13 +262,13 @@ localhost foo=other
 
     def test_ansible_inventory_from_json(self):
         target = '''192.168.1.10
-localhost foo=other baz=bar
+localhost baz=bar foo=other
+
+[another group]
+192.168.1.10
 
 [some_group]
 localhost
-192.168.1.10
-
-[another group]
 192.168.1.10
 
 '''

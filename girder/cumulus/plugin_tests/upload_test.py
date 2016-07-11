@@ -17,20 +17,14 @@
 #  limitations under the License.
 ###############################################################################
 
-import urllib2
 import cherrypy
 import mock
-from easydict import EasyDict
-from jsonpath_rw import parse
 import os
+import six
 
 from tests import base
-import json
 import cumulus
 from cumulus.transport.files.upload import upload_path
-
-from girder.constants import ROOT_DIR
-from docutils.parsers.rst.directives import path
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
@@ -53,10 +47,10 @@ class UploadTestCase(base.TestCase):
             email='regularuser@email.com', login='regularuser',
             firstName='First', lastName='Last', password='goodpassword')
 
-        self._folder = self.model('folder').childFolders(
+        self._folder = six.next(self.model('folder').childFolders(
             self._user, parentType='user', force=True, filters={
                 'name': 'Public'
-            }).next()
+            }))
 
         item = self.model('item').createItem(
             name='bob.txt', creator=self._user, folder=self._folder)
@@ -110,13 +104,13 @@ class UploadTestCase(base.TestCase):
         self.assertEqual(len(cluster_connection.put.call_args_list), 3)
         _, (request, path), _ = cluster_connection.put.mock_calls[0]
         self.assertEqual(path, '/tmp/bill.txt')
-        self.assertEqual(request.read().strip(), 'bill')
+        self.assertEqual(request.read().decode('utf8').strip(), 'bill')
 
         _, (request, path), _ = cluster_connection.put.mock_calls[1]
         self.assertEqual(path, '/tmp/bob.txt')
-        self.assertEqual(request.read().strip(), 'bob')
+        self.assertEqual(request.read().decode('utf8').strip(), 'bob')
 
         _, (request, path), _ = cluster_connection.put.mock_calls[2]
         self.assertEqual(path, '/tmp/subfolder/will.txt')
-        self.assertEqual(request.read().strip(), 'will')
+        self.assertEqual(request.read().decode('utf8').strip(), 'will')
 

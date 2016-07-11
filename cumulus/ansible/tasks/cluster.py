@@ -17,7 +17,7 @@
 from cumulus.celery import command
 from cumulus.common import check_status
 from cumulus.ansible.tasks.providers import CloudProvider
-from inventory import simple_inventory
+from .inventory import simple_inventory
 import cumulus
 import requests
 import os

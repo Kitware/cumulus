@@ -19,7 +19,7 @@ def flaskProcess(requests_file):
     @app.route("/log", methods=["POST"])
     def test():
         with open(requests_file, "a") as fh:
-            fh.write(request.data + "\n")
+            fh.write((request.data + "\n").encode('utf8'))
         return "SUCCESS"
 
     app.run(debug=False, use_reloader=False)
@@ -84,7 +84,7 @@ class AnsibleRunTestCase(unittest.TestCase):
             env=env)
 
         with open(self.requests_file, "rb") as fh:
-            contents = fh.read()
+            contents = fh.read().decode('utf8')
 
         return [json.loads(l) for l in contents.split("\n") if l != '']
 

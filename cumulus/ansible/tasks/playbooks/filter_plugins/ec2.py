@@ -1,3 +1,6 @@
+import six
+
+
 def flatten_ec2_result(ec2_result):
     result = []
     for entry in ec2_result['results']:
@@ -73,18 +76,18 @@ def compute_ec2_update_lists(pod_name,
                 continue
 
             instance_name = instance.tags.get('ec2_pod_instance_name')
-            composite_key = (unicode(instance_name),
-                             unicode(instance.key_name),
-                             unicode(instance.image_id),
-                             unicode(instance.instance_type))
+            composite_key = (six.text_type(instance_name),
+                             six.text_type(instance.key_name),
+                             six.text_type(instance.image_id),
+                             six.text_type(instance.instance_type))
 
             ec2_host_table[composite_key][instance.state].add(instance.id)
 
     host_counter_table = dict(
-        ((unicode(key),
-          unicode(value.get('ssh_key', default_ssh_key)),
-          unicode(value.get('image', default_image)),
-          unicode(value.get('type', default_instance_type))),
+        ((six.text_type(key),
+          six.text_type(value.get('ssh_key', default_ssh_key)),
+          six.text_type(value.get('image', default_image)),
+          six.text_type(value.get('type', default_instance_type))),
          value.get('count', 1))
         for key, value in hosts_spec.items())
 

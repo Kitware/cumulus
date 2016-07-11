@@ -30,6 +30,7 @@ from cumulus.common.girder import send_status_notification, \
     send_log_notification, check_group_membership
 import cumulus
 from cumulus import queue
+import six
 
 
 def preprocess_cluster(cluster):
@@ -71,7 +72,7 @@ class Cluster(BaseModel):
                 super(Cluster, self).find(query, offset, limit, timeout,
                                           fields, sort, **kwargs)]
 
-    def filter(self, cluster, user, passphrase=True):
+    def filter(self, cluster, user, passphrase=True, int_enum_to_string=True):
         cluster = super(Cluster, self).filter(doc=cluster, user=user)
 
         if parse('config.ssh.passphrase').find(cluster) and passphrase:
@@ -79,6 +80,10 @@ class Cluster(BaseModel):
                 check_group_membership(user, cumulus.config.girder.group)
             except RestException:
                 del cluster['config']['ssh']['passphrase']
+
+        # Convert status (IntEnum) to string
+        if int_enum_to_string:
+            cluster['status'] = str(cluster['status'])
 
         return cluster
 
@@ -213,7 +218,7 @@ class Cluster(BaseModel):
             if not isinstance(value, dict):
                 return value
             else:
-                for (k, v) in value.iteritems():
+                for (k, v) in six.iteritems(value):
                     if '.' in str(k) or '$' in str(k):
                         k = k.replace('.', '\\u002e').replace('$', '\\u0024')
 

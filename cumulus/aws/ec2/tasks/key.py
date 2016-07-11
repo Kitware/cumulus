@@ -20,6 +20,7 @@
 import os
 import requests
 import traceback
+import stat
 
 import cumulus
 
@@ -40,14 +41,14 @@ def generate_key_pair(aws_profile, girder_token):
         key_pair = client.create_key_pair(KeyName=aws_profile['_id'])
 
         with open(key_path, 'wb') as fp:
-            fp.write(key_pair['KeyMaterial'])
-        os.chmod(key_path, 0400)
+            fp.write(key_pair['KeyMaterial'].encode('utf8'))
+        os.chmod(key_path, stat.S_IRUSR)
 
         aws_profile['status'] = 'available'
 
     except Exception as ex:
         aws_profile['status'] = 'error'
-        aws_profile['errorMessage'] = '%s: %s' % (type(ex).__name__, ex.message)
+        aws_profile['errorMessage'] = '%s: %s' % (type(ex).__name__, ex)
         traceback.print_exc()
 
     update_url = '%s/user/%s/aws/profiles/%s' % (cumulus.config.girder.baseUrl,
