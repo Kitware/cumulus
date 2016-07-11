@@ -65,7 +65,7 @@ class Cluster(BaseResource):
             raise RestException('Cluster not found.', code=404)
 
         return self._model.append_to_log(
-            user, id, json.load(cherrypy.request.body.read().decode('utf8')))
+            user, id, getBodyJson())
 
     handle_log_record.description = None
 
