@@ -23,7 +23,7 @@ from itertools import groupby
 import json
 import os
 
-from .base import CloudProvider, InstanceState
+from cumulus.ansible.tasks.providers.base import CloudProvider, InstanceState
 from girder.api.rest import ModelImporter
 
 
