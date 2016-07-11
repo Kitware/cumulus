@@ -21,7 +21,8 @@ from girder.models.model_base import ValidationException
 from bson.objectid import ObjectId
 from girder.constants import AccessType
 from .base import BaseModel
-from cumulus.common.girder import send_status_notification
+from cumulus.common.girder import send_status_notification, \
+    send_log_notification
 
 
 class Job(BaseModel):
@@ -84,10 +85,10 @@ class Job(BaseModel):
 
         return self.save(job)
 
-    def add_log_record(self, user, _id, record):
-        # Load first to force access check
-        self.load(_id, user=user, level=AccessType.WRITE)
+    def append_to_log(self, user, _id, record):
+        job = self.load(_id, user=user, level=AccessType.WRITE)
         self.update({'_id': ObjectId(_id)}, {'$push': {'log': record}})
+        send_log_notification('job', job, record)
 
     def log_records(self, user, id, offset=0):
         job = self.load(id, user=user, level=AccessType.READ)

@@ -37,6 +37,7 @@ import cumulus
 
 logger = logging.getLogger('girder')
 
+
 class TaskFlows(Resource):
 
     def __init__(self):
@@ -52,8 +53,9 @@ class TaskFlows(Resource):
         self.route('POST', (':id', 'tasks'), self.create_task)
         self.route('DELETE', (':id',), self.delete)
         self.route('PUT', (':id', 'delete'), self.delete_finished)
-        self.route('GET', (':id','tasks'), self.tasks)
-        self.route('PUT', (':id','tasks', ':taskId', 'finished'), self.task_finished)
+        self.route('GET', (':id', 'tasks'), self.tasks)
+        self.route('PUT', (':id', 'tasks', ':taskId', 'finished'),
+                   self.task_finished)
         self.route('GET', (':id', 'log'), self.get_log)
 
         self._model = self.model('taskflow', 'taskflow')
@@ -62,7 +64,6 @@ class TaskFlows(Resource):
         if request.status_code != 200:
             print >> sys.stderr, request.content
             request.raise_for_status()
-
 
     addModel('CreateTaskFlowParams', {
         'id': 'CreateTaskFlowParams',
@@ -94,14 +95,15 @@ class TaskFlows(Resource):
             load_class(taskflow['taskFlowClass'])
         except Exception as ex:
             msg = 'Unable to load taskflow class: %s (%s)' % \
-                        (taskflow['taskFlowClass'], ex.message)
+                  (taskflow['taskFlowClass'], ex.message)
             logger.exception(msg)
             traceback.print_exc()
             raise RestException(msg, 400)
         taskflow = self._model.create(user, taskflow)
 
         cherrypy.response.status = 201
-        cherrypy.response.headers['Location'] = '/taskflows/%s' % taskflow['_id']
+        cherrypy.response.headers['Location'] = '/taskflows/%s' % \
+                                                taskflow['_id']
 
         return taskflow
 
@@ -144,10 +146,7 @@ class TaskFlows(Resource):
             required=True, paramType='path')
     )
     def status(self, taskflow, params):
-        user = self.getCurrentUser()
-
         return {'status': taskflow['status']}
-
 
     @access.user
     @filtermodel(model='taskflow', plugin='taskflow')
@@ -169,7 +168,6 @@ class TaskFlows(Resource):
             taskflow = self._model.get_path(taskflow, params['path'])
 
         return taskflow
-
 
     @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
@@ -369,10 +367,10 @@ class TaskFlows(Resource):
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
         Description(
-        'Get log entries for taskflow')
+        'Get log entries for task')
         .param(
             'id',
-            'The taskflow to get log entries for.', paramType='path')
+            'The task to get log entries for.', paramType='path')
         .param(
             'offset',
             'A offset in to the log.', required=False,
