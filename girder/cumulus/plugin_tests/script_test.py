@@ -137,7 +137,7 @@ class ScriptTestCase(base.TestCase):
             'name': 'test'
         }
         del r.json['_id']
-        self.assertEquals(r.json, expected_script)
+        self.assertEqual(r.json, expected_script)
 
 
     def test_delete(self):

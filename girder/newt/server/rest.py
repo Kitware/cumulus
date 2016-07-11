@@ -85,8 +85,6 @@ class Newt(Resource):
 
         user = self.model('user').save(user)
 
-        print user
-
         return user
 
     def send_cookies(self, user, session_id):
@@ -138,7 +136,6 @@ class Newt(Resource):
         user = getCurrentUser()
 
         user = self.model('user').load(user['_id'], fields=['newt'], force=True)
-        print 'user: %s ' % str(user)
 
         return {
             'sessionId': user.get('newt', {}).get('sessionId')

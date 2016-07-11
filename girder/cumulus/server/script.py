@@ -47,7 +47,7 @@ class Script(BaseResource):
     @access.user
     def import_script(self, id, params):
         user = self.getCurrentUser()
-        lines = cherrypy.request.body.read().splitlines()
+        lines = cherrypy.request.body.read().decode('utf8').splitlines()
 
         script = self._model.load(id, user=user, level=AccessType.ADMIN)
 
@@ -75,7 +75,7 @@ class Script(BaseResource):
     def create(self, params):
         user = self.getCurrentUser()
 
-        script = json.load(cherrypy.request.body)
+        script = json.loads(cherrypy.request.body.read().decode('utf8'))
 
         if 'name' not in script:
             raise RestException('Script name is required', code=400)

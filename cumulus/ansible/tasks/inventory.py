@@ -3,6 +3,8 @@ import tempfile
 import os
 import json
 from contextlib import contextmanager
+from collections import OrderedDict
+import six
 
 
 class AnsibleInventoryHost(object):
@@ -16,7 +18,7 @@ class AnsibleInventoryHost(object):
     '''
     def __init__(self, host, **kwargs):
         self.host = host
-        self.variables = kwargs
+        self.variables = OrderedDict(sorted(kwargs.items()))
 
     def to_string(self):
         s = self.host
@@ -216,21 +218,22 @@ class AnsibleInventory(object):
 
         d = json.loads(json_string)
 
-        for key, items in d.items():
+        for key, items in sorted(d.items()):
             if key != '_meta':
                 g = AnsibleInventoryGroup(key)
                 for host in items:
                     g.items.append(AnsibleInventoryHost(host))
                 sections.append(g)
             else:
-                for host, variables in items['hostvars'].items():
+                for host, variables in sorted(items['hostvars'].items()):
                     global_hosts.append(
                         AnsibleInventoryHost(host, **variables))
 
         return AnsibleInventory(global_hosts, sections)
 
     def to_json(self, with_meta=True):
-        d = {'_meta': {'hostvars': {}}} if with_meta else {}
+        d = OrderedDict(_meta=OrderedDict(hostvars=OrderedDict())) \
+            if with_meta else OrderedDict()
         for host in self.global_hosts:
             if with_meta and host.variables:
                 d['_meta']['hostvars'][host.host] = host.variables
@@ -283,7 +286,7 @@ class AnsibleInventory(object):
         _, path = tempfile.mkstemp()
 
         with open(path, 'wb') as fh:
-            fh.write(self.to_string())
+            fh.write(self.to_string().encode('utf8'))
 
         yield path
 
@@ -323,7 +326,7 @@ def simple_inventory(a, b=None):
 
     '''
     # Simple string,  assume a single global host
-    if isinstance(a, basestring) and b is None:
+    if isinstance(a, six.string_types) and b is None:
         return AnsibleInventory([a])
 
     # List of items,  assume a list of global hosts
@@ -342,7 +345,7 @@ def simple_inventory(a, b=None):
             a, sections=[AnsibleInventoryGroup(group, hosts)
                          for group, hosts in b.items()])
 
-    if isinstance(a, basestring) and isinstance(b, dict):
+    if isinstance(a, six.string_types) and isinstance(b, dict):
         return AnsibleInventory(
             [a], sections=[AnsibleInventoryGroup(group, hosts)
                            for group, hosts in b.items()])

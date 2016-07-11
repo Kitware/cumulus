@@ -3,6 +3,7 @@ import httmock
 import mock
 import json
 from jsonpath_rw import parse
+import stat
 
 import cumulus
 from cumulus.transport.files.download import download_path
@@ -25,7 +26,7 @@ class DownloadTestCase(unittest.TestCase):
 
         folder = {
                   'name':  'folder',
-                  'mode': 0040000,
+                  'mode': stat.S_IFDIR,
                   'size': 1234
         }
 
@@ -44,7 +45,7 @@ class DownloadTestCase(unittest.TestCase):
             content = {
                 '_id': 'dummy'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -63,7 +64,7 @@ class DownloadTestCase(unittest.TestCase):
             content = {
                 '_id': 'dummy'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -82,7 +83,7 @@ class DownloadTestCase(unittest.TestCase):
             content = {
                 '_id': 'dummy'
             }
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'
@@ -99,7 +100,7 @@ class DownloadTestCase(unittest.TestCase):
         # Mock list folder
         def _list_folder(url, request):
             content = []
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'

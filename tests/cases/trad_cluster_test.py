@@ -21,30 +21,16 @@ import unittest
 import mock
 import httmock
 import json
-import re
 
 from cumulus.tasks import cluster
+from cumulus.testing import AssertCallsMixin
 
-class TradClusterTestCase(unittest.TestCase):
+class TradClusterTestCase(AssertCallsMixin, unittest.TestCase):
 
     def setUp(self):
         self._expected_status = 'error'
         self._set_status_called  = False
         self._set_status_valid  = False
-
-    def normalize(self, data):
-        str_data = json.dumps(data, default=str)
-        str_data = re.sub(r'[\w]{64}', 'token', str_data)
-
-        return json.loads(str_data)
-
-    def assertCalls(self, actual, expected, msg=None):
-        calls = []
-        for (args, kwargs) in self.normalize(actual):
-            calls.append((args, kwargs))
-
-        self.assertListEqual(self.normalize(calls), expected, msg)
-
 
     @mock.patch('cumulus.tasks.cluster.get_connection')
     def test_connection(self, get_connection):
@@ -107,7 +93,7 @@ class TradClusterTestCase(unittest.TestCase):
                 }
             }
 
-            content = json.dumps(content)
+            content = json.dumps(content).encode('utf8')
             headers = {
                 'content-length': len(content),
                 'content-type': 'application/json'

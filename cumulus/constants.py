@@ -19,6 +19,7 @@
 
 
 from enum import IntEnum
+import six
 
 
 class ClusterType:
@@ -67,6 +68,7 @@ class JobQueueState:
     ERROR = 'error'
 
 
+@six.python_2_unicode_compatible
 class ClusterStatus(IntEnum):
     error = -1
     creating = 0
@@ -81,7 +83,7 @@ class ClusterStatus(IntEnum):
     running = 102
 
     def __str__(self):
-        return '"' + self.name + '"'
+        return self.name
 
 
 class JobState:

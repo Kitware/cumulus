@@ -20,12 +20,11 @@
 from tests import base
 import json
 import mock
-import re
-from easydict import EasyDict
 from bson.objectid import ObjectId
-from cumulus.constants import ClusterStatus
 
 from cumulus.transport.files import get_assetstore_url_base
+from cumulus.testing import AssertCallsMixin
+
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
@@ -37,21 +36,7 @@ def tearDownModule():
     base.stopServer()
 
 
-class ClusterTestCase(base.TestCase):
-
-    def normalize(self, data):
-        str_data = json.dumps(data, default=str)
-        str_data = re.sub(r'[\w]{64}', 'token', str_data)
-
-        return json.loads(str_data)
-
-    def assertCalls(self, actual, expected, msg=None):
-        calls = []
-        for (args, kwargs) in self.normalize(actual):
-            calls.append((args, kwargs))
-
-        self.assertListEqual(self.normalize(calls), expected, msg)
-
+class ClusterTestCase(AssertCallsMixin, base.TestCase):
     def setUp(self):
         super(ClusterTestCase, self).setUp()
 
@@ -336,7 +321,7 @@ class ClusterTestCase(base.TestCase):
             u'userId': str(self._user['_id'])
         }
 
-        self.assertEquals(r.json, expected_status)
+        self.assertEqual(r.json, expected_status)
 
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
     def test_update_traditional(self, generate_key):
@@ -439,7 +424,7 @@ class ClusterTestCase(base.TestCase):
                          user=self._user)
         self.assertStatusOk(r)
         expected_log = {u'log': [{u'msg': u'Some message'}]}
-        self.assertEquals(r.json, expected_log)
+        self.assertEqual(r.json, expected_log)
 
         r = self.request('/clusters/%s/log' % str(cluster_id), method='POST',
                          type='application/json', body=json.dumps(log_entry), user=self._user)
@@ -448,12 +433,12 @@ class ClusterTestCase(base.TestCase):
         r = self.request('/clusters/%s/log' % str(cluster_id), method='GET',
                          user=self._user)
         self.assertStatusOk(r)
-        self.assertEquals(len(r.json['log']), 2)
+        self.assertEqual(len(r.json['log']), 2)
 
         r = self.request('/clusters/%s/log' % str(cluster_id), method='GET',
                          params={'offset': 1}, user=self._user)
         self.assertStatusOk(r)
-        self.assertEquals(len(r.json['log']), 1)
+        self.assertEqual(len(r.json['log']), 1)
 
     @mock.patch('cumulus.ansible.tasks.cluster.start_cluster.delay')
     def test_start(self, start_cluster):
@@ -518,10 +503,10 @@ class ClusterTestCase(base.TestCase):
         job_id = r.json['_id']
 
         r = self.request('/clusters/%s/job/%s/submit' % (str(cluster_id), str(job_id)), method='PUT',
-                         type='application/json', body={}, user=self._user)
+                         type='application/json', body='', user=self._user)
         expected_response = {
             u'message': u'Cluster is not running', u'type': u'rest'}
-        self.assertEquals(r.json, expected_response)
+        self.assertEqual(r.json, expected_response)
         self.assertStatus(r, 400)
 
         # Move cluster into running state
@@ -537,7 +522,7 @@ class ClusterTestCase(base.TestCase):
         self.assertStatusOk(r)
 
         r = self.request('/clusters/%s/job/%s/submit' % (str(cluster_id), str(job_id)), method='PUT',
-                         type='application/json', body={}, user=self._user)
+                         type='application/json', body='', user=self._user)
         self.assertStatusOk(r)
 
         expected_submit_call = \
@@ -796,7 +781,7 @@ class ClusterTestCase(base.TestCase):
         self.assertStatus(r, 201)
         _id = str(r.json['_id'])
         r = self.request('/clusters/%s/terminate' % _id, method='PUT',
-                         type='application/json', body={}, user=self._user)
+                         type='application/json', body='', user=self._user)
 
         self.assertStatus(r, 400)
 

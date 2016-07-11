@@ -69,10 +69,10 @@ config_schema = {
 
 if pr.resource_exists(__name__, 'conf/config.json'):
     config = json.loads(
-        pr.resource_string(__name__, 'conf/config.json'))
+        pr.resource_string(__name__, 'conf/config.json').decode('utf8'))
 else:
     config = json.loads(
-        pr.resource_string(__name__, 'conf/default_config.json'))
+        pr.resource_string(__name__, 'conf/default_config.json').decode('utf8'))
 
 validate(config, config_schema)
 
