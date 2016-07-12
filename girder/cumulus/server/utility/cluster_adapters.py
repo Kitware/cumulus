@@ -41,7 +41,9 @@ class AbstractClusterAdapter(ModelImporter):
         self._model = self.model('cluster', 'cumulus')
 
     def update_status(self, status):
-        self.cluster = self._model.update_status(self.cluster, status)
+        self.cluster = self._model.filter(
+            self._model.update_status(self.cluster, status), getCurrentUser(),
+            passphrase=False)
 
     def validate(self):
         """
