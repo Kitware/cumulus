@@ -124,16 +124,6 @@ class Volume(BaseResource):
 
         volume = self._create_ebs(body, zone)
 
-        girder_callback_info = {
-            'girder_api_url': getApiUrl(),
-            'girder_token': get_task_token()['_id']}
-
-        cumulus.ansible.tasks.volume.create_volume\
-            .delay(profile, volume, secret_key, girder_callback_info)
-
-        volume['ec2']['status'] = VolumeState.PROVISIONING
-        volume = self.model('volume', 'cumulus').save(volume)
-
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/volumes/%s' % volume['_id']
 
