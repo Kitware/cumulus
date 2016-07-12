@@ -39,7 +39,8 @@ class Volume(BaseModel):
 
         self.exposeFields(level=AccessType.READ,
                           fields=('_id', 'config', 'ec2', 'fs', 'name', 'size',
-                                  'type', 'zone', 'profileId', 'clusterId'))
+                                  'type', 'zone', 'profileId', 'clusterId',
+                                  'status'))
 
     def validate(self, volume):
         if not volume['name']:

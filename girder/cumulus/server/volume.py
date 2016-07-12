@@ -84,6 +84,11 @@ class Volume(BaseResource):
                 volume['ec2'] = {}
             volume['ec2'].update(body['ec2'])
 
+        mutable = ['status', 'msg', 'path']
+        for k in mutable:
+            if k in body:
+                volume[k] = body[k]
+
         volume = self._model.save(volume)
 
         return self._model.filter(volume, getCurrentUser())
@@ -203,18 +208,15 @@ class Volume(BaseResource):
             cluster['volumes'].append(volume['_id'])
             cluster['volumes'] = list(set(cluster['volumes']))
 
-            if 'ec2' not in volume:
-                volume['ec2'] = {}
+            volume['status'] = VolumeState.INUSE
+            volume['path'] = path
 
-            volume['ec2'].update({
-                'status': VolumeState.INUSE,
-                'path': path})
             # TODO: removing msg should be refactored into
             #       a general purpose 'update_status' function
             #       on the volume model. This way msg only referes
             #       to the current status.
             try:
-                del volume['ec2']['msg']
+                del volume['msg']
             except KeyError:
                 pass
 
@@ -224,12 +226,8 @@ class Volume(BaseResource):
             self.model('cluster', 'cumulus').save(cluster)
             self.model('volume', 'cumulus').save(volume)
         else:
-            if 'ec2' not in volume:
-                volume['ec2'] = {}
-
-            volume['ec2'].update({'status': VolumeState.ERROR})
-            volume['ec2'].update(
-                {'msg': 'Volume path was not communicated on complete'})
+            volume['status'] = VolumeState
+            volume['msg'] = 'Volume path was not communicated on complete'
 
             self.model('volume', 'cumulus').save(volume)
 
@@ -269,7 +267,7 @@ class Volume(BaseResource):
             .delay(profile, cluster, master, volume, path,
                    secret_key, girder_callback_info)
 
-        volume['ec2']['status'] = VolumeState.ATTACHING
+        volume['status'] = VolumeState.ATTACHING
         volume = self.model('volume', 'cumulus').save(volume)
 
         return self._model.filter(volume, getCurrentUser())
@@ -322,7 +320,7 @@ class Volume(BaseResource):
             raise RestException('clusterId is not set on this volume!', 400)
 
         try:
-            volume['ec2']['path']
+            volume['path']
         except KeyError:
             raise RestException('path is not set on this volume!', 400)
 
@@ -338,7 +336,7 @@ class Volume(BaseResource):
             .delay(profile, cluster, master, volume,
                    secret_key, girder_callback_info)
 
-        volume['ec2']['status'] = VolumeState.DETACHING
+        volume['status'] = VolumeState.DETACHING
         volume = self.model('volume', 'cumulus').save(volume)
 
         return self._model.filter(volume, getCurrentUser())
@@ -364,12 +362,11 @@ class Volume(BaseResource):
 
         for attr in ['path', 'msg']:
             try:
-                del volume['ec2'][attr]
+                del volume[attr]
             except KeyError:
                 pass
 
-        volume['ec2'].update({
-            'status': VolumeState.AVAILABLE}),
+        volume['status'] = VolumeState.AVAILABLE
 
         self.model('cluster', 'cumulus').save(cluster)
         self.model('volume', 'cumulus').save(volume)
@@ -394,14 +391,14 @@ class Volume(BaseResource):
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
         aws_volume = p.get_volume(volume)
-        if aws_volume['state'] != VolumeState.AVAILABLE:
-            raise RestException('Volume must be in an "%s" state to be deleted'
+        if aws_volume['status'] != VolumeState.AVAILABLE:
+            raise RestException('Volume must be in an "%s" status to be deleted'
                                 % VolumeState.AVAILABLE, 400)
 
         cumulus.ansible.tasks.volume.delete_volume\
             .delay(profile, volume, secret_key, girder_callback_info)
 
-        volume['ec2']['status'] = VolumeState.DELETING
+        volume['status'] = VolumeState.DELETING
         volume = self.model('volume', 'cumulus').save(volume)
 
         return self._model.filter(volume, getCurrentUser())
@@ -417,24 +414,10 @@ class Volume(BaseResource):
 
     delete_complete.description = None
 
-    def _get_status(self, client, volume_id):
-        response = client.describe_volumes(
-            VolumeIds=[volume_id]
-        )
-
-        state = parse('Volumes[0].State').find(response)
-        if state:
-            state = state[0].value
-        else:
-            raise RestException('Unable to extract volume state from: %s'
-                                % state)
-
-        return state
-
     @access.user
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def get_status(self, volume, params):
-        return {'status': volume['ec2']['status']}
+        return {'status': volume['status']}
 
     get_status.description = (
         Description('Get the status of a volume')
