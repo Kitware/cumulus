@@ -263,6 +263,9 @@ class Volume(BaseResource):
             raise RestException('Master instance is not running!',
                                 400)
 
+        cluster = self.model('cluster', 'cumulus').filter(
+            cluster, getCurrentUser(), passphrase=False)
+        volume = self._model.filter(volume, getCurrentUser())
         cumulus.ansible.tasks.volume.attach_volume\
             .delay(profile, cluster, master, volume, path,
                    secret_key, girder_callback_info)
@@ -332,6 +335,9 @@ class Volume(BaseResource):
             raise RestException('Master instance is not running!',
                                 400)
 
+        cluster = self.model('cluster', 'cumulus').filter(
+            cluster, getCurrentUser(), passphrase=False)
+        volume = self._model.filter(volume, getCurrentUser())
         cumulus.ansible.tasks.volume.detach_volume\
             .delay(profile, cluster, master, volume,
                    secret_key, girder_callback_info)
@@ -395,6 +401,7 @@ class Volume(BaseResource):
             raise RestException('Volume must be in an "%s" status to be deleted'
                                 % VolumeState.AVAILABLE, 400)
 
+        volume = self._model.filter(volume, getCurrentUser())
         cumulus.ansible.tasks.volume.delete_volume\
             .delay(profile, volume, secret_key, girder_callback_info)
 

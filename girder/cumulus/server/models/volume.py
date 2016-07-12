@@ -65,6 +65,14 @@ class Volume(BaseModel):
 
         return volume
 
+    def filter(self, volume, user):
+        volume = super(Volume, self).filter(doc=volume, user=user)
+
+        # Convert status (IntEnum) to string
+        volume['status'] = str(volume['status'])
+
+        return volume
+
     def create_ebs(self, user, profileId, name, zone, size, fs):
         volume = {
             'name': name,
