@@ -26,6 +26,7 @@ from girder.api.rest import getCurrentUser
 from .base import BaseModel
 from ..utility.volume_adapters import get_volume_adapter
 from cumulus.constants import VolumeType
+from cumulus.constants import VolumeState
 
 
 class Volume(BaseModel):
@@ -72,7 +73,8 @@ class Volume(BaseModel):
             'ec2': {
                 'id': None
             },
-            'profileId': profileId
+            'profileId': profileId,
+            'status': VolumeState.CREATED
         }
 
         if fs:
