@@ -253,7 +253,7 @@ class Volume(BaseResource):
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
         aws_volume = p.get_volume(volume)
-        if aws_volume and aws_volume['status'] != VolumeState.AVAILABLE:
+        if aws_volume and aws_volume['state'] != VolumeState.AVAILABLE:
             raise RestException('This volume is not available to attach '
                                 'to a cluster',
                                 400)
