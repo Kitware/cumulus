@@ -76,7 +76,7 @@ def detach_volume(profile, cluster, instance, volume,
         'girder_cluster_id': cluster['_id'],
         'volume_id': volume['ec2']['id'],
         'instance_id': instance['instance_id'],
-        'path': volume['ec2']['path'],
+        'path': volume['path'],
         'region': profile['regionName'],
         'ansible_ssh_private_key_file': _key_path(profile),
         'ansible_user': cluster['config']['ssh']['user']
