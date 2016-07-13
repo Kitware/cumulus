@@ -38,29 +38,19 @@ class AnsibleTestCase(base.TestCase):
         self._group = self.model('group').createGroup('cumulus', self._cumulus)
 
     def test_cluster_status(self):
-        names = [s.name for s in ClusterStatus]
-        self.assertTrue("error" in names)
-        self.assertTrue("creating" in names)
-        self.assertTrue("created" in names)
-        self.assertTrue("launching" in names)
-        self.assertTrue("launched" in names)
-        self.assertTrue("provisioning" in names)
-        self.assertTrue("provisioned" in names)
-        self.assertTrue("terminating" in names)
-        self.assertTrue("terminated" in names)
-        self.assertTrue("stopped" in names)
-        self.assertTrue("running" in names)
+        self.assertTrue(ClusterStatus.validate(ClusterStatus.CREATED,
+                                               ClusterStatus.LAUNCHING))
 
-        self.assertTrue(ClusterStatus.error < ClusterStatus.creating)
-        self.assertTrue(ClusterStatus.creating < ClusterStatus.created)
-        self.assertTrue(ClusterStatus.created < ClusterStatus.launching)
-        self.assertTrue(ClusterStatus.launching < ClusterStatus.launched)
-        self.assertTrue(ClusterStatus.launched < ClusterStatus.provisioning)
-        self.assertTrue(ClusterStatus.provisioning < ClusterStatus.provisioned)
-        self.assertTrue(ClusterStatus.provisioned < ClusterStatus.terminating)
-        self.assertTrue(ClusterStatus.terminating < ClusterStatus.terminated)
-        self.assertTrue(ClusterStatus.terminated < ClusterStatus.stopped)
-        self.assertTrue(ClusterStatus.stopped < ClusterStatus.running)
+        self.assertFalse(ClusterStatus.validate(ClusterStatus.ERROR,
+                                                ClusterStatus.CREATED))
+
+    def test_cluster_status_bad_status(self):
+        with self.assertRaises(Exception):
+            self.assertTrue(ClusterStatus.validate("foo", ClusterStatus.LAUNCHING))
+
+        with self.assertRaises(Exception):
+            self.assertTrue(ClusterStatus.validate(ClusterStatus.LAUNCHING, "foo"))
+
 
     def test_create(self):
         pass

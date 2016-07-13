@@ -68,22 +68,83 @@ class JobQueueState:
     ERROR = 'error'
 
 
-@six.python_2_unicode_compatible
-class ClusterStatus(IntEnum):
-    error = -1
-    creating = 0
-    created = 10
-    launching = 20
-    launched = 30
-    provisioning = 40
-    provisioned = 50
-    terminating = 60
-    terminated = 70
-    stopped = 101
-    running = 102
+class ClusterStatus(object):
+    ERROR = "error"
+    CREATED = "created"
+    LAUNCHING = "launching"
+    PROVISIONING = "provisioning"
+    RUNNING = "running"
+    TERMINATING = "terminating"
+    TERMINATED = "terminated"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+    STARTING = "starting"
+
+    valid_transitions = {}
+
+    def __init__(self, cluster_adapter):
+        self.cluster_adapter = cluster_adapter
+
+    def to(self, new_status):
+        if self.validate(self.status, new_status):
+            self.status = new_status
+        else:
+            raise Exception(
+                "Cannot transition from state \"%s\" to state \"%s\"" %
+                (self.status, new_status))
+
+    @classmethod
+    def validate(cls, frm, to):
+        assert frm in cls.valid_transitions.keys(), \
+            u"%s is not a valid ClusterStatus." % frm
+
+        assert to in cls.valid_transitions.keys(), \
+            u"%s is not a valid ClusterStatus." % to
+
+        return to in cls.valid_transitions[frm]
+
+    @property
+    def nodes(self):
+        return self.valid_transitions.keys()
+
+    @property
+    def status(self):
+        return self.cluster_adapter.cluster['status']
+
+    @status.setter
+    def status(self, new_status):
+        assert new_status in self.nodes, \
+            u"%s is not a valid ClusterStatus." % new_status
+
+        self.cluster_adapater.cluster['status'] = new_status
 
     def __str__(self):
-        return self.name
+        return self.status
+
+
+ClusterStatus.valid_transitions = {
+    # Traditional clusters can move directly into RUNNING
+    ClusterStatus.CREATED: [ClusterStatus.LAUNCHING,
+                            ClusterStatus.RUNNING,
+                            ClusterStatus.ERROR],
+    ClusterStatus.LAUNCHING: [ClusterStatus.RUNNING,
+                              ClusterStatus.ERROR],
+    ClusterStatus.PROVISIONING: [ClusterStatus.RUNNING,
+                                 ClusterStatus.ERROR],
+    ClusterStatus.RUNNING: [ClusterStatus.TERMINATING,
+                            ClusterStatus.STOPPING,
+                            ClusterStatus.ERROR],
+    ClusterStatus.TERMINATING: [ClusterStatus.TERMINATED,
+                                ClusterStatus.ERROR],
+    ClusterStatus.STOPPING: [ClusterStatus.STOPPED,
+                             ClusterStatus.ERROR],
+    ClusterStatus.STOPPED: [ClusterStatus.STARTING,
+                            ClusterStatus.ERROR],
+    ClusterStatus.STARTING: [ClusterStatus.RUNNING,
+                             ClusterStatus.ERROR],
+    ClusterStatus.TERMINATED: [],
+    ClusterStatus.ERROR: []
+}
 
 
 class JobState:
