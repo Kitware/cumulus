@@ -401,9 +401,9 @@ class Volume(BaseResource):
             raise RestException('Volume must be in an "%s" status to be deleted'
                                 % VolumeState.AVAILABLE, 400)
 
-        volume = self._model.filter(volume, getCurrentUser())
         cumulus.ansible.tasks.volume.delete_volume\
-            .delay(profile, volume, secret_key, girder_callback_info)
+            .delay(profile, self._model.filter(volume, getCurrentUser()),
+                   secret_key, girder_callback_info)
 
         volume['status'] = VolumeState.DELETING
         volume = self.model('volume', 'cumulus').save(volume)
