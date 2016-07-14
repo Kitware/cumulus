@@ -277,10 +277,11 @@ class Cluster(BaseResource):
     @loadmodel(model='cluster', plugin='cumulus', level=AccessType.ADMIN)
     def provision(self, cluster, params):
 
-        if cluster['status'] not in (ClusterStatus.launched,
-                                     ClusterStatus.provisioned,
-                                     ClusterStatus.running):
-            raise RestException('Cluster can not be provisioned.', code=400)
+        if not ClusterStatus.valid_transition(
+                cluster['status'], ClusterStatus.PROVISIONING):
+            raise RestException(
+                'Cluster status is %s and cannot be provisioned' %
+                cluster['status'], code=400)
 
         body = self._get_body()
         provision_ssh_user = get_property('ssh.user', body)
@@ -333,13 +334,12 @@ class Cluster(BaseResource):
 
         if 'status' in body:
             try:
-                # For now only do for ansible clusters
-                if cluster['type'] in [ClusterType.ANSIBLE, ClusterType.EC2]:
-                    cluster['status'] = ClusterStatus[body['status']]
-                else:
+                if ClusterStatus.valid_transition(
+                        cluster['status'], body['status']):
                     cluster['status'] = body['status']
-            except (ValueError, KeyError):
-                cluster['status'] = body['status']
+            except Exception:
+                raise RestException("%s is not a valid cluster status" %
+                                    body['status'], code=400)
 
         if 'timings' in body:
             if 'timings' in cluster:
@@ -406,8 +406,7 @@ class Cluster(BaseResource):
         'required': ['status'],
         'properties': {
             'status': {'type': 'string',
-                       'enum': ['created', 'initializing', 'running',
-                                'terminating', 'terminated', 'error']}
+                       'enum': [ClusterStatus.valid_transitions.keys()]}
         }
     }, 'clusters')
 
@@ -470,8 +469,7 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        if cluster['status'] != 'running' and \
-           cluster['status'] != ClusterStatus.running:
+        if cluster['status'] != ClusterStatus.RUNNING:
             raise RestException('Cluster is not running', code=400)
 
         cluster = self._model.filter(cluster, user, passphrase=False)

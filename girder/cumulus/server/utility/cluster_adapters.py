@@ -52,10 +52,13 @@ class AbstractClusterAdapter(ModelImporter):
                 'Cluster is in state %s and cannot transition to state %s' %
                 (self._state_machine.status, status), code=400))
 
-    def update_status(self, status):
-        self.cluster = self._model.filter(
-            self._model.update_status(self.cluster, status), getCurrentUser(),
-            passphrase=False)
+        self._model.filter(
+            self._model.update_cluster(user, self.cluster), passphrase=False)
+
+#     def update_status(self, status):
+#         self.cluster = self._model.filter(
+#             self._model.update_status(self.cluster, status), getCurrentUser(),
+#             passphrase=False)
 
     def validate(self):
         """
@@ -116,9 +119,12 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     """
     DEFAULT_PLAYBOOK = 'ec2'
 
-    def update_status(self, status):
-        ClusterStatus.validate(status)
-        super(AnsibleClusterAdapter, self).update_status(status)
+#     def update_status(self, status):
+#         assert ClusterStatus.valid(status), \
+#             '%s must be a ClusterStatus type' % status
+#
+#         super(AnsibleClusterAdapter, self).update_status(status)
+
 
     def validate(self):
         """
@@ -130,12 +136,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         return self.cluster
 
     def launch(self):
-        # if id is None // Exception
-        if self.cluster['status'] >= ClusterStatus.launching:
-            raise RestException('Cluster is either already launching, '
-                                'or launched.', code=400)
-
-        self.update_status(ClusterStatus.launching)
+        self.status = ClusterStatus.LAUNCHING
 
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
@@ -156,12 +157,11 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         return self.cluster
 
     def terminate(self):
-
-        if self.cluster['status'] == ClusterStatus.terminated or \
-           self.cluster['status'] == ClusterStatus.terminating:
+        if self.status == ClusterStatus.TERMINATED or \
+           self.status == ClusterStatus.TERMINATING:
             return
 
-        self.update_status(ClusterStatus.terminating)
+        self.status = ClusterStatus.TERMINATING
 
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
@@ -181,7 +181,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
     def provision(self):
         # status must be >= launched.
-        self.update_status(ClusterStatus.provisioning)
+        self.status = ClusterStatus.PROVISIONING
 
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
@@ -210,10 +210,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         """
         Adapters may implement this if they support a start operation.
         """
-        if self.cluster['status'] == 'running':
-            raise RestException('Cluster already running.', code=400)
-
-        self.update_status(ClusterStatus.launching)
+        self.status = ClusterStatus.LAUNCHING
 
         self.cluster['config'].setdefault('provision', {})\
             .setdefault('params', {}).update(request_body)
@@ -254,18 +251,21 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         Adapters may implement this if they support a update operation.
         """
         if 'status' in request_body:
-            self.update_status(ClusterStatus[request_body['status']])
+            if ClusterStatus.valid(request_body['status']):
+                self.cluster['status'] = request_body['status']
+                self._model.update_cluster(user, self.cluster)
+
 
     def delete(self):
         """
         Adapters may implement this if they support a delete operation.
         """
-        if self.cluster['status'] in [ClusterStatus.running,
-                                      ClusterStatus.launching,
-                                      ClusterStatus.launched,
-                                      ClusterStatus.provisioning,
-                                      ClusterStatus.provisioned]:
-            raise RestException('Cluster is active', code=400)
+        if self.status not in [ClusterStatus.ERROR,
+                               ClusterStatus.TERMINATED,
+                               ClusterStatus.TERMINATED]:
+            raise RestException(
+                'Cluster is in state %s and cannot be deleted' %
+                self.status, code=400)
 
 
 def _validate_key(key):

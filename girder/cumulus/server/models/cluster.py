@@ -33,18 +33,6 @@ from cumulus import queue
 import six
 
 
-def preprocess_cluster(cluster):
-    # Convert model status into enum
-    try:
-        # For now only do this for ansible
-        if cluster['type'] in [ClusterType.ANSIBLE, ClusterType.EC2]:
-            cluster['status'] = ClusterStatus(int(cluster['status']))
-    except (ValueError, AssertionError, TypeError):
-        # Assume 'old style' string status
-        pass
-
-    return cluster
-
 
 class Cluster(BaseModel):
 
@@ -64,11 +52,11 @@ class Cluster(BaseModel):
         model = super(Cluster, self).load(id, level=level, user=user,
                                           objectId=objectId, force=force,
                                           fields=fields, exc=exc)
-        return preprocess_cluster(model)
+        return model
 
     def find(self, query=None, offset=0, limit=0, timeout=None,
              fields=None, sort=None, **kwargs):
-        return [preprocess_cluster(cluster) for cluster in
+        return [cluster for cluster in
                 super(Cluster, self).find(query, offset, limit, timeout,
                                           fields, sort, **kwargs)]
 
@@ -161,7 +149,7 @@ class Cluster(BaseModel):
             'name': name,
             'profileId': profile['_id'],
             'log': [],
-            'status': ClusterStatus.created,
+            'status': ClusterStatus.CREATED,
             'config': {
                 'scheduler': {
                     'type': 'sge'
