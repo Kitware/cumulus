@@ -397,7 +397,7 @@ class Volume(BaseResource):
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
         aws_volume = p.get_volume(volume)
-        if aws_volume['status'] != VolumeState.AVAILABLE:
+        if aws_volume['state'] != VolumeState.AVAILABLE:
             raise RestException('Volume must be in an "%s" status to be deleted'
                                 % VolumeState.AVAILABLE, 400)
 
