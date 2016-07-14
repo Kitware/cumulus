@@ -442,6 +442,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
 
     @mock.patch('cumulus.ansible.tasks.cluster.start_cluster.delay')
     def test_start(self, start_cluster):
+
         body = {
             'name': 'test',
             'profileId': str(self._user_profile['_id'])
@@ -563,6 +564,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
 
     @mock.patch('cumulus.ansible.tasks.cluster.terminate_cluster.delay')
     def test_terminate(self, terminate_cluster):
+
         body = {
             'profileId': str(self._user_profile['_id']),
             'name': 'test'
@@ -579,11 +581,15 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
         status_body = {
             'status': 'running'
         }
+        r = self.request('/clusters/%s' %
+                         str(cluster_id),
+                         type='application/json', method='PATCH',
+                         body=json.dumps(status_body), user=self._user)
 
         r = self.request(
-            '/clusters/%s/terminate' % str(cluster_id), method='PUT',
-            type='application/json', body=json.dumps(status_body),
-            user=self._user)
+            '/clusters/%s/terminate' % str(cluster_id),
+            method='PUT', type='application/json',
+            body=json.dumps(status_body), user=self._user)
 
         self.assertStatusOk(r)
 

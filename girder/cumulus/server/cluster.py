@@ -359,14 +359,6 @@ class Cluster(BaseResource):
 
         cluster = self._model.update_cluster(user, cluster)
 
-        # Now do any updates the adapter provides
-        adapter = get_cluster_adapter(cluster)
-        try:
-            adapter.update(body)
-        # Skip adapter.update if update not defined for this adapter
-        except NotImplementedError:
-            pass
-
         return self._model.filter(cluster, user)
 
     addModel('ClusterUpdateParameters', {
@@ -532,7 +524,7 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        cluster = self._model.filter(cluster, user, int_enum_to_string=False)
+        cluster = self._model.filter(cluster, user)
         adapter = get_cluster_adapter(cluster)
         adapter.delete()
 

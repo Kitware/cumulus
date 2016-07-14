@@ -60,7 +60,7 @@ class Cluster(BaseModel):
                 super(Cluster, self).find(query, offset, limit, timeout,
                                           fields, sort, **kwargs)]
 
-    def filter(self, cluster, user, passphrase=True, int_enum_to_string=True):
+    def filter(self, cluster, user, passphrase=True):
         cluster = super(Cluster, self).filter(doc=cluster, user=user)
 
         if parse('config.ssh.passphrase').find(cluster) and passphrase:
@@ -68,10 +68,6 @@ class Cluster(BaseModel):
                 check_group_membership(user, cumulus.config.girder.group)
             except RestException:
                 del cluster['config']['ssh']['passphrase']
-
-        # Convert status (IntEnum) to string
-        if int_enum_to_string:
-            cluster['status'] = str(cluster['status'])
 
         return cluster
 
@@ -239,12 +235,14 @@ class Cluster(BaseModel):
         current_cluster = self.load(cluster_id, user=user,
                                     level=AccessType.WRITE)
 
-        # If the status has changed create a notification
-        new_status = cluster['status']
-        if current_cluster['status'] != new_status:
-            send_status_notification('cluster', cluster)
+        previous_status = current_cluster['status']
+        current_cluster.update(cluster)
 
-        return self.save(cluster)
+        # If the status has changed create a notification
+        if current_cluster['status'] != previous_status:
+            send_status_notification('cluster', current_cluster)
+
+        return self.save(current_cluster)
 
     def log_records(self, user, id, offset=0):
         # TODO Need to figure out perms a remove this force

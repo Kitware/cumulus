@@ -70,6 +70,7 @@ class JobQueueState:
 
 class ClusterStatus(object):
     ERROR = "error"
+    CREATING = "creating"
     CREATED = "created"
     LAUNCHING = "launching"
     PROVISIONING = "provisioning"
@@ -131,26 +132,37 @@ class ClusterStatus(object):
 
 ClusterStatus.valid_transitions = {
     # Traditional clusters can move directly into RUNNING
-    ClusterStatus.CREATED: [ClusterStatus.LAUNCHING,
+    ClusterStatus.CREATING: [ClusterStatus.CREATING,
+                             ClusterStatus.CREATED,
+                             ClusterStatus.ERROR],
+    ClusterStatus.CREATED: [ClusterStatus.CREATED,
+                            ClusterStatus.LAUNCHING,
                             ClusterStatus.RUNNING,
                             ClusterStatus.ERROR],
-    ClusterStatus.LAUNCHING: [ClusterStatus.RUNNING,
+    ClusterStatus.LAUNCHING: [ClusterStatus.LAUNCHING,
+                              ClusterStatus.RUNNING,
                               ClusterStatus.ERROR],
-    ClusterStatus.PROVISIONING: [ClusterStatus.RUNNING,
+    ClusterStatus.PROVISIONING: [ClusterStatus.PROVISIONING,
+                                 ClusterStatus.RUNNING,
                                  ClusterStatus.ERROR],
-    ClusterStatus.RUNNING: [ClusterStatus.TERMINATING,
+    ClusterStatus.RUNNING: [ClusterStatus.RUNNING,
+                            ClusterStatus.TERMINATING,
                             ClusterStatus.STOPPING,
                             ClusterStatus.ERROR],
-    ClusterStatus.TERMINATING: [ClusterStatus.TERMINATED,
+    ClusterStatus.TERMINATING: [ClusterStatus.TERMINATING,
+                                ClusterStatus.TERMINATED,
                                 ClusterStatus.ERROR],
-    ClusterStatus.STOPPING: [ClusterStatus.STOPPED,
+    ClusterStatus.STOPPING: [ClusterStatus.STOPPING,
+                             ClusterStatus.STOPPED,
                              ClusterStatus.ERROR],
-    ClusterStatus.STOPPED: [ClusterStatus.STARTING,
+    ClusterStatus.STOPPED: [ClusterStatus.STOPPED,
+                            ClusterStatus.STARTING,
                             ClusterStatus.ERROR],
-    ClusterStatus.STARTING: [ClusterStatus.RUNNING,
+    ClusterStatus.STARTING: [ClusterStatus.STARTING,
+                             ClusterStatus.RUNNING,
                              ClusterStatus.ERROR],
-    ClusterStatus.TERMINATED: [],
-    ClusterStatus.ERROR: []
+    ClusterStatus.TERMINATED: [ClusterStatus.TERMINATED],
+    ClusterStatus.ERROR: [ClusterStatus.ERROR]
 }
 
 

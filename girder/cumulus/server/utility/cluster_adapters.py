@@ -52,13 +52,10 @@ class AbstractClusterAdapter(ModelImporter):
                 'Cluster is in state %s and cannot transition to state %s' %
                 (self._state_machine.status, status), code=400))
 
-        self._model.filter(
-            self._model.update_cluster(user, self.cluster), passphrase=False)
-
-#     def update_status(self, status):
-#         self.cluster = self._model.filter(
-#             self._model.update_status(self.cluster, status), getCurrentUser(),
-#             passphrase=False)
+    def save(self):
+        self.cluster = self._model.filter(
+            self._model.update_cluster(getCurrentUser(), self.cluster),
+            getCurrentUser(), passphrase=False)
 
     def validate(self):
         """
@@ -137,6 +134,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
     def launch(self):
         self.status = ClusterStatus.LAUNCHING
+        self.save()
 
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
@@ -162,6 +160,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             return
 
         self.status = ClusterStatus.TERMINATING
+        self.save()
 
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
@@ -182,6 +181,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     def provision(self):
         # status must be >= launched.
         self.status = ClusterStatus.PROVISIONING
+        self.save()
 
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
@@ -210,7 +210,9 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         """
         Adapters may implement this if they support a start operation.
         """
+
         self.status = ClusterStatus.LAUNCHING
+        self.save()
 
         self.cluster['config'].setdefault('provision', {})\
             .setdefault('params', {}).update(request_body)
@@ -246,21 +248,13 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
                    launch_playbook_params, provision_playbook_params,
                    girder_token, log_write_url)
 
-    def update(self, request_body):
-        """
-        Adapters may implement this if they support a update operation.
-        """
-        if 'status' in request_body:
-            if ClusterStatus.valid(request_body['status']):
-                self.cluster['status'] = request_body['status']
-                self._model.update_cluster(user, self.cluster)
-
 
     def delete(self):
         """
         Adapters may implement this if they support a delete operation.
         """
-        if self.status not in [ClusterStatus.ERROR,
+        if self.status not in [ClusterStatus.CREATED,
+                               ClusterStatus.ERROR,
                                ClusterStatus.TERMINATED,
                                ClusterStatus.TERMINATED]:
             raise RestException(
