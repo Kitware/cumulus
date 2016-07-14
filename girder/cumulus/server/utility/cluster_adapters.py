@@ -38,7 +38,19 @@ class AbstractClusterAdapter(ModelImporter):
     """
     def __init__(self, cluster):
         self.cluster = cluster
+        self._state_machine = ClusterStatus(self)
         self._model = self.model('cluster', 'cumulus')
+
+    @property
+    def status(self):
+        return self._state_machine.status
+
+    @status.setter
+    def status(self, status):
+        self._state_machine.to(
+            status, RestException(
+                'Cluster is in state %s and cannot transition to state %s' %
+                (self._state_machine.status, status), code=400))
 
     def update_status(self, status):
         self.cluster = self._model.filter(
@@ -105,9 +117,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     DEFAULT_PLAYBOOK = 'ec2'
 
     def update_status(self, status):
-        assert type(status) is ClusterStatus, \
-            '%s must be a ClusterStatus type' % status
-
+        ClusterStatus.validate(status)
         super(AnsibleClusterAdapter, self).update_status(status)
 
     def validate(self):

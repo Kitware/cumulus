@@ -4,11 +4,16 @@ import cherrypy
 from tests import base
 from cumulus.constants import ClusterStatus
 
+AnsibleClusterAdapter = None
+
 def setUpModule():
+    global AnsibleClusterAdapter
+
     base.enabledPlugins.append('cumulus')
     cherrypy.server.socket_port = 8081
     base.startServer(mock=False)
 
+    from girder.plugins.cumulus.utility.cluster_adapters import AnsibleClusterAdapter
 
 def tearDownModule():
     base.stopServer()
@@ -37,20 +42,68 @@ class AnsibleTestCase(base.TestCase):
 
         self._group = self.model('group').createGroup('cumulus', self._cumulus)
 
-    def test_cluster_status(self):
-        self.assertTrue(ClusterStatus.validate(ClusterStatus.CREATED,
-                                               ClusterStatus.LAUNCHING))
 
-        self.assertFalse(ClusterStatus.validate(ClusterStatus.ERROR,
-                                                ClusterStatus.CREATED))
+
+    def cluster_dict(self, status):
+        return {
+            u'_id': "CLUSTER_ID",
+            u'config': {
+                u'scheduler': {
+                    u'type': u'sge'
+                },
+                u'ssh': {
+                    u'user': u'ubuntu',
+                    u'key': "PROFILE_ID",
+                },
+                u'launch': {
+                    u'spec': u'default',
+                    u'params': {
+                        "SOME_PARAM_KEY": "SOME_PARAM_VALUE"
+                    }
+                }
+            },
+            u'name': u'test',
+            u'profileId': "PROFILE_ID",
+            u'status': status,
+            u'type': u'ec2',
+            u'userId': "USER_ID"
+        }
+
+    def test_cluster_status(self):
+        self.assertTrue(ClusterStatus.valid(ClusterStatus.CREATED))
+
+        self.assertFalse(ClusterStatus.valid("foo"))
+
+
+
+    def test_cluster_status_transition(self):
+        self.assertTrue(ClusterStatus.valid_transition(ClusterStatus.CREATED,
+                                                       ClusterStatus.LAUNCHING))
+
+        self.assertFalse(ClusterStatus.valid_transition(ClusterStatus.ERROR,
+                                                        ClusterStatus.CREATED))
 
     def test_cluster_status_bad_status(self):
         with self.assertRaises(Exception):
-            self.assertTrue(ClusterStatus.validate("foo", ClusterStatus.LAUNCHING))
+            self.assertTrue(ClusterStatus.valid("foo", ClusterStatus.LAUNCHING))
 
         with self.assertRaises(Exception):
-            self.assertTrue(ClusterStatus.validate(ClusterStatus.LAUNCHING, "foo"))
+            self.assertTrue(ClusterStatus.valid(ClusterStatus.LAUNCHING, "foo"))
 
 
-    def test_create(self):
-        pass
+    def test_cluster_status_object_to(self):
+
+        ca = AnsibleClusterAdapter(self.cluster_dict(ClusterStatus.CREATED))
+        ca._state_machine.to(ClusterStatus.LAUNCHING)
+
+        self.assertEquals(ca._state_machine.status, ClusterStatus.LAUNCHING)
+        self.assertEquals(ca.status, ClusterStatus.LAUNCHING)
+        self.assertEquals(ca.cluster['status'], ClusterStatus.LAUNCHING)
+
+    def test_cluster_status_public_api(self):
+        ca = AnsibleClusterAdapter(self.cluster_dict(ClusterStatus.CREATED))
+        ca.status = ClusterStatus.LAUNCHING
+
+        self.assertEquals(ca.status, ClusterStatus.LAUNCHING)
+        self.assertEquals(ca._state_machine.status, ClusterStatus.LAUNCHING)
+        self.assertEquals(ca.cluster['status'], ClusterStatus.LAUNCHING)

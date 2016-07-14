@@ -85,21 +85,28 @@ class ClusterStatus(object):
     def __init__(self, cluster_adapter):
         self.cluster_adapter = cluster_adapter
 
-    def to(self, new_status):
-        if self.validate(self.status, new_status):
-            self.status = new_status
-        else:
-            raise Exception(
-                "Cannot transition from state \"%s\" to state \"%s\"" %
-                (self.status, new_status))
+    def to(self, new_status, e=None):
+        e = Exception("Cannot transition cluster from %s to %s."
+                      % (self.status, new_status)) if e is None else e
+        try:
+            if self.valid_transition(self.status, new_status):
+                self.status = new_status
+            else:
+                raise e
+        except Exception:
+            raise e
 
     @classmethod
-    def validate(cls, frm, to):
-        assert frm in cls.valid_transitions.keys(), \
-            u"%s is not a valid ClusterStatus." % frm
+    def valid(cls, status):
+        return status in cls.valid_transitions.keys()
 
-        assert to in cls.valid_transitions.keys(), \
-            u"%s is not a valid ClusterStatus." % to
+    @classmethod
+    def valid_transition(cls, frm, to):
+        if not cls.valid(frm):
+            raise Exception(u"%s is not a valid ClusterStatus." % frm)
+
+        if not cls.valid(to):
+            raise Exception(u"%s is not a valid ClusterStatus." % to)
 
         return to in cls.valid_transitions[frm]
 
@@ -116,7 +123,7 @@ class ClusterStatus(object):
         assert new_status in self.nodes, \
             u"%s is not a valid ClusterStatus." % new_status
 
-        self.cluster_adapater.cluster['status'] = new_status
+        self.cluster_adapter.cluster['status'] = new_status
 
     def __str__(self):
         return self.status
