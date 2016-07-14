@@ -321,6 +321,7 @@ class Cluster(BaseResource):
 
     @access.user
     def update(self, id, params):
+
         body = getBodyJson()
         user = self.getCurrentUser()
 
@@ -333,11 +334,9 @@ class Cluster(BaseResource):
             cluster['assetstoreId'] = body['assetstoreId']
 
         if 'status' in body:
-            try:
-                if ClusterStatus.valid_transition(
-                        cluster['status'], body['status']):
-                    cluster['status'] = body['status']
-            except Exception:
+            if ClusterStatus.valid(body['status']):
+                cluster['status'] = body['status']
+            else:
                 raise RestException("%s is not a valid cluster status" %
                                     body['status'], code=400)
 
