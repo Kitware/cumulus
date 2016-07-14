@@ -146,6 +146,7 @@ ClusterStatus.valid_transitions = {
                                  ClusterStatus.RUNNING,
                                  ClusterStatus.ERROR],
     ClusterStatus.RUNNING: [ClusterStatus.RUNNING,
+                            ClusterStatus.PROVISIONING,
                             ClusterStatus.TERMINATING,
                             ClusterStatus.STOPPING,
                             ClusterStatus.ERROR],
