@@ -412,14 +412,13 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
         }
         self.assertEqual(profile, expected, 'Profile values not updated')
 
-    @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
     @mock.patch('cumulus.ansible.tasks.volume.delete_volume.delay')
     @mock.patch('girder.plugins.cumulus.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.delete_key_pair.delay')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
     def test_delete(self, get_ec2_client, generate_key_pair, delete_key_pair,
-                    aws_get_ec2_client, delete_volume_delay, create_volume_delay):
+                    aws_get_ec2_client, delete_volume_delay):
         region_host = 'cornwall.ec2.amazon.com'
         ec2_client = get_ec2_client.return_value
         ec2_client.describe_regions.return_value = {
@@ -535,13 +534,10 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatus(r, 201)
         volume_id = str(r.json['_id'])
 
-
-        self.assertEquals(create_volume_delay.call_count, 1)
-
         # Patch the volume so it looks available, normally ansible script does this
         body = {
+            'status': 'available',
             'ec2': {
-                'status': 'available',
                 'id': '0123456789'
             }
         }
