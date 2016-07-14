@@ -358,16 +358,45 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
             user=self._cumulus)
 
         self.assertStatusOk(r)
-        expected = {u'status': u'creating', u'userId': str(self._user['_id']),  u'type': u'trad', u'_id': cluster_id, u'config': {u'scheduler': {u'type': u'sge'},
-            u'host': u'myhost', u'ssh': {u'user': u'myuser', u'key': cluster_id, u'publicKey': self._valid_key}}, u'name': u'test'}
+        expected = {u'status': u'creating',
+                    u'userId': str(self._user['_id']),
+                    u'type': u'trad',
+                    u'_id': cluster_id,
+                    u'config': {
+                        u'scheduler': {
+                            u'type': u'sge'
+                        },
+                        u'host': u'myhost',
+                        u'ssh': {
+                            u'user': u'myuser',
+                            u'key': cluster_id,
+                            u'publicKey': self._valid_key}
+                    }, u'name': u'test'
+        }
+
         self.assertEqual(
             self.normalize(expected), self.normalize(r.json), 'Unexpected response')
 
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._user)
         self.assertStatusOk(r)
-        expected = {u'status': u'creating', u'userId': str(self._user['_id']), u'type': u'trad', u'_id': cluster_id, u'config': {u'scheduler': {u'type': u'sge'},
-            u'host': u'myhost', u'ssh': {u'user': u'myuser', u'key': cluster_id, u'publicKey': self._valid_key}}, u'name': u'test'}
+        expected = {u'status': u'creating',
+                    u'userId': str(self._user['_id']),
+                    u'type': u'trad',
+                    u'_id': cluster_id,
+                    u'config': {
+                        u'scheduler': {
+                            u'type': u'sge'
+                        },
+                        u'host': u'myhost',
+                        u'ssh': {
+                            u'user': u'myuser',
+                            u'key': cluster_id,
+                            u'publicKey': self._valid_key
+                        }
+                    },
+                    u'name': u'test'
+        }
         self.assertEqual(
             self.normalize(expected), self.normalize(r.json), 'Unexpected response')
 

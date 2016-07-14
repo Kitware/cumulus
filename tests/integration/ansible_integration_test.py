@@ -122,7 +122,7 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
         self._client.put(cluster_url)
 
         status_url = 'clusters/%s/status' % self._cluster_id
-        self._wait_for_status(status_url, 'launched', timeout=300)
+        self._wait_for_status(status_url, 'running', timeout=300)
 
     def provision_cluster(self):
         cluster_url = 'clusters/%s/provision' % self._cluster_id
@@ -134,7 +134,7 @@ class AnsibleIntegrationTest(BaseIntegrationTest):
         }))
 
         status_url = 'clusters/%s/status' % self._cluster_id
-        self._wait_for_status(status_url, 'provisioned', timeout=600)
+        self._wait_for_status(status_url, 'running', timeout=600)
 
     def terminate_cluster(self):
         cluster_url = 'clusters/%s/terminate' % self._cluster_id

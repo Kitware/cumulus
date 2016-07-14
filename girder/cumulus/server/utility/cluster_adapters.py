@@ -150,7 +150,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         cumulus.ansible.tasks.cluster.launch_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
                    playbook_params, girder_token, log_write_url,
-                   'launched')
+                   'running')
 
         return self.cluster
 
@@ -202,7 +202,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         cumulus.ansible.tasks.cluster.provision_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
                    playbook_params,
-                   girder_token, log_write_url, 'provisioned')
+                   girder_token, log_write_url, 'running')
 
         return self.cluster
 
