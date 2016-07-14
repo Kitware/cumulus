@@ -22,6 +22,7 @@ from girder.api import access
 from girder.api.v1.assetstore import Assetstore
 from girder.constants import AssetstoreType
 from girder.utility.model_importer import ModelImporter
+from girder.utility.assetstore_utilities import setAssetstoreAdapter
 
 from .assetstore import SftpAssetstoreAdapter
 from .credentials import retrieve_credentials
@@ -48,7 +49,7 @@ def updateAssetstore(event):
 def load(info):
 
     AssetstoreType.SFTP = 'sftp'
-    events.bind('assetstore.adapter.get', 'sftp', getAssetstore)
+    setAssetstoreAdapter(AssetstoreType.SFTP, SftpAssetstoreAdapter)
     events.bind('assetstore.update', 'sftp', updateAssetstore)
     events.bind('assetstore.sftp.credentials.get', 'sftp', retrieve_credentials)
 
