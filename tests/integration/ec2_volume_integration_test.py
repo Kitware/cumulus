@@ -102,7 +102,7 @@ class EC2VolumeIntegrationTest(AnsibleIntegrationTest):
         volume_url = 'volumes/%s' % self._volume_id
         r = self._client.delete(volume_url)
 
-        self.assertEquals(r['ec2']['status'], 'deleting')
+        self.assertEquals(r['status'], 'deleting')
 
         start = time.time();
         while True:
