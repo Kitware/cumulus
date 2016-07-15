@@ -226,7 +226,7 @@ class Volume(BaseResource):
             self.model('cluster', 'cumulus').save(cluster)
             self.model('volume', 'cumulus').save(volume)
         else:
-            volume['status'] = VolumeState
+            volume['status'] = VolumeState.ERROR
             volume['msg'] = 'Volume path was not communicated on complete'
 
             self.model('volume', 'cumulus').save(volume)
