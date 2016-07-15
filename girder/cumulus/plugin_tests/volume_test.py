@@ -700,3 +700,26 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
             u'status': u'in-use'
         }
         self.assertEqual(r.json, expected, 'Unexpected status')
+
+    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
+    def test_log(self, get_ec2_client, create_volume):
+        volume_id = 'vol-1'
+        ec2_client = get_ec2_client.return_value
+        ec2_client.create_volume.return_value = {
+            'VolumeId': volume_id
+        }
+
+        body = {
+            'name': 'test',
+            'size': 20,
+            'zone': 'us-west-2a',
+            'type': 'ebs',
+            'profileId': self._profile_id
+        }
+
+        r = self.request('/volumes', method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatus(r, 201)
+        volume_id = str(r.json['_id'])
