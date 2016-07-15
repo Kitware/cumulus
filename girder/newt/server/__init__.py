@@ -23,6 +23,7 @@ from girder.api import access
 from girder.api.v1.assetstore import Assetstore
 from girder.constants import AssetstoreType, AccessType
 from girder.utility.model_importer import ModelImporter
+from girder.utility.assetstore_utilities import setAssetstoreAdapter
 from .rest import Newt, NewtAssetstore, create_assetstore
 from .constants import NEWT_BASE_URL
 
@@ -55,7 +56,7 @@ def create_assetstore_from_event(event):
 def load(info):
 
     AssetstoreType.NEWT = 'newt'
-    events.bind('assetstore.adapter.get', 'newt', getAssetstore)
+    setAssetstoreAdapter(AssetstoreType.NEWT, NewtAssetstoreAdapter)
     events.bind('assetstore.update', 'newt', updateAssetstore)
 
     (Assetstore.createAssetstore.description
