@@ -15,30 +15,22 @@
         msg: "Path must be passed in as path"
       when: path is not defined or path == ""
 
-    - block:
-        # make local action
-        - ec2_vol:
-            name: "ec2_{{ profile_id }}_{{ volume_name }}"
-            volume_size: "{{ volume_size }}"
-            region: "{{ region }}"
-            zone: "{{ volume_zone }}"
-            instance: "{{ instance_id }}"
-            device_name: /dev/xvdf
-          delegate_to: localhost
-          register: vol
-          when: not volume_id
+    - name: Fail if volume_size is provided with volume_id
+      fail:
+        msg: "volume_size can not be provided with existing volume"
+      when:  volume_id is defined and volume_id and volume_size is defined  and volume_size
 
-        # If we already have a volume_id we can't pass the volume_size
+    - block:
         - ec2_vol:
-            id: "{{ volume_id }}"
+            id: "{{ volume_id | default(omit) }}"
             name: "ec2_{{ profile_id }}_{{ volume_name }}"
+            volume_size: "{{ volume_size | default(omit) }}"
             region: "{{ region }}"
             zone: "{{ volume_zone }}"
             instance: "{{ instance_id }}"
             device_name: /dev/xvdf
           delegate_to: localhost
           register: vol
-          when: volume_id
 
         - ec2_tag:
             resource: "{{ vol.volume_id }}"
