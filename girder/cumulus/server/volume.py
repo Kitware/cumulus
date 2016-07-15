@@ -265,9 +265,9 @@ class Volume(BaseResource):
 
         cluster = self.model('cluster', 'cumulus').filter(
             cluster, getCurrentUser(), passphrase=False)
-        volume = self._model.filter(volume, getCurrentUser())
         cumulus.ansible.tasks.volume.attach_volume\
-            .delay(profile, cluster, master, volume, path,
+            .delay(profile, cluster, master,
+                   self._model.filter(volume, getCurrentUser()), path,
                    secret_key, girder_callback_info)
 
         volume['status'] = VolumeState.ATTACHING
@@ -337,9 +337,9 @@ class Volume(BaseResource):
 
         cluster = self.model('cluster', 'cumulus').filter(
             cluster, getCurrentUser(), passphrase=False)
-        volume = self._model.filter(volume, getCurrentUser())
         cumulus.ansible.tasks.volume.detach_volume\
-            .delay(profile, cluster, master, volume,
+            .delay(profile, cluster, master,
+                   self._model.filter(volume, getCurrentUser()),
                    secret_key, girder_callback_info)
 
         volume['status'] = VolumeState.DETACHING
