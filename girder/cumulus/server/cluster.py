@@ -313,7 +313,8 @@ class Cluster(BaseResource):
     def _launch_or_provision(self, process, cluster):
         assert process in ['launch', 'provision']
         user = self.getCurrentUser()
-        cluster = self._model.filter(cluster, user, passphrase=False)
+        cluster = self._model.filter(cluster, user, passphrase=False,
+                                     int_enum_to_string=False)
         adapter = get_cluster_adapter(cluster)
 
         return getattr(adapter, process)()

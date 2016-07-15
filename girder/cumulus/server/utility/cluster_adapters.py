@@ -138,6 +138,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             'config.launch.params', self.cluster, default={})
         playbook_params['cluster_state'] = 'running'
 
+        self.cluster['status'] = str(self.cluster['status'])
         cumulus.ansible.tasks.cluster.launch_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
                    playbook_params, girder_token, log_write_url,
