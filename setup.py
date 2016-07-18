@@ -50,19 +50,19 @@ with open(version_py) as fd:
 
 setup(
     name='cumulus',
-    version=__version__,
+    version=version,
     description='A RESTful API for the creation & management of HPC clusters',
-    author='Kitware',
-    author_email='cumulus@kitware.com',
+    author='Chris Harris',
+    author_email='chris.harris@kitware.com',
     url='https://github.com/Kitware/cumulus',
     packages=find_packages(exclude=['*.tests', '*.tests.*',
                                     'tests.*', 'tests']),
     package_data={
-        "": ["*.json", "*.sh"],
-        "cumulus": ["conf/*.json",
-                    "templates/*.sh",
-                    "templates/*/*.sh"]
+        '': ['*.json', '*.sh'],
+        'cumulus': ['conf/*.json',
+                    'templates/*.sh',
+                    'templates/*/*.sh']
     },
-    data_files=list(get_data_files("cumulus/ansible/tasks/playbooks/",
-                                   exclude=[".*pyc$"]))
+    data_files=list(get_data_files('cumulus/ansible/tasks/playbooks/',
+                                   exclude=['.*pyc$']))
 )
