@@ -487,5 +487,5 @@ class Volume(BaseResource):
             'The volume to get log entries for.', paramType='path')
         .param(
             'offset',
-            'The offset to determine which log entry to retrieve.',
-            required=False, paramType='query'))
+            'The offset to start getting entries at.', required=False,
+            paramType='query'))
