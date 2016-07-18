@@ -723,3 +723,35 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          user=self._user)
         self.assertStatus(r, 201)
         volume_id = str(r.json['_id'])
+
+        log_entry = {
+            'msg': 'Some message'
+        }
+
+        r = self.request('/volumes/546a1844ff34c70456111185/log', method='GET',
+                         user=self._user)
+        self.assertStatus(r, 404)
+
+        r = self.request('/volumes/%s/log' % str(volume_id), method='POST',
+                         type='application/json', body=json.dumps(log_entry), user=self._user)
+        self.assertStatusOk(r)
+
+        r = self.request('/volumes/%s/log' % str(volume_id), method='GET',
+                         user=self._user)
+        self.assertStatusOk(r)
+        expected_log = {u'log': [{u'msg': u'Some message'}]}
+        self.assertEqual(r.json, expected_log)
+
+        r = self.request('/volumes/%s/log' % str(volume_id), method='POST',
+                         type='application/json', body=json.dumps(log_entry), user=self._user)
+        self.assertStatusOk(r)
+
+        r = self.request('/volumes/%s/log' % str(volume_id), method='GET',
+                         user=self._user)
+        self.assertStatusOk(r)
+        self.assertEqual(len(r.json['log']), 2)
+
+        r = self.request('/volumes/%s/log' % str(volume_id), method='GET',
+                         params={'offset': 1}, user=self._user)
+        self.assertStatusOk(r)
+        self.assertEqual(len(r.json['log']), 1)

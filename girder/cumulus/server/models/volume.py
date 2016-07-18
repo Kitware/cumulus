@@ -26,6 +26,7 @@ from girder.api.rest import getCurrentUser
 from .base import BaseModel
 from ..utility.volume_adapters import get_volume_adapter
 from cumulus.constants import VolumeType
+from cumulus.common.girder import send_log_notification
 
 
 class Volume(BaseModel):
@@ -90,3 +91,13 @@ class Volume(BaseModel):
         self.save(volume)
 
         return volume
+
+    def append_to_log(self, user, id, record):
+        volume = self.load(id, user=user, level=AccessType.WRITE)
+        self.update({'_id': ObjectId(id)}, {'$push': {'log': record}})
+        send_log_notification('volume', volume, record)
+
+    def log_records(self, user, id, offset=0):
+        volume = self.load(id, user=user, level=AccessType.READ)
+
+        return volume['log'][offset:]
