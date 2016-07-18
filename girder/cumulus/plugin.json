@@ -1,5 +1,5 @@
 {
-"name": "Cumulus plugin for Girder",
-"description": "REST based creation/management of clusters in EC2",
-"dependencies": []
+    "name": "Cumulus plugin for Girder",
+    "description": "REST based creation/management of clusters in EC2",
+    "dependencies": []
 }
