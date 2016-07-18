@@ -44,15 +44,19 @@ def get_data_files(path, include=None, exclude=None):
         if filtered:
             yield (directory, filtered)
 
+version_py = os.path.join(os.path.dirname(__file__), 'cumulus', 'version.py')
+with open(version_py) as fd:
+    exec(fd.read())
+
 setup(
-    name="cumulus",
-    version="0.1.0",
-    description="A RESTful API for the creation & management of HPC clusters",
-    author="Chris Harris",
-    author_email="chris.harris@kitware.com",
-    url="https://github.com/Kitware/cumulus",
-    packages=find_packages(exclude=["*.tests", "*.tests.*",
-                                    "tests.*", "tests"]),
+    name='cumulus',
+    version=__version__,
+    description='A RESTful API for the creation & management of HPC clusters',
+    author='Kitware',
+    author_email='cumulus@kitware.com',
+    url='https://github.com/Kitware/cumulus',
+    packages=find_packages(exclude=['*.tests', '*.tests.*',
+                                    'tests.*', 'tests']),
     package_data={
         "": ["*.json", "*.sh"],
         "cumulus": ["conf/*.json",
