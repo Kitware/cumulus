@@ -50,10 +50,10 @@ with open(version_py) as fd:
 
 setup(
     name='cumulus',
-    version=version,
+    version=__version__,
     description='A RESTful API for the creation & management of HPC clusters',
-    author='Chris Harris',
-    author_email='chris.harris@kitware.com',
+    author='Kitware',
+    author_email='cumulus@kitware.com',
     url='https://github.com/Kitware/cumulus',
     packages=find_packages(exclude=['*.tests', '*.tests.*',
                                     'tests.*', 'tests']),
