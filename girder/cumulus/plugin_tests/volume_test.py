@@ -130,7 +130,8 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
     @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
-    def test_create(self, get_ec2_client):
+    @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
+    def test_create(self, get_ec2_client, create_volume):
         volume_id = 'vol-1'
         ec2_client = get_ec2_client.return_value
         ec2_client.create_volume.return_value = {
@@ -256,7 +257,8 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
     @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
-    def test_get(self, get_ec2_client):
+    @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
+    def test_get(self, get_ec2_client, create_volume):
         volume_id = 'vol-1'
         ec2_client = get_ec2_client.return_value
         ec2_client.create_volume.return_value = {
@@ -273,7 +275,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatus(r, 201)
         volume_id = str(r.json['_id'])
 
@@ -291,7 +293,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
         r = self.request('/volumes/%s' % volume_id, method='GET',
                          type='application/json',
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatusOk(r)
         del r.json['_id']
         self.assertEqual(expected, r.json)
@@ -299,12 +301,13 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         # Try to fetch a volume that doesn't exist
         r = self.request('/volumes/55c3dbd9f65710591baefe60', method='GET',
                          type='application/json',
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatus(r, 400)
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
     @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
-    def test_delete(self, get_ec2_client):
+    @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
+    def test_delete(self, get_ec2_client, create_volume):
         volume_id = 'vol-1'
         ec2_client = get_ec2_client.return_value
         ec2_client.create_volume.return_value = {
@@ -321,7 +324,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatus(r, 201)
         volume = r.json
         volume_id = str(r.json['_id'])
@@ -340,11 +343,11 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         url = '/volumes/%s/clusters/%s/attach' % (volume_id, self._cluster_id)
         r = self.request(url, method='PUT',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatusOk(r)
 
         r = self.request('/volumes/%s' % volume_id, method='DELETE',
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatus(r, 400)
 
         # Detach it then delete it
@@ -360,14 +363,15 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatusOk(r)
 
         r = self.request('/volumes/%s' % volume_id, method='DELETE',
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatus(r, 200)
 
 
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
     @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
-    def test_attach_volume(self, get_ec2_client):
+    @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
+    def test_attach_volume(self, get_ec2_client, create_volume):
 
         ec2_volume_id = 'vol-1'
         ec2_client = get_ec2_client.return_value
@@ -392,7 +396,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatus(r, 201)
         volume_id = str(r.json['_id'])
 
@@ -403,12 +407,12 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         url = '/volumes/%s/clusters/%s/attach' % (volume_id, self._cluster_id)
         r = self.request(url, method='PUT',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
 
         self.assertStatusOk(r)
 
         r = self.request('/clusters/%s' % self._cluster_id, method='GET',
-                         type='application/json', user=self._cumulus)
+                         type='application/json', user=self._user)
         self.assertStatusOk(r)
 
         expected = {
@@ -447,7 +451,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         url = '/volumes/%s/clusters/%s/attach' % (volume_id, self._cluster_id)
         r = self.request(url, method='PUT',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatus(r, 400)
 
         # Try to attach volume that is currently being created
@@ -462,7 +466,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         url = '/volumes/%s/clusters/%s/attach' % (volume_id, self._cluster_id)
         r = self.request(url, method='PUT',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
 
         self.assertStatus(r, 400)
         # Try to attach volume to traditional cluster
@@ -478,12 +482,13 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
             volume_id, self._trad_cluster_id)
         r = self.request(url, method='PUT',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatus(r, 400)
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
     @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
-    def test_detach_volume(self, get_ec2_client):
+    @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
+    def test_detach_volume(self, get_ec2_client, create_volume):
         ec2_volume_id = 'vol-1'
         ec2_client = get_ec2_client.return_value
         ec2_client.create_volume.return_value = {
@@ -573,7 +578,8 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
     @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
-    def test_find_volume(self, get_ec2_client):
+    @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
+    def test_find_volume(self, get_ec2_client, create_volume):
         ec2_volume_id = 'vol-1'
         ec2_client = get_ec2_client.return_value
         ec2_client.create_volume.return_value = {
@@ -654,7 +660,8 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
     @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
-    def test_get_status(self, get_ec2_client):
+    @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
+    def test_get_status(self, get_ec2_client, create_volume):
         ec2_volume_id = 'vol-1'
         ec2_client = get_ec2_client.return_value
         ec2_client.create_volume.return_value = {
