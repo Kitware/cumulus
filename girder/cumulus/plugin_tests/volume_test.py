@@ -129,7 +129,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         self._cluster_id = str(r.json['_id'])
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
     @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
     def test_create(self, get_ec2_client, create_volume):
         volume_id = 'vol-1'
@@ -256,7 +256,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatus(r, 400)
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
     @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
     def test_get(self, get_ec2_client, create_volume):
         volume_id = 'vol-1'
@@ -305,7 +305,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatus(r, 400)
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
     @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
     def test_delete(self, get_ec2_client, create_volume):
         volume_id = 'vol-1'
@@ -369,7 +369,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
     @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
     def test_attach_volume(self, get_ec2_client, create_volume):
 
@@ -486,7 +486,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatus(r, 400)
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
     @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
     def test_detach_volume(self, get_ec2_client, create_volume):
         ec2_volume_id = 'vol-1'
@@ -577,7 +577,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         self.assertEqual(r.json, expected)
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
     @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
     def test_find_volume(self, get_ec2_client, create_volume):
         ec2_volume_id = 'vol-1'
@@ -659,7 +659,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         self.assertEqual(len(r.json), 1, 'Wrong number of volumes returned')
 
     @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
     @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
     def test_get_status(self, get_ec2_client, create_volume):
         ec2_volume_id = 'vol-1'
@@ -708,7 +708,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         }
         self.assertEqual(r.json, expected, 'Unexpected status')
 
-    @mock.patch('girder.plugins.cumulus.volume.get_ec2_client')
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
     @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
     def test_log(self, get_ec2_client, create_volume):
         volume_id = 'vol-1'

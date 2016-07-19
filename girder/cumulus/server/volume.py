@@ -33,7 +33,6 @@ import cumulus
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
 from cumulus.common.girder import get_task_token, _get_profile
-from cumulus.aws.ec2 import get_ec2_client
 
 import cumulus.ansible.tasks.volume
 
