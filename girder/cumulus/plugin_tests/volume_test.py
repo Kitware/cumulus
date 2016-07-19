@@ -731,6 +731,12 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatus(r, 201)
         volume_id = str(r.json['_id'])
 
+        # Check that empty log exists for newly created volume
+        r = self.request('/volumes/%s/log' % str(volume_id), method='GET',
+                         user=self._user)
+        self.assertStatusOk(r)
+        self.assertEqual(len(r.json['log']), 0)
+
         log_entry = {
             'msg': 'Some message'
         }

@@ -73,7 +73,8 @@ class Volume(BaseModel):
             'ec2': {
                 'id': None
             },
-            'profileId': profileId
+            'profileId': profileId,
+            'log': []
         }
 
         if fs:
