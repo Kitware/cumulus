@@ -762,3 +762,45 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          params={'offset': 1}, user=self._user)
         self.assertStatusOk(r)
         self.assertEqual(len(r.json['log']), 1)
+
+    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    @mock.patch('cumulus.ansible.tasks.volume.create_volume.delay')
+    def test_volume_sse(self, get_ec2_client, create_volume):
+        volume_id = 'vol-1'
+        ec2_client = get_ec2_client.return_value
+        ec2_client.create_volume.return_value = {
+            'VolumeId': volume_id
+        }
+
+        body = {
+            'name': 'test',
+            'size': 20,
+            'zone': 'us-west-2a',
+            'type': 'ebs',
+            'profileId': self._profile_id
+        }
+
+        r = self.request('/volumes', method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatus(r, 201)
+        volume_id = str(r.json['_id'])
+
+        # connect to volume notification stream
+        stream_r = self.request('/notification/stream', method='GET', user=self._user,
+                         isJson=False, params={'timeout': 0})
+        self.assertStatusOk(stream_r)
+
+        # add a log entry
+        log_entry = {
+            'msg': 'Some message'
+        }
+        r = self.request('/volumes/%s/log' % str(volume_id), method='POST',
+                         type='application/json', body=json.dumps(log_entry), user=self._user)
+        self.assertStatusOk(r)
+
+        notifications = self.getSseMessages(stream_r)
+
+        # we get 2 notifications, 1 from the creation and 1 from the log
+        self.assertEqual(len(notifications), 3, 'Expecting two notification, received %d' % len(notifications))
+        self.assertEqual(notifications[2]['type'], 'volume.log', 'Expecting a message with type \'volume.log\'')
