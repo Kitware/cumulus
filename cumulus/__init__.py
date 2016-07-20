@@ -21,6 +21,10 @@ import json
 from jsonschema import validate
 from easydict import EasyDict as edict
 import pkg_resources as pr
+from .version import __version__  # noqa
+
+
+__license__ = 'Apache 2.0'
 
 config_schema = {
     'type': 'object',
