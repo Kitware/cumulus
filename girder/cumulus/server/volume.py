@@ -49,6 +49,8 @@ class Volume(BaseResource):
         self.route('PATCH', (':id', ), self.patch)
         self.route('GET', (), self.find)
         self.route('GET', (':id', 'status'), self.get_status)
+        self.route('POST', (':id', 'log'), self.append_to_log)
+        self.route('GET', (':id', 'log'), self.log)
         self.route('PUT', (':id', 'clusters', ':clusterId', 'attach'),
                    self.attach)
         self.route('PUT', (':id', 'clusters', ':clusterId',
@@ -449,3 +451,40 @@ class Volume(BaseResource):
     get_status.description = (
         Description('Get the status of a volume')
         .param('id', 'The volume id.', paramType='path', required=True))
+
+    @access.user
+    def append_to_log(self, id, params):
+        user = self.getCurrentUser()
+
+        if not self._model.load(id, user=user, level=AccessType.ADMIN):
+            raise RestException('Volume not found.', code=404)
+
+        return self._model.append_to_log(
+            user, id, getBodyJson())
+
+    append_to_log.description = None
+
+    @access.user
+    def log(self, id, params):
+        user = self.getCurrentUser()
+        offset = 0
+        if 'offset' in params:
+            offset = int(params['offset'])
+
+        if not self._model.load(id, user=user, level=AccessType.READ):
+            raise RestException('Volume not found.', code=404)
+
+        log_records = self._model.log_records(user, id, offset)
+
+        return {'log': log_records}
+
+    log.description = (Description(
+        'Get log entries for volume'
+    )
+        .param(
+            'id',
+            'The volume to get log entries for.', paramType='path')
+        .param(
+            'offset',
+            'The offset to start getting entries at.', required=False,
+            paramType='query'))
