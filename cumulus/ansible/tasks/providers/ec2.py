@@ -187,12 +187,29 @@ class EC2Provider(CloudProvider):
 
         return volume
 
-    def get_machine_images(self, name=None, owner=None, **kwargs):
-        filters = [{
-            'Name': 'name',
-            'Values': [name]
-        }]
-        r = self.client.describe_images(Owners=[owner], Filters=filters)
+    def get_machine_images(self, name=None, owner=None, tags=None, **kwargs):
+        filters = []
+
+        if name is not None:
+            filters.append({
+                'Name': 'name',
+                'Values': [name]
+            })
+
+        if owner is not None:
+            filters.append({
+                'Name': 'owner-id',
+                'Values': [owner]
+            })
+
+        if tags is not None:
+            for (key, value) in tags.iteritems():
+                filters.append({
+                    'Name': 'tag:%s' % key,
+                    'Values': value if isinstance(value, list) else [value]
+                })
+
+        r = self.client.describe_images(Filters=filters)
 
         return [{'image_id': image['ImageId']} for image in r['Images']]
 
