@@ -1,0 +1,30 @@
+- hosts: localhost
+  tasks:
+  - name: Fetch tags from source AMI
+    ec2_tag:
+      region: "{{ src_region }}"
+      resource: "{{ src_ami_id }}"
+      state: list
+    register: ec2_tags_return
+
+  - name: Copy AMI to destination regions
+    ec2_ami_copy:
+      source_region: "{{ src_region }}"
+      source_image_id: "{{ src_ami_id }}"
+      region: "{{ item }}"
+      tags: "{{ ec2_tags_return.tags }}"
+      wait: yes
+    with_items:
+      - "{{dst_regions}}"
+    register: new_amis
+
+  - name: Set the copies as public
+    ec2_ami:
+      image_id: "{{ item.image_id }}"
+      region: "{{ item.invocation.module_args.region }}"
+      launch_permissions: {
+        "group_names": ["all"]
+      }
+      state: present
+    with_items:
+      - "{{new_amis.results}}"
