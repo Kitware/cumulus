@@ -31,6 +31,39 @@
           type: "{{ node_instance_type }}"
           count: "{{ node_instance_count }}"
           image: "{{ node_instance_ami}}"
+  pre_tasks:
+    - block:
+      - name: Find latest Master AMI
+        ec2_ami_find:
+          state: available
+          sort: creationDate
+          sort_order: descending
+          owner: "{{ master_ami_spec.owner }}"
+          ami_tags: "{{ master_ami_spec.tags }}"
+          region: "{{ cluster_region }}"
+        register: master_amis
+
+      - name: Register to master_instance_ami variable
+        set_fact:
+          master_instance_ami: "{{ master_amis.results[0]['ami_id'] }}"
+      when: master_instance_ami is not defined
+
+    - block:
+      - name: Find latest node AMI
+        ec2_ami_find:
+          state: available
+          sort: creationDate
+          sort_order: descending
+          owner: "{{ node_ami_spec.owner }}"
+          ami_tags: "{{ node_ami_spec.tags }}"
+          region: "{{ cluster_region }}"
+        register: node_amis
+
+      - name: Register to node_instance_ami variable
+        set_fact:
+          node_instance_ami: "{{ node_amis.results[0]['ami_id'] }}"
+      when: node_instance_ami is not defined
+
   roles:
     - role: ec2-pod
       default_ssh_key: "{{ ec2_pod_spec.key }}"
