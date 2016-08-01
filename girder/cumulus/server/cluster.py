@@ -27,6 +27,7 @@ from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, loadmodel
+from girder.models.model_base import ValidationException
 from .base import BaseResource
 from cumulus.constants import ClusterType, ClusterStatus
 from .utility.cluster_adapters import get_cluster_adapter
@@ -321,7 +322,6 @@ class Cluster(BaseResource):
 
     @access.user
     def update(self, id, params):
-
         body = getBodyJson()
         user = self.getCurrentUser()
 
@@ -357,6 +357,14 @@ class Cluster(BaseResource):
             update_dict(cluster['config'], body['config'])
 
         cluster = self._model.update_cluster(user, cluster)
+
+        # Now do any updates the adapter provides
+        adapter = get_cluster_adapter(cluster)
+        try:
+            adapter.update(body)
+        # Skip adapter.update if update not defined for this adapter
+        except (NotImplementedError, ValidationException):
+            pass
 
         return self._model.filter(cluster, user)
 

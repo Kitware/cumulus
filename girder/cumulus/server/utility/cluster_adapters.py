@@ -122,7 +122,6 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 #
 #         super(AnsibleClusterAdapter, self).update_status(status)
 
-
     def validate(self):
         """
         Adapters may implement this if they need to perform any validation
@@ -145,12 +144,12 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             'config.launch.spec', self.cluster, default=self.DEFAULT_PLAYBOOK)
         playbook_params = get_property(
             'config.launch.params', self.cluster, default={})
-        playbook_params['cluster_state'] = 'running'
+        playbook_params['cluster_state'] = ClusterStatus.RUNNING
 
         cumulus.ansible.tasks.cluster.launch_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
                    playbook_params, girder_token, log_write_url,
-                   'running')
+                   ClusterStatus.RUNNING)
 
         return self.cluster
 
@@ -176,7 +175,8 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         cumulus.ansible.tasks.cluster.terminate_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
-                   playbook_params, girder_token, log_write_url, 'terminated')
+                   playbook_params, girder_token, log_write_url,
+                   ClusterStatus.TERMINATED)
 
     def provision(self):
         # status must be >= launched.
@@ -196,13 +196,13 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             'config.provision.params', self.cluster, default={})
         provision_ssh_user = get_property(
             'config.provision.ssh.user', self.cluster, default='ubuntu')
-        playbook_params['cluster_state'] = 'running'
+        playbook_params['cluster_state'] = ClusterStatus.RUNNING
         playbook_params['ansible_ssh_user'] = provision_ssh_user
 
         cumulus.ansible.tasks.cluster.provision_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
                    playbook_params,
-                   girder_token, log_write_url, 'running')
+                   girder_token, log_write_url, ClusterStatus.RUNNING)
 
         return self.cluster
 
@@ -228,7 +228,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             'config.launch.spec', self.cluster, default=self.DEFAULT_PLAYBOOK)
         launch_playbook_params = get_property(
             'config.launch.params', self.cluster, default={})
-        launch_playbook_params['cluster_state'] = 'running'
+        launch_playbook_params['cluster_state'] = ClusterStatus.RUNNING
 
         # Provision
         provision_playbook = get_property(
@@ -238,7 +238,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         provision_ssh_user = get_property(
             'config.provision.ssh.user', self.cluster, default='ubuntu')
         provision_playbook_params['ansible_ssh_user'] = provision_ssh_user
-        provision_playbook_params['cluster_state'] = 'running'
+        provision_playbook_params['cluster_state'] = ClusterStatus.RUNNING
 
         cumulus.ansible.tasks.cluster.start_cluster \
             .delay(launch_playbook,
@@ -247,7 +247,6 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
                    self.cluster, profile, secret_key,
                    launch_playbook_params, provision_playbook_params,
                    girder_token, log_write_url)
-
 
     def delete(self):
         """
@@ -322,7 +321,7 @@ class TraditionClusterAdapter(AbstractClusterAdapter):
         return self.cluster
 
     def start(self, request_body):
-        if self.cluster['status'] == 'creating':
+        if self.cluster['status'] == ClusterStatus.CREATING:
             raise RestException('Cluster is not ready to start.', code=400)
 
         log_write_url = '%s/clusters/%s/log' % (getApiUrl(),

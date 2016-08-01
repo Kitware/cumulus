@@ -17,12 +17,8 @@
 #  limitations under the License.
 ###############################################################################
 
-import collections
-import six
 import json
 import re
-
-from enum import IntEnum
 
 
 class AssertCallsMixin(object):

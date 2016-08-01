@@ -4,21 +4,20 @@
 ###############################################################################
 #  Copyright 2015 Kitware Inc.
 #
-#  Licensed under the Apache License, Version 2.0 ( the "License" );
+#  Licensed under the Apache License, Version 2.0 ( the 'License' );
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
 #
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
 #  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
+#  distributed under the License is distributed on an 'AS IS' BASIS,
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ###############################################################################
 
 
-from enum import IntEnum
 import six
 
 
@@ -68,18 +67,19 @@ class JobQueueState:
     ERROR = 'error'
 
 
+@six.python_2_unicode_compatible
 class ClusterStatus(object):
-    ERROR = "error"
-    CREATING = "creating"
-    CREATED = "created"
-    LAUNCHING = "launching"
-    PROVISIONING = "provisioning"
-    RUNNING = "running"
-    TERMINATING = "terminating"
-    TERMINATED = "terminated"
-    STOPPING = "stopping"
-    STOPPED = "stopped"
-    STARTING = "starting"
+    ERROR = 'error'
+    CREATING = 'creating'
+    CREATED = 'created'
+    LAUNCHING = 'launching'
+    PROVISIONING = 'provisioning'
+    RUNNING = 'running'
+    TERMINATING = 'terminating'
+    TERMINATED = 'terminated'
+    STOPPING = 'stopping'
+    STOPPED = 'stopped'
+    STARTING = 'starting'
 
     valid_transitions = {}
 
@@ -87,7 +87,7 @@ class ClusterStatus(object):
         self.cluster_adapter = cluster_adapter
 
     def to(self, new_status, e=None):
-        e = Exception("Cannot transition cluster from %s to %s."
+        e = Exception('Cannot transition cluster from %s to %s.'
                       % (self.status, new_status)) if e is None else e
         try:
             if self.valid_transition(self.status, new_status):
@@ -104,10 +104,10 @@ class ClusterStatus(object):
     @classmethod
     def valid_transition(cls, frm, to):
         if not cls.valid(frm):
-            raise Exception(u"%s is not a valid ClusterStatus." % frm)
+            raise Exception(u'%s is not a valid ClusterStatus.' % frm)
 
         if not cls.valid(to):
-            raise Exception(u"%s is not a valid ClusterStatus." % to)
+            raise Exception(u'%s is not a valid ClusterStatus.' % to)
 
         return to in cls.valid_transitions[frm]
 
@@ -122,7 +122,7 @@ class ClusterStatus(object):
     @status.setter
     def status(self, new_status):
         assert new_status in self.nodes, \
-            u"%s is not a valid ClusterStatus." % new_status
+            u'%s is not a valid ClusterStatus.' % new_status
 
         self.cluster_adapter.cluster['status'] = new_status
 

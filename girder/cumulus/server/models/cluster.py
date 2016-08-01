@@ -33,7 +33,6 @@ from cumulus import queue
 import six
 
 
-
 class Cluster(BaseModel):
 
     def __init__(self):
