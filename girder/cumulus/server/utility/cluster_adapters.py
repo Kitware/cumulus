@@ -53,7 +53,6 @@ class AbstractClusterAdapter(ModelImporter):
                 (self._state_machine.status, status), code=400))
         self.cluster = self._model.update_status(self.cluster, status)
 
-
     def validate(self):
         """
         Adapters may implement this if they need to perform any validation
@@ -112,13 +111,6 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     This defines the interface to be used by all cluster adapters.
     """
     DEFAULT_PLAYBOOK = 'ec2'
-
-#    def update_status(self, status):
-#        self.status = status
-#
-#        if self.cluster:
-#
-#        super(AnsibleClusterAdapter, self).update_status(status)
 
     def validate(self):
         """
