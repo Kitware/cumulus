@@ -324,7 +324,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
         self.assertEqual(r.json, expected_status)
 
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
-    def test_update_traditional(self, generate_key):
+    def test_aaa_update_traditional(self, generate_key):
         body = {
             'config': {
                 'host': 'myhost',
@@ -351,23 +351,51 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
                 }
             }
         }
-
         r = self.request(
             '/clusters/%s' % str(cluster_id), method='PATCH',
             type='application/json', body=json.dumps(update_body),
             user=self._cumulus)
 
         self.assertStatusOk(r)
-        expected = {u'status': u'creating', u'userId': str(self._user['_id']),  u'type': u'trad', u'_id': cluster_id, u'config': {u'scheduler': {u'type': u'sge'},
-            u'host': u'myhost', u'ssh': {u'user': u'myuser', u'key': cluster_id, u'publicKey': self._valid_key}}, u'name': u'test'}
+        expected = {u'status': u'creating',
+                    u'userId': str(self._user['_id']),
+                    u'type': u'trad',
+                    u'_id': cluster_id,
+                    u'config': {
+                        u'scheduler': {
+                            u'type': u'sge'
+                        },
+                        u'host': u'myhost',
+                        u'ssh': {
+                            u'user': u'myuser',
+                            u'key': cluster_id,
+                            u'publicKey': self._valid_key}
+                    }, u'name': u'test'
+                }
+
         self.assertEqual(
             self.normalize(expected), self.normalize(r.json), 'Unexpected response')
 
         r = self.request('/clusters/%s' % str(cluster_id), method='GET',
                          user=self._user)
         self.assertStatusOk(r)
-        expected = {u'status': u'creating', u'userId': str(self._user['_id']), u'type': u'trad', u'_id': cluster_id, u'config': {u'scheduler': {u'type': u'sge'},
-            u'host': u'myhost', u'ssh': {u'user': u'myuser', u'key': cluster_id, u'publicKey': self._valid_key}}, u'name': u'test'}
+        expected = {u'status': u'creating',
+                    u'userId': str(self._user['_id']),
+                    u'type': u'trad',
+                    u'_id': cluster_id,
+                    u'config': {
+                        u'scheduler': {
+                            u'type': u'sge'
+                        },
+                        u'host': u'myhost',
+                        u'ssh': {
+                            u'user': u'myuser',
+                            u'key': cluster_id,
+                            u'publicKey': self._valid_key
+                        }
+                    },
+                    u'name': u'test'
+        }
         self.assertEqual(
             self.normalize(expected), self.normalize(r.json), 'Unexpected response')
 
@@ -442,6 +470,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
 
     @mock.patch('cumulus.ansible.tasks.cluster.start_cluster.delay')
     def test_start(self, start_cluster):
+
         body = {
             'name': 'test',
             'profileId': str(self._user_profile['_id'])
@@ -563,6 +592,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
 
     @mock.patch('cumulus.ansible.tasks.cluster.terminate_cluster.delay')
     def test_terminate(self, terminate_cluster):
+
         body = {
             'profileId': str(self._user_profile['_id']),
             'name': 'test'
@@ -579,11 +609,15 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
         status_body = {
             'status': 'running'
         }
+        r = self.request('/clusters/%s' %
+                         str(cluster_id),
+                         type='application/json', method='PATCH',
+                         body=json.dumps(status_body), user=self._user)
 
         r = self.request(
-            '/clusters/%s/terminate' % str(cluster_id), method='PUT',
-            type='application/json', body=json.dumps(status_body),
-            user=self._user)
+            '/clusters/%s/terminate' % str(cluster_id),
+            method='PUT', type='application/json',
+            body=json.dumps(status_body), user=self._user)
 
         self.assertStatusOk(r)
 

@@ -66,13 +66,13 @@ def start_cluster(launch_playbook, provision_playbook, cluster, profile,
                   girder_token, log_write_url):
 
     launch_cluster(launch_playbook, cluster, profile, secret_key,
-                   launch_extra_vars, girder_token, log_write_url, 'launched')
+                   launch_extra_vars, girder_token, log_write_url, 'running')
 
     check_girder_cluster_status(cluster, girder_token, 'provisioning')
 
     provision_cluster(provision_playbook, cluster, profile, secret_key,
                       provision_extra_vars, girder_token, log_write_url,
-                      'provisioned')
+                      'running')
 
     # Now update the cluster state to 'running'
     check_girder_cluster_status(cluster, girder_token, 'running')

@@ -38,12 +38,24 @@ class AbstractClusterAdapter(ModelImporter):
     """
     def __init__(self, cluster):
         self.cluster = cluster
+        self._state_machine = ClusterStatus(self)
         self._model = self.model('cluster', 'cumulus')
 
-    def update_status(self, status):
+    @property
+    def status(self):
+        return self._state_machine.status
+
+    @status.setter
+    def status(self, status):
+        self._state_machine.to(
+            status, RestException(
+                'Cluster is in state %s and cannot transition to state %s' %
+                (self._state_machine.status, status), code=400))
+
+    def save(self):
         self.cluster = self._model.filter(
-            self._model.update_status(self.cluster, status), getCurrentUser(),
-            passphrase=False)
+            self._model.update_cluster(getCurrentUser(), self.cluster),
+            getCurrentUser(), passphrase=False)
 
     def validate(self):
         """
@@ -104,11 +116,11 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     """
     DEFAULT_PLAYBOOK = 'ec2'
 
-    def update_status(self, status):
-        assert type(status) is ClusterStatus, \
-            '%s must be a ClusterStatus type' % status
-
-        super(AnsibleClusterAdapter, self).update_status(status)
+#     def update_status(self, status):
+#         assert ClusterStatus.valid(status), \
+#             '%s must be a ClusterStatus type' % status
+#
+#         super(AnsibleClusterAdapter, self).update_status(status)
 
     def validate(self):
         """
@@ -120,12 +132,8 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         return self.cluster
 
     def launch(self):
-        # if id is None // Exception
-        if self.cluster['status'] >= ClusterStatus.launching:
-            raise RestException('Cluster is either already launching, '
-                                'or launched.', code=400)
-
-        self.update_status(ClusterStatus.launching)
+        self.status = ClusterStatus.LAUNCHING
+        self.save()
 
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
@@ -136,22 +144,22 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             'config.launch.spec', self.cluster, default=self.DEFAULT_PLAYBOOK)
         playbook_params = get_property(
             'config.launch.params', self.cluster, default={})
-        playbook_params['cluster_state'] = 'running'
+        playbook_params['cluster_state'] = ClusterStatus.RUNNING
 
         cumulus.ansible.tasks.cluster.launch_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
                    playbook_params, girder_token, log_write_url,
-                   'launched')
+                   ClusterStatus.RUNNING)
 
         return self.cluster
 
     def terminate(self):
-
-        if self.cluster['status'] == ClusterStatus.terminated or \
-           self.cluster['status'] == ClusterStatus.terminating:
+        if self.status == ClusterStatus.TERMINATED or \
+           self.status == ClusterStatus.TERMINATING:
             return
 
-        self.update_status(ClusterStatus.terminating)
+        self.status = ClusterStatus.TERMINATING
+        self.save()
 
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
@@ -167,11 +175,13 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         cumulus.ansible.tasks.cluster.terminate_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
-                   playbook_params, girder_token, log_write_url, 'terminated')
+                   playbook_params, girder_token, log_write_url,
+                   ClusterStatus.TERMINATED)
 
     def provision(self):
         # status must be >= launched.
-        self.update_status(ClusterStatus.provisioning)
+        self.status = ClusterStatus.PROVISIONING
+        self.save()
 
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
@@ -186,13 +196,13 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             'config.provision.params', self.cluster, default={})
         provision_ssh_user = get_property(
             'config.provision.ssh.user', self.cluster, default='ubuntu')
-        playbook_params['cluster_state'] = 'running'
+        playbook_params['cluster_state'] = ClusterStatus.RUNNING
         playbook_params['ansible_ssh_user'] = provision_ssh_user
 
         cumulus.ansible.tasks.cluster.provision_cluster \
             .delay(playbook, self.cluster, profile, secret_key,
                    playbook_params,
-                   girder_token, log_write_url, 'provisioned')
+                   girder_token, log_write_url, ClusterStatus.RUNNING)
 
         return self.cluster
 
@@ -200,10 +210,9 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         """
         Adapters may implement this if they support a start operation.
         """
-        if self.cluster['status'] == 'running':
-            raise RestException('Cluster already running.', code=400)
 
-        self.update_status(ClusterStatus.launching)
+        self.status = ClusterStatus.LAUNCHING
+        self.save()
 
         self.cluster['config'].setdefault('provision', {})\
             .setdefault('params', {}).update(request_body)
@@ -219,7 +228,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             'config.launch.spec', self.cluster, default=self.DEFAULT_PLAYBOOK)
         launch_playbook_params = get_property(
             'config.launch.params', self.cluster, default={})
-        launch_playbook_params['cluster_state'] = 'running'
+        launch_playbook_params['cluster_state'] = ClusterStatus.RUNNING
 
         # Provision
         provision_playbook = get_property(
@@ -229,7 +238,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         provision_ssh_user = get_property(
             'config.provision.ssh.user', self.cluster, default='ubuntu')
         provision_playbook_params['ansible_ssh_user'] = provision_ssh_user
-        provision_playbook_params['cluster_state'] = 'running'
+        provision_playbook_params['cluster_state'] = ClusterStatus.RUNNING
 
         cumulus.ansible.tasks.cluster.start_cluster \
             .delay(launch_playbook,
@@ -239,23 +248,17 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
                    launch_playbook_params, provision_playbook_params,
                    girder_token, log_write_url)
 
-    def update(self, request_body):
-        """
-        Adapters may implement this if they support a update operation.
-        """
-        if 'status' in request_body:
-            self.update_status(ClusterStatus[request_body['status']])
-
     def delete(self):
         """
         Adapters may implement this if they support a delete operation.
         """
-        if self.cluster['status'] in [ClusterStatus.running,
-                                      ClusterStatus.launching,
-                                      ClusterStatus.launched,
-                                      ClusterStatus.provisioning,
-                                      ClusterStatus.provisioned]:
-            raise RestException('Cluster is active', code=400)
+        if self.status not in [ClusterStatus.CREATED,
+                               ClusterStatus.ERROR,
+                               ClusterStatus.TERMINATED,
+                               ClusterStatus.TERMINATED]:
+            raise RestException(
+                'Cluster is in state %s and cannot be deleted' %
+                self.status, code=400)
 
 
 def _validate_key(key):
@@ -318,7 +321,7 @@ class TraditionClusterAdapter(AbstractClusterAdapter):
         return self.cluster
 
     def start(self, request_body):
-        if self.cluster['status'] == 'creating':
+        if self.cluster['status'] == ClusterStatus.CREATING:
             raise RestException('Cluster is not ready to start.', code=400)
 
         log_write_url = '%s/clusters/%s/log' % (getApiUrl(),

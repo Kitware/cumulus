@@ -52,7 +52,7 @@ class BaseIntegrationTest(unittest.TestCase):
 
         user = self._client.get('user/me')
         self._user_id = user['_id']
-        r = self._client.listFolder(self._user_id, 'user', name='Private')
+        r = list(self._client.listFolder(self._user_id, 'user', name='Private'))
         self.assertEqual(len(r), 1)
         self._private_folder_id = r[0]['_id']
 
@@ -188,8 +188,3 @@ BaseIntegrationTest.parser = argparse.ArgumentParser(description='Run integratio
 BaseIntegrationTest.parser.add_argument('-g', '--girder_user', help='', required=True)
 BaseIntegrationTest.parser.add_argument('-p', '--girder_password', help='', required=True)
 BaseIntegrationTest.parser.add_argument('-r', '--girder_url', help='', required=True)
-
-
-
-
-
