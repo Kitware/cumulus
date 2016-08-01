@@ -337,7 +337,7 @@ class Cluster(BaseResource):
             if ClusterStatus.valid(body['status']):
                 cluster['status'] = body['status']
             else:
-                raise RestException("%s is not a valid cluster status" %
+                raise RestException('%s is not a valid cluster status' %
                                     body['status'], code=400)
 
         if 'timings' in body:
