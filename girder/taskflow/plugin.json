@@ -1,5 +1,6 @@
 {
-"name": "TaskFlow",
-"description": "REST based creation/management of clusters in EC2",
-"dependencies": []
+    "name": "TaskFlow",
+    "description": "RESTful endpoints for managing flows of Celery tasks.",
+    "dependencies": [],
+    "version": "0.1.0"
 }

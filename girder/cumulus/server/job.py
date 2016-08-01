@@ -347,7 +347,7 @@ class Job(BaseResource):
             'The job to get log entries for.', paramType='path')
         .param(
             'offset',
-            'The offset to start getting entiries at.', required=False,
+            'The offset to start getting entries at.', required=False,
             paramType='query'))
 
     @access.user

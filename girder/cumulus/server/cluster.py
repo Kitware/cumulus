@@ -448,7 +448,7 @@ class Cluster(BaseResource):
             'The cluster to get log entries for.', paramType='path')
         .param(
             'offset',
-            'The cluster to get log entries for.', required=False,
+            'The offset to start getting entries at.', required=False,
             paramType='query'))
 
     @access.user

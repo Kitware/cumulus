@@ -66,3 +66,11 @@ class CloudProvider(object):
 
     def get_volume(self, volume_id):
         raise NotImplementedError('Must be implemented by subclass')
+
+    def get_machine_images(self, **filters):
+        """
+        Return list of machine images that match filters.
+
+        :param filters: The filters specifying the images to select.
+        """
+        raise NotImplementedError('Must be implemented by subclass')

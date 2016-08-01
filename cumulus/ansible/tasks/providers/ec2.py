@@ -187,6 +187,15 @@ class EC2Provider(CloudProvider):
 
         return volume
 
+    def get_machine_images(self, name=None, owner=None, **kwargs):
+        filters = [{
+            'Name': 'name',
+            'Values': [name]
+        }]
+        r = self.client.describe_images(Owners=[owner], Filters=filters)
+
+        return [{'image_id': image['ImageId']} for image in r['Images']]
+
     # Proxy these through to the boto3 client
     # Note: these are left over from the original volume
     #       implementation They may not make sense in terms
