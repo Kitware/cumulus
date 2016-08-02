@@ -105,7 +105,7 @@ class AbstractClusterAdapter(ModelImporter):
         girder_token = get_task_token()['_id']
         cumulus.tasks.job.submit(
             girder_token,
-            self._model.filter(self.cluster, getCurrentUser()),
+            self._model.filter(self.cluster, getCurrentUser(), passphrase=False),
             job, log_url)
 
 
@@ -140,7 +140,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         cumulus.ansible.tasks.cluster.launch_cluster \
             .delay(playbook,
-                   self._model.filter(self.cluster, getCurrentUser()),
+                   self._model.filter(self.cluster, getCurrentUser(), passphrase=False),
                    profile, secret_key, playbook_params, girder_token,
                    log_write_url, ClusterStatus.RUNNING)
 
@@ -163,7 +163,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         cumulus.ansible.tasks.cluster.terminate_cluster \
             .delay(playbook,
-                   self._model.filter(self.cluster, getCurrentUser()),
+                   self._model.filter(self.cluster, getCurrentUser(), passphrase=False),
                    profile, secret_key, playbook_params, girder_token,
                    log_write_url, ClusterStatus.TERMINATED)
 
@@ -188,7 +188,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
 
         cumulus.ansible.tasks.cluster.provision_cluster \
             .delay(playbook,
-                   self._model.filter(self.cluster, getCurrentUser()),
+                   self._model.filter(self.cluster, getCurrentUser(), passphrase=False),
                    profile, secret_key, playbook_params,
                    girder_token, log_write_url, ClusterStatus.RUNNING)
 
@@ -231,7 +231,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             .delay(launch_playbook,
                    # provision playbook
                    provision_playbook,
-                   self._model.filter(self.cluster, getCurrentUser()),
+                   self._model.filter(self.cluster, getCurrentUser(), passphrase=False),
                    profile, secret_key,
                    launch_playbook_params, provision_playbook_params,
                    girder_token, log_write_url)
@@ -316,7 +316,7 @@ class TraditionClusterAdapter(AbstractClusterAdapter):
                                                 self.cluster['_id'])
         girder_token = get_task_token()['_id']
         cumulus.tasks.cluster.test_connection \
-            .delay(self._model.filter(self.cluster, getCurrentUser()),
+            .delay(self._model.filter(self.cluster, getCurrentUser(), passphrase=False),
                    log_write_url=log_write_url,
                    girder_token=girder_token)
 
@@ -324,7 +324,7 @@ class TraditionClusterAdapter(AbstractClusterAdapter):
         super(TraditionClusterAdapter, self).delete()
         # Clean up key associate with cluster
         cumulus.ssh.tasks.key.delete_key_pair.delay(
-            self._model.filter(self.cluster, getCurrentUser()),
+            self._model.filter(self.cluster, getCurrentUser(), passphrase=False),
             get_task_token()['_id'])
 
 
@@ -369,7 +369,7 @@ class NewtClusterAdapter(AbstractClusterAdapter):
         girder_token = get_task_token(self.cluster)['_id']
         cumulus.tasks.cluster.test_connection \
             .delay(
-                self._model.filter(self.cluster, getCurrentUser()),
+                self._model.filter(self.cluster, getCurrentUser(), passphrase=False),
                 log_write_url=log_write_url, girder_token=girder_token)
 
     def submit_job(self, job):
@@ -378,7 +378,7 @@ class NewtClusterAdapter(AbstractClusterAdapter):
         girder_token = get_task_token(self.cluster)['_id']
         cumulus.tasks.job.submit(
             girder_token,
-            self._model.filter(self.cluster, getCurrentUser()),
+            self._model.filter(self.cluster, getCurrentUser(), passphrase=False),
             job, log_url)
 
 

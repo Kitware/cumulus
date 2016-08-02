@@ -147,8 +147,7 @@ class Cluster(BaseResource):
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/clusters/%s' % cluster['_id']
 
-        return self._model.filter(cluster, self.getCurrentUser(),
-                                  passphrase=False)
+        return self._model.filter(cluster, self.getCurrentUser())
 
     addModel('Id', {
         'id': 'Id',
@@ -265,7 +264,7 @@ class Cluster(BaseResource):
 
         return self._model.filter(
             self._launch_or_provision('launch', cluster),
-            self.getCurrentUser(), passphrase=False)
+            self.getCurrentUser())
 
     launch.description = (Description(
         'Start a cluster with ansible'
@@ -302,7 +301,7 @@ class Cluster(BaseResource):
 
         return self._model.filter(
             self._launch_or_provision('provision', cluster),
-            self.getCurrentUser(), passphrase=False)
+            self.getCurrentUser())
 
     provision.description = (Description(
         'Provision a cluster with ansible'
@@ -365,7 +364,7 @@ class Cluster(BaseResource):
         except (NotImplementedError, ValidationException):
             pass
 
-        return self._model.filter(cluster, user, passphrase=False)
+        return self._model.filter(cluster, user)
 
     addModel('ClusterUpdateParameters', {
         'id': 'ClusterUpdateParameters',
