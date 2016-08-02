@@ -51,7 +51,8 @@ class AbstractClusterAdapter(ModelImporter):
             status, RestException(
                 'Cluster is in state %s and cannot transition to state %s' %
                 (self._state_machine.status, status), code=400))
-        self.cluster = self._model.update_status(self.cluster, status)
+
+        self._model.update_status(self.cluster['_id'], status)
 
     def validate(self):
         """

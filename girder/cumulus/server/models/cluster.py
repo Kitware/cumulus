@@ -217,16 +217,11 @@ class Cluster(BaseModel):
                     }})
         send_log_notification('cluster', cluster, log)
 
-    def update_status(self, cluster, status, user=None):
-        if user is None:
-            user = getCurrentUser()
-
-        current_cluster = self.load(cluster['_id'], user=user,
-                                    level=AccessType.WRITE)
-
-        current_cluster['status'] = status
-
-        return self.update_cluster(user, current_cluster)
+    def update_status(self, id, status):
+        self.update({'_id': ObjectId(id)},
+                    {'$set': {
+                        'status': status
+                    }})
 
     def update_cluster(self, user, cluster):
         # Load first to force access check
