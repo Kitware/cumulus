@@ -324,7 +324,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
         self.assertEqual(r.json, expected_status)
 
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
-    def test_aaa_update_traditional(self, generate_key):
+    def test_update_traditional(self, generate_key):
         body = {
             'config': {
                 'host': 'myhost',

@@ -100,7 +100,9 @@ class AnsibleTestCase(base.TestCase):
         self.assertEquals(ca.status, ClusterStatus.LAUNCHING)
         self.assertEquals(ca.cluster['status'], ClusterStatus.LAUNCHING)
 
-    def test_cluster_status_public_api(self):
+    @mock.patch('girder.plugins.cumulus.models.cluster.Cluster.update_status')
+    def test_cluster_status_public_api(self, update_status):
+        update_status.return_value = self.cluster_dict(ClusterStatus.LAUNCHING)
         ca = AnsibleClusterAdapter(self.cluster_dict(ClusterStatus.CREATED))
         ca.status = ClusterStatus.LAUNCHING
 

@@ -52,10 +52,7 @@ class AbstractClusterAdapter(ModelImporter):
                 'Cluster is in state %s and cannot transition to state %s' %
                 (self._state_machine.status, status), code=400))
 
-    def save(self):
-        self.cluster = self._model.filter(
-            self._model.update_cluster(getCurrentUser(), self.cluster),
-            getCurrentUser(), passphrase=False)
+        self._model.update_status(self.cluster['_id'], status)
 
     def validate(self):
         """
@@ -116,12 +113,6 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     """
     DEFAULT_PLAYBOOK = 'ec2'
 
-#     def update_status(self, status):
-#         assert ClusterStatus.valid(status), \
-#             '%s must be a ClusterStatus type' % status
-#
-#         super(AnsibleClusterAdapter, self).update_status(status)
-
     def validate(self):
         """
         Adapters may implement this if they need to perform any validation
@@ -132,8 +123,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         return self.cluster
 
     def launch(self):
-        self.status = ClusterStatus.LAUNCHING
-        self.save()
+        self.cluster = ClusterStatus.LAUNCHING
 
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
@@ -154,12 +144,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         return self.cluster
 
     def terminate(self):
-        if self.status == ClusterStatus.TERMINATED or \
-           self.status == ClusterStatus.TERMINATING:
-            return
-
         self.status = ClusterStatus.TERMINATING
-        self.save()
 
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
@@ -179,9 +164,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
                    ClusterStatus.TERMINATED)
 
     def provision(self):
-        # status must be >= launched.
         self.status = ClusterStatus.PROVISIONING
-        self.save()
 
         base_url = getApiUrl()
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
@@ -212,7 +195,6 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
         """
 
         self.status = ClusterStatus.LAUNCHING
-        self.save()
 
         self.cluster['config'].setdefault('provision', {})\
             .setdefault('params', {}).update(request_body)
