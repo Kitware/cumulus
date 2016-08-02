@@ -86,7 +86,6 @@ class Cluster(BaseResource):
         cluster = self._model.create_ansible(user, name, playbook,
                                              launch_params, profile_id,
                                              cluster_type=cluster_type)
-        cluster = self._model.filter(cluster, user)
 
         return cluster
 
@@ -101,11 +100,12 @@ class Cluster(BaseResource):
         user = self.getCurrentUser()
 
         cluster = self._model.create_traditional(user, name, config)
-        cluster = self._model.filter(cluster, user)
 
         # Fire off job to create key pair for cluster
         girder_token = self.get_task_token()['_id']
-        generate_key_pair.delay(cluster, girder_token)
+        generate_key_pair.delay(
+            self._model.filter(cluster, user),
+            girder_token)
 
         return cluster
 
@@ -119,7 +119,6 @@ class Cluster(BaseResource):
         user = self.getCurrentUser()
 
         cluster = self._model.create_newt(user, name, config)
-        cluster = self._model.filter(cluster, user)
 
         return cluster
 
@@ -148,7 +147,8 @@ class Cluster(BaseResource):
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/clusters/%s' % cluster['_id']
 
-        return cluster
+        return self._model.filter(cluster, self.getCurrentUser(),
+                                  passphrase=False)
 
     addModel('Id', {
         'id': 'Id',
@@ -219,9 +219,6 @@ class Cluster(BaseResource):
     @loadmodel(model='cluster', plugin='cumulus', level=AccessType.ADMIN)
     def start(self, cluster, params):
         body = self._get_body()
-        user = self.getCurrentUser()
-
-        cluster = self._model.filter(cluster, user, passphrase=False)
         adapter = get_cluster_adapter(cluster)
         adapter.start(body)
 
@@ -266,7 +263,9 @@ class Cluster(BaseResource):
         cluster['config']['launch']['params'].update(body)
         cluster = self._model.save(cluster)
 
-        return self._launch_or_provision('launch', cluster)
+        return self._model.filter(
+            self._launch_or_provision('launch', cluster),
+            self.getCurrentUser(), passphrase=False)
 
     launch.description = (Description(
         'Start a cluster with ansible'
@@ -301,7 +300,9 @@ class Cluster(BaseResource):
             .setdefault('params', {}).update(body)
         cluster = self._model.save(cluster)
 
-        return self._launch_or_provision('provision', cluster)
+        return self._model.filter(
+            self._launch_or_provision('provision', cluster),
+            self.getCurrentUser(), passphrase=False)
 
     provision.description = (Description(
         'Provision a cluster with ansible'
@@ -314,8 +315,6 @@ class Cluster(BaseResource):
 
     def _launch_or_provision(self, process, cluster):
         assert process in ['launch', 'provision']
-        user = self.getCurrentUser()
-        cluster = self._model.filter(cluster, user, passphrase=False)
         adapter = get_cluster_adapter(cluster)
 
         return getattr(adapter, process)()
@@ -366,7 +365,7 @@ class Cluster(BaseResource):
         except (NotImplementedError, ValidationException):
             pass
 
-        return self._model.filter(cluster, user)
+        return self._model.filter(cluster, user, passphrase=False)
 
     addModel('ClusterUpdateParameters', {
         'id': 'ClusterUpdateParameters',
@@ -395,10 +394,8 @@ class Cluster(BaseResource):
 
         if not cluster:
             raise RestException('Cluster not found.', code=404)
-        try:
-            return {'status': cluster['status'].name}
-        except AttributeError:
-            return {'status': cluster['status']}
+
+        return {'status': cluster['status']}
 
     addModel('ClusterStatus', {
         'id': 'ClusterStatus',
@@ -423,7 +420,6 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        cluster = self._model.filter(cluster, user, passphrase=False)
         adapter = get_cluster_adapter(cluster)
         adapter.terminate()
 
@@ -470,8 +466,6 @@ class Cluster(BaseResource):
 
         if cluster['status'] != ClusterStatus.RUNNING:
             raise RestException('Cluster is not running', code=400)
-
-        cluster = self._model.filter(cluster, user, passphrase=False)
 
         job_model = self.model('job', 'cumulus')
         job = job_model.load(
@@ -531,7 +525,6 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        cluster = self._model.filter(cluster, user)
         adapter = get_cluster_adapter(cluster)
         adapter.delete()
 
