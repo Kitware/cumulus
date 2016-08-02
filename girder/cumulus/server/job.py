@@ -205,7 +205,6 @@ class Job(BaseResource):
         cluster = cluster_model.load(job['clusterId'], user=user,
                                      level=AccessType.ADMIN)
 
-        cluster = cluster_model.filter(cluster, user)
         base_url = getApiUrl()
         self._model.update_status(user, id, JobState.TERMINATING)
 
