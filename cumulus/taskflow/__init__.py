@@ -331,6 +331,13 @@ class CompositeTaskFlow(TaskFlow):
         taskflow.start()
 
 
+# TODO: Should this and other methods/classes be moved to separate files?
+class ClusterProvisioningTaskFlow(TaskFlow):
+
+    def start(self, signature, **options):
+
+        super(ClusterProvisioningTaskFlow, self).start(signature, **options)
+
 def _taskflow_task_finished(taskflow, taskflow_task_id):
     girder_token = taskflow['girder_token']
     girder_api_url = taskflow['girder_api_url']
