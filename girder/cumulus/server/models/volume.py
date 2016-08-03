@@ -27,6 +27,7 @@ from .base import BaseModel
 from ..utility.volume_adapters import get_volume_adapter
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
+from cumulus.common.girder import send_log_notification
 
 
 class Volume(BaseModel):
@@ -83,7 +84,8 @@ class Volume(BaseModel):
                 'id': None
             },
             'profileId': profileId,
-            'status': VolumeState.CREATED
+            'status': VolumeState.CREATED,
+            'log': []
         }
 
         if fs:
@@ -101,3 +103,13 @@ class Volume(BaseModel):
         self.save(volume)
 
         return volume
+
+    def append_to_log(self, user, id, record):
+        volume = self.load(id, user=user, level=AccessType.WRITE)
+        self.update({'_id': ObjectId(id)}, {'$push': {'log': record}})
+        send_log_notification('volume', volume, record)
+
+    def log_records(self, user, id, offset=0):
+        volume = self.load(id, user=user, level=AccessType.READ)
+
+        return volume['log'][offset:]

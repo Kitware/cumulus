@@ -17,31 +17,16 @@
 #  limitations under the License.
 ###############################################################################
 
-import collections
-import six
 import json
 import re
-
-from enum import IntEnum
 
 
 class AssertCallsMixin(object):
     """
     This mixin add support for asserting mock call_args_lists.
     """
-    def _int_enum_to_string(self, data):
-        if isinstance(data, collections.Mapping):
-            for k, v in six.iteritems(data):
-                if isinstance(v, collections.Mapping):
-                    self._int_enum_to_string(v)
-                elif isinstance(v, IntEnum):
-                    data[k] = str(v)
-        elif isinstance(data, (list, tuple)):
-            for v in data:
-                self._int_enum_to_string(v)
 
     def normalize(self, data):
-        self._int_enum_to_string(data)
         str_data = json.dumps(data, default=str)
         str_data = re.sub(r'[\w]{64}', 'token', str_data)
 

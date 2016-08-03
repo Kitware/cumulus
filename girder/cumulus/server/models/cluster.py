@@ -33,19 +33,6 @@ from cumulus import queue
 import six
 
 
-def preprocess_cluster(cluster):
-    # Convert model status into enum
-    try:
-        # For now only do this for ansible
-        if cluster['type'] in [ClusterType.ANSIBLE, ClusterType.EC2]:
-            cluster['status'] = ClusterStatus(int(cluster['status']))
-    except (ValueError, AssertionError, TypeError):
-        # Assume 'old style' string status
-        pass
-
-    return cluster
-
-
 class Cluster(BaseModel):
 
     def __init__(self):
@@ -64,15 +51,15 @@ class Cluster(BaseModel):
         model = super(Cluster, self).load(id, level=level, user=user,
                                           objectId=objectId, force=force,
                                           fields=fields, exc=exc)
-        return preprocess_cluster(model)
+        return model
 
     def find(self, query=None, offset=0, limit=0, timeout=None,
              fields=None, sort=None, **kwargs):
-        return [preprocess_cluster(cluster) for cluster in
+        return [cluster for cluster in
                 super(Cluster, self).find(query, offset, limit, timeout,
                                           fields, sort, **kwargs)]
 
-    def filter(self, cluster, user, passphrase=True, int_enum_to_string=True):
+    def filter(self, cluster, user, passphrase=True):
         cluster = super(Cluster, self).filter(doc=cluster, user=user)
 
         if parse('config.ssh.passphrase').find(cluster) and passphrase:
@@ -80,10 +67,6 @@ class Cluster(BaseModel):
                 check_group_membership(user, cumulus.config.girder.group)
             except RestException:
                 del cluster['config']['ssh']['passphrase']
-
-        # Convert status (IntEnum) to string
-        if int_enum_to_string:
-            cluster['status'] = str(cluster['status'])
 
         return cluster
 
@@ -161,7 +144,7 @@ class Cluster(BaseModel):
             'name': name,
             'profileId': profile['_id'],
             'log': [],
-            'status': ClusterStatus.created,
+            'status': ClusterStatus.CREATED,
             'config': {
                 'scheduler': {
                     'type': 'sge'
@@ -234,16 +217,11 @@ class Cluster(BaseModel):
                     }})
         send_log_notification('cluster', cluster, log)
 
-    def update_status(self, cluster, status, user=None):
-        if user is None:
-            user = getCurrentUser()
-
-        current_cluster = self.load(cluster['_id'], user=user,
-                                    level=AccessType.WRITE)
-
-        current_cluster['status'] = status
-
-        return self.update_cluster(user, current_cluster)
+    def update_status(self, id, status):
+        self.update({'_id': ObjectId(id)},
+                    {'$set': {
+                        'status': status
+                    }})
 
     def update_cluster(self, user, cluster):
         # Load first to force access check
@@ -251,12 +229,14 @@ class Cluster(BaseModel):
         current_cluster = self.load(cluster_id, user=user,
                                     level=AccessType.WRITE)
 
-        # If the status has changed create a notification
-        new_status = cluster['status']
-        if current_cluster['status'] != new_status:
-            send_status_notification('cluster', cluster)
+        previous_status = current_cluster['status']
+        current_cluster.update(cluster)
 
-        return self.save(cluster)
+        # If the status has changed create a notification
+        if current_cluster['status'] != previous_status:
+            send_status_notification('cluster', current_cluster)
+
+        return self.save(current_cluster)
 
     def log_records(self, user, id, offset=0):
         # TODO Need to figure out perms a remove this force

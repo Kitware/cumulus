@@ -27,6 +27,7 @@ from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, loadmodel
+from girder.models.model_base import ValidationException
 from .base import BaseResource
 from cumulus.constants import ClusterType, ClusterStatus
 from .utility.cluster_adapters import get_cluster_adapter
@@ -85,7 +86,6 @@ class Cluster(BaseResource):
         cluster = self._model.create_ansible(user, name, playbook,
                                              launch_params, profile_id,
                                              cluster_type=cluster_type)
-        cluster = self._model.filter(cluster, user)
 
         return cluster
 
@@ -100,11 +100,12 @@ class Cluster(BaseResource):
         user = self.getCurrentUser()
 
         cluster = self._model.create_traditional(user, name, config)
-        cluster = self._model.filter(cluster, user)
 
         # Fire off job to create key pair for cluster
         girder_token = self.get_task_token()['_id']
-        generate_key_pair.delay(cluster, girder_token)
+        generate_key_pair.delay(
+            self._model.filter(cluster, user),
+            girder_token)
 
         return cluster
 
@@ -118,7 +119,6 @@ class Cluster(BaseResource):
         user = self.getCurrentUser()
 
         cluster = self._model.create_newt(user, name, config)
-        cluster = self._model.filter(cluster, user)
 
         return cluster
 
@@ -147,7 +147,7 @@ class Cluster(BaseResource):
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/clusters/%s' % cluster['_id']
 
-        return cluster
+        return self._model.filter(cluster, self.getCurrentUser())
 
     addModel('Id', {
         'id': 'Id',
@@ -218,9 +218,6 @@ class Cluster(BaseResource):
     @loadmodel(model='cluster', plugin='cumulus', level=AccessType.ADMIN)
     def start(self, cluster, params):
         body = self._get_body()
-        user = self.getCurrentUser()
-
-        cluster = self._model.filter(cluster, user, passphrase=False)
         adapter = get_cluster_adapter(cluster)
         adapter.start(body)
 
@@ -265,7 +262,9 @@ class Cluster(BaseResource):
         cluster['config']['launch']['params'].update(body)
         cluster = self._model.save(cluster)
 
-        return self._launch_or_provision('launch', cluster)
+        return self._model.filter(
+            self._launch_or_provision('launch', cluster),
+            self.getCurrentUser())
 
     launch.description = (Description(
         'Start a cluster with ansible'
@@ -277,10 +276,11 @@ class Cluster(BaseResource):
     @loadmodel(model='cluster', plugin='cumulus', level=AccessType.ADMIN)
     def provision(self, cluster, params):
 
-        if cluster['status'] not in (ClusterStatus.launched,
-                                     ClusterStatus.provisioned,
-                                     ClusterStatus.running):
-            raise RestException('Cluster can not be provisioned.', code=400)
+        if not ClusterStatus.valid_transition(
+                cluster['status'], ClusterStatus.PROVISIONING):
+            raise RestException(
+                'Cluster status is %s and cannot be provisioned' %
+                cluster['status'], code=400)
 
         body = self._get_body()
         provision_ssh_user = get_property('ssh.user', body)
@@ -299,7 +299,9 @@ class Cluster(BaseResource):
             .setdefault('params', {}).update(body)
         cluster = self._model.save(cluster)
 
-        return self._launch_or_provision('provision', cluster)
+        return self._model.filter(
+            self._launch_or_provision('provision', cluster),
+            self.getCurrentUser())
 
     provision.description = (Description(
         'Provision a cluster with ansible'
@@ -312,9 +314,6 @@ class Cluster(BaseResource):
 
     def _launch_or_provision(self, process, cluster):
         assert process in ['launch', 'provision']
-        user = self.getCurrentUser()
-        cluster = self._model.filter(cluster, user, passphrase=False,
-                                     int_enum_to_string=False)
         adapter = get_cluster_adapter(cluster)
 
         return getattr(adapter, process)()
@@ -333,14 +332,11 @@ class Cluster(BaseResource):
             cluster['assetstoreId'] = body['assetstoreId']
 
         if 'status' in body:
-            try:
-                # For now only do for ansible clusters
-                if cluster['type'] in [ClusterType.ANSIBLE, ClusterType.EC2]:
-                    cluster['status'] = ClusterStatus[body['status']]
-                else:
-                    cluster['status'] = body['status']
-            except (ValueError, KeyError):
+            if ClusterStatus.valid(body['status']):
                 cluster['status'] = body['status']
+            else:
+                raise RestException('%s is not a valid cluster status' %
+                                    body['status'], code=400)
 
         if 'timings' in body:
             if 'timings' in cluster:
@@ -365,7 +361,7 @@ class Cluster(BaseResource):
         try:
             adapter.update(body)
         # Skip adapter.update if update not defined for this adapter
-        except NotImplementedError:
+        except (NotImplementedError, ValidationException):
             pass
 
         return self._model.filter(cluster, user)
@@ -397,18 +393,15 @@ class Cluster(BaseResource):
 
         if not cluster:
             raise RestException('Cluster not found.', code=404)
-        try:
-            return {'status': cluster['status'].name}
-        except AttributeError:
-            return {'status': cluster['status']}
+
+        return {'status': cluster['status']}
 
     addModel('ClusterStatus', {
         'id': 'ClusterStatus',
         'required': ['status'],
         'properties': {
             'status': {'type': 'string',
-                       'enum': ['created', 'initializing', 'running',
-                                'terminating', 'terminated', 'error']}
+                       'enum': [ClusterStatus.valid_transitions.keys()]}
         }
     }, 'clusters')
 
@@ -426,7 +419,6 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        cluster = self._model.filter(cluster, user, passphrase=False)
         adapter = get_cluster_adapter(cluster)
         adapter.terminate()
 
@@ -459,7 +451,7 @@ class Cluster(BaseResource):
             'The cluster to get log entries for.', paramType='path')
         .param(
             'offset',
-            'The cluster to get log entries for.', required=False,
+            'The offset to start getting entries at.', required=False,
             paramType='query'))
 
     @access.user
@@ -471,11 +463,8 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        if cluster['status'] != 'running' and \
-           cluster['status'] != ClusterStatus.running:
+        if cluster['status'] != ClusterStatus.RUNNING:
             raise RestException('Cluster is not running', code=400)
-
-        cluster = self._model.filter(cluster, user, passphrase=False)
 
         job_model = self.model('job', 'cumulus')
         job = job_model.load(
@@ -535,7 +524,6 @@ class Cluster(BaseResource):
         if not cluster:
             raise RestException('Cluster not found.', code=404)
 
-        cluster = self._model.filter(cluster, user, int_enum_to_string=False)
         adapter = get_cluster_adapter(cluster)
         adapter.delete()
 
