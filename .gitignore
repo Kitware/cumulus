@@ -6,3 +6,4 @@ build/
 cumulus.egg-info/
 dist/
 *~
+*.retry
