@@ -83,7 +83,6 @@
               path: "volumes/{{ girder_volume_id }}/clusters/{{ girder_cluster_id }}/attach/complete"
               data:
                 path: "{{ path }}"
-                status: "{{ vol.volume.status }}"
           delegate_to: localhost
           when: girder_api_url is defined and girder_token is defined and girder_volume_id is defined and girder_cluster_id is defined
       rescue:
