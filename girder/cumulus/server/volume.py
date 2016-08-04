@@ -255,7 +255,10 @@ class Volume(BaseResource):
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
         aws_volume = p.get_volume(volume)
-        if aws_volume and aws_volume['state'] != VolumeState.AVAILABLE:
+        # If volume exists it needs to be available to be attached. If
+        # it doesn't exist it will be created as part of the attach
+        # playbook.
+        if aws_volume is not None and aws_volume['state'] != VolumeState.AVAILABLE:
             raise RestException('This volume is not available to attach '
                                 'to a cluster',
                                 400)
