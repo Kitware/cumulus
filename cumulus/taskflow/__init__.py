@@ -22,9 +22,13 @@ import importlib
 
 from functools import wraps
 import json
+from jsonpath_rw import parse
 import threading
 
 from girder_client import GirderClient, HttpError
+from girder.api.rest import getCurrentUser
+from girder.constants import AccessType
+from girder.utility.model_importer import ModelImporter
 
 from celery.signals import before_task_publish, task_prerun, task_failure, \
     task_success
@@ -34,9 +38,9 @@ from celery import current_task
 from celery.utils.log import get_task_logger
 
 import cumulus.celery
+from cumulus.taskflow.core import setup_cluster
 from cumulus.logging import RESTfulLogHandler
 
-print 'HPC:', dir(cumulus.celery)
 
 logger = get_task_logger(__name__)
 
@@ -356,27 +360,6 @@ class ClusterProvisioningTaskFlow(TaskFlow):
         super(ClusterProvisioningTaskFlow, self).start(
             setup_cluster.s(self, *args, **kwargs))
 
-
-@task
-def setup_cluster(task, *args,**kwargs):
-    cluster = kwargs['cluster']
-
-    if '_id' in cluster:
-        task.taskflow.logger.info('We are using an existing cluster: %s' % cluster['name'])
-    else:
-        task.taskflow.logger.info('We are creating an EC2 cluster.')
-        task.logger.info('Cluster name %s' % cluster['name'])
-        kwargs['machine'] = cluster.get('machine')
-        profile = kwargs.get('profile')
-        ami = _get_image(task.logger, profile, kwargs['image_spec'])
-        cluster = create_ec2_cluster(task, cluster, profile, ami)
-        task.logger.info('Cluster started.')
-
-    # Call any follow on task
-    if 'next' in kwargs:
-        kwargs['cluster'] = cluster
-        next = Signature.from_dict(kwargs['next'])
-        next.delay(*args, **kwargs)
 
 def _taskflow_task_finished(taskflow, taskflow_task_id):
     girder_token = taskflow['girder_token']
