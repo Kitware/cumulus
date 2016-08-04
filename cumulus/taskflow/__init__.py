@@ -22,13 +22,9 @@ import importlib
 
 from functools import wraps
 import json
-from jsonpath_rw import parse
 import threading
 
 from girder_client import GirderClient, HttpError
-from girder.api.rest import getCurrentUser
-from girder.constants import AccessType
-from girder.utility.model_importer import ModelImporter
 
 from celery.signals import before_task_publish, task_prerun, task_failure, \
     task_success
@@ -38,7 +34,6 @@ from celery import current_task
 from celery.utils.log import get_task_logger
 
 import cumulus.celery
-from cumulus.taskflow.core import setup_cluster
 from cumulus.logging import RESTfulLogHandler
 
 
@@ -334,31 +329,6 @@ class CompositeTaskFlow(TaskFlow):
             self[CompositeTaskFlow.TASKFLOWS]
 
         taskflow.start()
-
-
-# TODO: Should this and other methods/classes be moved to separate files?
-class ClusterProvisioningTaskFlow(TaskFlow):
-
-    def start(self, *args, **kwargs):
-        user = getCurrentUser()
-        # Load the cluster
-        cluster_id = parse('cluster._id').find(kwargs)
-        if cluster_id:
-            cluster_id = cluster_id[0].value
-            model = ModelImporter.model('cluster', 'cumulus')
-            cluster = model.load(cluster_id, user=user, level=AccessType.ADMIN)
-            cluster = model.filter(cluster, user, passphrase=False)
-            kwargs['cluster'] = cluster
-
-        profile_id = parse('cluster.profileId').find(kwargs)
-        if profile_id:
-            profile_id = profile_id[0].value
-            model = ModelImporter.model('aws', 'cumulus')
-            profile = model.load(profile_id, user=user, level=AccessType.ADMIN)
-            kwargs['profile'] = profile
-
-        super(ClusterProvisioningTaskFlow, self).start(
-            setup_cluster.s(self, *args, **kwargs))
 
 
 def _taskflow_task_finished(taskflow, taskflow_task_id):
