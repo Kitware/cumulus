@@ -26,6 +26,7 @@ from girder.api.rest import getCurrentUser
 from .base import BaseModel
 from ..utility.volume_adapters import get_volume_adapter
 from cumulus.constants import VolumeType
+from cumulus.constants import VolumeState
 from cumulus.common.girder import send_log_notification
 
 
@@ -39,7 +40,8 @@ class Volume(BaseModel):
 
         self.exposeFields(level=AccessType.READ,
                           fields=('_id', 'config', 'ec2', 'fs', 'name', 'size',
-                                  'type', 'zone', 'profileId', 'clusterId'))
+                                  'type', 'zone', 'profileId', 'clusterId',
+                                  'status', 'path'))
 
     def validate(self, volume):
         if not volume['name']:
@@ -64,6 +66,14 @@ class Volume(BaseModel):
 
         return volume
 
+    def filter(self, volume, user):
+        volume = super(Volume, self).filter(doc=volume, user=user)
+
+        # Convert status (IntEnum) to string
+        volume['status'] = str(volume['status'])
+
+        return volume
+
     def create_ebs(self, user, profileId, name, zone, size, fs):
         volume = {
             'name': name,
@@ -74,6 +84,7 @@ class Volume(BaseModel):
                 'id': None
             },
             'profileId': profileId,
+            'status': VolumeState.CREATED,
             'log': []
         }
 

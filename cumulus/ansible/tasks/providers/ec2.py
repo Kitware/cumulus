@@ -156,6 +156,9 @@ class EC2Provider(CloudProvider):
     def _get_volume(self, girder_volume, refresh_cache=False):
         volume_id = parse('ec2.id').find(girder_volume)[0].value
 
+        if not volume_id:
+            return None
+
         try:
             if refresh_cache:
                 self._volume_cache[volume_id] = self.ec2.Volume(volume_id)
@@ -169,6 +172,10 @@ class EC2Provider(CloudProvider):
     def get_volume(self, girder_volume):
 
         aws_volume = self._get_volume(girder_volume)
+
+        if not aws_volume:
+            return None
+
         volume = {'volume_id': aws_volume.id}
 
         status = parse('VolumeStatuses[0].VolumeStatus.Status')\

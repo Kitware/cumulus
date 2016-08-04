@@ -76,8 +76,6 @@ class EC2VolumeIntegrationTest(AnsibleIntegrationTest):
 
         r = self._client.post(volume_url, data=json.dumps(body))
         self._volume_id = r['_id']
-        volume_status_url = 'volumes/%s/status' % self._volume_id
-        self._wait_for_status(volume_status_url, 'available', timeout=60)
 
     def attach_volume(self):
         attach_url = 'volumes/%s/clusters/%s/attach' % (self._volume_id, self._cluster_id)
@@ -104,7 +102,7 @@ class EC2VolumeIntegrationTest(AnsibleIntegrationTest):
         volume_url = 'volumes/%s' % self._volume_id
         r = self._client.delete(volume_url)
 
-        self.assertEquals(r['ec2']['status'], 'deleting')
+        self.assertEquals(r['status'], 'deleting')
 
         start = time.time();
         while True:
