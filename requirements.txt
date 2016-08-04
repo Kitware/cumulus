@@ -9,6 +9,6 @@ Jinja2==2.7.3
 six==1.9.0
 jsonpath-rw==1.4.0
 enum34==1.0.4
-ansible==2.0.1
+ansible==2.1
 -e git+https://github.com/girder/girder.git#egg=girder-client&subdirectory=clients/python
 paramiko==1.16.0
