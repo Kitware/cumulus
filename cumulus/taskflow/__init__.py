@@ -36,6 +36,7 @@ from celery.utils.log import get_task_logger
 import cumulus.celery
 from cumulus.logging import RESTfulLogHandler
 
+print 'HPC:', dir(cumulus.celery)
 
 logger = get_task_logger(__name__)
 
@@ -334,9 +335,48 @@ class CompositeTaskFlow(TaskFlow):
 # TODO: Should this and other methods/classes be moved to separate files?
 class ClusterProvisioningTaskFlow(TaskFlow):
 
-    def start(self, signature, **options):
+    def start(self, *args, **kwargs):
+        user = getCurrentUser()
+        # Load the cluster
+        cluster_id = parse('cluster._id').find(kwargs)
+        if cluster_id:
+            cluster_id = cluster_id[0].value
+            model = ModelImporter.model('cluster', 'cumulus')
+            cluster = model.load(cluster_id, user=user, level=AccessType.ADMIN)
+            cluster = model.filter(cluster, user, passphrase=False)
+            kwargs['cluster'] = cluster
 
-        super(ClusterProvisioningTaskFlow, self).start(signature, **options)
+        profile_id = parse('cluster.profileId').find(kwargs)
+        if profile_id:
+            profile_id = profile_id[0].value
+            model = ModelImporter.model('aws', 'cumulus')
+            profile = model.load(profile_id, user=user, level=AccessType.ADMIN)
+            kwargs['profile'] = profile
+
+        super(ClusterProvisioningTaskFlow, self).start(
+            setup_cluster.s(self, *args, **kwargs))
+
+
+@task
+def setup_cluster(task, *args,**kwargs):
+    cluster = kwargs['cluster']
+
+    if '_id' in cluster:
+        task.taskflow.logger.info('We are using an existing cluster: %s' % cluster['name'])
+    else:
+        task.taskflow.logger.info('We are creating an EC2 cluster.')
+        task.logger.info('Cluster name %s' % cluster['name'])
+        kwargs['machine'] = cluster.get('machine')
+        profile = kwargs.get('profile')
+        ami = _get_image(task.logger, profile, kwargs['image_spec'])
+        cluster = create_ec2_cluster(task, cluster, profile, ami)
+        task.logger.info('Cluster started.')
+
+    # Call any follow on task
+    if 'next' in kwargs:
+        kwargs['cluster'] = cluster
+        next = Signature.from_dict(kwargs['next'])
+        next.delay(*args, **kwargs)
 
 def _taskflow_task_finished(taskflow, taskflow_task_id):
     girder_token = taskflow['girder_token']
