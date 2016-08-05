@@ -17,16 +17,22 @@
 #  limitations under the License.
 ###############################################################################
 
+import json
 from jsonpath_rw import parse
+import requests
 
 from celery.canvas import Signature
 
 import cumulus.taskflow
 from cumulus.ansible.tasks.providers import CloudProvider
 
+from girder_client import GirderClient, HttpError
+
 from girder.api.rest import getCurrentUser
 from girder.constants import AccessType
 from girder.utility.model_importer import ModelImporter
+
+CHECKIP_URL = 'http://checkip.amazonaws.com/'
 
 # TODO: rework module file setup?
 class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
@@ -161,6 +167,12 @@ def create_ec2_cluster(task, cluster, profile, ami):
     cluster = client.get('clusters/%s' % cluster['_id'])
 
     return cluster
+
+def create_girder_client(girder_api_url, girder_token):
+    client = GirderClient(apiUrl=girder_api_url)
+    client.token = girder_token
+
+    return client
 
 def _get_image(logger, profile, image_spec):
     # Fetch the image from the CloudProvider
