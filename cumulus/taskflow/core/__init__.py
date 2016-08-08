@@ -25,6 +25,8 @@ from celery.canvas import Signature
 
 import cumulus.taskflow
 from cumulus.ansible.tasks.providers import CloudProvider
+from cumulus.tasks.job import terminate_job
+from cumulus.constants import JobState
 
 from girder_client import GirderClient, HttpError
 
@@ -58,6 +60,21 @@ class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
         super(ClusterProvisioningTaskFlow, self).start(
             setup_cluster.s(self, *args, **kwargs))
 
+    def terminate(self):
+        self.run_task(job_terminate.s())
+
+    def delete(self):
+        for job in self.get('meta', {}).get('jobs', []):
+            job_id = job['_id']
+            client = create_girder_client(self.girder_api_url, self.girder_token)
+            client.delete('jobs/%s' % job_id)
+
+            try:
+                client.get('jobs/%s' % job_id)
+            except HttpError as e:
+                if e.status != 404:
+                    self.logger.error('Unable to delete job: %s' % job_id)
+
 @cumulus.taskflow.task
 def setup_cluster(task, *args,**kwargs):
     cluster = kwargs['cluster']
@@ -78,6 +95,21 @@ def setup_cluster(task, *args,**kwargs):
         kwargs['cluster'] = cluster
         next = Signature.from_dict(kwargs['next'])
         next.delay(*args, **kwargs)
+
+@cumulus.taskflow.task
+def job_terminate(task):
+    cluster = parse('meta.cluster').find(task.taskflow)
+    if cluster:
+        cluster = cluster[0].value
+    else:
+        task.logger.warning('Unable to extract cluster from taskflow. '
+                         'Unable to terminate job.')
+
+    client = create_girder_client(
+            task.taskflow.girder_api_url, task.taskflow.girder_token)
+
+    jobs = task.taskflow.get('meta', {}).get('jobs', [])
+    terminate_jobs(task, client, cluster, jobs)
 
 def create_ec2_cluster(task, cluster, profile, ami):
     machine_type = cluster['machine']['id']
@@ -186,3 +218,20 @@ def _get_image(logger, profile, image_spec):
         logger.warn('Found more than one machine image for: %s' % image_spec['name'])
 
     return images[0]['image_id']
+
+def terminate_jobs(task, client, cluster, jobs):
+    for job in jobs:
+        task.logger.info('Terminating job %s' % job['_id'])
+        # Fetch the latest job info
+        job_url = 'jobs/%s' % job['_id']
+        job = client.get(job_url)
+
+        # Update the status to terminating
+        body = {
+            'status': JobState.TERMINATING
+        }
+        client.patch(job_url, data=json.dumps(body))
+
+        terminate_job(
+            cluster, job, log_write_url=None,
+            girder_token=task.taskflow.girder_token)
