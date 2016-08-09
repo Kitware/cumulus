@@ -86,8 +86,8 @@ def setup_cluster(task, *args,**kwargs):
         task.logger.info('Cluster name %s' % cluster['name'])
         kwargs['machine'] = cluster.get('machine')
         profile = kwargs.get('profile')
-        ami = _get_image(task.logger, profile, kwargs['image_spec'])
-        cluster = create_ec2_cluster(task, cluster, profile, ami)
+        cluster = create_ec2_cluster(
+            task, cluster, profile, kwargs['image_spec'])
         task.logger.info('Cluster started.')
 
     # Call any follow on task
@@ -111,7 +111,7 @@ def job_terminate(task):
     jobs = task.taskflow.get('meta', {}).get('jobs', [])
     terminate_jobs(task, client, cluster, jobs)
 
-def create_ec2_cluster(task, cluster, profile, ami):
+def create_ec2_cluster(task, cluster, profile, ami_spec):
     machine_type = cluster['machine']['id']
     nodeCount = cluster['clusterSize']-1
     launch_spec = 'ec2'
@@ -133,10 +133,10 @@ def create_ec2_cluster(task, cluster, profile, ami):
 
     launch_params = {
         'master_instance_type': machine_type,
-        'master_instance_ami': ami,
+        'master_ami_spec': ami_spec,
         'node_instance_count': nodeCount,
         'node_instance_type': machine_type,
-        'node_instance_ami': ami,
+        'node_ami_spec': ami_spec,
         'gpu': cluster['machine']['gpu'],
         'source_cidr_ip': source_ip,
         'extra_rules': extra_rules
@@ -209,13 +209,15 @@ def create_girder_client(girder_api_url, girder_token):
 def _get_image(logger, profile, image_spec):
     # Fetch the image from the CloudProvider
     provider = CloudProvider(profile)
-    images = provider.get_machine_images(name=image_spec['name'],
-                                         owner=image_spec['owner'])
+    images = provider.get_machine_images(owner=image_spec['owner'],
+                                         tags=image_spec['tags'])
 
     if len(images) == 0:
-        raise Exception('Unable to locate machine image: %s' % image_spec['name'])
+        raise Exception('Unable to locate machine image for the ' +
+                        'following spec: %s' % image_spec)
     elif len(images) > 1:
-        logger.warn('Found more than one machine image for: %s' % image_spec['name'])
+        logger.warn('Found more than one machine image for the ' +
+                    'following spec: %s' % image_spec)
 
     return images[0]['image_id']
 
