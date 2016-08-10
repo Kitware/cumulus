@@ -36,7 +36,7 @@ from girder.utility.model_importer import ModelImporter
 
 CHECKIP_URL = 'http://checkip.amazonaws.com/'
 
-# TODO: rework module file setup?
+
 class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
 
     def start(self, *args, **kwargs):
@@ -66,7 +66,8 @@ class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
     def delete(self):
         for job in self.get('meta', {}).get('jobs', []):
             job_id = job['_id']
-            client = create_girder_client(self.girder_api_url, self.girder_token)
+            client = create_girder_client(self.girder_api_url,
+                                          self.girder_token)
             client.delete('jobs/%s' % job_id)
 
             try:
@@ -75,12 +76,14 @@ class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
                 if e.status != 404:
                     self.logger.error('Unable to delete job: %s' % job_id)
 
+
 @cumulus.taskflow.task
-def setup_cluster(task, *args,**kwargs):
+def setup_cluster(task, *args, **kwargs):
     cluster = kwargs['cluster']
 
     if '_id' in cluster:
-        task.taskflow.logger.info('We are using an existing cluster: %s' % cluster['name'])
+        task.taskflow.logger.info(
+            'We are using an existing cluster: %s' % cluster['name'])
     else:
         task.taskflow.logger.info('We are creating an EC2 cluster.')
         task.logger.info('Cluster name %s' % cluster['name'])
@@ -96,6 +99,7 @@ def setup_cluster(task, *args,**kwargs):
         next = Signature.from_dict(kwargs['next'])
         next.delay(*args, **kwargs)
 
+
 @cumulus.taskflow.task
 def job_terminate(task):
     cluster = parse('meta.cluster').find(task.taskflow)
@@ -103,13 +107,14 @@ def job_terminate(task):
         cluster = cluster[0].value
     else:
         task.logger.warning('Unable to extract cluster from taskflow. '
-                         'Unable to terminate job.')
+                            'Unable to terminate job.')
 
-    client = create_girder_client(
-            task.taskflow.girder_api_url, task.taskflow.girder_token)
+    client = create_girder_client(task.taskflow.girder_api_url,
+                                  task.taskflow.girder_token)
 
     jobs = task.taskflow.get('meta', {}).get('jobs', [])
     terminate_jobs(task, client, cluster, jobs)
+
 
 def create_ec2_cluster(task, cluster, profile, ami_spec):
     machine_type = cluster['machine']['id']
@@ -127,7 +132,6 @@ def create_ec2_cluster(task, cluster, profile, ami_spec):
         'to_port': 9000,
         'cidr_ip': source_ip
     }]
-
 
     task.logger.info('Using source ip: %s' % source_ip)
 
@@ -149,7 +153,7 @@ def create_ec2_cluster(task, cluster, profile, ami_spec):
     body = {
         'type': 'ec2',
         'name': cluster['name'],
-         'config': {
+        'config': {
             'launch': {
                 'spec': launch_spec,
                 'params': launch_params
@@ -200,26 +204,13 @@ def create_ec2_cluster(task, cluster, profile, ami_spec):
 
     return cluster
 
+
 def create_girder_client(girder_api_url, girder_token):
     client = GirderClient(apiUrl=girder_api_url)
     client.token = girder_token
 
     return client
 
-def _get_image(logger, profile, image_spec):
-    # Fetch the image from the CloudProvider
-    provider = CloudProvider(profile)
-    images = provider.get_machine_images(owner=image_spec['owner'],
-                                         tags=image_spec['tags'])
-
-    if len(images) == 0:
-        raise Exception('Unable to locate machine image for the ' +
-                        'following spec: %s' % image_spec)
-    elif len(images) > 1:
-        logger.warn('Found more than one machine image for the ' +
-                    'following spec: %s' % image_spec)
-
-    return images[0]['image_id']
 
 def terminate_jobs(task, client, cluster, jobs):
     for job in jobs:
