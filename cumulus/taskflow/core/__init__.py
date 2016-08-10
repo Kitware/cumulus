@@ -24,7 +24,6 @@ import requests
 from celery.canvas import Signature
 
 import cumulus.taskflow
-from cumulus.ansible.tasks.providers import CloudProvider
 from cumulus.tasks.job import terminate_job
 from cumulus.constants import JobState
 

@@ -23,6 +23,7 @@ import sys
 
 import cumulus
 
+
 def find_modules(paths, prefix=''):
     for (loader, name, pkg) in pkgutil.iter_modules(paths):
         if pkg:
