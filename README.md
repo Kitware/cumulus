@@ -19,7 +19,7 @@ The `taskflow` plugin defines workflow orchestration tooling for Celery Tasks ru
 
 Submitting a job to an HPC cluster isn't a simple matter, e.g. you must create and provision the cluster, upload data to the cluster, get your data in the right format, monitor the job when it is running, check the status when it is finished, download the output, convert the data to the correct format for visualization, and then visualize the output.  
 
-TaskFlow is the attempt to take a set of celery tasks and reflect their state in Girder, as such it is a thin neveer on top of Celery's existing capabilities, e.g. Chords and Workflows.
+TaskFlow is the attempt to take a set of celery tasks and reflect their state in Girder, as such it is a thin wrapper on top of Celery's existing capabilities, e.g. Chords and Workflows.
 
 ### SFTP assetstore
 
