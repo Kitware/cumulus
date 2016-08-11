@@ -55,8 +55,8 @@ class TradClusterTestCase(AssertCallsMixin, unittest.TestCase):
         def _set_status(url, request):
             expected = {'status': self._expected_status}
             self._set_status_called = True
-            self._set_status_valid = json.loads(request.body) == expected
-            self._set_status_request = request.body
+            self._set_status_valid = json.loads(request.body.decode('utf8')) == expected
+            self._set_status_request = request.body.decode('utf8')
 
             return httmock.response(200, None, {}, request=request)
 
