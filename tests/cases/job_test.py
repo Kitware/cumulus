@@ -89,7 +89,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
         def _set_status(url, request):
             expected = {u'status': u'terminated', u'timings': {}, u'output': []}
 
-            self._set_status_called = json.loads(request.body) == expected
+            self._set_status_called = json.loads(request.body.decode('utf8')) == expected
 
             return httmock.response(200, None, {}, request=request)
 
@@ -151,7 +151,8 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
 
         def _set_status(url, request):
             expected = {'status': 'uploading', 'timings': {}, 'output': [{'itemId': u'dummy'}]}
-            self._set_status_called = json.loads(request.body) == expected
+            print('set_status')
+            self._set_status_called = json.loads(request.body.decode('utf8')) == expected
 
             return httmock.response(200, None, {}, request=request)
 
@@ -213,10 +214,10 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
 
         def _set_status(url, request):
             expected = {'status': 'running', 'timings': {}, 'output': []}
-            self._set_status_called = json.loads(request.body) == expected
+            self._set_status_called = json.loads(request.body.decode('utf8')) == expected
 
             if not self._set_status_called:
-                six.print_(json.loads(request.body), file=sys.stderr)
+                six.print_(json.loads(request.body.decode('utf8')), file=sys.stderr)
 
             return httmock.response(200, None, {}, request=request)
 
@@ -277,7 +278,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
 
         def _set_status(url, request):
             expected = {'status': 'queued', 'timings': {}, 'output': []}
-            self._set_status_called = json.loads(request.body) == expected
+            self._set_status_called = json.loads(request.body.decode('utf8')) == expected
 
             return httmock.response(200, None, {}, request=request)
 
@@ -339,10 +340,10 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
 
         def _set_status(url, request):
             expected = {u'status': u'running', u'output': [{u'content': [u'i have a tail', u'asdfas'], u'path': u'dummy/file/path', u'tail': True}], u'timings': {}}
-            self._set_status_called = json.loads(request.body) == expected
+            self._set_status_called = json.loads(request.body.decode('utf8')) == expected
 
             if not self._set_status_called:
-                six.print_(json.loads(request.body), file=sys.stderr)
+                six.print_(json.loads(request.body.decode('utf8')), file=sys.stderr)
 
             return httmock.response(200, None, {}, request=request)
 
@@ -624,7 +625,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
             expected = {'status': 'queued', 'timings': {}, 'output': []}
             job_id = url.path.split('/')[-1]
             self._set_status_calls[job_id] = True
-            self._set_status_called = json.loads(request.body) == expected
+            self._set_status_called = json.loads(request.body.decode('utf8')) == expected
 
             return httmock.response(200, None, {}, request=request)
 
@@ -711,7 +712,7 @@ class JobTestCase(AssertCallsMixin, unittest.TestCase):
             expected = {'status': 'complete', 'timings': {}, 'output': []}
             job_id = url.path.split('/')[-1]
             self._set_status_calls[job_id] = True
-            self._set_status_called = json.loads(request.body) == expected
+            self._set_status_called = json.loads(request.body.decode('utf8')) == expected
 
             return httmock.response(200, None, {}, request=request)
 

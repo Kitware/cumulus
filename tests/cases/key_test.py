@@ -43,7 +43,7 @@ class KeyTestCase(unittest.TestCase):
             pass
 
         def _update(url, request):
-            request_body = json.loads(request.body)
+            request_body = json.loads(request.body.decode('utf8'))
             passphrase = parse('config.ssh.passphrase').find(request_body)
             public_key = parse('config.ssh.publicKey').find(request_body)
             status = request_body['status'] == 'created'
