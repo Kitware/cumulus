@@ -52,7 +52,7 @@ class KeyTestCase(unittest.TestCase):
             pass
 
         def _update(url, request):
-            request_body = json.loads(request.body)
+            request_body = json.loads(request.body.decode('utf8'))
             status = parse('status').find(request_body)
             if status:
                 status = status[0].value
