@@ -1,4 +1,36 @@
 ---
+# Note that we don't include master/node ami variables - these
+# could be conditionally checked, but because the next thing we
+# do is try to find the master/node ami if they aren't defined
+# it seems unessisary.
+- name: Fail early if required variables are not defined
+  fail:
+    msg: "Variable {{ item }} is not defined"
+  when: item not in hostvars[inventory_hostname]
+  with_items:
+    - aws_keyname
+    - master_instance_type
+    - node_instance_type
+    - node_instance_count
+    - cluster_id
+    - cluster_region
+    - cluster_zone
+
+
+- name: Define default firewall rules if not provided
+  set_fact:
+    ec2_pod_rules:
+      - proto: tcp # ssh
+        from_port: 22
+        to_port: 22
+        cidr_ip: "{{ ssh_cidr_ip }}"
+
+      - proto: all
+        group_name: "ec2_pod_{{cluster_id}}"
+        group_desc: "Ec2 security group for cluster {{ cluster_id }}"
+  when: ec2_pod_rules is not defined
+
+
 # Find the Master AMI if master_instance_ami is not specified
 - block:
     - name: Find latest Master AMI

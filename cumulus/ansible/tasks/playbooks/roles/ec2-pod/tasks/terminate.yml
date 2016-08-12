@@ -1,4 +1,14 @@
 ---
+- name: Fail early if required variables are not defined
+  fail:
+    msg: "Variable {{ item }} is not defined"
+  when: item not in hostvars[inventory_hostname]
+  with_items:
+    - cluster_id
+    - cluster_region
+    - cluster_zone
+
+
 - name: Gather facts about remote instances
   ec2_remote_facts:
     filters:
