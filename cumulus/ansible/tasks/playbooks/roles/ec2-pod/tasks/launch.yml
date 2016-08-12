@@ -109,8 +109,6 @@
     # Misc
     group: "{{ ec2_security_group }}"
     placement_group: "{{ ec2_placement_group | default(omit) }}"
-    wait: yes
-    wait_timeout: "{{ ec2_launch_instance_timeout }}"
   register: master
 
 - name: Launch node instances
@@ -135,8 +133,6 @@
     # Misc
     group: "{{ ec2_security_group }}"
     placement_group: "{{ ec2_placement_group | default(omit) }}"
-    wait: yes
-    wait_timeout: "{{ ec2_launch_instance_timeout }}"
   register: nodes
 
 - name: Wait for SSH to come up on all instances
@@ -144,7 +140,7 @@
     host: "{{ item.public_dns_name }}"
     port: 22
     delay: 0
-    timeout: 360
+    timeout: "{{ ec2_launch_instance_timeout }}"
     state: started
   # Note: tagged_instances will include launched instances
   #       and instances that were already running.
