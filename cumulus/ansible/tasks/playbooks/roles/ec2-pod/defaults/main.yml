@@ -5,13 +5,6 @@ terminate_wait_timeout: 600
 
 ssh_cidr_ip: "{{ source_ssh_cidr_ip | default('0.0.0.0/0') }}"
 
-# Very insecure!
-ec2_pod_rules:
-  - proto: all
-    from_port: all
-    to_port: all
-    cidr_ip: "{{ ssh_cidr_ip }}"
-
 ec2_pod_rules_egress:
   - proto: all
     from_port: all
