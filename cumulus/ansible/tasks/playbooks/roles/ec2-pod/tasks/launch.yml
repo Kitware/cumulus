@@ -2,7 +2,7 @@
 # Note that we don't include master/node ami variables - these
 # could be conditionally checked, but because the next thing we
 # do is try to find the master/node ami if they aren't defined
-# it seems unessisary.
+# it seems unnecessary.
 - name: Fail early if required variables are not defined
   fail:
     msg: "Variable {{ item }} is not defined"

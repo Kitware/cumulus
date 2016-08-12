@@ -35,6 +35,8 @@
   with_items: "{{ remote['instances'] | default([]) |map(attribute='id') | list }}"
   async: "{{ terminate_wait_timeout }}"
   poll: 0
+  # Because this is run async,  each return value is actually a 'job'
+  # not the return value of the ec2 module.
   register: terminate_jobs
 
 - name: Wait for all instances to be terminated
