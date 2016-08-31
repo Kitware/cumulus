@@ -302,7 +302,8 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
     @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
     @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
-    def test_delete(self, attach_volume, CloudProvider):
+    @mock.patch('cumulus.ansible.tasks.volume.detach_volume.delay')
+    def test_delete(self, detach_volume, attach_volume, CloudProvider):
 
         CloudProvider.return_value.get_volume.return_value = None
 
