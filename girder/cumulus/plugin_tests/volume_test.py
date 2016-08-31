@@ -303,7 +303,9 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
     @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
     @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
     @mock.patch('cumulus.ansible.tasks.volume.detach_volume.delay')
-    def test_delete(self, detach_volume, attach_volume, CloudProvider):
+    @mock.patch('cumulus.ansible.tasks.volume.delete_volume.delay')
+    def test_delete(self, delete_volume, detach_volume,
+                    attach_volume, CloudProvider):
 
         CloudProvider.return_value.get_volume.return_value = None
 
@@ -313,7 +315,6 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
             'public_ip': 'x.x.x.x',
             'state': 'running',
         }
-
 
         body = {
             'name': 'test',
