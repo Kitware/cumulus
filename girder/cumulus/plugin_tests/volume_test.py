@@ -165,7 +165,6 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
             'fs': 'ext4',
             'profileId': self._profile_id
         }
-        print self._profile_id
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
                          user=self._user)
