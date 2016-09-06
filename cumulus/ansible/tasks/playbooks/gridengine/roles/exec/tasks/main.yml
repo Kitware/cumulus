@@ -1,5 +1,8 @@
 - name: Install grid engine packages on exec node
-  apt: name={{ item }} state=present
+  apt:
+    name={{ item }}
+    state=present
+    update_cache=yes
   become_user: root
   with_items:
     - gridengine-client
