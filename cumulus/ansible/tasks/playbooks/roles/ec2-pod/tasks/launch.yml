@@ -97,7 +97,7 @@
 
     # Tags
     instance_tags:
-      Name: ec2_pod_head
+      Name: "ec2_pod_{{ cluster_id }}_head"
       ec2_pod: "{{ cluster_id }}"
       ec2_pod_instance_name: head
     count_tag:
@@ -122,7 +122,7 @@
 
     # Tags
     instance_tags:
-      Name: ec2_pod_node
+      Name: "ec2_pod_{{ cluster_id }}_node"
       ec2_pod: "{{ cluster_id }}"
       ec2_pod_instance_name: node
     count_tag:
