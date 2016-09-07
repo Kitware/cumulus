@@ -358,7 +358,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         r = self.request('/volumes/%s' % volume_id, method='DELETE',
                          user=self._user)
         self.assertStatus(r, 400)
-
+        self.assertEquals(delete_volume.call_count, 0)
 
         # Mock out CloudProvider.get_volume to return an 'in-use' volume
         # That is what calls to attach & attach/complete should have
@@ -387,6 +387,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         r = self.request('/volumes/%s' % volume_id, method='DELETE',
                          user=self._user)
         self.assertStatus(r, 200)
+        self.assertEquals(delete_volume.call_count, 1)
 
     @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
     @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
