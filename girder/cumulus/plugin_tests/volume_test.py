@@ -184,7 +184,6 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         }
 
         del r.json['_id']
-        # import rpdb; rpdb.set_trace()
 
         self.assertEqual(r.json, expected, 'Unexpected volume returned')
 
@@ -392,7 +391,6 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
     @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
     @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
     def test_attach_volume(self, attach_volume, CloudProvider):
-#        import rpdb; rpdb.set_trace()
 
         CloudProvider.return_value.get_volume.return_value = None
 

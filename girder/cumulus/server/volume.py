@@ -109,9 +109,6 @@ class Volume(BaseResource):
     def create(self, params):
         body = getBodyJson()
 
-#        if body.get("name", None) == 'test2':
-#            import rpdb; rpdb.set_trace()
-
         self.requireParams(['name', 'type', 'size', 'profileId'], body)
 
         if not VolumeType.is_valid_type(body['type']):
