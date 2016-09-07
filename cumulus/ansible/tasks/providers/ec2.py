@@ -38,7 +38,7 @@ class EC2Provider(CloudProvider):
     }
 
     def __init__(self, profile):
-        # super(EC2Provider, self).__init__(profile)
+
         self.girder_profile_id = profile.get('_id', None)
 
         for key, value in profile.items():
