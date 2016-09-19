@@ -73,7 +73,7 @@ class Taskflow(AccessControlledModel):
         that can be passed to $set operator
         """
         for k, v in d.iteritems():
-            if isinstance(v, dict):
+            if isinstance(v, dict) and v:
                 if not path:
                     new_path = k
                 else:
