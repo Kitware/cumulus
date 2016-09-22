@@ -124,10 +124,10 @@
     instance_tags:
       Name: "ec2_pod_{{ cluster_id }}_node"
       ec2_pod: "{{ cluster_id }}"
-      ec2_pod_instance_name: node
+      ec2_pod_instance_name: data
     count_tag:
       ec2_pod: "{{ cluster_id }}"
-      ec2_pod_instance_name: node
+      ec2_pod_instance_name: data
     exact_count: "{{ node_instance_count }}"
 
     # Misc
@@ -135,15 +135,23 @@
     placement_group: "{{ ec2_placement_group | default(omit) }}"
   register: nodes
 
+# Get the list of instance ID's and use describe-instances to pull their public DNS names.
+# Note:  We do this because 'master' and 'nodes' return values are regularly returning
+# with a public_ip/public_dns_name attribute of 'null.'   It seems like maybe there is a race
+#  condition where the ansible script completes before the public_ip is assigned?
+- name: Poll instance data to get public DNS names
+  ec2_remote_facts:
+    filters:
+      instance-id: >-
+        {{ (master.tagged_instances | default([]) +
+            nodes.tagged_instances  | default([]) ) | map(attribute='id') | list }}
+    region: "{{ cluster_region }}"
+  register: instances
+
 - name: Wait for SSH to come up on all instances
   wait_for:
     host: "{{ item.public_dns_name }}"
     port: 22
-    delay: 0
     timeout: "{{ ec2_launch_instance_timeout }}"
     state: started
-  # Note: tagged_instances will include launched instances
-  #       and instances that were already running.
-  with_items: >-
-    {{ master.tagged_instances | default([]) +
-       nodes.tagged_instances | default([]) }}
+  with_items: "{{ instances.instances }}"
