@@ -108,6 +108,7 @@ class Volume(BaseResource):
     @access.user
     def create(self, params):
         body = getBodyJson()
+
         self.requireParams(['name', 'type', 'size', 'profileId'], body)
 
         if not VolumeType.is_valid_type(body['type']):
@@ -203,7 +204,7 @@ class Volume(BaseResource):
                level=AccessType.ADMIN)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def attach_complete(self, volume, cluster, params):
-        path = params.get('path', None)
+        path = getBodyJson().get('path', None)
 
         if path is not None:
             cluster.setdefault('volumes', [])
@@ -255,10 +256,12 @@ class Volume(BaseResource):
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
         aws_volume = p.get_volume(volume)
+
         # If volume exists it needs to be available to be attached. If
         # it doesn't exist it will be created as part of the attach
         # playbook.
-        if aws_volume is not None and aws_volume['state'] != VolumeState.AVAILABLE:
+        if aws_volume is not None and \
+           aws_volume['state'] != VolumeState.AVAILABLE:
             raise RestException('This volume is not available to attach '
                                 'to a cluster',
                                 400)
@@ -319,7 +322,7 @@ class Volume(BaseResource):
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
         aws_volume = p.get_volume(volume)
-        if aws_volume['state'] != VolumeState.INUSE:
+        if aws_volume is None or aws_volume['state'] != VolumeState.INUSE:
             raise RestException('This volume is not attached '
                                 'to a cluster',
                                 400)
@@ -403,8 +406,9 @@ class Volume(BaseResource):
 
         aws_volume = p.get_volume(volume)
         if aws_volume['state'] != VolumeState.AVAILABLE:
-            raise RestException('Volume must be in an "%s" status to be deleted'
-                                % VolumeState.AVAILABLE, 400)
+            raise RestException(
+                'Volume must be in an "%s" status to be deleted'
+                % VolumeState.AVAILABLE, 400)
 
         cumulus.ansible.tasks.volume.delete_volume\
             .delay(profile, self._model.filter(volume, getCurrentUser()),
