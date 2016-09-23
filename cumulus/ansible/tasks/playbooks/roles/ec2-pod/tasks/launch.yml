@@ -53,7 +53,7 @@
     - name: Find latest node AMI
       ec2_ami_find:
         state: available
-        sort: creationDaten
+        sort: creationDate
         sort_order: descending
         owner: "{{ node_ami_spec.owner }}"
         ami_tags: "{{ node_ami_spec.tags }}"
