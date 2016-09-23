@@ -118,7 +118,8 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         # Create EC2 cluster
         body = {
             'profileId': self._profile_id,
-            'name': 'testing'
+            'name': 'testing',
+            'cloudProvider': 'ec2'
         }
 
         json_body = json.dumps(body)
@@ -128,14 +129,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatus(r, 201)
         self._cluster_id = str(r.json['_id'])
 
-    @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
-    def test_create(self, get_ec2_client):
-        volume_id = 'vol-1'
-        ec2_client = get_ec2_client.return_value
-        ec2_client.create_volume.return_value = {
-            'VolumeId': volume_id
-        }
+    def test_create(self):
 
         body = {
             'name': 'test',
@@ -148,26 +142,20 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
                          user=self._user)
+
         self.assertStatus(r, 201)
+
         expected = {
+            u'status': u'created',
             u'name': u'test',
             u'zone': u'us-west-2a',
+            u'ec2': {u'id': None},
+            u'profileId': self._profile_id,
             u'type': u'ebs',
-            u'size': 20,
-            u'ec2': {
-                u'id': volume_id
-            },
-            u'profileId': self._profile_id
-        }
+            u'size': 20}
+
         del r.json['_id']
         self.assertEqual(r.json, expected, 'Unexpected volume returned')
-
-        # Try invalid type
-        body['type'] = 'bogus'
-        r = self.request('/volumes', method='POST',
-                         type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
-        self.assertStatus(r, 400)
         # Add file system type
         body = {
             'name': 'test2',
@@ -179,27 +167,40 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         }
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
+
         self.assertStatus(r, 201)
         expected = {
+            u'status': u'created',
             u'name': u'test2',
             u'zone': u'us-west-2a',
             u'type': u'ebs',
             u'size': 20,
             u'fs': u'ext4',
             u'ec2': {
-                u'id': volume_id
+                u'id': None
             },
             u'profileId': self._profile_id
         }
+
         del r.json['_id']
 
         self.assertEqual(r.json, expected, 'Unexpected volume returned')
+
+        # Try invalid type
+        body['type'] = 'bogus'
+        r = self.request('/volumes', method='POST',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatus(r, 400)
+
+
+
         # Try invalid file system type
         body['fs'] = 'bogus'
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatus(r, 400)
 
         # Try create volume with same name
@@ -222,12 +223,12 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
             'size': 20,
             'zone': 'us-west-2a',
             'type': 'ebs',
-            'profileId': self._profile_id
+            'profileId': self._another_profile_id
         }
 
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._another_user)
         self.assertStatus(r, 201)
 
         # Create a volume without a zone
@@ -240,7 +241,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatus(r, 201)
         self.assertEqual(r.json['zone'], self._availability_zone,
                          'Volume created in wrong zone')
@@ -251,17 +252,11 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         }
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
-                         user=self._cumulus)
+                         user=self._user)
         self.assertStatus(r, 400)
 
-    @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
-    def test_get(self, get_ec2_client):
-        volume_id = 'vol-1'
-        ec2_client = get_ec2_client.return_value
-        ec2_client.create_volume.return_value = {
-            'VolumeId': volume_id
-        }
+
+    def test_get(self):
 
         body = {
             'name': 'test',
@@ -281,11 +276,12 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
             u'name': u'test',
             u'zone': u'us-west-2a',
             u'ec2': {
-                u'id': u'vol-1'
+                u'id': None
             },
             u'type':
             u'ebs',
             u'size': 20,
+            u'status': u'created',
             u'profileId': self._profile_id
         }
 
@@ -302,13 +298,20 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          user=self._user)
         self.assertStatus(r, 400)
 
-    @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
-    def test_delete(self, get_ec2_client):
-        volume_id = 'vol-1'
-        ec2_client = get_ec2_client.return_value
-        ec2_client.create_volume.return_value = {
-            'VolumeId': volume_id
+    @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
+    @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
+    @mock.patch('cumulus.ansible.tasks.volume.detach_volume.delay')
+    @mock.patch('cumulus.ansible.tasks.volume.delete_volume.delay')
+    def test_delete(self, delete_volume, detach_volume,
+                    attach_volume, CloudProvider):
+
+        CloudProvider.return_value.get_volume.return_value = None
+
+        CloudProvider.return_value.get_master_instance.return_value = {
+            'instance_id': 'i-00000',
+            'private_ip': 'x.x.x.x',
+            'public_ip': 'x.x.x.x',
+            'state': 'running',
         }
 
         body = {
@@ -323,19 +326,16 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          type='application/json', body=json.dumps(body),
                          user=self._user)
         self.assertStatus(r, 201)
+
         volume = r.json
+
         volume_id = str(r.json['_id'])
 
-        # Try and delete any attached volume
-        ec2_client.describe_volumes.return_value = {
-            'Volumes': [{
-                'State': 'available'
 
-            }]
-        }
         body = {
             'path': '/data'
         }
+
 
         url = '/volumes/%s/clusters/%s/attach' % (volume_id, self._cluster_id)
         r = self.request(url, method='PUT',
@@ -343,44 +343,65 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          user=self._user)
         self.assertStatusOk(r)
 
+        # Patch back a fake volume ID (normally this would be called from ansible)
+        r = self.request('/volumes/%s' % (volume_id), method='PATCH',
+                         type='application/json',
+                         body=json.dumps({'ec2': {'id': 'vol-00000'}}),
+                         user=self._user)
+
+        # Complete the attach operation (normally this would be called from ansible)
+        r = self.request('/volumes/%s/clusters/%s/attach/complete' % (volume_id, self._cluster_id),
+                         method='PUT', type='application/json',
+                         user=self._user, body=json.dumps({"path": "/data"}))
+
+
         r = self.request('/volumes/%s' % volume_id, method='DELETE',
                          user=self._user)
         self.assertStatus(r, 400)
+        self.assertEquals(delete_volume.call_count, 0)
 
-        # Detach it then delete it
-        ec2_client.describe_volumes.return_value = {
-            'Volumes': [{
-                'State': 'in-use'
-
-            }]
+        # Mock out CloudProvider.get_volume to return an 'in-use' volume
+        # That is what calls to attach & attach/complete should have
+        # created.
+        CloudProvider.return_value.get_volume.return_value = {
+            'volume_id': 'vol-00000',
+            'state': 'in-use'
         }
 
         url = '/volumes/%s/detach' % (volume_id)
-        r = self.request(url, method='PUT', user=self._cumulus)
+        r = self.request(url, method='PUT', user=self._user)
+
+        url = '/volumes/%s/detach/complete' % (volume_id)
+        r = self.request(url, method='PUT', user=self._user)
+
+        # Mock out CloudProvider.get_volume to return an 'available' volume
+        # That is what calls to detach & detach/complete should have
+        # created.
+        CloudProvider.return_value.get_volume.return_value = {
+            'volume_id': 'vol-00000',
+            'state': 'available'
+        }
+
         self.assertStatusOk(r)
 
         r = self.request('/volumes/%s' % volume_id, method='DELETE',
                          user=self._user)
         self.assertStatus(r, 200)
+        self.assertEquals(delete_volume.call_count, 1)
 
+    @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
+    @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
+    def test_attach_volume(self, attach_volume, CloudProvider):
 
+        CloudProvider.return_value.get_volume.return_value = None
 
-    @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
-    def test_attach_volume(self, get_ec2_client):
-
-        ec2_volume_id = 'vol-1'
-        ec2_client = get_ec2_client.return_value
-        ec2_client.create_volume.return_value = {
-            'VolumeId': ec2_volume_id
+        CloudProvider.return_value.get_master_instance.return_value = {
+            'instance_id': 'i-00000',
+            'private_ip': 'x.x.x.x',
+            'public_ip': 'x.x.x.x',
+            'state': 'running',
         }
 
-        ec2_client.describe_volumes.return_value = {
-            'Volumes': [{
-                'State': 'available'
-
-            }]
-        }
         body = {
             'name': 'test',
             'size': 20,
@@ -394,6 +415,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          type='application/json', body=json.dumps(body),
                          user=self._user)
         self.assertStatus(r, 201)
+
         volume_id = str(r.json['_id'])
 
         body = {
@@ -405,10 +427,56 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          type='application/json', body=json.dumps(body),
                          user=self._user)
 
+
         self.assertStatusOk(r)
 
+        expected ={'status': 'attaching',
+                   'fs': u'ext4',
+                   'name': u'test',
+                   'zone': u'us-west-2a',
+                   'ec2': {u'id': None},
+                   'profileId': self._profile_id,
+                   '_id': volume_id,
+                   'type': u'ebs',
+                   'size': 20}
+
+        self.assertEqual(r.json, expected)
+
+
+        # Patch back a fake volume ID (normally this would be called from ansible)
+        r = self.request('/volumes/%s' % (volume_id), method='PATCH',
+                         type='application/json',
+                         body=json.dumps({'ec2': {'id': 'vol-00000'}}),
+                         user=self._user)
+
+        # Complete the attach operation (normally this would be called from ansible)
+        r = self.request('/volumes/%s/clusters/%s/attach/complete' % (volume_id, self._cluster_id),
+                         method='PUT', type='application/json',
+                         user=self._user, body=json.dumps({"path": "/data"}))
+
+
+
+        # Test that the volume has been set up correctly
+        r = self.request('/volumes/%s' % volume_id, method='GET',
+                         type='application/json', user=self._user)
+        expected = {u'status': u'in-use',
+                    u'fs': u'ext4',
+                    u'name': u'test',
+                    u'zone': u'us-west-2a',
+                    u'clusterId': self._cluster_id,
+                    u'ec2': {u'id': u'vol-00000'},
+                    u'profileId': self._profile_id,
+                    u'path': u'/data',
+                    u'_id': volume_id,
+                    u'type': u'ebs',
+                    u'size': 20}
+
+        self.assertEquals(r.json, expected)
+
+        # Test that the volume shows up on the cluster under 'volumes' attribute
         r = self.request('/clusters/%s' % self._cluster_id, method='GET',
                          type='application/json', user=self._user)
+
         self.assertStatusOk(r)
 
         expected = {
@@ -433,30 +501,12 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                 }
             }
         }
+
         self.assertEqual(r.json, expected)
 
-        # Try to attach volume that is already attached
-        ec2_client.reset_mock()
-        ec2_client.describe_volumes.return_value = {
-            'Volumes': [{
-                'State': 'in-use'
-
-            }]
-        }
-
-        url = '/volumes/%s/clusters/%s/attach' % (volume_id, self._cluster_id)
-        r = self.request(url, method='PUT',
-                         type='application/json', body=json.dumps(body),
-                         user=self._user)
-        self.assertStatus(r, 400)
-
-        # Try to attach volume that is currently being created
-        ec2_client.reset_mock()
-        ec2_client.describe_volumes.return_value = {
-            'Volumes': [{
-                'State': 'creating'
-
-            }]
+        # Try to attach volume to a volume that is in use
+        CloudProvider.return_value.get_volume.return_value = {
+            'id': 'vol-00000', 'state': 'in-use'
         }
 
         url = '/volumes/%s/clusters/%s/attach' % (volume_id, self._cluster_id)
@@ -465,14 +515,14 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          user=self._user)
 
         self.assertStatus(r, 400)
-        # Try to attach volume to traditional cluster
-        ec2_client.reset_mock()
-        ec2_client.describe_volumes.return_value = {
-            'Volumes': [{
-                'State': 'creating'
 
-            }]
-        }
+
+        # Try to attach volume to a traditional cluster
+        # Patch back to 'attaching' so we don't error out on volume in use
+        r = self.request('/volumes/%s' % (volume_id), method='PATCH',
+                         type='application/json',
+                         body=json.dumps({'status': 'attaching'}),
+                         user=self._user)
 
         url = '/volumes/%s/clusters/%s/attach' % (
             volume_id, self._trad_cluster_id)
@@ -481,18 +531,17 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          user=self._user)
         self.assertStatus(r, 400)
 
-    @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
-    def test_detach_volume(self, get_ec2_client):
-        ec2_volume_id = 'vol-1'
-        ec2_client = get_ec2_client.return_value
-        ec2_client.create_volume.return_value = {
-            'VolumeId': ec2_volume_id
-        }
-        ec2_client.describe_volumes.return_value = {
-            'Volumes': [{
-                'State': 'available'
-            }]
+    @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
+    @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
+    @mock.patch('cumulus.ansible.tasks.volume.detach_volume.delay')
+    def test_detach_volume(self, detach_volume, attach_volume, CloudProvider):
+        CloudProvider.return_value.get_volume.return_value = None
+
+        CloudProvider.return_value.get_master_instance.return_value = {
+            'instance_id': 'i-00000',
+            'private_ip': 'x.x.x.x',
+            'public_ip': 'x.x.x.x',
+            'state': 'running',
         }
 
         body = {
@@ -506,7 +555,9 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         r = self.request('/volumes', method='POST',
                          type='application/json', body=json.dumps(body),
                          user=self._user)
+
         self.assertStatus(r, 201)
+
         volume_id = str(r.json['_id'])
 
         # Try detaching volume not in use
@@ -524,23 +575,38 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          user=self._user)
         self.assertStatusOk(r)
 
-        # Try successful detach
-        ec2_client.reset_mock()
-        ec2_client.create_volume.return_value = {
-            'VolumeId': ec2_volume_id
-        }
-        ec2_client.describe_volumes.return_value = {
-            'Volumes': [{
-                'State': 'in-use'
-            }]
+
+        # Patch back a fake volume ID (normally this would be called from ansible)
+        r = self.request('/volumes/%s' % (volume_id), method='PATCH',
+                         type='application/json',
+                         body=json.dumps({'ec2': {'id': 'vol-00000'}}),
+                         user=self._user)
+
+        # Complete the attach operation (normally this would be called from ansible)
+        r = self.request('/volumes/%s/clusters/%s/attach/complete' % (volume_id, self._cluster_id),
+                         method='PUT', type='application/json',
+                         user=self._user, body=json.dumps({"path": "/data"}))
+
+
+        # Mock out CloudProvider.get_volume to return an 'in-use' volume
+        # That is what calls to attach & attach/complete should have
+        # created.
+        CloudProvider.return_value.get_volume.return_value = {
+            'volume_id': 'vol-00000',
+            'state': 'in-use'
         }
 
         url = '/volumes/%s/detach' % (volume_id)
         r = self.request(url, method='PUT', user=self._user)
         self.assertStatusOk(r)
 
+        url = '/volumes/%s/detach/complete' % (volume_id)
+        r = self.request(url, method='PUT', user=self._user)
+        self.assertStatusOk(r)
+
+
         # Assert that detach was called on ec2 object
-        self.assertEqual(len(ec2_client.detach_volume.call_args_list),
+        self.assertEqual(len(detach_volume.call_args_list),
                          1, "detach was not called")
 
         r = self.request('/clusters/%s' % self._cluster_id, method='GET',
@@ -571,19 +637,9 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         }
         self.assertEqual(r.json, expected)
 
-    @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
-    def test_find_volume(self, get_ec2_client):
-        ec2_volume_id = 'vol-1'
-        ec2_client = get_ec2_client.return_value
-        ec2_client.create_volume.return_value = {
-            'VolumeId': ec2_volume_id
-        }
-        ec2_client.describe_volumes.return_value = {
-            'Volumes': [{
-                'State': 'available'
-            }]
-        }
+    @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
+    @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
+    def test_find_volume(self, attach_volume, CloudProvider):
 
         # Create some test volumes
         body = {
@@ -626,6 +682,8 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         self.assertEqual(len(r.json), 1, 'Wrong number of volumes returned')
         self.assertEqual(r.json[0]['_id'], volume_2_id, 'Wrong volume returned')
 
+
+
         # Seach for volumes attached to a particular cluster
         params = {
             'clusterId': self._cluster_id
@@ -639,6 +697,16 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
             'path': '/data'
         }
 
+        CloudProvider.return_value.get_volume.return_value = None
+
+        CloudProvider.return_value.get_master_instance.return_value = {
+            'instance_id': 'i-00000',
+            'private_ip': 'x.x.x.x',
+            'public_ip': 'x.x.x.x',
+            'state': 'running',
+        }
+
+
         # Attach a volume
         url = '/volumes/%s/clusters/%s/attach' % (str(volume_1_id), self._cluster_id)
         r = self.request(url, method='PUT',
@@ -646,26 +714,39 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          user=self._user)
         self.assertStatusOk(r)
 
+        # Patch back a fake volume ID (normally this would be called from ansible)
+        r = self.request('/volumes/%s' % (volume_1_id), method='PATCH',
+                         type='application/json',
+                         body=json.dumps({'ec2': {'id': 'vol-00000'}}),
+                         user=self._user)
+
+        # Complete the attach operation (normally this would be called from ansible)
+        r = self.request('/volumes/%s/clusters/%s/attach/complete' % (volume_1_id, self._cluster_id),
+                         method='PUT', type='application/json',
+                         user=self._user, body=json.dumps({"path": "/data"}))
+
+
         # Search again
         r = self.request('/volumes', method='GET', user=self._user,
                          params=params)
         self.assertStatusOk(r)
         self.assertEqual(len(r.json), 1, 'Wrong number of volumes returned')
 
-    @unittest.skip('Skipping until https://github.com/Kitware/cumulus/issues/242 is fixed')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
-    def test_get_status(self, get_ec2_client):
-        ec2_volume_id = 'vol-1'
-        ec2_client = get_ec2_client.return_value
-        ec2_client.create_volume.return_value = {
-            'VolumeId': ec2_volume_id
-        }
-        ec2_client.describe_volumes.return_value = {
-            'Volumes': [{
-                'State': 'available'
-            }]
-        }
+    @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
+    @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
+    @mock.patch('cumulus.ansible.tasks.volume.detach_volume.delay')
+    def test_get_status(self, detach_volume, attach_volume, CloudProvider):
         # Create some test volumes
+
+        CloudProvider.return_value.get_volume.return_value = None
+        CloudProvider.return_value.get_master_instance.return_value = {
+            'instance_id': 'i-00000',
+            'private_ip': 'x.x.x.x',
+            'public_ip': 'x.x.x.x',
+            'state': 'running',
+        }
+
+
         body = {
             'name': 'testing me',
             'size': 20,
@@ -680,26 +761,73 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatus(r, 201)
         volume_id = str(r.json['_id'])
 
-        # Get status
+        # Should initially be in status 'created'
+        url = '/volumes/%s/status' % volume_id
+        r = self.request(url, method='GET', user=self._user)
+        self.assertStatusOk(r)
+        expected = {
+            u'status': u'created'
+        }
+        self.assertEqual(r.json, expected, 'Unexpected status: {}'.format(r.json))
+
+
+        # Attach the to a fake cluster
+        body = {
+            'path': '/data'
+        }
+
+        url = '/volumes/%s/clusters/%s/attach' % (volume_id, self._cluster_id)
+        r = self.request(url, method='PUT',
+                         type='application/json', body=json.dumps(body),
+                         user=self._user)
+        self.assertStatusOk(r)
+
+        ### Patch back a fake volume ID (normally this would be called from ansible)
+        r = self.request('/volumes/%s' % (volume_id), method='PATCH',
+                         type='application/json',
+                         body=json.dumps({'ec2': {'id': 'vol-00000'}}),
+                         user=self._user)
+
+        ### Complete the attach operation (normally this would be called from ansible)
+        r = self.request('/volumes/%s/clusters/%s/attach/complete' % (volume_id, self._cluster_id),
+                         method='PUT', type='application/json',
+                         user=self._user, body=json.dumps({"path": "/data"}))
+
+
+        url = '/volumes/%s/status' % volume_id
+        r = self.request(url, method='GET', user=self._user)
+        self.assertStatusOk(r)
+        expected = {
+            u'status': u'in-use'
+        }
+        self.assertEqual(r.json, expected, 'Unexpected status'.format(r.json))
+
+        # Detach the volume
+
+        # Mock out CloudProvider.get_volume to return an 'in-use' volume
+        # That is what calls to attach & attach/complete should have
+        # created.
+        CloudProvider.return_value.get_volume.return_value = {
+            'volume_id': 'vol-00000',
+            'state': 'in-use'
+        }
+
+        url = '/volumes/%s/detach' % (volume_id)
+        r = self.request(url, method='PUT', user=self._user)
+        self.assertStatusOk(r)
+
+        url = '/volumes/%s/detach/complete' % (volume_id)
+        r = self.request(url, method='PUT', user=self._user)
+        self.assertStatusOk(r)
+
         url = '/volumes/%s/status' % volume_id
         r = self.request(url, method='GET', user=self._user)
         self.assertStatusOk(r)
         expected = {
             u'status': u'available'
         }
-        self.assertEqual(r.json, expected, 'Unexpected status')
+        self.assertEqual(r.json, expected, 'Unexpected status'.format(r.json))
 
-        ec2_client.describe_volumes.return_value = {
-            'Volumes': [{
-                'State': 'in-use'
-            }]
-        }
-        r = self.request(url, method='GET', user=self._user)
-        self.assertStatusOk(r)
-        expected = {
-            u'status': u'in-use'
-        }
-        self.assertEqual(r.json, expected, 'Unexpected status')
 
     def test_log(self):
         volume_id = 'vol-1'
