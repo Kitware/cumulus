@@ -1,0 +1,157 @@
+---
+# Note that we don't include master/node ami variables - these
+# could be conditionally checked, but because the next thing we
+# do is try to find the master/node ami if they aren't defined
+# it seems unnecessary.
+- name: Fail early if required variables are not defined
+  fail:
+    msg: "Variable {{ item }} is not defined"
+  when: item not in hostvars[inventory_hostname]
+  with_items:
+    - aws_keyname
+    - master_instance_type
+    - node_instance_type
+    - node_instance_count
+    - cluster_id
+    - cluster_region
+    - cluster_zone
+
+
+- name: Define default firewall rules if not provided
+  set_fact:
+    ec2_pod_rules:
+      - proto: tcp # ssh
+        from_port: 22
+        to_port: 22
+        cidr_ip: "{{ ssh_cidr_ip }}"
+
+      - proto: all
+        group_name: "{{ ec2_group_name }}"
+        group_desc: "Ec2 security group for {{ ec2_group_name }}"
+  when: ec2_pod_rules is not defined
+
+
+# Find the Master AMI if master_instance_ami is not specified
+- block:
+    - name: Find latest Master AMI
+      ec2_ami_find:
+        state: available
+        sort: creationDate
+        sort_order: descending
+        owner: "{{ master_ami_spec.owner }}"
+        ami_tags: "{{ master_ami_spec.tags }}"
+        region: "{{ cluster_region }}"
+      register: master_amis
+
+    - name: Register to master_instance_ami variable
+      set_fact:
+        master_instance_ami: "{{ master_amis.results[0]['ami_id'] }}"
+  when: master_instance_ami is not defined
+
+# Find the Node AMI if node_instance_ami is not specified
+- block:
+    - name: Find latest node AMI
+      ec2_ami_find:
+        state: available
+        sort: creationDate
+        sort_order: descending
+        owner: "{{ node_ami_spec.owner }}"
+        ami_tags: "{{ node_ami_spec.tags }}"
+        region: "{{ cluster_region }}"
+      register: node_amis
+
+    - name: Register to node_instance_ami variable
+      set_fact:
+        node_instance_ami: "{{ node_amis.results[0]['ami_id'] }}"
+  when: node_instance_ami is not defined
+
+
+# Create a custom security group if one is not passed in
+- block:
+    - name: Create a custom security group
+      ec2_group:
+        name: "ec2_pod_{{ cluster_id }}"
+        description: >-
+          security group for ec2 pod: {{ cluster_id }}
+        region: "{{ cluster_region }}"
+        rules: "{{ ec2_pod_rules }}"
+        rules_egress: "{{ ec2_pod_rules_egress }}"
+
+    - name: Register custom security group
+      set_fact:
+        ec2_security_group: "ec2_pod_{{ cluster_id }}"
+  when: ec2_security_group is not defined
+
+###
+# Launch instances and wait for SSH to come up
+#
+
+- name: Launch master instance
+  ec2:
+    # Required vars
+    instance_type: "{{ master_instance_type }}"
+    image: "{{ master_instance_ami }}"
+    region: "{{ cluster_region }}"
+    zone: "{{ cluster_zone }}"
+    key_name: "{{ aws_keyname }}"
+
+    # Tags
+    instance_tags:
+      Name: "ec2_pod_{{ cluster_id }}_head"
+      ec2_pod: "{{ cluster_id }}"
+      ec2_pod_instance_name: head
+    count_tag:
+      ec2_pod: "{{ cluster_id }}"
+      ec2_pod_instance_name: head
+    # There can be only one...
+    exact_count: 1
+
+    # Misc
+    group: "{{ ec2_security_group }}"
+    placement_group: "{{ ec2_placement_group | default(omit) }}"
+  register: master
+
+- name: Launch node instances
+  ec2:
+    # Required vars
+    instance_type: "{{ node_instance_type }}"
+    image: "{{ node_instance_ami }}"
+    region: "{{ cluster_region }}"
+    zone: "{{ cluster_zone }}"
+    key_name: "{{ aws_keyname }}"
+
+    # Tags
+    instance_tags:
+      Name: "ec2_pod_{{ cluster_id }}_node"
+      ec2_pod: "{{ cluster_id }}"
+      ec2_pod_instance_name: data
+    count_tag:
+      ec2_pod: "{{ cluster_id }}"
+      ec2_pod_instance_name: data
+    exact_count: "{{ node_instance_count }}"
+
+    # Misc
+    group: "{{ ec2_security_group }}"
+    placement_group: "{{ ec2_placement_group | default(omit) }}"
+  register: nodes
+
+# Get the list of instance ID's and use describe-instances to pull their public DNS names.
+# Note:  We do this because 'master' and 'nodes' return values are regularly returning
+# with a public_ip/public_dns_name attribute of 'null.'   It seems like maybe there is a race
+#  condition where the ansible script completes before the public_ip is assigned?
+- name: Poll instance data to get public DNS names
+  ec2_remote_facts:
+    filters:
+      instance-id: >-
+        {{ (master.tagged_instances | default([]) +
+            nodes.tagged_instances  | default([]) ) | map(attribute='id') | list }}
+    region: "{{ cluster_region }}"
+  register: instances
+
+- name: Wait for SSH to come up on all instances
+  wait_for:
+    host: "{{ item.public_dns_name }}"
+    port: 22
+    timeout: "{{ ec2_launch_instance_timeout }}"
+    state: started
+  with_items: "{{ instances.instances }}"

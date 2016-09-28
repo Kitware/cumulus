@@ -125,12 +125,26 @@ def create_ec2_cluster(task, cluster, profile, ami_spec):
     r.raise_for_status()
     source_ip = '%s/32' % r.text.strip()
 
-    extra_rules = [{
-        'proto': 'tcp',
-        'from_port': 9000,
-        'to_port': 9000,
-        'cidr_ip': source_ip
-    }]
+    ec2_pod_rules = [
+        {
+            'proto': 'tcp',
+            'from_port': 22,
+            'to_port': 22,
+            'cidr_ip': '0.0.0.0/0'
+        },
+        {
+            'proto': 'tcp',
+            'from_port': 9000,
+            'to_port': 9000,
+            'cidr_ip': source_ip
+        },
+        # Clean this up when we are able to pass in the group_name.
+        {
+            'proto': 'all',
+            'group_name': 'ec2_pod_{{cluster_id}}',
+            'group_desc': 'Ec2 security group for cluster {{ cluster_id }}'
+        }
+    ]
 
     task.logger.info('Using source ip: %s' % source_ip)
 
@@ -142,7 +156,7 @@ def create_ec2_cluster(task, cluster, profile, ami_spec):
         'node_ami_spec': ami_spec,
         'gpu': cluster['machine']['gpu'],
         'source_cidr_ip': source_ip,
-        'extra_rules': extra_rules
+        'ec2_pod_rules': ec2_pod_rules
     }
     provision_spec = 'gridengine/site'
     provision_params = {

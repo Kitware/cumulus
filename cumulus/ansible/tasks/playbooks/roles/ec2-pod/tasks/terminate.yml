@@ -1,0 +1,56 @@
+---
+- name: Fail early if required variables are not defined
+  fail:
+    msg: "Variable {{ item }} is not defined"
+  when: item not in hostvars[inventory_hostname]
+  with_items:
+    - cluster_id
+    - cluster_region
+    - cluster_zone
+
+
+- name: Gather facts about remote instances
+  ec2_remote_facts:
+    filters:
+      instance-state-name: 'running'
+      "tag:ec2_pod": "{{ cluster_id }}"
+    region: "{{ cluster_region }}"
+  register: remote
+
+# Note: we launch an async job to terminate each of the instances
+# then we wait for each of the jobs to b completed.  This shouldn't
+# be nessisary,  unfortunately because of:
+# https://github.com/ansible/ansible-modules-core/issues/4011
+# Terminate will timeout if we have instances from multiple AWS
+# reservations.  This is less efficient,  but ensures all instances
+# are termianted and that the playbook continues without failure.
+- name: Terminate instances
+  ec2:
+    instance_ids: "{{ item }}"
+    region: "{{ cluster_region }}"
+    zone: "{{ cluster_zone }}"
+    state: absent
+    wait: yes
+    wait_timeout: "{{ terminate_wait_timeout }}"
+  with_items: "{{ remote['instances'] | default([]) |map(attribute='id') | list }}"
+  async: "{{ terminate_wait_timeout }}"
+  poll: 0
+  # Because this is run async,  each return value is actually a 'job'
+  # not the return value of the ec2 module.
+  register: terminate_jobs
+
+- name: Wait for all instances to be terminated
+  async_status: jid="{{ item.ansible_job_id }}"
+  register: job_result
+  until: "{{ job_result.finished }}"
+  retries: "{{ (terminate_wait_timeout / 3) | int}}"
+  delay: 3
+  with_items: "{{ terminate_jobs.results |default([]) }}"
+
+- name: Remove security group
+  ec2_group:
+    description: >-
+      security group for ec2 pod: {{ cluster_id }}
+    region: "{{ cluster_region }}"
+    name: ec2_pod_{{ cluster_id }}
+    state: absent
