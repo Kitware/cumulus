@@ -10,3 +10,5 @@ ec2_pod_rules_egress:
     from_port: all
     to_port: all
     cidr_ip: 0.0.0.0/0
+
+ec2_group_name: "ec2_pod_{{ cluster_id }}"

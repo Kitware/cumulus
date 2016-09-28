@@ -26,8 +26,8 @@
         cidr_ip: "{{ ssh_cidr_ip }}"
 
       - proto: all
-        group_name: "ec2_pod_{{cluster_id}}"
-        group_desc: "Ec2 security group for cluster {{ cluster_id }}"
+        group_name: "{{ ec2_group_name }}"
+        group_desc: "Ec2 security group for {{ ec2_group_name }}"
   when: ec2_pod_rules is not defined
 
 
