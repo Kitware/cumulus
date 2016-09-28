@@ -163,7 +163,8 @@ ClusterStatus.valid_transitions = {
                              ClusterStatus.RUNNING,
                              ClusterStatus.ERROR],
     ClusterStatus.TERMINATED: [ClusterStatus.TERMINATED],
-    ClusterStatus.ERROR: [ClusterStatus.ERROR]
+    ClusterStatus.ERROR: [ClusterStatus.ERROR,
+                          ClusterStatus.TERMINATING]
 }
 
 
