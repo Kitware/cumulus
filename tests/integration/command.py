@@ -12,6 +12,7 @@ class ConfigParam(click.ParamType):
     def convert(self, value, param, ctx):
         try:
             parser = ConfigParser.RawConfigParser()
+            parser.optionxform = str
             parser.read(value)
 
             return parser
@@ -33,7 +34,7 @@ def section_property(prefix, config="config"):
     For Example:
         # Assume the foolowing configuration in /path/to/config.cfg
         [my_girder_section]
-        url = "http://127.0.0.1:8080"
+        api_url = "http://127.0.0.1:8080"
         some_property = "foobar"
 
         class Foo(object):
@@ -49,7 +50,7 @@ def section_property(prefix, config="config"):
         ['/path/to/config.cfg']
 
         >>> f = Foo(config, 'my_girder_section')
-        >>> f.foo_url
+        >>> f.foo_api_url
         'http://127.0.0.1:8080'
         >>> f.foo_some_property
         'foobar'
@@ -93,23 +94,79 @@ class Cluster(object):
         self.aws_section = aws_section
         self.girder_section = girder_section
 
-        self._client = GirderClient(
-            apiUrl="%s/api/v1/" % self.girder_url)
+        self._client = GirderClient(apiUrl=self.girder_api_url)
 
         self._client.authenticate(self.girder_user,
                                   self.girder_password)
 
+    @property
+    def user(self):
+        if not hasattr(self, "_user"):
+            self._user = None
+
+        if self._user is None:
+            setattr(self, "_user", self.get("user/me"))
+
+        return self._user
+
+    @property
+    def profile(self):
+        if not hasattr(self, "_profile"):
+            self._profile = None
+
+        if self._profile is None:
+            # TODO: actually get or create the profile
+            self._profile = {'_id' : 'FIXME'}
+
+        return self._profile
+
+    def get_profile_body(self):
+        if self.profile_section:
+            return {
+                'accessKeyId': self.aws_access_key_id,
+                'availabilityZone': self.aws_availabilityZone,
+                'name': self.profile_name,
+                'regionName': self.aws_regionName,
+                'cloudProvider': self.profile_cloudProvider,
+                'secretAccessKey': self.aws_secret_access_key
+            }
+        else:
+            raise RuntimeError("No profile section found!")
+
+    def get_cluster_body(self):
+        if self.cluster_section:
+            return {
+                'config': {
+                    'launch': {
+                        'spec': 'ec2',
+                        'params': {
+                            'master_instance_type': self.cluster_master_instance_type,
+                            'master_instance_ami': self.cluster_master_instance_ami,
+                            'node_instance_count': self.cluster_node_instance_count,
+                            'node_instance_type': self.cluster_node_instance_type,
+                            'node_instance_ami': self.cluster_node_instance_ami,
+                            'terminate_wait_timeout': self.cluster_terminate_wait_timeout
+                        }
+                    }
+                },
+                'profileId': self.profile['_id'],
+                'name': self.cluster_name,
+                'type': self.cluster_type
+            }
+        else:
+            raise RuntimeError("No cluster section found!")
+
     def get(self, *args, **kwargs):
-        self.client.get(*args, **kwargs)
+        return self._client.get(*args, **kwargs)
 
     def post(self, *args, **kwargs):
-        self.client.post(*args, **kwargs)
+        return self._client.post(*args, **kwargs)
 
     def put(self, *args, **kwargs):
-        self.client.put(*args, **kwargs)
+        return self._client.put(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        self.client.delete(*args, **kwargs)
+        return self._client.delete(*args, **kwargs)
 
 
 pass_cluster = click.make_pass_decorator(Cluster)
@@ -132,15 +189,21 @@ def cli(ctx, config, girder_section, aws_section):
 @pass_cluster
 def create_profile(cluster, profile_section):
     cluster.profile_section = profile_section
-    click.echo(cluster.profile_name)
+    click.echo('POST %s/user/%s/aws/profiles' % (
+        cluster.girder_api_url,
+        cluster.user['_id']))
+    click.echo(cluster.get_profile_body())
 
 
 @cli.command()
 @click.option('--profile_section', default='profile')
+@click.option('--cluster_section', default='cluster')
 @pass_cluster
-def create_cluster(cluster, profile_section):
+def create_cluster(cluster, profile_section, cluster_section):
     cluster.profile_section = profile_section
-    click.echo(cluster.girder_url)
+    cluster.cluster_section = cluster_section
+    click.echo('POST %s/clusters' % cluster.girder_api_url)
+    click.echo(cluster.get_cluster_body())
 
 if __name__ == "__main__":
     cli()
