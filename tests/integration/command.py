@@ -1,9 +1,10 @@
 import click
-# import os
 import ConfigParser
-# import requests
 from girder_client import GirderClient
+import time
 
+import logging
+logging.getLogger('requests').setLevel(logging.CRITICAL)
 
 class ConfigParam(click.ParamType):
     """Takes a file string and produces a RawConfigParser object"""
@@ -156,6 +157,22 @@ class Cluster(object):
         else:
             raise RuntimeError("No cluster section found!")
 
+    def wait_for_status(self, status_url, status, timeout=10):
+
+        start = time.time()
+        while True:
+            time.sleep(1)
+            r = self.get(status_url)
+
+            if r['status'] == status:
+                break
+
+            if time.time() - start > timeout:
+                raise RuntimeError(
+                    'Resource never moved into the "%s" state, current '
+                    'state is "%s"' % (status, r['status']))
+
+
     def get(self, *args, **kwargs):
         return self._client.get(*args, **kwargs)
 
@@ -173,11 +190,22 @@ pass_cluster = click.make_pass_decorator(Cluster)
 
 
 @click.group(chain=True)
+@click.option('-v', '--verbose', count=True)
 @click.option('--config', default='integration.cfg', type=CONFIG_PARAM)
 @click.option('--girder_section', default='girder')
 @click.option('--aws_section', default='aws')
 @click.pass_context
-def cli(ctx, config, girder_section, aws_section):
+def cli(ctx, verbose, config, girder_section, aws_section):
+
+    if verbose == 1:
+        logging.basicConfig(
+            format='%(asctime)s [%(levelname)-5s] - %(message)s',
+            level=logging.INFO)
+    elif verbose > 1:
+        logging.basicConfig(
+            format='%(asctime)s [%(levelname)-5s] - %(message)s',
+            level=logging.DEBUG)
+
     ctx.obj = Cluster(
         config,
         girder_section=girder_section,
@@ -189,10 +217,13 @@ def cli(ctx, config, girder_section, aws_section):
 @pass_cluster
 def create_profile(cluster, profile_section):
     cluster.profile_section = profile_section
-    click.echo('POST %s/user/%s/aws/profiles' % (
+
+    logging.info("Creating profile")
+    logging.debug('POST %s/user/%s/aws/profiles' % (
         cluster.girder_api_url,
         cluster.user['_id']))
-    click.echo(cluster.get_profile_body())
+    logging.debug(cluster.get_profile_body())
+
 
 
 @cli.command()
@@ -202,8 +233,10 @@ def create_profile(cluster, profile_section):
 def create_cluster(cluster, profile_section, cluster_section):
     cluster.profile_section = profile_section
     cluster.cluster_section = cluster_section
-    click.echo('POST %s/clusters' % cluster.girder_api_url)
-    click.echo(cluster.get_cluster_body())
+
+    logging.info("Createing cluster")
+    logging.debug('POST %s/clusters' % cluster.girder_api_url)
+    logging.debug(cluster.get_cluster_body())
 
 if __name__ == "__main__":
     cli()
