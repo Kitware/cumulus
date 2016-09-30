@@ -199,11 +199,11 @@ def cli(ctx, verbose, config, girder_section, aws_section):
 
     if verbose == 1:
         logging.basicConfig(
-            format='%(asctime)s [%(levelname)-5s] - %(message)s',
+            format='%(asctime)s %(levelname)-5s - %(message)s',
             level=logging.INFO)
     elif verbose > 1:
         logging.basicConfig(
-            format='%(asctime)s [%(levelname)-5s] - %(message)s',
+            format='%(asctime)s %(levelname)-5s - %(message)s',
             level=logging.DEBUG)
 
     ctx.obj = Cluster(
