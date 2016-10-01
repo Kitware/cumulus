@@ -1,7 +1,8 @@
 import click
 import ConfigParser
-from girder_client import GirderClient
+import girder_client
 import time
+import json
 
 import logging
 logging.getLogger('requests').setLevel(logging.CRITICAL)
@@ -95,7 +96,7 @@ class Cluster(object):
         self.aws_section = aws_section
         self.girder_section = girder_section
 
-        self._client = GirderClient(apiUrl=self.girder_api_url)
+        self._client = girder_client.GirderClient(apiUrl=self.girder_api_url)
 
         self._client.authenticate(self.girder_user,
                                   self.girder_password)
@@ -116,10 +117,58 @@ class Cluster(object):
             self._profile = None
 
         if self._profile is None:
-            # TODO: actually get or create the profile
-            self._profile = {'_id' : 'FIXME'}
+            # Create or get the profile
+            self.profile = self.get_profile_body()
 
         return self._profile
+
+    @profile.setter
+    def profile(self, profile):
+
+        r = self.get("user/%s/aws/profiles" % self.user['_id'])
+        for p in r:
+            if p['name'] == profile['name']:
+                logging.debug("Using pre-existing profile: %s" % p)
+                self._profile = p
+
+                self.wait_for_status(
+                    'user/%s/aws/profiles/%s/status' % (self.user['_id'], self.profile['_id']),
+                    'available')
+                return None
+
+        # Profile could not be found, create it
+        r = self.post('user/%s/aws/profiles' % self.user['_id'],
+                      data=json.dumps(profile))
+
+        self._profile = r
+        logging.debug("Created profile %s: %s" % (r['_id'], r))
+
+        self.wait_for_status(
+            'user/%s/aws/profiles/%s/status' % (self.user['_id'], self.profile['_id']),
+            'available')
+        return None
+
+    @profile.deleter
+    def profile(self):
+        r = self.get("user/%s/aws/profiles" % self.user['_id'])
+        for p in r:
+            if p['name'] == self.profile_name:
+                try:
+                    r = self.delete("user/%s/aws/profiles/%s" %
+                                    (self.user['_id'], p['_id']))
+                    if hasattr(self, "_profile"):
+                        del(self._profile)
+                except girder_client.HttpError as e:
+                    if e.status == 400:
+                        raise RuntimeError(e.responseText)
+                    else:
+                        raise e
+                return None
+
+        logging.debug(
+            "No profile with name '%s' found. Skipping" % self.profile_name)
+
+        return None
 
     def get_profile_body(self):
         if self.profile_section:
@@ -133,6 +182,57 @@ class Cluster(object):
             }
         else:
             raise RuntimeError("No profile section found!")
+
+    @property
+    def cluster(self):
+        if not hasattr(self, "_cluster"):
+            self._cluster = None
+
+        if self._cluster is None:
+            self.cluster = self.get_cluster_body()
+
+            return self._cluster
+
+    @cluster.setter
+    def cluster(self, cluster):
+        r = self.get("clusters")
+        for c in r:
+            if c['name'] == cluster['name']:
+                logging.debug("Using pre-existing cluster: %s" % c)
+                self._cluster = c
+                return None
+
+        # Profile could not be found, create it
+        r = self.post('clusters', data=json.dumps(cluster))
+
+        self._cluster = r
+        logging.debug("Created cluster %s: %s" % (r['_id'], r))
+        return None
+
+
+    @cluster.deleter
+    def cluster(self):
+        r = self.get("clusters")
+        for c in r:
+            if c['name'] == self.cluster_name:
+
+                try:
+                    r = self.delete("clusters/%s" % c['_id'])
+                    if hasattr(self, "_cluster"):
+                        del(self._cluster)
+                except girder_client.HttpError as e:
+                    if e.status == 400:
+                        raise RuntimeError(e.responseText)
+                    else:
+                        raise e
+                return None
+
+        logging.debug(
+            "No profile with name '%s' found. Skipping" % self.profile_name)
+
+        return None
+
+
 
     def get_cluster_body(self):
         if self.cluster_section:
@@ -157,33 +257,55 @@ class Cluster(object):
         else:
             raise RuntimeError("No cluster section found!")
 
-    def wait_for_status(self, status_url, status, timeout=10):
+    def wait_for_status(self, url, status, timeout=10):
+
+        logging.debug("Waiting for status '%s' at '%s'" % (status, url))
 
         start = time.time()
         while True:
             time.sleep(1)
-            r = self.get(status_url)
+            r = self._client.get(url)
 
             if r['status'] == status:
                 break
 
             if time.time() - start > timeout:
                 raise RuntimeError(
-                    'Resource never moved into the "%s" state, current '
-                    'state is "%s"' % (status, r['status']))
+                    "Resource at '%s' never moved into the '%s' state, current"
+                    " state is '%s'" % (url, status, r['status']))
 
 
-    def get(self, *args, **kwargs):
-        return self._client.get(*args, **kwargs)
+    def get(self, uri, **kwargs):
+        url = "%s/%s" % (self.girder_api_url, uri)
+        logging.debug('GET %s' % url)
+        if kwargs:
+            logging.debug(kwargs)
 
-    def post(self, *args, **kwargs):
-        return self._client.post(*args, **kwargs)
+        return self._client.get(uri, **kwargs)
 
-    def put(self, *args, **kwargs):
-        return self._client.put(*args, **kwargs)
+    def post(self, uri, **kwargs):
+        url = "%s/%s" % (self.girder_api_url, uri)
+        logging.debug('POST %s' % url)
+        if kwargs:
+            logging.debug(kwargs)
 
-    def delete(self, *args, **kwargs):
-        return self._client.delete(*args, **kwargs)
+        return self._client.post(uri, **kwargs)
+
+    def put(self, uri, **kwargs):
+        url = "%s/%s" % (self.girder_api_url, uri)
+        logging.debug('PUT %s' % url)
+        if kwargs:
+            logging.debug(kwargs)
+
+        return self._client.put(uri, **kwargs)
+
+    def delete(self, uri, **kwargs):
+        url = "%s/%s" % (self.girder_api_url, uri)
+        logging.debug('DELETE %s' % url)
+        if kwargs:
+            logging.debug(kwargs)
+
+        return self._client.delete(uri, **kwargs)
 
 
 pass_cluster = click.make_pass_decorator(Cluster)
@@ -216,13 +338,10 @@ def cli(ctx, verbose, config, girder_section, aws_section):
 @click.option('--profile_section', default='profile')
 @pass_cluster
 def create_profile(cluster, profile_section):
-    cluster.profile_section = profile_section
-
     logging.info("Creating profile")
-    logging.debug('POST %s/user/%s/aws/profiles' % (
-        cluster.girder_api_url,
-        cluster.user['_id']))
-    logging.debug(cluster.get_profile_body())
+    cluster.profile_section = profile_section
+    cluster.profile = cluster.get_profile_body()
+    logging.info("Finished creating profile")
 
 
 
@@ -231,12 +350,32 @@ def create_profile(cluster, profile_section):
 @click.option('--cluster_section', default='cluster')
 @pass_cluster
 def create_cluster(cluster, profile_section, cluster_section):
+    logging.info("Createing cluster")
     cluster.profile_section = profile_section
     cluster.cluster_section = cluster_section
+    cluster.cluster = cluster.get_cluster_body()
+    logging.info("Finished creting cluster")
 
-    logging.info("Createing cluster")
-    logging.debug('POST %s/clusters' % cluster.girder_api_url)
-    logging.debug(cluster.get_cluster_body())
+@cli.command()
+@click.option('--profile_section', default='profile')
+@click.option('--cluster_section', default='cluster')
+@pass_cluster
+def delete_cluster(cluster, profile_section, cluster_section):
+    logging.info("Deleting cluster")
+    cluster.profile_section = profile_section
+    cluster.cluster_section = cluster_section
+    del cluster.cluster
+    logging.info("Finished deleting cluster")
+
+@cli.command()
+@click.option('--profile_section', default='profile')
+@pass_cluster
+def delete_profile(cluster, profile_section):
+    logging.info("Deleting profile")
+    cluster.profile_section = profile_section
+    del cluster.profile
+    logging.info("Finished deleting profile")
+
 
 if __name__ == "__main__":
     cli()
