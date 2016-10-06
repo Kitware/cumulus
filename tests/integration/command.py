@@ -464,6 +464,28 @@ def delete_profile(proxy, profile_section):
     del proxy.profile
     logging.info("Finished deleting profile")
 
+@cli.command()
+@click.option('--profile_section', default='profile')
+@click.option('--cluster_section', default='cluster')
+@pass_proxy
+def launch_cluster(proxy, profile_section, cluster_section):
+    logging.info("Launching cluster")
+    proxy.profile_section = profile_section
+    proxy.cluster_section = cluster_section
+    proxy.launch_cluster(proxy.cluster)
+    logging.info("Finished launching cluster")
+
+@cli.command()
+@click.option('--profile_section', default='profile')
+@click.option('--cluster_section', default='cluster')
+@pass_proxy
+def terminate_cluster(proxy, profile_section, cluster_section):
+    logging.info("Terminating cluster")
+    proxy.profile_section = profile_section
+    proxy.cluster_section = cluster_section
+    proxy.terminate_cluster(proxy.cluster)
+    logging.info("Finished terminating cluster")
+
 
 if __name__ == "__main__":
     cli()
