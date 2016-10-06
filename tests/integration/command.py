@@ -7,6 +7,7 @@ from tabulate import tabulate
 
 import logging
 logging.getLogger('requests').setLevel(logging.CRITICAL)
+logging.getLogger('boto3').setLevel(logging.CRITICAL)
 
 class ConfigParam(click.ParamType):
     """Takes a file string and produces a RawConfigParser object"""
@@ -332,6 +333,16 @@ class Proxy(object):
                              timeout=timeout,
                              log_url=log_url)
 
+    def get_instances(self):
+        import boto3
+
+        ec2 = boto3.resource(
+            'ec2', aws_access_key_id=self.aws_access_key_id,
+            aws_secret_access_key=self.aws_secret_access_key)
+
+        for instance in ec2.instances.all():
+            yield instance
+
     def get(self, uri, **kwargs):
         url = "%s/%s" % (self.girder_api_url, uri)
         logging.debug('GET %s' % url)
@@ -469,9 +480,10 @@ def delete_profile(proxy, profile_section):
 @click.option('--cluster_section', default='cluster')
 @pass_proxy
 def launch_cluster(proxy, profile_section, cluster_section):
-    logging.info("Launching cluster")
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
+
+    logging.info("Launching cluster %s" % proxy.cluster['_id'])
     proxy.launch_cluster(proxy.cluster)
     logging.info("Finished launching cluster")
 
@@ -480,12 +492,50 @@ def launch_cluster(proxy, profile_section, cluster_section):
 @click.option('--cluster_section', default='cluster')
 @pass_proxy
 def terminate_cluster(proxy, profile_section, cluster_section):
-    logging.info("Terminating cluster")
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
+
+    logging.info("Terminating cluster %s" % proxy.cluster['_id'])
     proxy.terminate_cluster(proxy.cluster)
     logging.info("Finished terminating cluster")
 
+
+@cli.command()
+@pass_proxy
+def list_instances(proxy):
+    logging.info("Listing instances")
+
+    def attr(name):
+        def _attr(instance):
+            return getattr(instance, name) if hasattr(instance, name) else ''
+        return _attr
+
+    def state(instance):
+        try:
+            return instance.state['Name']
+        except Exception:
+            return "UNKNOWN"
+
+    def name(instance):
+        for tag in instance.tags:
+            if tag['Key'] == 'Name':
+                return tag['Value']
+        return ''
+
+    def groups(instance):
+        return ','.join([g['GroupId'] for g in instance.security_groups])
+
+    keys = [name, attr('instance_id'), attr('instance_type'),
+            state, attr('public_ip_address'), attr('private_ip_address'),
+            attr('key_name'), groups]
+    headers = ['Name', 'ID', 'Type', 'State', 'Public IP', 'Private IP', 'Key Name', "Security Groups"]
+
+    print tabulate([[f(i) for f in keys] for i in proxy.get_instances()],
+                   headers=headers)
+
+    print "\n"
+
+    logging.info("Finished listing instances")
 
 if __name__ == "__main__":
     cli()
