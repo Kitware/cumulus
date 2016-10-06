@@ -84,7 +84,7 @@ def section_property(prefix, config="config"):
     return property(__section_getter, __section_setter, None)
 
 
-class Cluster(object):
+class Proxy(object):
 
     aws_section = section_property("aws")
     girder_section = section_property("girder")
@@ -316,7 +316,7 @@ class Cluster(object):
         return self._client.delete(uri, **kwargs)
 
 
-pass_cluster = click.make_pass_decorator(Cluster)
+pass_proxy = click.make_pass_decorator(Proxy)
 
 
 @click.group(chain=True)
@@ -336,7 +336,7 @@ def cli(ctx, verbose, config, girder_section, aws_section):
             format='%(asctime)s %(levelname)-5s - %(message)s',
             level=logging.DEBUG)
 
-    ctx.obj = Cluster(
+    ctx.obj = Proxy(
         config,
         girder_section=girder_section,
         aws_section=aws_section)
@@ -344,23 +344,23 @@ def cli(ctx, verbose, config, girder_section, aws_section):
 
 @cli.command()
 @click.option('--profile_section', default='profile')
-@pass_cluster
-def create_profile(cluster, profile_section):
+@pass_proxy
+def create_profile(proxy, profile_section):
     logging.info("Creating profile")
-    cluster.profile_section = profile_section
-    cluster.profile = cluster.get_profile_body()
+    proxy.profile_section = profile_section
+    proxy.profile = proxy.get_profile_body()
     logging.info("Finished creating profile")
 
 
 @cli.command()
-@pass_cluster
-def list_profiles(cluster):
+@pass_proxy
+def list_profiles(proxy):
     logging.info("Listing profiles")
 
     keys    = ['name', 'status', '_id', 'regionName', 'cloudProvider']
     headers = ['Name', 'Status', 'ID',  'Region',     'Cloud Provider']
 
-    print tabulate([[p[k] for k in keys] for p in cluster.profiles],
+    print tabulate([[p[k] for k in keys] for p in proxy.profiles],
                    headers=headers)
     print "\n"
 
@@ -370,27 +370,27 @@ def list_profiles(cluster):
 @cli.command()
 @click.option('--profile_section', default='profile')
 @click.option('--cluster_section', default='cluster')
-@pass_cluster
-def create_cluster(cluster, profile_section, cluster_section):
+@pass_proxy
+def create_cluster(proxy, profile_section, cluster_section):
     logging.info("Createing cluster")
-    cluster.profile_section = profile_section
-    cluster.cluster_section = cluster_section
-    cluster.cluster = cluster.get_cluster_body()
+    proxy.profile_section = profile_section
+    proxy.cluster_section = cluster_section
+    proxy.cluster = proxy.get_cluster_body()
     logging.info("Finished creting cluster")
 
 
 @cli.command()
 @click.option('--profile_section', default='profile')
-@pass_cluster
-def list_clusters(cluster, profile_section):
+@pass_proxy
+def list_clusters(proxy, profile_section):
     logging.info("Listing clusters")
-    cluster.profile_section = profile_section
+    proxy.profile_section = profile_section
 
     keys    = ['name', 'status', '_id', 'profileId' ]
     headers = ['Name', 'Status', 'ID',  'Profile ID']
 
 
-    print tabulate([[c[k] for k in keys] for c in cluster.clusters],
+    print tabulate([[c[k] for k in keys] for c in proxy.clusters],
                    headers=headers)
     print "\n"
     logging.info("Finished listing clusters")
@@ -398,21 +398,21 @@ def list_clusters(cluster, profile_section):
 @cli.command()
 @click.option('--profile_section', default='profile')
 @click.option('--cluster_section', default='cluster')
-@pass_cluster
-def delete_cluster(cluster, profile_section, cluster_section):
+@pass_proxy
+def delete_cluster(proxy, profile_section, cluster_section):
     logging.info("Deleting cluster")
-    cluster.profile_section = profile_section
-    cluster.cluster_section = cluster_section
-    del cluster.cluster
+    proxy.profile_section = profile_section
+    proxy.cluster_section = cluster_section
+    del proxy.cluster
     logging.info("Finished deleting cluster")
 
 @cli.command()
 @click.option('--profile_section', default='profile')
-@pass_cluster
-def delete_profile(cluster, profile_section):
+@pass_proxy
+def delete_profile(proxy, profile_section):
     logging.info("Deleting profile")
-    cluster.profile_section = profile_section
-    del cluster.profile
+    proxy.profile_section = profile_section
+    del proxy.profile
     logging.info("Finished deleting profile")
 
 
