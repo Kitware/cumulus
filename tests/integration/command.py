@@ -254,7 +254,7 @@ class Proxy(object):
                             'node_instance_count': self.cluster_node_instance_count,
                             'node_instance_type': self.cluster_node_instance_type,
                             'node_instance_ami': self.cluster_node_instance_ami,
-                            'terminate_wait_timeout': self.cluster_terminate_wait_timeout
+                            'terminate_wait_timeout': int(self.cluster_terminate_wait_timeout)
                         }
                     }
                 },
