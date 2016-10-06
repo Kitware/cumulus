@@ -265,23 +265,72 @@ class Proxy(object):
         else:
             raise RuntimeError("No cluster section found!")
 
-    def wait_for_status(self, url, status, timeout=10):
+    def wait_for_status(self, status_url, status, timeout=10, log_url=None):
+        logging.debug("Waiting for status '%s' at '%s'" % (status, status_url))
 
-        logging.debug("Waiting for status '%s' at '%s'" % (status, url))
+        if log_url is not None:
+            r = self.get(log_url)
+            log_offset = len(r['log'])
+            logging.debug("Log offset set to: %s" % log_offset)
 
         start = time.time()
         while True:
-            time.sleep(1)
-            r = self._client.get(url)
+            if log_url is not None:
+                r = self.get(log_url, parameters={
+                    'offset': log_offset
+                })
+
+                log_offset += len(r['log'])
+
+                for entry in r['log']:
+                    logging.debug("%s" % entry)
+                    if entry['type'] == 'task':
+                        if entry['status'] in ['finished', 'skipped', 'starting']:
+                            logging.info("%s (%s)" % (entry['msg'], entry['status']))
+                        elif entry['status'] == 'error':
+                            logging.error("%s (%s)" % (entry['msg'], entry['status']))
+
+            r = self.get(status_url)
 
             if r['status'] == status:
                 break
 
+            if r['status'] == 'error':
+                if log_url is not None:
+                    raise RuntimeError(
+                        "Cluster has moved into an error state! "
+                        "See: %s/%s for more information" % (self.girder_api_url, log_url))
+                else:
+                    raise RuntimeError(
+                        "Operation moved resource into an error state!"
+                        " See: %s/%s" % (self.girder_api_url, status_url))
+
             if time.time() - start > timeout:
                 raise RuntimeError(
                     "Resource at '%s' never moved into the '%s' state, current"
-                    " state is '%s'" % (url, status, r['status']))
+                    " state is '%s'" % (status_url, status, r['status']))
 
+            time.sleep(1)
+
+    def launch_cluster(self, cluster, timeout=300):
+        status_url = 'clusters/%s/status' % cluster['_id']
+        log_url    = 'clusters/%s/log' % cluster['_id']
+
+        r = self.put('clusters/%s/launch' % cluster['_id'])
+
+        self.wait_for_status(status_url, 'running',
+                             timeout=timeout,
+                             log_url=log_url)
+
+    def terminate_cluster(self, cluster, timeout=300):
+        status_url = 'clusters/%s/status' % cluster['_id']
+        log_url    = 'clusters/%s/log' % cluster['_id']
+
+        r = self.put('clusters/%s/terminate' % cluster['_id'])
+
+        self.wait_for_status(status_url, 'terminated',
+                             timeout=timeout,
+                             log_url=log_url)
 
     def get(self, uri, **kwargs):
         url = "%s/%s" % (self.girder_api_url, uri)
