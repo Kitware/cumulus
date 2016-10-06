@@ -3,6 +3,7 @@ import ConfigParser
 import girder_client
 import time
 import json
+from tabulate import tabulate
 
 import logging
 logging.getLogger('requests').setLevel(logging.CRITICAL)
@@ -112,6 +113,12 @@ class Cluster(object):
         return self._user
 
     @property
+    def profiles(self):
+        r = self.get("user/%s/aws/profiles" % self.user['_id'])
+        return r
+
+
+    @property
     def profile(self):
         if not hasattr(self, "_profile"):
             self._profile = None
@@ -122,11 +129,10 @@ class Cluster(object):
 
         return self._profile
 
+
     @profile.setter
     def profile(self, profile):
-
-        r = self.get("user/%s/aws/profiles" % self.user['_id'])
-        for p in r:
+        for p in self.profiles:
             if p['name'] == profile['name']:
                 logging.debug("Using pre-existing profile: %s" % p)
                 self._profile = p
@@ -150,8 +156,7 @@ class Cluster(object):
 
     @profile.deleter
     def profile(self):
-        r = self.get("user/%s/aws/profiles" % self.user['_id'])
-        for p in r:
+        for p in self.profiles:
             if p['name'] == self.profile_name:
                 try:
                     r = self.delete("user/%s/aws/profiles/%s" %
@@ -184,6 +189,11 @@ class Cluster(object):
             raise RuntimeError("No profile section found!")
 
     @property
+    def clusters(self):
+        r = self.get("clusters")
+        return r
+
+    @property
     def cluster(self):
         if not hasattr(self, "_cluster"):
             self._cluster = None
@@ -191,12 +201,11 @@ class Cluster(object):
         if self._cluster is None:
             self.cluster = self.get_cluster_body()
 
-            return self._cluster
+        return self._cluster
 
     @cluster.setter
     def cluster(self, cluster):
-        r = self.get("clusters")
-        for c in r:
+        for c in self.clusters:
             if c['name'] == cluster['name']:
                 logging.debug("Using pre-existing cluster: %s" % c)
                 self._cluster = c
@@ -212,8 +221,7 @@ class Cluster(object):
 
     @cluster.deleter
     def cluster(self):
-        r = self.get("clusters")
-        for c in r:
+        for c in self.clusters:
             if c['name'] == self.cluster_name:
 
                 try:
@@ -344,6 +352,20 @@ def create_profile(cluster, profile_section):
     logging.info("Finished creating profile")
 
 
+@cli.command()
+@pass_cluster
+def list_profiles(cluster):
+    logging.info("Listing profiles")
+
+    keys    = ['name', 'status', '_id', 'regionName', 'cloudProvider']
+    headers = ['Name', 'Status', 'ID',  'Region',     'Cloud Provider']
+
+    print tabulate([[p[k] for k in keys] for p in cluster.profiles],
+                   headers=headers)
+    print "\n"
+
+    logging.info("Finished listing profiles")
+
 
 @cli.command()
 @click.option('--profile_section', default='profile')
@@ -355,6 +377,23 @@ def create_cluster(cluster, profile_section, cluster_section):
     cluster.cluster_section = cluster_section
     cluster.cluster = cluster.get_cluster_body()
     logging.info("Finished creting cluster")
+
+
+@cli.command()
+@click.option('--profile_section', default='profile')
+@pass_cluster
+def list_clusters(cluster, profile_section):
+    logging.info("Listing clusters")
+    cluster.profile_section = profile_section
+
+    keys    = ['name', 'status', '_id', 'profileId' ]
+    headers = ['Name', 'Status', 'ID',  'Profile ID']
+
+
+    print tabulate([[c[k] for k in keys] for c in cluster.clusters],
+                   headers=headers)
+    print "\n"
+    logging.info("Finished listing clusters")
 
 @cli.command()
 @click.option('--profile_section', default='profile')

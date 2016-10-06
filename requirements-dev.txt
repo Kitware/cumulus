@@ -3,3 +3,4 @@ httmock==1.2.2
 flake8-quotes==0.2.4
 Flask==0.10.1
 click==6.6
+tabulate==0.7.5
