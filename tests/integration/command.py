@@ -135,7 +135,7 @@ class Proxy(object):
     def profile(self, profile):
         for p in self.profiles:
             if p['name'] == profile['name']:
-                logging.debug("Using pre-existing profile: %s" % p)
+                logging.info("Using pre-existing profile: %s (%s)" % (p['name'], p['_id']))
                 self._profile = p
 
                 self.wait_for_status(
@@ -208,7 +208,7 @@ class Proxy(object):
     def cluster(self, cluster):
         for c in self.clusters:
             if c['name'] == cluster['name']:
-                logging.debug("Using pre-existing cluster: %s" % c)
+                logging.info("Using pre-existing cluster: %s (%s)" % (c['name'], c['_id']))
                 self._cluster = c
                 return None
 
