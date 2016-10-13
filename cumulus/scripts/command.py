@@ -201,9 +201,17 @@ def list_aws_volumes(proxy):
                 return a['InstanceId']
         return ''
 
-    def instance_name(volume):
-        return aws_name_from_tag(proxy.get_instance(instance_id(volume))) \
-            if instance_id(volume) != '' else ''
+    def instance_name(instances):
+        instance_dict = {i.id: aws_name_from_tag(i) for i in instances}
+
+        def _instance_name(volume):
+            _id = instance_id(volume)
+            if _id != '':
+                return instance_dict[_id]
+
+            return ''
+
+        return _instance_name
 
     def device(volume):
         for a in volume.attachments:
@@ -217,7 +225,7 @@ def list_aws_volumes(proxy):
         attr('state'),
         attr('size'),
         attr('availability_zone'),
-        instance_name,
+        instance_name(proxy.get_instances()),
         instance_id,
         device]
 
