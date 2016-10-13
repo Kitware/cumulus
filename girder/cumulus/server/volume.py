@@ -398,8 +398,8 @@ class Volume(BaseResource):
         if volume['status'] == VolumeState.CREATED:
             if 'id' in volume['ec2'] and volume['ec2']['id'] is not None:
                 raise RestException(
-                    "Unable to delete volume,  it is "
-                    "associated with an ec2 volume %s" % volume['ec2']['id'])
+                    'Unable to delete volume,  it is '
+                    'associated with an ec2 volume %s' % volume['ec2']['id'])
 
             self.model('volume', 'cumulus').remove(volume)
             return None
