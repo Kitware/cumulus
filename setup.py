@@ -63,6 +63,10 @@ setup(
                     'templates/*.sh',
                     'templates/*/*.sh']
     },
+    entry_points = {
+        'console_scripts': ['cumulus=cumulus.scripts:cli']
+    },
+
     data_files=list(get_data_files('cumulus/ansible/tasks/playbooks/',
                                    exclude=['.*pyc$']))
 )
