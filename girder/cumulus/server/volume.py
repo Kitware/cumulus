@@ -393,6 +393,17 @@ class Volume(BaseResource):
         if 'clusterId' in volume:
             raise RestException('Unable to delete attached volume')
 
+        # If the volume is in state created and it has no ec2 volume id
+        # associated with it,  we should be able to just delete it
+        if volume['status'] == VolumeState.CREATED:
+            if 'id' in volume['ec2'] and volume['ec2']['id'] is not None:
+                raise RestException(
+                    'Unable to delete volume,  it is '
+                    'associated with an ec2 volume %s' % volume['ec2']['id'])
+
+            self.model('volume', 'cumulus').remove(volume)
+            return None
+
         # Call EC2 to delete volume
         profile_id = parse('profileId').find(volume)[0].value
 
