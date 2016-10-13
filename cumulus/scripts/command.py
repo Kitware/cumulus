@@ -35,7 +35,7 @@ def create_profile(proxy, profile_section):
     logging.info("Creating profile")
     proxy.profile_section = profile_section
     proxy.profile = proxy.get_profile_body()
-    logging.info("Finished creating profile")
+    logging.info("Finished creating profile %s" % proxy.profile['_id'])
 
 
 @cli.command()
@@ -62,7 +62,7 @@ def create_cluster(proxy, profile_section, cluster_section):
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
     proxy.cluster = proxy.get_cluster_body()
-    logging.info("Finished creting cluster")
+    logging.info("Finished creting cluster %s" % proxy.cluster['_id'])
 
 
 @cli.command()
@@ -89,8 +89,9 @@ def delete_cluster(proxy, profile_section, cluster_section):
     logging.info("Deleting cluster")
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
+    _id = proxy.cluster['_id']
     del proxy.cluster
-    logging.info("Finished deleting cluster")
+    logging.info("Finished deleting cluster %s" % _id)
 
 @cli.command()
 @click.option('--profile_section', default='profile')
@@ -98,8 +99,9 @@ def delete_cluster(proxy, profile_section, cluster_section):
 def delete_profile(proxy, profile_section):
     logging.info("Deleting profile")
     proxy.profile_section = profile_section
+    _id = proxy.profile['_id']
     del proxy.profile
-    logging.info("Finished deleting profile")
+    logging.info("Finished deleting profile %s" % _id)
 
 @cli.command()
 @click.option('--profile_section', default='profile')
@@ -162,6 +164,20 @@ def list_instances(proxy):
     print "\n"
 
     logging.info("Finished listing instances")
+
+
+@cli.command()
+@click.option('--profile_section', default='profile')
+@click.option('--volume_section', default='volume')
+@pass_proxy
+def create_volume(proxy, profile_section, volume_section):
+    logging.info("Creating volume")
+    proxy.profile_section = profile_section
+    proxy.volume_section = volume_section
+    proxy.volume = proxy.get_volume_body()
+    logging.info("Finished creating volume %s" % proxy.volume['_id'])
+
+
 
 if __name__ == "__main__":
     cli()

@@ -91,6 +91,7 @@ class Proxy(object):
     girder_section = section_property("girder")
     profile_section = section_property("profile")
     cluster_section = section_property("cluster")
+    volume_section = section_property("volume")
 
     def __init__(self, config, aws_section="aws", girder_section='girder'):
         self.config = config
@@ -112,6 +113,7 @@ class Proxy(object):
             setattr(self, "_user", self.get("user/me"))
 
         return self._user
+
 
     @property
     def profiles(self):
@@ -188,6 +190,61 @@ class Proxy(object):
             }
         else:
             raise RuntimeError("No profile section found!")
+
+    @property
+    def volumes(self):
+        r = self.get("volumes")
+        return r
+
+    @property
+    def volume(self):
+        if not hasattr(self, "_volume"):
+            self._volume = None
+
+        if self._volume is None:
+            # Create or get the profile
+            self.volume = self.get_volume_body()
+
+        return self._volume
+
+    @volume.setter
+    def volume(self, volume):
+        for v in self.volumes:
+            if v['name'] == volume['name'] and \
+               v['profileId'] == self.profile['_id']:
+                logging.info("Using pre-existing volume: %s (%s)" % (v['name'], v['_id']))
+                self._volume = v
+
+                self.wait_for_status(
+                    'volumes/%s/status' % (self.volume['_id']),
+                    'created')
+                return None
+
+        # Volume could not be found, create it
+        r = self.post('volumes', data=json.dumps(volume))
+
+        self._volume = r
+        logging.debug("Created volume %s: %s" % (r['_id'], r))
+
+        self.wait_for_status(
+            'volumes/%s/status' % (self.volume['_id']),
+            'created')
+        return None
+
+
+
+    def get_volume_body(self):
+        if self.profile_section:
+            return {
+                'name': self.volume_name,
+                'profileId': self.profile['_id'],
+                'size': self.volume_size,
+                'type': self.volume_type,
+                'zone': self.volume_zone
+            }
+        else:
+            raise RuntimeError("No profile section found!")
+
 
     @property
     def clusters(self):
