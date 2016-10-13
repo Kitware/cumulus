@@ -9,6 +9,61 @@ logging.getLogger('requests').setLevel(logging.CRITICAL)
 logging.getLogger('boto3').setLevel(logging.CRITICAL)
 
 
+def key(name):
+    """Produces a function that accesses an item
+
+    :param name: the key name for a value on a dictionary
+    :returns: A function that when applied to a dict returns value for that key
+    :rtype: function
+
+    """
+
+    def _key(dictionary):
+        """Wrapped function for accessing an attribute
+
+        The attribute 'name' is defined in the enclosing closure.
+
+        :param dictionary: an object
+        :returns: Value of the 'name' attribute or ''
+        """
+        return dictionary.get(name, '')
+
+    return _key
+
+
+def attr(name):
+    """Produces a function that accesses an attribute
+
+    :param name: Name of an attribute
+    :returns: A function that when applied to an instance returns the
+              value for the attribute 'name'
+    :rtype: function
+
+    """
+
+    def _attr(obj):
+        """Wrapped function for accessing an attribute
+
+        The attribute 'name' is defined in the enclosing closure.
+
+        :param dictionary: an object
+        :returns: Value of the 'name' attribute or ''
+        """
+        return getattr(obj, name) if hasattr(obj, name) else ''
+
+    return _attr
+
+
+def profile(profiles):
+    profile_dict = {p['_id']: p['name'] for p in profiles}
+
+    def _profile(instance):
+        return profile_dict[instance['profileId']]
+
+    return _profile
+
+
+
 class ConfigParam(click.ParamType):
     """Takes a file string and produces a RawConfigParser object"""
     name = 'config'

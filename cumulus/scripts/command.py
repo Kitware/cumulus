@@ -1,5 +1,5 @@
 import click
-from utils import logging, Proxy, CONFIG_PARAM
+from utils import logging, key, attr, profile, Proxy, CONFIG_PARAM
 from tabulate import tabulate
 
 pass_proxy = click.make_pass_decorator(Proxy)
@@ -43,10 +43,11 @@ def create_profile(proxy, profile_section):
 def list_profiles(proxy):
     logging.info("Listing profiles")
 
-    keys    = ['name', 'status', '_id', 'regionName', 'cloudProvider']
-    headers = ['Name', 'Status', 'ID',  'Region',     'Cloud Provider']
+    keys    = [key('name'), key('status'), key('_id'),
+               key('regionName'), key('cloudProvider')]
+    headers = ['Name', 'Status', 'ID',  'Region', 'Cloud Provider']
 
-    print tabulate([[p[k] for k in keys] for p in proxy.profiles],
+    print tabulate([[f(p) for f in keys] for p in proxy.profiles],
                    headers=headers)
     print "\n"
 
@@ -66,17 +67,17 @@ def create_cluster(proxy, profile_section, cluster_section):
 
 
 @cli.command()
-@click.option('--profile_section', default='profile')
 @pass_proxy
-def list_clusters(proxy, profile_section):
+def list_clusters(proxy):
     logging.info("Listing clusters")
-    proxy.profile_section = profile_section
-
-    keys    = ['name', 'status', '_id', 'profileId' ]
-    headers = ['Name', 'Status', 'ID',  'Profile ID']
 
 
-    print tabulate([[c[k] for k in keys] for c in proxy.clusters],
+    keys    = [key('name'), key('status'), key('_id'),
+               profile(proxy.profiles)]
+    headers = ['Name', 'Status', 'ID',  'Profile']
+
+
+    print tabulate([[f(c) for f in keys] for c in proxy.clusters],
                    headers=headers)
     print "\n"
     logging.info("Finished listing clusters")
@@ -130,13 +131,8 @@ def terminate_cluster(proxy, profile_section, cluster_section):
 
 @cli.command()
 @pass_proxy
-def list_instances(proxy):
+def list_aws_instances(proxy):
     logging.info("Listing instances")
-
-    def attr(name):
-        def _attr(instance):
-            return getattr(instance, name) if hasattr(instance, name) else ''
-        return _attr
 
     def state(instance):
         try:
@@ -176,6 +172,24 @@ def create_volume(proxy, profile_section, volume_section):
     proxy.volume_section = volume_section
     proxy.volume = proxy.get_volume_body()
     logging.info("Finished creating volume %s" % proxy.volume['_id'])
+
+
+@cli.command()
+@pass_proxy
+def list_volumes(proxy):
+    logging.info("Listing volumes")
+
+
+    keys    = [key('name'), profile(proxy.profiles), key('_id'),
+               key('size'), key('status'), key('type'), key('zone')]
+
+    headers = ['Name', 'Profile', 'Volume ID',  'Size', 'Status', 'Type', 'Zone']
+
+    print tabulate([[f(v) for f in keys] for v in proxy.volumes],
+                   headers=headers)
+    print "\n"
+    logging.info("Finished listing volumes")
+
 
 
 
