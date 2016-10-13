@@ -7,6 +7,7 @@ import json
 import logging
 logging.getLogger('requests').setLevel(logging.CRITICAL)
 logging.getLogger('boto3').setLevel(logging.CRITICAL)
+logging.getLogger('botocore').setLevel(logging.CRITICAL)
 
 
 def key(name):
@@ -61,6 +62,16 @@ def profile(profiles):
         return profile_dict[instance['profileId']]
 
     return _profile
+
+
+def aws_name_from_tag(resource):
+    try:
+        for tag in resource.tags:
+            if tag['Key'] == 'Name':
+                return tag['Value']
+        return ''
+    except Exception as e:
+        return ''
 
 
 
@@ -445,15 +456,23 @@ class Proxy(object):
                              timeout=timeout,
                              log_url=log_url)
 
-    def get_instances(self):
+    @property
+    def ec2(self):
         import boto3
-
-        ec2 = boto3.resource(
+        return boto3.resource(
             'ec2', aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key)
 
-        for instance in ec2.instances.all():
+    def get_instance(self, _id):
+        return self.ec2.Instance(_id)
+
+    def get_instances(self):
+        for instance in self.ec2.instances.all():
             yield instance
+
+    def get_volumes(self):
+        for volume in self.ec2.volumes.all():
+            yield volume
 
     def get(self, uri, **kwargs):
         url = "%s/%s" % (self.girder_api_url, uri)
