@@ -293,6 +293,42 @@ class Proxy(object):
             'created')
         return None
 
+    @volume.deleter
+    def volume(self):
+        timeout = 300
+        for v in self.volumes:
+            if v['name'] == self.volume_name:
+                start = time.time()
+
+                try:
+                    r = self.delete("volumes/%s" % v['_id'])
+                    if hasattr(self, "_volume"):
+                        del(self._volume)
+                except girder_client.HttpError as e:
+                    if e.status == 400:
+                        raise RuntimeError(e.responseText)
+                    else:
+                        raise e
+
+                while True:
+                    try:
+                        r = self.get('volumes/%s/status' % (v['_id']))
+                    except girder_client.HttpError as e:
+                        if e.status == 400:
+                            return None
+                        else:
+                            raise e
+
+                    if time.time() - start > timeout:
+                        raise RuntimeError(
+                            "Volume at '%s' never deleted" % v['_id'])
+
+        logging.debug(
+            "No profile with name '%s' found. Skipping" % self.profile_name)
+
+
+
+
 
     def get_volume_body(self):
         if self.profile_section:

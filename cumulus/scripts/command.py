@@ -269,5 +269,20 @@ def detach_volume(proxy, profile_section, cluster_section, volume_section):
 
     logging.info("Finished detaching volume.")
 
+
+@cli.command()
+@click.option('--profile_section', default='profile')
+@click.option('--volume_section', default='volume')
+@pass_proxy
+def delete_volume(proxy, profile_section, volume_section):
+    logging.info("Deleting volume")
+    proxy.profile_section = profile_section
+    proxy.volume_section = volume_section
+    _id = proxy.volume['_id']
+    del proxy.volume
+    logging.info("Finished deleting volume %s" % _id)
+
+
+
 if __name__ == "__main__":
     cli()
