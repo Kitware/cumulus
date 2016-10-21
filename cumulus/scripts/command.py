@@ -194,7 +194,6 @@ def list_volumes(proxy):
 def list_aws_volumes(proxy):
     logging.info("Listing AWS volumes")
 
-
     def instance_id(volume):
         for a in volume.attachments:
             if a['State'] == 'attached':
@@ -238,9 +237,21 @@ def list_aws_volumes(proxy):
     logging.info("Finished listing volumes")
 
 
+@cli.command()
+@click.option('--profile_section', default='profile')
+@click.option('--cluster_section', default='cluster')
+@click.option('--volume_section', default='volume')
+@pass_proxy
+def attach_volume(proxy, profile_section, cluster_section, volume_section):
+    proxy.profile_section = profile_section
+    proxy.cluster_section = cluster_section
+    proxy.volume_section = volume_section
+    logging.info("Attaching volume %s to cluster %s" %
+                 (proxy.volume['_id'], proxy.cluster['_id']))
 
+    proxy.attach_volume(proxy.cluster, proxy.volume)
 
-
+    logging.info("Finished attaching volume.")
 
 if __name__ == "__main__":
     cli()

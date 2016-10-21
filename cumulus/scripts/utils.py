@@ -298,7 +298,6 @@ class Proxy(object):
         return None
 
 
-
     def get_volume_body(self):
         if self.profile_section:
             return {
@@ -310,6 +309,18 @@ class Proxy(object):
             }
         else:
             raise RuntimeError("No profile section found!")
+
+
+    def attach_volume(self, cluster, volume, path='/mnt/data'):
+        r = self.put('volumes/%s/clusters/%s/attach' % (volume['_id'], cluster['_id']),
+                     data=json.dumps({'path': path}))
+
+        log_url = "volumes/%s/log" % volume['_id']
+
+        self.wait_for_status(
+            'volumes/%s/status' % volume['_id'],
+            'attached',
+            log_url=log_url, timeout=300)
 
 
     @property
