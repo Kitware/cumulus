@@ -253,5 +253,21 @@ def attach_volume(proxy, profile_section, cluster_section, volume_section):
 
     logging.info("Finished attaching volume.")
 
+
+@cli.command()
+@click.option('--profile_section', default='profile')
+@click.option('--cluster_section', default='cluster')
+@click.option('--volume_section', default='volume')
+@pass_proxy
+def detach_volume(proxy, profile_section, cluster_section, volume_section):
+    proxy.profile_section = profile_section
+    proxy.cluster_section = cluster_section
+    proxy.volume_section = volume_section
+    logging.info("Detaching volume %s" % proxy.volume['_id'])
+
+    proxy.detach_volume(proxy.volume)
+
+    logging.info("Finished detaching volume.")
+
 if __name__ == "__main__":
     cli()

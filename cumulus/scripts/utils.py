@@ -280,10 +280,6 @@ class Proxy(object):
                v['profileId'] == self.profile['_id']:
                 logging.info("Using pre-existing volume: %s (%s)" % (v['name'], v['_id']))
                 self._volume = v
-
-                self.wait_for_status(
-                    'volumes/%s/status' % (self.volume['_id']),
-                    'created')
                 return None
 
         # Volume could not be found, create it
@@ -310,7 +306,6 @@ class Proxy(object):
         else:
             raise RuntimeError("No profile section found!")
 
-
     def attach_volume(self, cluster, volume, path='/mnt/data'):
         r = self.put('volumes/%s/clusters/%s/attach' % (volume['_id'], cluster['_id']),
                      data=json.dumps({'path': path}))
@@ -319,9 +314,18 @@ class Proxy(object):
 
         self.wait_for_status(
             'volumes/%s/status' % volume['_id'],
-            'attached',
-            log_url=log_url, timeout=300)
+            'in-use',
+            log_url=log_url, timeout=600)
 
+    def detach_volume(self, volume):
+        r = self.put('volumes/%s/detach' % volume['_id'])
+
+        log_url = "volumes/%s/log" % volume['_id']
+
+        self.wait_for_status(
+            'volumes/%s/status' % volume['_id'],
+            'available',
+            log_url=log_url, timeout=600)
 
     @property
     def clusters(self):
@@ -403,6 +407,9 @@ class Proxy(object):
     def wait_for_status(self, status_url, status, timeout=10, log_url=None):
         logging.debug("Waiting for status '%s' at '%s'" % (status, status_url))
 
+        if isinstance(status, basestring):
+            status = (status, )
+
         if log_url is not None:
             r = self.get(log_url)
             log_offset = len(r['log'])
@@ -427,7 +434,7 @@ class Proxy(object):
 
             r = self.get(status_url)
 
-            if r['status'] == status:
+            if r['status'] in status:
                 break
 
             if r['status'] == 'error':
@@ -472,7 +479,8 @@ class Proxy(object):
         import boto3
         return boto3.resource(
             'ec2', aws_access_key_id=self.aws_access_key_id,
-            aws_secret_access_key=self.aws_secret_access_key)
+            aws_secret_access_key=self.aws_secret_access_key,
+            region_name=self.aws_regionName)
 
     def get_instance(self, _id):
         return self.ec2.Instance(_id)

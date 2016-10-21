@@ -204,7 +204,7 @@ class Volume(BaseResource):
                level=AccessType.ADMIN)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def attach_complete(self, volume, cluster, params):
-        path = getBodyJson().get('path', None)
+        path = params.get('path', None)
 
         if path is not None:
             cluster.setdefault('volumes', [])
@@ -395,7 +395,7 @@ class Volume(BaseResource):
 
         # If the volume is in state created and it has no ec2 volume id
         # associated with it,  we should be able to just delete it
-        if volume['status'] == VolumeState.CREATED:
+        if volume['status'] in (VolumeState.CREATED, VolumeState.ERROR):
             if 'id' in volume['ec2'] and volume['ec2']['id'] is not None:
                 raise RestException(
                     'Unable to delete volume,  it is '

@@ -38,15 +38,18 @@ def attach_volume(profile, cluster, instance, volume, path,
         'girder_cluster_id': cluster['_id'],
         'region': profile['regionName'],
         'profile_id': profile['_id'],
-        'volume_id': volume['ec2']['id'],
         'volume_name': volume['name'],
-        'volume_size': volume['size'],
         'volume_zone': volume['zone'],
         'instance_id': instance['instance_id'],
         'path': path,
         'ansible_ssh_private_key_file': _key_path(profile),
         'ansible_user': cluster['config']['ssh']['user']
     }
+
+    if volume['ec2']['id']:
+        extra_vars['volume_id'] = volume['ec2']['id']
+    else:
+        extra_vars['volume_size'] = volume['size']
 
     extra_vars.update(girder_callback_info)
 

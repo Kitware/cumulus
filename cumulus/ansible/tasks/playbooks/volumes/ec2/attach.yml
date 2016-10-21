@@ -1,26 +1,26 @@
 ---
 - hosts: head
   tasks:
-    - fail:
-        msg: "Profile ID must be passed in as profile_id"
-      when: profile_id is not defined or profile_id == ""
-
-    - name: Fail if instance_id is not set
-      fail:
-        msg: "Instance ID must be passed in as girder_instance_id"
-      when: instance_id is not defined or instance_id == ""
-
-    - name: Fail if path is not set
-      fail:
-        msg: "Path must be passed in as path"
-      when: path is not defined or path == ""
-
-    - name: Fail if volume_size is provided with volume_id
-      fail:
-        msg: "volume_size can not be provided with existing volume"
-      when:  volume_id is defined and volume_id and volume_size is defined  and volume_size
-
     - block:
+        - fail:
+            msg: "Profile ID must be passed in as profile_id"
+          when: profile_id is not defined or profile_id == ""
+
+        - name: Fail if instance_id is not set
+          fail:
+            msg: "Instance ID must be passed in as girder_instance_id"
+          when: instance_id is not defined or instance_id == ""
+
+        - name: Fail if path is not set
+          fail:
+            msg: "Path must be passed in as path"
+          when: path is not defined or path == ""
+
+        - name: Fail if volume_size is provided with volume_id
+          fail:
+            msg: "volume_size can not be provided with existing volume"
+          when:  volume_id is defined and volume_id and volume_size is defined  and volume_size
+
         - ec2_vol:
             id: "{{ volume_id | default(omit) }}"
             name: "ec2_{{ profile_id }}_{{ volume_name }}"
