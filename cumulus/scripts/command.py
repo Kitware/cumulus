@@ -45,7 +45,7 @@ def create_profile(proxy, profile_section):
 @cli.command()
 @pass_proxy
 def list_profiles(proxy):
-    logging.info("Listing profiles")
+    print("Listing profiles:")
 
     keys    = [key('name'), key('status'), key('_id'),
                key('regionName'), key('cloudProvider')]
@@ -55,7 +55,6 @@ def list_profiles(proxy):
                    headers=headers)
     print "\n"
 
-    logging.info("Finished listing profiles")
 
 
 @cli.command()
@@ -73,7 +72,7 @@ def create_cluster(proxy, profile_section, cluster_section):
 @cli.command()
 @pass_proxy
 def list_clusters(proxy):
-    logging.info("Listing clusters")
+    print("Listing clusters:")
 
 
     keys    = [key('name'), key('status'), key('_id'),
@@ -84,7 +83,7 @@ def list_clusters(proxy):
     print tabulate([[f(c) for f in keys] for c in proxy.clusters],
                    headers=headers)
     print "\n"
-    logging.info("Finished listing clusters")
+
 
 @cli.command()
 @click.option('--profile_section', default='profile')
@@ -136,7 +135,7 @@ def terminate_cluster(proxy, profile_section, cluster_section):
 @cli.command()
 @pass_proxy
 def list_aws_instances(proxy):
-    logging.info("Listing AWS instances")
+    print("Listing AWS instances:")
 
     def state(instance):
         try:
@@ -176,7 +175,7 @@ def create_volume(proxy, profile_section, volume_section):
 @cli.command()
 @pass_proxy
 def list_volumes(proxy):
-    logging.info("Listing volumes")
+    print("Listing volumes:")
 
     keys    = [key('name'), profile(proxy.profiles), key('_id'),
                key('size'), key('status'), key('type'), key('zone')]
@@ -186,13 +185,13 @@ def list_volumes(proxy):
     print tabulate([[f(v) for f in keys] for v in proxy.volumes],
                    headers=headers)
     print "\n"
-    logging.info("Finished listing volumes")
+
 
 
 @cli.command()
 @pass_proxy
 def list_aws_volumes(proxy):
-    logging.info("Listing AWS volumes")
+    print("Listing AWS volumes")
 
     def instance_id(volume):
         for a in volume.attachments:
@@ -234,7 +233,7 @@ def list_aws_volumes(proxy):
     print tabulate([[f(v) for f in keys] for v in proxy.get_volumes()],
                    headers=headers)
     print "\n"
-    logging.info("Finished listing volumes")
+
 
 
 @cli.command()
@@ -283,6 +282,20 @@ def delete_volume(proxy, profile_section, volume_section):
     logging.info("Finished deleting volume %s" % _id)
 
 
+
+
+
+
+@cli.command()
+@click.pass_context
+def full_status(ctx):
+    print("******************************** Full Status **********************************")
+    ctx.invoke(list_profiles)
+    ctx.invoke(list_clusters)
+    ctx.invoke(list_volumes)
+    ctx.invoke(list_aws_instances)
+    ctx.invoke(list_aws_volumes)
+    print("******************************** End  Status **********************************")
 
 if __name__ == "__main__":
     cli()

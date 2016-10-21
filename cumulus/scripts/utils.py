@@ -464,9 +464,9 @@ class Proxy(object):
                     logging.debug("%s" % entry)
                     if entry['type'] == 'task':
                         if entry['status'] in ['finished', 'skipped', 'starting']:
-                            logging.info("%s (%s)" % (entry['msg'], entry['status']))
+                            logging.info("ANSIBLE - %s (%s)" % (entry['msg'], entry['status']))
                         elif entry['status'] == 'error':
-                            logging.error("%s (%s)" % (entry['msg'], entry['status']))
+                            logging.error("ANSIBLE - %s (%s)" % (entry['msg'], entry['status']))
 
             r = self.get(status_url)
 
