@@ -30,6 +30,7 @@ def cli(ctx, verbose, config, girder_section, aws_section):
         config,
         girder_section=girder_section,
         aws_section=aws_section)
+    ctx.obj.verbose = verbose
 
 
 @cli.command()

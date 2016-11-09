@@ -160,6 +160,7 @@ class Proxy(object):
     volume_section = section_property("volume")
 
     def __init__(self, config, aws_section="aws", girder_section='girder'):
+        self.verbose = 0
         self.config = config
 
         self.aws_section = aws_section
