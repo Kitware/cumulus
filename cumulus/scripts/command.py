@@ -193,11 +193,7 @@ def list_volumes(proxy):
 
 
 
-@cli.command()
-@pass_proxy
-def list_aws_volumes(proxy):
-    print("Listing AWS volumes")
-
+def get_aws_volume_info(proxy):
     def instance_id(volume):
         for a in volume.attachments:
             if a['State'] == 'attached':
@@ -235,8 +231,16 @@ def list_aws_volumes(proxy):
     headers = ['Name', 'Volume ID', 'State', 'Size', 'Zone',
                'Instance Name', 'Instance ID', 'Device']
 
-    print tabulate([[f(v) for f in keys] for v in proxy.get_volumes()],
-                   headers=headers)
+    return headers, [[f(v) for f in keys] for v in proxy.get_volumes()]
+
+@cli.command()
+@pass_proxy
+def list_aws_volumes(proxy):
+    print("Listing AWS volumes")
+
+    headers, data = get_aws_volume_info(proxy)
+
+    print tabulate(data, headers=headers)
     print "\n"
 
 

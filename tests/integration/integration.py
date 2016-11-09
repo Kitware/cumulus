@@ -1,11 +1,16 @@
 from __future__ import print_function
 import click
 from cumulus.scripts.command import (cli, pass_proxy,
-                                     get_aws_instance_info)
+                                     get_aws_instance_info,
+                                     get_aws_volume_info)
 
 from cumulus.scripts.command import (create_profile,
                                      create_cluster,
                                      launch_cluster,
+                                     create_volume,
+                                     attach_volume,
+                                     detach_volume,
+                                     delete_volume,
                                      terminate_cluster,
                                      delete_cluster,
                                      delete_profile)
@@ -43,11 +48,9 @@ def test_case(func):
         except AssertionError as e:
             test_failures.append(func.__name__)
             if proxy.verbose >= 1:
+                import traceback
                 print('ERROR')
-
-                if proxy.verbose >= 2:
-                    import traceback
-                    traceback.print_exc()
+                traceback.print_exc()
             else:
                 print('E', end='')
 
@@ -147,6 +150,97 @@ def test_launch_cluster(ctx, proxy, profile_section, cluster_section):
         assert instance['State'] == 'terminated', \
             "Instance {} is not running".format(instance["ID"])
 
+
+def get_volume_hash(proxy):
+    headers, data = get_aws_volume_info(proxy)
+    return {d['Volume ID']: d for d in [dict(zip(headers, i)) for i in data]}
+
+
+@cli.command()
+@click.option('--profile_section', default='profile')
+@click.option('--cluster_section', default='cluster')
+@click.option('--volume_section', default='volume')
+@test_case
+def test_volume(ctx, proxy, profile_section, cluster_section, volume_section):
+    assert len(proxy.profiles) == 0, \
+        'Profile already exist!'
+    assert len(proxy.clusters) == 0, \
+        'Clusters already exist!'
+    assert len(proxy.volumes) == 0, \
+        'Volumes already exist!'
+
+    ctx.invoke(create_profile, profile_section=profile_section)
+    ctx.invoke(create_cluster, cluster_section=cluster_section)
+
+    ctx.invoke(launch_cluster, profile_section=profile_section,
+               cluster_section=cluster_section)
+
+    begin = get_volume_hash(proxy)
+
+    ctx.invoke(create_volume, profile_section=profile_section,
+               volume_section=volume_section)
+
+    ctx.invoke(attach_volume, profile_section=profile_section,
+               cluster_section=cluster_section,
+               volume_section=volume_section)
+
+    after_attach = get_volume_hash(proxy)
+
+    vol_ids = set(after_attach.keys()) - set(begin.keys())
+    assert len(vol_ids) == 1, \
+        "Should have found only one volume"
+
+    vol_id = vol_ids.pop()
+
+    assert after_attach[vol_id]['State'] == 'in-use'
+    assert after_attach[vol_id]['Size'] == 12
+
+    girder_vol = proxy.volumes[0]
+    girder_cluster = proxy.clusters[0]
+
+    # local girder status is 'in-use' (attached)
+    assert girder_vol['status'] == 'in-use'
+
+    # volume has right aws id
+    assert vol_id in [v['ec2']['id'] for v in proxy.volumes]
+
+    # cluster has knowledge of girder volume
+    assert girder_vol['_id'] in girder_cluster['volumes']
+
+    ctx.invoke(detach_volume, profile_section=profile_section,
+               cluster_section=cluster_section,
+               volume_section=volume_section)
+
+    after_detach = get_volume_hash(proxy)
+
+    # Remote state is 'available'
+    assert after_detach[vol_id]['State'] == 'available'
+
+    girder_vol = proxy.volumes[0]
+    girder_cluster = proxy.clusters[0]
+
+    # local girder status is available
+    assert girder_vol['status'] == 'available'
+
+    # volume has been removed from local girder cluster's volume list
+    assert girder_vol['_id'] not in girder_cluster['volumes']
+
+    ctx.invoke(delete_volume, profile_section=profile_section,
+               volume_section=volume_section)
+
+    after = get_volume_hash(proxy)
+
+    # Removed out on AWS
+    assert vol_id not in after.keys()
+
+    # Removed locally
+    assert len(proxy.volumes) == 0
+
+    ctx.invoke(terminate_cluster, profile_section=profile_section,
+               cluster_section=cluster_section)
+
+    ctx.invoke(delete_cluster, cluster_section=cluster_section)
+    ctx.invoke(delete_profile, profile_section=profile_section)
 
 if __name__ == '__main__':
     try:
