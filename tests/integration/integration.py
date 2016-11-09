@@ -1,7 +1,13 @@
 from __future__ import print_function
 import click
 from cumulus.scripts.command import (cli, pass_proxy,
-                                     create_profile,
+                                     get_aws_instance_info)
+
+from cumulus.scripts.command import (create_profile,
+                                     create_cluster,
+                                     launch_cluster,
+                                     terminate_cluster,
+                                     delete_cluster,
                                      delete_profile)
 import functools
 import sys
@@ -45,6 +51,8 @@ def test_case(func):
             else:
                 print('E', end='')
 
+        sys.stdout.flush()
+
     _catch_exceptions = click.pass_context(_catch_exceptions)
     _catch_exceptions = pass_proxy(_catch_exceptions)
 
@@ -60,15 +68,84 @@ def test_profile(ctx, proxy, profile_section):
 
     ctx.invoke(create_profile, profile_section=profile_section)
 
-    profiles = proxy.get('user/%s/aws/profiles' % proxy.user['_id'])
-    assert len(profiles) == 1, \
+    assert len(proxy.profiles) == 1, \
         "After create_profile only one profile should exist"
 
     ctx.invoke(delete_profile, profile_section=profile_section)
 
-    profiles = proxy.get('user/%s/aws/profiles' % proxy.user['_id'])
-    assert len(profiles) == 0, \
+    assert len(proxy.profiles) == 0, \
         "After delete_profile no profiles should exist"
+
+
+@cli.command()
+@click.option('--profile_section', default='profile')
+@click.option('--cluster_section', default='cluster')
+@test_case
+def test_cluster(ctx, proxy, profile_section, cluster_section):
+    assert len(proxy.profiles) == 0, \
+        'Profile already exist!'
+    assert len(proxy.clusters) == 0, \
+        'Clusters already exist!'
+
+    ctx.invoke(create_profile, profile_section=profile_section)
+    ctx.invoke(create_cluster, cluster_section=cluster_section)
+
+    assert len(proxy.clusters) == 1, \
+        "After create_cluster only one profile should exist"
+
+    ctx.invoke(delete_cluster, cluster_section=cluster_section)
+    ctx.invoke(delete_profile, profile_section=profile_section)
+
+    assert len(proxy.clusters) == 0, \
+        "After delete_cluster no profiles should exist"
+
+
+def get_instance_hash(proxy):
+    headers, data = get_aws_instance_info(proxy)
+    return {d['ID']: d for d in [dict(zip(headers, i)) for i in data]}
+
+@cli.command()
+@click.option('--profile_section', default='profile')
+@click.option('--cluster_section', default='cluster')
+@test_case
+def test_launch_cluster(ctx, proxy, profile_section, cluster_section):
+    assert len(proxy.profiles) == 0, \
+        'Profile already exist!'
+    assert len(proxy.clusters) == 0, \
+        'Clusters already exist!'
+
+    begin = get_instance_hash(proxy)
+
+    ctx.invoke(create_profile, profile_section=profile_section)
+    ctx.invoke(create_cluster, cluster_section=cluster_section)
+
+    ctx.invoke(launch_cluster, profile_section=profile_section,
+               cluster_section=cluster_section)
+
+    middle = get_instance_hash(proxy)
+
+    instance_ids = set(middle.keys()) - set(begin.keys())
+
+    assert len(instance_ids) == 2, \
+        "Two instances should have been created"
+
+    for instance in [middle[i] for i in instance_ids]:
+        assert instance['State'] == 'running', \
+            "Instance {} is not running".format(instance["ID"])
+        assert instance['Type'] == 't2.nano', \
+            "Instance {} is not a t2.nano instance".format(instance["ID"])
+
+    ctx.invoke(terminate_cluster, profile_section=profile_section,
+               cluster_section=cluster_section)
+
+    ctx.invoke(delete_cluster, cluster_section=cluster_section)
+    ctx.invoke(delete_profile, profile_section=profile_section)
+
+    end = get_instance_hash(proxy)
+
+    for instance in [end[i] for i in instance_ids]:
+        assert instance['State'] == 'terminated', \
+            "Instance {} is not running".format(instance["ID"])
 
 
 if __name__ == '__main__':

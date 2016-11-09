@@ -133,17 +133,13 @@ def terminate_cluster(proxy, profile_section, cluster_section):
     logging.info("Finished terminating cluster")
 
 
-@cli.command()
-@pass_proxy
-def list_aws_instances(proxy):
-    print("Listing AWS instances:")
 
+def get_aws_instance_info(proxy):
     def state(instance):
         try:
             return instance.state['Name']
         except Exception:
             return "UNKNOWN"
-
 
     def groups(instance):
         return ','.join([g['GroupId'] for g in instance.security_groups])
@@ -151,11 +147,19 @@ def list_aws_instances(proxy):
     keys = [aws_name_from_tag, attr('instance_id'), attr('instance_type'),
             state, attr('public_ip_address'), attr('private_ip_address'),
             attr('key_name'), groups]
-    headers = ['Name', 'ID', 'Type', 'State', 'Public IP', 'Private IP', 'Key Name', "Security Groups"]
+    headers = ['Name', 'ID', 'Type', 'State', 'Public IP', 'Private IP',
+               'Key Name', "Security Groups"]
 
-    print tabulate([[f(i) for f in keys] for i in proxy.get_instances()],
-                   headers=headers)
+    return headers, [[f(i) for f in keys] for i in proxy.get_instances()]
 
+@cli.command()
+@pass_proxy
+def list_aws_instances(proxy):
+    print("Listing AWS instances:")
+
+    headers, data = get_aws_instance_info(proxy)
+
+    print tabulate(data, headers=headers)
     print "\n"
 
     logging.info("Finished listing AWS instances")
