@@ -171,6 +171,28 @@ class Proxy(object):
         self.client.authenticate(self.girder_user,
                                  self.girder_password)
 
+
+    def get_folder_id(self, path, create=True, parent=None, _type='folder'):
+        if parent is None:
+            parent = self.user['_id']
+            _type = 'user'
+
+        for part in path.split("/"):
+            try:
+                folder = self.client.listFolder(
+                    parent, name=part, parentFolderType=_type).next()
+            except StopIteration:
+                if create:
+                    folder = self.client.createFolder(parent, part, parentType=_type)
+                else:
+                    return None
+
+
+            _type = 'folder'
+            parent = folder['_id']
+
+        return parent
+
     @property
     def user(self):
         if not hasattr(self, "_user"):
@@ -418,7 +440,22 @@ class Proxy(object):
 
 
 
-    def get_cluster_body(self):
+    def get_traditional_cluster_body(self):
+        if self.cluster_section:
+            return {
+                'config': {
+                    'ssh': {
+                        'user': self.cluster_user
+                    },
+                    'host': self.cluster_host
+                },
+                'name': self.cluster_name,
+                'type': 'trad'
+            }
+        else:
+            raise RuntimeError("No cluster section found!")
+
+    def get_ansible_cluster_body(self):
         if self.cluster_section:
             return {
                 'config': {
@@ -440,6 +477,12 @@ class Proxy(object):
             }
         else:
             raise RuntimeError("No cluster section found!")
+
+    def get_cluster_body(self):
+        if self.cluster_type == 'trad':
+            return self.get_traditional_cluster_body()
+        else:
+            return self.get_ansible_cluster_body()
 
     def wait_for_status(self, status_url, status, timeout=10, log_url=None, callback=None):
         logging.debug("Waiting for status '%s' at '%s'" % (status, status_url))
@@ -482,7 +525,7 @@ class Proxy(object):
             if r['status'] in status:
                 break
 
-            if r['status'] == 'error':
+            if r['status'] in ['error', 'unexpectederror']:
                 if log_url is not None:
                     raise RuntimeError(
                         "Cluster has moved into an error state! "

@@ -1,4 +1,5 @@
 from __future__ import print_function
+import os
 import click
 import json
 import logging
@@ -6,6 +7,7 @@ import functools
 import sys
 import time
 import girder_client
+import paramiko
 from cumulus.scripts.command import (cli, pass_proxy,
                                      get_aws_instance_info,
                                      get_aws_volume_info)
@@ -378,7 +380,6 @@ def test_taskflow(ctx, proxy):
     ctx.invoke(test_connected_taskflow)
 
 
-
 #      # Now try a composite workflow approach ...
 #        print ('Running taskflow that is a composite ...')
 #        taskflow_id = create_taskflow(
@@ -391,6 +392,107 @@ def test_taskflow(ctx, proxy):
 #        # Wait for it to complete
 #        wait_for_complete(client, taskflow_id)
 
+
+
+###############################################################################
+#                  Traditional Cluster Test
+#
+
+@cli.command()
+@click.option('--profile_section', default='profile')
+@click.option('--cluster_section', default='traditional')
+@test_case
+def test_traditional(ctx, proxy, profile_section, cluster_section):
+    from StringIO import StringIO
+
+    logging.info('Starting traditional cluster test...')
+    proxy.profile_section = profile_section
+    proxy.cluster_section = cluster_section
+
+    ctx.invoke(create_profile, profile_section=profile_section)
+    ctx.invoke(create_cluster, cluster_section=cluster_section)
+
+    proxy.wait_for_status('clusters/%s/status' % proxy.cluster['_id'],
+                          'created', timeout=60)
+
+    # Re-request the cluster
+    proxy._cluster = None
+
+#    # Check cluster has key location
+    assert 'config' in proxy.cluster
+    assert 'ssh' in proxy.cluster['config']
+    assert 'publicKey' in proxy.cluster['config']['ssh']
+
+    key = proxy.cluster['config']['ssh']['publicKey']
+
+    # Create SSH Client
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.load_system_host_keys()
+    client.connect(proxy.cluster_host,
+                   username=proxy.cluster_user, look_for_keys=True)
+
+    # Add key on 'cluster' machine
+    _, stdout, stderr = client.exec_command('echo "%s" >> ~/.ssh/authorized_keys' % key)
+    assert bool(stdout.read()) == False
+    assert bool(stderr.read()) == False
+
+    proxy.put('clusters/%s/start' % proxy.cluster['_id'])
+    proxy.wait_for_status('clusters/%s/status' % proxy.cluster['_id'],
+                          'running', timeout=60)
+
+
+    import pudb; pu.db
+
+    # Create Script
+    commands = ['sleep 10', 'cat CumulusIntegrationTestInput']
+    r = proxy.post('scripts', data=json.dumps({
+        'commands': commands,
+        'name': 'CumulusIntegrationTestLob'
+    }))
+    script_id = r['_id']
+
+    # Create Input
+    data = 'Need more input!'
+    input_folder_id = proxy.get_folder_id('Private/CumulusInput')
+
+    ## Create the input item
+    proxy.client.uploadFile(
+        input_folder_id, StringIO(data), 'CumulusIntegrationTestInput',
+        len(data), parentType='folder')
+
+    # Create Output Folder
+    output_folder_id = proxy.get_folder_id('Private/CumulusOutput')
+
+    # Create Job
+    job = proxy.client.post('jobs', data=json.dumps({
+        'name': 'CumulusIntegrationTestJob',
+        'scriptId': script_id,
+        'output': [{
+            'folderId': output_folder_id,
+            'path': '.'
+        }],
+        'input': [{
+            'folderId': input_folder_id,
+            'path': '.'
+            }]
+    }))
+
+    # Submit Job
+    proxy.client.put('clusters/%s/job/%s/submit' %
+                     (proxy.cluster['_id'], job['_id']))
+
+    proxy.wait_for_status('jobs/%s' % job['_id'],
+                          'complete', timeout=60,
+                          log_url='jobs/%s/log' % job['_id'])
+    # Assert output
+    r = proxy.client.listItem(output_folder_id)
+    assert len(r) == 4
+
+
+    # Clean up
+    ctx.invoke(delete_cluster, cluster_section=cluster_section)
+    ctx.invoke(delete_profile, profile_section=profile_section)
 
 
 
