@@ -166,10 +166,10 @@ class Proxy(object):
         self.aws_section = aws_section
         self.girder_section = girder_section
 
-        self._client = girder_client.GirderClient(apiUrl=self.girder_api_url)
+        self.client = girder_client.GirderClient(apiUrl=self.girder_api_url)
 
-        self._client.authenticate(self.girder_user,
-                                  self.girder_password)
+        self.client.authenticate(self.girder_user,
+                                 self.girder_password)
 
     @property
     def user(self):
@@ -441,7 +441,7 @@ class Proxy(object):
         else:
             raise RuntimeError("No cluster section found!")
 
-    def wait_for_status(self, status_url, status, timeout=10, log_url=None):
+    def wait_for_status(self, status_url, status, timeout=10, log_url=None, callback=None):
         logging.debug("Waiting for status '%s' at '%s'" % (status, status_url))
 
         if isinstance(status, basestring):
@@ -455,19 +455,27 @@ class Proxy(object):
         start = time.time()
         while True:
             if log_url is not None:
-                r = self.get(log_url, parameters={
-                    'offset': log_offset
-                })
+                try:
+                    r = self.get(log_url, parameters={
+                        'offset': log_offset
+                    })
 
-                log_offset += len(r['log'])
+                    log_offset += len(r['log'])
 
-                for entry in r['log']:
-                    logging.debug("%s" % entry)
-                    if entry['type'] == 'task':
-                        if entry['status'] in ['finished', 'skipped', 'starting']:
-                            logging.info("ANSIBLE - %s (%s)" % (entry['msg'], entry['status']))
-                        elif entry['status'] == 'error':
-                            logging.error("ANSIBLE - %s (%s)" % (entry['msg'], entry['status']))
+                    for entry in r['log']:
+                        logging.debug("%s" % entry)
+                        try:
+                            if entry['type'] == 'task':
+                                if entry['status'] in ['finished', 'skipped', 'starting']:
+                                    logging.info("ANSIBLE - %s (%s)" % (entry['msg'], entry['status']))
+                                elif entry['status'] == 'error':
+                                    logging.error("ANSIBLE - %s (%s)" % (entry['msg'], entry['status']))
+                        except KeyError:
+                            logging.log(entry['levelno'], '%s' % entry['msg'])
+
+                except girder_client.HttpError as ex:
+                    logging.debug("Got %s when requesting %s" % (ex.status, log_url))
+
 
             r = self.get(status_url)
 
@@ -483,6 +491,10 @@ class Proxy(object):
                     raise RuntimeError(
                         "Operation moved resource into an error state!"
                         " See: %s/%s" % (self.girder_api_url, status_url))
+
+            if hasattr(callback, "__call__"):
+                if callback(r):
+                    break
 
             if time.time() - start > timeout:
                 raise RuntimeError(
@@ -536,7 +548,7 @@ class Proxy(object):
         if kwargs:
             logging.debug(kwargs)
 
-        return self._client.get(uri, **kwargs)
+        return self.client.get(uri, **kwargs)
 
     def post(self, uri, **kwargs):
         url = "%s/%s" % (self.girder_api_url, uri)
@@ -544,7 +556,7 @@ class Proxy(object):
         if kwargs:
             logging.debug(kwargs)
 
-        return self._client.post(uri, **kwargs)
+        return self.client.post(uri, **kwargs)
 
     def put(self, uri, **kwargs):
         url = "%s/%s" % (self.girder_api_url, uri)
@@ -552,7 +564,7 @@ class Proxy(object):
         if kwargs:
             logging.debug(kwargs)
 
-        return self._client.put(uri, **kwargs)
+        return self.client.put(uri, **kwargs)
 
     def delete(self, uri, **kwargs):
         url = "%s/%s" % (self.girder_api_url, uri)
@@ -560,4 +572,4 @@ class Proxy(object):
         if kwargs:
             logging.debug(kwargs)
 
-        return self._client.delete(uri, **kwargs)
+        return self.client.delete(uri, **kwargs)
