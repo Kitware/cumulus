@@ -53,6 +53,13 @@ class SshClusterConnection(AbstractConnection):
 
         username = parse('config.ssh.user').find(self._cluster)[0].value
         hostname = parse('config.host').find(self._cluster)[0].value
+
+        port = parse('config.port').find(self._cluster)
+        if port:
+            port = port[0].value
+        else:
+            port = 22
+
         passphrase \
             = parse('config.ssh.passphrase').find(self._cluster)
         if passphrase:
@@ -66,8 +73,8 @@ class SshClusterConnection(AbstractConnection):
 
         private_key = self._load_rsa_key(key_path, passphrase)
 
-        self._client.connect(hostname=hostname, username=username,
-                             pkey=private_key)
+        self._client.connect(hostname=hostname, port=port,
+                             username=username, pkey=private_key)
 
         return self
 
