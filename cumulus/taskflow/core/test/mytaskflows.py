@@ -63,7 +63,7 @@ class LinkTaskFlow(taskflow.TaskFlow):
 
 @command.task
 def regular_task():
-    print 'regular_task!!'
+    'regular_task!!'
     time.sleep(3)
 
 
@@ -83,30 +83,29 @@ def simple_delete(task, *args, **kwargs):
 def simple_task1(task, *args, **kwargs):
     task.taskflow.logger.info('Starting simple_task1')
     task.logger.info('Task level logging')
-    task.taskflow.set('test', {'nested': 'value'})
-    print ('simple_task1')
+    task.taskflow.set_metadata('test', {'nested': 'value'})
+    task.taskflow.logger.debug('simple_task1')
     simple_task2.delay()
 
 
 @taskflow.task
 def simple_task2(task, *args, **kwargs):
-    print ('simple_task2')
+    task.taskflow.logger.debug('simple_task2')
     time.sleep(3)
-    task.taskflow.set('test', {'nested2': 'value'})
+    task.taskflow.set_metadata('test', {'nested2': 'value'})
     simple_task3.delay()
 
 
 @taskflow.task
 def simple_task3(task, *args, **kwargs):
-    print ('simple_task3')
-
+    task.taskflow.logger.debug('simple_task3')
     for i in range(0, 10):
         simple_task4.delay()
 
 
 @taskflow.task
 def simple_task4(task, *args, **kwargs):
-    print ('simple_task4')
+    task.taskflow.logger.debug('simple_task4')
     time.sleep(2)
 
     simple_task5.delay()
@@ -114,13 +113,13 @@ def simple_task4(task, *args, **kwargs):
 
 @taskflow.task
 def simple_task5(task, *args, **kwargs):
-    print ('simple_task5')
+    task.taskflow.logger.debug('simple_task5')
     simple_task6.delay()
 
 
 @taskflow.task
 def simple_task6(task, *args, **kwargs):
-    print ('simple_task6 and done')
+    task.taskflow.logger.debug('simple_task6 and done')
 
 
 class ChordTaskFlow(taskflow.TaskFlow):
@@ -134,13 +133,13 @@ class ChordTaskFlow(taskflow.TaskFlow):
 
 @taskflow.task
 def task1(task, *args, **kwargs):
-    print ('task1')
+    task.taskflow.logger.debug('task1')
     task2.delay()
 
 
 @taskflow.task
 def task2(task, *args, **kwargs):
-    print ('task2')
+    task.taskflow.logger.debug('task2')
     time.sleep(3)
 
     task3.delay()
@@ -148,7 +147,7 @@ def task2(task, *args, **kwargs):
 
 @taskflow.task
 def task3(task, *args, **kwargs):
-    print ('task3')
+    task.taskflow.logger.debug('task3')
 
     for i in range(0, 10):
         task4.delay()
@@ -156,7 +155,7 @@ def task3(task, *args, **kwargs):
 
 @taskflow.task
 def task4(task, *args, **kwargs):
-    print ('task4')
+    task.taskflow.logger.debug('task4')
     time.sleep(2)
 
     header = [task5.s() for i in range(10)]
@@ -166,12 +165,12 @@ def task4(task, *args, **kwargs):
 
 @taskflow.task
 def task5(task, *args, **kwargs):
-    print ('task5')
+    task.taskflow.logger.debug('task5')
 
 
 @taskflow.task
 def task6(task, chord_result, *args, **kwargs):
-    print 'task6 and done'
+    task.taskflow.logger.debug('task6 and done')
 
 
 # Example that connects to sequence of tasks together, to allow reuse of sub
@@ -180,44 +179,44 @@ def task6(task, chord_result, *args, **kwargs):
 
 @taskflow.task
 def part1_start(task, *args, **kwargs):
-    print ('part1 - task1')
+    task.taskflow.logger.debug('part1 - task1')
     part1_task2.delay()
 
 
 @taskflow.task
 def part1_task2(task, *args, **kwargs):
-    print ('part1 - task2')
+    task.taskflow.logger.debug('part1 - task2')
     time.sleep(3)
     part1_task3.delay()
 
 
 @taskflow.task
 def part1_task3(task, *args, **kwargs):
-    print ('part1 - task3')
+    task.taskflow.logger.debug('part1 - task3')
 
 
 @taskflow.task
 def part2_start(task, *args, **kwargs):
-    print ('part2 - task1')
+    task.taskflow.logger.debug('part2 - task1')
     part2_task2.delay()
 
 
 @taskflow.task
 def part2_task2(task, *args, **kwargs):
-    print ('part2 - task2')
+    task.taskflow.logger.debug('part2 - task2')
     time.sleep(3)
     part2_task3.delay()
 
 
 @taskflow.task
 def part2_task3(task, *args, **kwargs):
-    print ('part2 - task3')
+    task.taskflow.logger.debug('part2 - task3')
     time.sleep(3)
 
 
 @taskflow.task
 def part3_start(task, *args, **kwargs):
-    print ('part3 - start')
+    task.taskflow.logger.debug('part3 - start')
     time.sleep(3)
 
 

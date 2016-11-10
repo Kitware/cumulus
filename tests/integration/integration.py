@@ -1,5 +1,11 @@
 from __future__ import print_function
 import click
+import json
+import logging
+import functools
+import sys
+import time
+import girder_client
 from cumulus.scripts.command import (cli, pass_proxy,
                                      get_aws_instance_info,
                                      get_aws_volume_info)
@@ -14,19 +20,17 @@ from cumulus.scripts.command import (create_profile,
                                      terminate_cluster,
                                      delete_cluster,
                                      delete_profile)
-import functools
-import sys
 
 test_failures = []
 
 def report():
     if len(test_failures) == 0:
-        print("\nAll tests passed")
+        print('\nAll tests passed')
         sys.exit(0)
     else:
-        print("\nTest failures present!")
+        print('\nTest failures present!')
         for test in test_failures:
-            print("    {}".format(test))
+            print('    {}'.format(test))
         sys.exit(1)
 
 
@@ -36,12 +40,13 @@ def test_case(func):
         try:
             ctx, proxy = args[0], args[1]
             if proxy.verbose >= 1:
-                print('%s...' % func.__name__, end='')
+                print('%s...' % func.__name__)
+                sys.stdout.flush()
 
             func(*args, **kwargs)
 
             if proxy.verbose >= 1:
-                print('OK')
+                print('%s...OK' % func.__name__)
             else:
                 print('.', end='')
 
@@ -72,12 +77,12 @@ def test_profile(ctx, proxy, profile_section):
     ctx.invoke(create_profile, profile_section=profile_section)
 
     assert len(proxy.profiles) == 1, \
-        "After create_profile only one profile should exist"
+        'After create_profile only one profile should exist'
 
     ctx.invoke(delete_profile, profile_section=profile_section)
 
     assert len(proxy.profiles) == 0, \
-        "After delete_profile no profiles should exist"
+        'After delete_profile no profiles should exist'
 
 
 @cli.command()
@@ -94,13 +99,13 @@ def test_cluster(ctx, proxy, profile_section, cluster_section):
     ctx.invoke(create_cluster, cluster_section=cluster_section)
 
     assert len(proxy.clusters) == 1, \
-        "After create_cluster only one profile should exist"
+        'After create_cluster only one profile should exist'
 
     ctx.invoke(delete_cluster, cluster_section=cluster_section)
     ctx.invoke(delete_profile, profile_section=profile_section)
 
     assert len(proxy.clusters) == 0, \
-        "After delete_cluster no profiles should exist"
+        'After delete_cluster no profiles should exist'
 
 
 def get_instance_hash(proxy):
@@ -130,13 +135,13 @@ def test_launch_cluster(ctx, proxy, profile_section, cluster_section):
     instance_ids = set(middle.keys()) - set(begin.keys())
 
     assert len(instance_ids) == 2, \
-        "Two instances should have been created"
+        'Two instances should have been created'
 
     for instance in [middle[i] for i in instance_ids]:
         assert instance['State'] == 'running', \
-            "Instance {} is not running".format(instance["ID"])
+            'Instance {} is not running'.format(instance['ID'])
         assert instance['Type'] == 't2.nano', \
-            "Instance {} is not a t2.nano instance".format(instance["ID"])
+            'Instance {} is not a t2.nano instance'.format(instance['ID'])
 
     ctx.invoke(terminate_cluster, profile_section=profile_section,
                cluster_section=cluster_section)
@@ -148,7 +153,7 @@ def test_launch_cluster(ctx, proxy, profile_section, cluster_section):
 
     for instance in [end[i] for i in instance_ids]:
         assert instance['State'] == 'terminated', \
-            "Instance {} is not running".format(instance["ID"])
+            'Instance {} is not running'.format(instance['ID'])
 
 
 def get_volume_hash(proxy):
@@ -188,7 +193,7 @@ def test_volume(ctx, proxy, profile_section, cluster_section, volume_section):
 
     vol_ids = set(after_attach.keys()) - set(begin.keys())
     assert len(vol_ids) == 1, \
-        "Should have found only one volume"
+        'Should have found only one volume'
 
     vol_id = vol_ids.pop()
 
@@ -241,6 +246,154 @@ def test_volume(ctx, proxy, profile_section, cluster_section, volume_section):
 
     ctx.invoke(delete_cluster, cluster_section=cluster_section)
     ctx.invoke(delete_profile, profile_section=profile_section)
+
+
+###############################################################################
+#                       Taskflow Integration tests
+#
+
+
+def create_taskflow(proxy, cls_name):
+    r = proxy.post('taskflows', data=json.dumps({
+        'taskFlowClass': cls_name
+    }))
+
+    return r['_id']
+
+
+
+def wait_for_taskflow_status(proxy, taskflow_id, state, timeout=60):
+
+    def _get_taskflow_numbers(status_response):
+        tasks_url = 'taskflows/%s/tasks' % (taskflow_id)
+        try:
+            r = proxy.get(tasks_url)
+            logging.info('Tasks in flow: %d' % len(r))
+        except girder_client.HttpError:
+            pass
+
+    proxy.wait_for_status(
+        'taskflows/%s/status' % (taskflow_id), state,
+        timeout=timeout,
+        log_url='taskflows/%s/log' % (taskflow_id),
+        callback=_get_taskflow_numbers)
+
+
+
+@cli.command()
+@test_case
+def test_simple_taskflow(ctx, proxy):
+
+    logging.info('Running simple taskflow ...')
+    taskflow_id = create_taskflow(
+        proxy, 'cumulus.taskflow.core.test.mytaskflows.SimpleTaskFlow')
+
+    # Start the task flow
+    proxy.put('taskflows/%s/start' % (taskflow_id))
+    wait_for_taskflow_status(proxy, taskflow_id, 'complete')
+
+
+@cli.command()
+@test_case
+def test_linked_taskflow(ctx, proxy):
+
+    logging.info('Running linked taskflow ...')
+    taskflow_id = create_taskflow(
+        proxy, 'cumulus.taskflow.core.test.mytaskflows.LinkTaskFlow')
+
+    # Start the task flow
+    proxy.put('taskflows/%s/start' % (taskflow_id))
+    wait_for_taskflow_status(proxy, taskflow_id, 'complete')
+
+
+@cli.command()
+@test_case
+def test_terminate_taskflow(ctx, proxy):
+    # Test terminating a simple flow
+    logging.info('Running simple taskflow ...')
+    taskflow_id = create_taskflow(
+        proxy, 'cumulus.taskflow.core.test.mytaskflows.SimpleTaskFlow')
+
+    # Start the task flow
+    proxy.put('taskflows/%s/start' % (taskflow_id))
+    time.sleep(4)
+
+    logging.info('Terminate the taskflow')
+    proxy.put('taskflows/%s/terminate' % (taskflow_id))
+
+    # Wait for it to terminate
+    wait_for_taskflow_status(proxy, taskflow_id, 'terminated')
+
+
+    # Now delete it
+    logging.info('Delete the taskflow')
+    try:
+        proxy.delete('taskflows/%s' % (taskflow_id))
+    except girder_client.HttpError as ex:
+        if ex.status != 202:
+            raise
+
+    # Wait for it to delete
+    try:
+        wait_for_taskflow_status(proxy, taskflow_id, 'deleted')
+    except girder_client.HttpError as ex:
+        if ex.status != 400:
+            raise
+
+@cli.command()
+@test_case
+def test_chord_taskflow(ctx, proxy):
+    # Now try something with a chord
+    logging.info('Running taskflow containing a chord ...')
+    taskflow_id = create_taskflow(
+        proxy, 'cumulus.taskflow.core.test.mytaskflows.ChordTaskFlow')
+
+    # Start the task flow
+    proxy.put('taskflows/%s/start' % (taskflow_id))
+    wait_for_taskflow_status(proxy, taskflow_id, 'complete')
+
+
+@cli.command()
+@test_case
+def test_connected_taskflow(ctx, proxy):
+    # Now try a workflow that is the two connected together
+    logging.info('Running taskflow that connects to parts together ...')
+    taskflow_id = create_taskflow(
+        proxy, 'cumulus.taskflow.core.test.mytaskflows.ConnectTwoTaskFlow')
+
+    # Start the task flow
+    proxy.put('taskflows/%s/start' % (taskflow_id))
+
+    # Wait for it to complete
+    wait_for_taskflow_status(proxy, taskflow_id, 'complete')
+
+
+@cli.command()
+@test_case
+def test_taskflow(ctx, proxy):
+    ctx.invoke(test_simple_taskflow)
+    ctx.invoke(test_linked_taskflow)
+    ctx.invoke(test_terminate_taskflow)
+    ctx.invoke(test_chord_taskflow)
+    ctx.invoke(test_connected_taskflow)
+
+
+
+#      # Now try a composite workflow approach ...
+#        print ('Running taskflow that is a composite ...')
+#        taskflow_id = create_taskflow(
+#            client, 'cumulus.taskflow.core.test.mytaskflows.MyCompositeTaskFlow')
+#
+#        # Start the task flow
+#        url = 'taskflows/%s/start' % (taskflow_id)
+#        client.put(url)
+#
+#        # Wait for it to complete
+#        wait_for_complete(client, taskflow_id)
+
+
+
+
 
 if __name__ == '__main__':
     try:
