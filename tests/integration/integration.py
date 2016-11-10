@@ -401,16 +401,23 @@ def test_taskflow(ctx, proxy):
 @cli.command()
 @click.option('--profile_section', default='profile')
 @click.option('--cluster_section', default='traditional')
+@click.option('--host', default=None)
+@click.option('--port', default=None)
 @test_case
-def test_traditional(ctx, proxy, profile_section, cluster_section):
+def test_traditional(ctx, proxy, profile_section, cluster_section, host, port):
     from StringIO import StringIO
 
     logging.info('Starting traditional cluster test...')
-    proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
 
+    if host is not None:
+        proxy.cluster_host = host
+
+    if port is not None:
+        proxy.cluster_port = port
+
     ctx.invoke(create_profile, profile_section=profile_section)
-    ctx.invoke(create_cluster, cluster_section=cluster_section)
+    ctx.invoke(create_cluster, cluster_section=None)
 
     proxy.wait_for_status('clusters/%s/status' % proxy.cluster['_id'],
                           'created', timeout=60)

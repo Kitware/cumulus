@@ -137,6 +137,9 @@ def section_property(prefix, config="config"):
         return getattr(self, private_variable) if hasattr(self, private_variable) else None
 
     def __section_setter(self, section):
+        if section is None:
+            return
+
         obj_config = getattr(self, config)
 
         if obj_config.has_section(section):
@@ -447,7 +450,8 @@ class Proxy(object):
                     'ssh': {
                         'user': self.cluster_user
                     },
-                    'host': self.cluster_host
+                    'host': self.cluster_host,
+                    'port': self.cluster_port
                 },
                 'name': self.cluster_name,
                 'type': 'trad'
