@@ -24,6 +24,7 @@ import requests
 from celery.canvas import Signature
 
 import cumulus.taskflow
+import cumulus.ansible.tasks.volume
 from cumulus.tasks.job import terminate_job
 from cumulus.constants import JobState
 
@@ -55,6 +56,16 @@ class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
             model = ModelImporter.model('aws', 'cumulus')
             profile = model.load(profile_id, user=user, level=AccessType.ADMIN)
             kwargs['profile'] = profile
+
+        volume_id = parse('volume._id').find(kwargs)
+        if volume_id:
+            volume_id = volume_id[0].value
+            model = ModelImporter.model('volume', 'cumulus')
+            volume = model.load(profile_id, user=user, level=AccessType.ADMIN)
+        else:
+            volume = create_volume.s(self, parse('volume').find(kwargs), profile)
+
+        kwargs['volume'] = volume
 
         super(ClusterProvisioningTaskFlow, self).start(
             setup_cluster.s(self, *args, **kwargs))
@@ -90,7 +101,34 @@ def setup_cluster(task, *args, **kwargs):
         profile = kwargs.get('profile')
         cluster = create_ec2_cluster(
             task, cluster, profile, kwargs['image_spec'])
+
         task.logger.info('Cluster started.')
+
+    volume = kwargs['volume']
+    if '_id' in volume:
+        task.taskflow.logger.info(
+            'We are using an existing volume: %s' % volume['name'])
+    else:
+        task.taskflow.logger.info('We are creating an EBS volume.')
+        task.logger.info('Volume name %s' % volume['name'])
+        profile = kwargs.get('profile')
+        volume = create_volume(
+            task, cluster, profile)
+
+        task.logger.info('Volume created.')
+
+    girder_callback_info = {
+            'girder_api_url': getApiUrl(),
+            'girder_token': get_task_token()['_id']}
+    master = p.get_master_instance(cluster['_id'])
+    if master['state'] != InstanceState.RUNNING:
+        raise RestException('Master instance is not running!',
+                            400)
+    # attach volume
+    cumulus.ansible.tasks.volume.attach_volume\
+        .delay(profile, cluster, master,
+               volume, '/data',
+               profile['secret_key'], girder_callback_info)
 
     # Call any follow on task
     if 'next' in kwargs:
@@ -228,6 +266,27 @@ def create_ec2_cluster(task, cluster, profile, ami_spec):
     cluster = client.get('clusters/%s' % cluster['_id'])
 
     return cluster
+
+@cumulus.taskflow.task
+def create_volume(task, volume, profile):
+    client = create_girder_client(
+        task.taskflow.girder_api_url, task.taskflow.girder_token)
+
+    body = {
+        'name': volume['name'],
+        'type': 'ebs',
+        'zone': profile['zone'],
+        'profileId': profile['_id']
+    }
+
+    # create volume model
+    try:
+        volume = client.post('clusters',  data=json.dumps(body))
+    except HttpError as he:
+        task.logger.exception(he.responseText)
+        raise
+
+    return volume
 
 
 def create_girder_client(girder_api_url, girder_token):
