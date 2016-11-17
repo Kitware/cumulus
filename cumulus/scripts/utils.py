@@ -11,45 +11,45 @@ logging.getLogger('botocore').setLevel(logging.CRITICAL)
 
 
 def key(name):
-    """Produces a function that accesses an item
+    '''Produces a function that accesses an item
 
     :param name: the key name for a value on a dictionary
     :returns: A function that when applied to a dict returns value for that key
     :rtype: function
 
-    """
+    '''
 
     def _key(dictionary):
-        """Wrapped function for accessing an attribute
+        '''Wrapped function for accessing an attribute
 
         The attribute 'name' is defined in the enclosing closure.
 
         :param dictionary: an object
         :returns: Value of the 'name' attribute or ''
-        """
+        '''
         return dictionary.get(name, '')
 
     return _key
 
 
 def attr(name):
-    """Produces a function that accesses an attribute
+    '''Produces a function that accesses an attribute
 
     :param name: Name of an attribute
     :returns: A function that when applied to an instance returns the
               value for the attribute 'name'
     :rtype: function
 
-    """
+    '''
 
     def _attr(obj):
-        """Wrapped function for accessing an attribute
+        '''Wrapped function for accessing an attribute
 
         The attribute 'name' is defined in the enclosing closure.
 
         :param dictionary: an object
         :returns: Value of the 'name' attribute or ''
-        """
+        '''
         return getattr(obj, name) if hasattr(obj, name) else ''
 
     return _attr
@@ -70,13 +70,12 @@ def aws_name_from_tag(resource):
             if tag['Key'] == 'Name':
                 return tag['Value']
         return ''
-    except Exception as e:
+    except Exception:
         return ''
 
 
-
 class ConfigParam(click.ParamType):
-    """Takes a file string and produces a RawConfigParser object"""
+    '''Takes a file string and produces a RawConfigParser object'''
     name = 'config'
 
     def convert(self, value, param, ctx):
@@ -89,11 +88,12 @@ class ConfigParam(click.ParamType):
         except Exception as e:
             self.fail(str(e))
 
+
 CONFIG_PARAM = ConfigParam()
 
 
-def section_property(prefix, config="config"):
-    """Creates a property for a specific configuration section
+def section_property(prefix, config='config'):
+    '''Creates a property for a specific configuration section
 
     This function will create a getter and a setter for a particular
     section of a configuration file. The setter will create a private
@@ -104,8 +104,8 @@ def section_property(prefix, config="config"):
     For Example:
         # Assume the foolowing configuration in /path/to/config.cfg
         [my_girder_section]
-        api_url = "http://127.0.0.1:8080"
-        some_property = "foobar"
+        api_url = 'http://127.0.0.1:8080'
+        some_property = 'foobar'
 
         class Foo(object):
             foo_section = section_propery('foo')
@@ -115,8 +115,8 @@ def section_property(prefix, config="config"):
                 self.girder_section = girder_section
 
         >>> import ConfigParser
-        >>> config = ConfigParser.RawConfigParser("/path/to/config.cfg")
-        >>> config.read("/path/to/config.cfg")
+        >>> config = ConfigParser.RawConfigParser('/path/to/config.cfg')
+        >>> config.read('/path/to/config.cfg')
         ['/path/to/config.cfg']
 
         >>> f = Foo(config, 'my_girder_section')
@@ -130,11 +130,12 @@ def section_property(prefix, config="config"):
     a known prefix. By default this assumes that the object's config will be
     available as an attribute 'config' on the object. This can by modified by
     passing a different string to the config keword argument.
-    """
-    private_variable = "_%s_section" % prefix
+    '''
+    private_variable = '_%s_section' % prefix
 
     def __section_getter(self):
-        return getattr(self, private_variable) if hasattr(self, private_variable) else None
+        return getattr(self, private_variable) \
+            if hasattr(self, private_variable) else None
 
     def __section_setter(self, section):
         if section is None:
@@ -146,23 +147,23 @@ def section_property(prefix, config="config"):
             setattr(self, private_variable, section)
 
             for key, value in obj_config.items(section):
-                setattr(self, "%s_%s" % (prefix, key), value)
+                setattr(self, '%s_%s' % (prefix, key), value)
         else:
             raise RuntimeError(
-                "Configuration does not have a '%s' section" % section)
+                'Configuration does not have a "%s" section' % section)
 
     return property(__section_getter, __section_setter, None)
 
 
 class Proxy(object):
 
-    aws_section = section_property("aws")
-    girder_section = section_property("girder")
-    profile_section = section_property("profile")
-    cluster_section = section_property("cluster")
-    volume_section = section_property("volume")
+    aws_section = section_property('aws')
+    girder_section = section_property('girder')
+    profile_section = section_property('profile')
+    cluster_section = section_property('cluster')
+    volume_section = section_property('volume')
 
-    def __init__(self, config, aws_section="aws", girder_section='girder'):
+    def __init__(self, config, aws_section='aws', girder_section='girder'):
         self.verbose = 0
         self.config = config
 
@@ -174,22 +175,21 @@ class Proxy(object):
         self.client.authenticate(self.girder_user,
                                  self.girder_password)
 
-
     def get_folder_id(self, path, create=True, parent=None, _type='folder'):
         if parent is None:
             parent = self.user['_id']
             _type = 'user'
 
-        for part in path.split("/"):
+        for part in path.split('/'):
             try:
                 folder = self.client.listFolder(
                     parent, name=part, parentFolderType=_type).next()
             except StopIteration:
                 if create:
-                    folder = self.client.createFolder(parent, part, parentType=_type)
+                    folder = self.client.createFolder(
+                        parent, part, parentType=_type)
                 else:
                     return None
-
 
             _type = 'folder'
             parent = folder['_id']
@@ -198,24 +198,22 @@ class Proxy(object):
 
     @property
     def user(self):
-        if not hasattr(self, "_user"):
+        if not hasattr(self, '_user'):
             self._user = None
 
         if self._user is None:
-            setattr(self, "_user", self.get("user/me"))
+            setattr(self, '_user', self.get('user/me'))
 
         return self._user
 
-
     @property
     def profiles(self):
-        r = self.get("user/%s/aws/profiles" % self.user['_id'])
+        r = self.get('user/%s/aws/profiles' % self.user['_id'])
         return r
-
 
     @property
     def profile(self):
-        if not hasattr(self, "_profile"):
+        if not hasattr(self, '_profile'):
             self._profile = None
 
         if self._profile is None:
@@ -224,16 +222,17 @@ class Proxy(object):
 
         return self._profile
 
-
     @profile.setter
     def profile(self, profile):
         for p in self.profiles:
             if p['name'] == profile['name']:
-                logging.info("Using pre-existing profile: %s (%s)" % (p['name'], p['_id']))
+                logging.info('Using pre-existing profile: %s (%s)' %
+                             (p['name'], p['_id']))
                 self._profile = p
 
                 self.wait_for_status(
-                    'user/%s/aws/profiles/%s/status' % (self.user['_id'], self.profile['_id']),
+                    'user/%s/aws/profiles/%s/status' % (
+                        self.user['_id'], self.profile['_id']),
                     'available')
                 return None
 
@@ -242,10 +241,11 @@ class Proxy(object):
                       data=json.dumps(profile))
 
         self._profile = r
-        logging.debug("Created profile %s: %s" % (r['_id'], r))
+        logging.debug('Created profile %s: %s' % (r['_id'], r))
 
         self.wait_for_status(
-            'user/%s/aws/profiles/%s/status' % (self.user['_id'], self.profile['_id']),
+            'user/%s/aws/profiles/%s/status' % (
+                self.user['_id'], self.profile['_id']),
             'available')
         return None
 
@@ -254,9 +254,9 @@ class Proxy(object):
         for p in self.profiles:
             if p['name'] == self.profile_name:
                 try:
-                    r = self.delete("user/%s/aws/profiles/%s" %
-                                    (self.user['_id'], p['_id']))
-                    if hasattr(self, "_profile"):
+                    self.delete('user/%s/aws/profiles/%s' %
+                                (self.user['_id'], p['_id']))
+                    if hasattr(self, '_profile'):
                         del(self._profile)
                 except girder_client.HttpError as e:
                     if e.status == 400:
@@ -266,7 +266,7 @@ class Proxy(object):
                 return None
 
         logging.debug(
-            "No profile with name '%s' found. Skipping" % self.profile_name)
+            'No profile with name "%s" found. Skipping' % self.profile_name)
 
         return None
 
@@ -281,16 +281,16 @@ class Proxy(object):
                 'secretAccessKey': self.aws_secret_access_key
             }
         else:
-            raise RuntimeError("No profile section found!")
+            raise RuntimeError('No profile section found!')
 
     @property
     def volumes(self):
-        r = self.get("volumes")
+        r = self.get('volumes')
         return r
 
     @property
     def volume(self):
-        if not hasattr(self, "_volume"):
+        if not hasattr(self, '_volume'):
             self._volume = None
 
         if self._volume is None:
@@ -304,7 +304,8 @@ class Proxy(object):
         for v in self.volumes:
             if v['name'] == volume['name'] and \
                v['profileId'] == self.profile['_id']:
-                logging.info("Using pre-existing volume: %s (%s)" % (v['name'], v['_id']))
+                logging.info('Using pre-existing volume: %s (%s)' %
+                             (v['name'], v['_id']))
                 self._volume = v
                 return None
 
@@ -312,7 +313,7 @@ class Proxy(object):
         r = self.post('volumes', data=json.dumps(volume))
 
         self._volume = r
-        logging.debug("Created volume %s: %s" % (r['_id'], r))
+        logging.debug('Created volume %s: %s' % (r['_id'], r))
 
         self.wait_for_status(
             'volumes/%s/status' % (self.volume['_id']),
@@ -327,8 +328,8 @@ class Proxy(object):
                 start = time.time()
 
                 try:
-                    r = self.delete("volumes/%s" % v['_id'])
-                    if hasattr(self, "_volume"):
+                    self.delete('volumes/%s' % v['_id'])
+                    if hasattr(self, '_volume'):
                         del(self._volume)
                 except girder_client.HttpError as e:
                     if e.status == 400:
@@ -338,7 +339,7 @@ class Proxy(object):
 
                 while True:
                     try:
-                        r = self.get('volumes/%s/status' % (v['_id']))
+                        self.get('volumes/%s/status' % (v['_id']))
                     except girder_client.HttpError as e:
                         if e.status == 400:
                             return None
@@ -347,14 +348,10 @@ class Proxy(object):
 
                     if time.time() - start > timeout:
                         raise RuntimeError(
-                            "Volume at '%s' never deleted" % v['_id'])
+                            'Volume at "%s" never deleted' % v['_id'])
 
         logging.debug(
-            "No profile with name '%s' found. Skipping" % self.profile_name)
-
-
-
-
+            'No profile with name "%s" found. Skipping' % self.profile_name)
 
     def get_volume_body(self):
         if self.profile_section:
@@ -366,13 +363,14 @@ class Proxy(object):
                 'zone': self.volume_zone
             }
         else:
-            raise RuntimeError("No profile section found!")
+            raise RuntimeError('No profile section found!')
 
     def attach_volume(self, cluster, volume, path='/mnt/data'):
-        r = self.put('volumes/%s/clusters/%s/attach' % (volume['_id'], cluster['_id']),
-                     data=json.dumps({'path': path}))
+        self.put('volumes/%s/clusters/%s/attach' %
+                 (volume['_id'], cluster['_id']),
+                 data=json.dumps({'path': path}))
 
-        log_url = "volumes/%s/log" % volume['_id']
+        log_url = 'volumes/%s/log' % volume['_id']
 
         self.wait_for_status(
             'volumes/%s/status' % volume['_id'],
@@ -380,9 +378,9 @@ class Proxy(object):
             log_url=log_url, timeout=600)
 
     def detach_volume(self, volume):
-        r = self.put('volumes/%s/detach' % volume['_id'])
+        self.put('volumes/%s/detach' % volume['_id'])
 
-        log_url = "volumes/%s/log" % volume['_id']
+        log_url = 'volumes/%s/log' % volume['_id']
 
         self.wait_for_status(
             'volumes/%s/status' % volume['_id'],
@@ -391,12 +389,12 @@ class Proxy(object):
 
     @property
     def clusters(self):
-        r = self.get("clusters")
+        r = self.get('clusters')
         return r
 
     @property
     def cluster(self):
-        if not hasattr(self, "_cluster"):
+        if not hasattr(self, '_cluster'):
             self._cluster = None
 
         if self._cluster is None:
@@ -408,7 +406,8 @@ class Proxy(object):
     def cluster(self, cluster):
         for c in self.clusters:
             if c['name'] == cluster['name']:
-                logging.info("Using pre-existing cluster: %s (%s)" % (c['name'], c['_id']))
+                logging.info('Using pre-existing cluster: %s (%s)' %
+                             (c['name'], c['_id']))
                 self._cluster = c
                 return None
 
@@ -416,9 +415,8 @@ class Proxy(object):
         r = self.post('clusters', data=json.dumps(cluster))
 
         self._cluster = r
-        logging.debug("Created cluster %s: %s" % (r['_id'], r))
+        logging.debug('Created cluster %s: %s' % (r['_id'], r))
         return None
-
 
     @cluster.deleter
     def cluster(self):
@@ -426,8 +424,8 @@ class Proxy(object):
             if c['name'] == self.cluster_name:
 
                 try:
-                    r = self.delete("clusters/%s" % c['_id'])
-                    if hasattr(self, "_cluster"):
+                    self.delete('clusters/%s' % c['_id'])
+                    if hasattr(self, '_cluster'):
                         del(self._cluster)
                 except girder_client.HttpError as e:
                     if e.status == 400:
@@ -437,11 +435,9 @@ class Proxy(object):
                 return None
 
         logging.debug(
-            "No profile with name '%s' found. Skipping" % self.profile_name)
+            'No profile with name "%s" found. Skipping' % self.profile_name)
 
         return None
-
-
 
     def get_traditional_cluster_body(self):
         if self.cluster_section:
@@ -457,7 +453,7 @@ class Proxy(object):
                 'type': 'trad'
             }
         else:
-            raise RuntimeError("No cluster section found!")
+            raise RuntimeError('No cluster section found!')
 
     def get_ansible_cluster_body(self):
         if self.cluster_section:
@@ -466,12 +462,18 @@ class Proxy(object):
                     'launch': {
                         'spec': 'ec2',
                         'params': {
-                            'master_instance_type': self.cluster_master_instance_type,
-                            'master_instance_ami': self.cluster_master_instance_ami,
-                            'node_instance_count': self.cluster_node_instance_count,
-                            'node_instance_type': self.cluster_node_instance_type,
-                            'node_instance_ami': self.cluster_node_instance_ami,
-                            'terminate_wait_timeout': int(self.cluster_terminate_wait_timeout)
+                            'master_instance_type':
+                            self.cluster_master_instance_type,
+                            'master_instance_ami':
+                            self.cluster_master_instance_ami,
+                            'node_instance_count':
+                            self.cluster_node_instance_count,
+                            'node_instance_type':
+                            self.cluster_node_instance_type,
+                            'node_instance_ami':
+                            self.cluster_node_instance_ami,
+                            'terminate_wait_timeout':
+                            int(self.cluster_terminate_wait_timeout)
                         }
                     }
                 },
@@ -480,7 +482,7 @@ class Proxy(object):
                 'type': self.cluster_type
             }
         else:
-            raise RuntimeError("No cluster section found!")
+            raise RuntimeError('No cluster section found!')
 
     def get_cluster_body(self):
         if self.cluster_type == 'trad':
@@ -488,8 +490,34 @@ class Proxy(object):
         else:
             return self.get_ansible_cluster_body()
 
-    def wait_for_status(self, status_url, status, timeout=10, log_url=None, callback=None):
-        logging.debug("Waiting for status '%s' at '%s'" % (status, status_url))
+    def check_log(self, log_url, log_offset):
+        r = self.get(log_url, parameters={
+            'offset': log_offset
+        })
+
+        log_offset += len(r['log'])
+
+        for entry in r['log']:
+            logging.debug('%s' % entry)
+            try:
+                if entry['type'] == 'task':
+                    if entry['status'] in ['finished',
+                                           'skipped', 'starting']:
+                        logging.info('ANSIBLE - %s (%s)' %
+                                     (entry['msg'],
+                                      entry['status']))
+                    elif entry['status'] == 'error':
+                        logging.error('ANSIBLE - %s (%s)' %
+                                      (entry['msg'],
+                                       entry['status']))
+            except KeyError:
+                logging.log(entry['levelno'], '%s' % entry['msg'])
+
+        return log_offset
+
+    def wait_for_status(self, status_url, status, timeout=10,
+                        log_url=None, callback=None):
+        logging.debug('Waiting for status "%s" at "%s"' % (status, status_url))
 
         if isinstance(status, basestring):
             status = (status, )
@@ -497,32 +525,16 @@ class Proxy(object):
         if log_url is not None:
             r = self.get(log_url)
             log_offset = len(r['log'])
-            logging.debug("Log offset set to: %s" % log_offset)
+            logging.debug('Log offset set to: %s' % log_offset)
 
         start = time.time()
         while True:
             if log_url is not None:
                 try:
-                    r = self.get(log_url, parameters={
-                        'offset': log_offset
-                    })
-
-                    log_offset += len(r['log'])
-
-                    for entry in r['log']:
-                        logging.debug("%s" % entry)
-                        try:
-                            if entry['type'] == 'task':
-                                if entry['status'] in ['finished', 'skipped', 'starting']:
-                                    logging.info("ANSIBLE - %s (%s)" % (entry['msg'], entry['status']))
-                                elif entry['status'] == 'error':
-                                    logging.error("ANSIBLE - %s (%s)" % (entry['msg'], entry['status']))
-                        except KeyError:
-                            logging.log(entry['levelno'], '%s' % entry['msg'])
-
+                    log_offset += self.check_log(log_url, log_offset)
                 except girder_client.HttpError as ex:
-                    logging.debug("Got %s when requesting %s" % (ex.status, log_url))
-
+                    logging.debug('Got %s when requesting %s' %
+                                  (ex.status, log_url))
 
             r = self.get(status_url)
 
@@ -532,29 +544,30 @@ class Proxy(object):
             if r['status'] in ['error', 'unexpectederror']:
                 if log_url is not None:
                     raise RuntimeError(
-                        "Cluster has moved into an error state! "
-                        "See: %s/%s for more information" % (self.girder_api_url, log_url))
+                        'Cluster has moved into an error state! '
+                        'See: %s/%s for more information' %
+                        (self.girder_api_url, log_url))
                 else:
                     raise RuntimeError(
-                        "Operation moved resource into an error state!"
-                        " See: %s/%s" % (self.girder_api_url, status_url))
+                        'Operation moved resource into an error state!'
+                        ' See: %s/%s' % (self.girder_api_url, status_url))
 
-            if hasattr(callback, "__call__"):
+            if hasattr(callback, '__call__'):
                 if callback(r):
                     break
 
             if time.time() - start > timeout:
                 raise RuntimeError(
-                    "Resource at '%s' never moved into the '%s' state, current"
-                    " state is '%s'" % (status_url, status, r['status']))
+                    'Resource at "%s" never moved into the "%s" state, current'
+                    ' state is "%s"' % (status_url, status, r['status']))
 
             time.sleep(1)
 
     def launch_cluster(self, cluster, timeout=300):
         status_url = 'clusters/%s/status' % cluster['_id']
-        log_url    = 'clusters/%s/log' % cluster['_id']
+        log_url = 'clusters/%s/log' % cluster['_id']
 
-        r = self.put('clusters/%s/launch' % cluster['_id'])
+        self.put('clusters/%s/launch' % cluster['_id'])
 
         self.wait_for_status(status_url, 'running',
                              timeout=timeout,
@@ -562,9 +575,9 @@ class Proxy(object):
 
     def terminate_cluster(self, cluster, timeout=300):
         status_url = 'clusters/%s/status' % cluster['_id']
-        log_url    = 'clusters/%s/log' % cluster['_id']
+        log_url = 'clusters/%s/log' % cluster['_id']
 
-        r = self.put('clusters/%s/terminate' % cluster['_id'])
+        self.put('clusters/%s/terminate' % cluster['_id'])
 
         self.wait_for_status(status_url, 'terminated',
                              timeout=timeout,
@@ -590,7 +603,7 @@ class Proxy(object):
             yield volume
 
     def get(self, uri, **kwargs):
-        url = "%s/%s" % (self.girder_api_url, uri)
+        url = '%s/%s' % (self.girder_api_url, uri)
         logging.debug('GET %s' % url)
         if kwargs:
             logging.debug(kwargs)
@@ -598,7 +611,7 @@ class Proxy(object):
         return self.client.get(uri, **kwargs)
 
     def post(self, uri, **kwargs):
-        url = "%s/%s" % (self.girder_api_url, uri)
+        url = '%s/%s' % (self.girder_api_url, uri)
         logging.debug('POST %s' % url)
         if kwargs:
             logging.debug(kwargs)
@@ -606,7 +619,7 @@ class Proxy(object):
         return self.client.post(uri, **kwargs)
 
     def put(self, uri, **kwargs):
-        url = "%s/%s" % (self.girder_api_url, uri)
+        url = '%s/%s' % (self.girder_api_url, uri)
         logging.debug('PUT %s' % url)
         if kwargs:
             logging.debug(kwargs)
@@ -614,7 +627,7 @@ class Proxy(object):
         return self.client.put(uri, **kwargs)
 
     def delete(self, uri, **kwargs):
-        url = "%s/%s" % (self.girder_api_url, uri)
+        url = '%s/%s' % (self.girder_api_url, uri)
         logging.debug('DELETE %s' % url)
         if kwargs:
             logging.debug(kwargs)

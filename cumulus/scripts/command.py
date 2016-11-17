@@ -48,14 +48,13 @@ def create_profile(proxy, profile_section):
 def list_profiles(proxy):
     print("Listing profiles:")
 
-    keys    = [key('name'), key('status'), key('_id'),
-               key('regionName'), key('cloudProvider')]
+    keys = [key('name'), key('status'), key('_id'),
+            key('regionName'), key('cloudProvider')]
     headers = ['Name', 'Status', 'Profile ID',  'Region', 'Cloud Provider']
 
     print tabulate([[f(p) for f in keys] for p in proxy.profiles],
                    headers=headers)
     print "\n"
-
 
 
 @cli.command()
@@ -75,11 +74,9 @@ def create_cluster(proxy, profile_section, cluster_section):
 def list_clusters(proxy):
     print("Listing clusters:")
 
-
-    keys    = [key('name'), key('status'), key('_id'),
-               profile(proxy.profiles)]
+    keys = [key('name'), key('status'), key('_id'),
+            profile(proxy.profiles)]
     headers = ['Name', 'Status', 'Cluster ID',  'Profile']
-
 
     print tabulate([[f(c) for f in keys] for c in proxy.clusters],
                    headers=headers)
@@ -98,6 +95,7 @@ def delete_cluster(proxy, profile_section, cluster_section):
     del proxy.cluster
     logging.info("Finished deleting cluster %s" % _id)
 
+
 @cli.command()
 @click.option('--profile_section', default='profile')
 @pass_proxy
@@ -107,6 +105,7 @@ def delete_profile(proxy, profile_section):
     _id = proxy.profile['_id']
     del proxy.profile
     logging.info("Finished deleting profile %s" % _id)
+
 
 @cli.command()
 @click.option('--profile_section', default='profile')
@@ -120,6 +119,7 @@ def launch_cluster(proxy, profile_section, cluster_section):
     proxy.launch_cluster(proxy.cluster)
     logging.info("Finished launching cluster")
 
+
 @cli.command()
 @click.option('--profile_section', default='profile')
 @click.option('--cluster_section', default='cluster')
@@ -131,7 +131,6 @@ def terminate_cluster(proxy, profile_section, cluster_section):
     logging.info("Terminating cluster %s" % proxy.cluster['_id'])
     proxy.terminate_cluster(proxy.cluster)
     logging.info("Finished terminating cluster")
-
 
 
 def get_aws_instance_info(proxy):
@@ -151,6 +150,7 @@ def get_aws_instance_info(proxy):
                'Key Name', "Security Groups"]
 
     return headers, [[f(i) for f in keys] for i in proxy.get_instances()]
+
 
 @cli.command()
 @pass_proxy
@@ -182,15 +182,15 @@ def create_volume(proxy, profile_section, volume_section):
 def list_volumes(proxy):
     print("Listing volumes:")
 
-    keys    = [key('name'), profile(proxy.profiles), key('_id'),
-               key('size'), key('status'), key('type'), key('zone')]
+    keys = [key('name'), profile(proxy.profiles), key('_id'),
+            key('size'), key('status'), key('type'), key('zone')]
 
-    headers = ['Name', 'Profile', 'Volume ID',  'Size', 'Status', 'Type', 'Zone']
+    headers = ['Name', 'Profile', 'Volume ID',
+               'Size', 'Status', 'Type', 'Zone']
 
     print tabulate([[f(v) for f in keys] for v in proxy.volumes],
                    headers=headers)
     print "\n"
-
 
 
 def get_aws_volume_info(proxy):
@@ -233,6 +233,7 @@ def get_aws_volume_info(proxy):
 
     return headers, [[f(v) for f in keys] for v in proxy.get_volumes()]
 
+
 @cli.command()
 @pass_proxy
 def list_aws_volumes(proxy):
@@ -242,7 +243,6 @@ def list_aws_volumes(proxy):
 
     print tabulate(data, headers=headers)
     print "\n"
-
 
 
 @cli.command()
@@ -291,20 +291,17 @@ def delete_volume(proxy, profile_section, volume_section):
     logging.info("Finished deleting volume %s" % _id)
 
 
-
-
-
-
 @cli.command()
 @click.pass_context
 def full_status(ctx):
-    print("******************************** Full Status **********************************")
+    print("************************* Full Status ****************************")
     ctx.invoke(list_profiles)
     ctx.invoke(list_clusters)
     ctx.invoke(list_volumes)
     ctx.invoke(list_aws_instances)
     ctx.invoke(list_aws_volumes)
-    print("******************************** End  Status **********************************")
+    print("************************** End  Status ***************************")
+
 
 if __name__ == "__main__":
     cli()
