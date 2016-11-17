@@ -37,16 +37,16 @@ def cli(ctx, verbose, config, girder_section, aws_section):
 @click.option('--profile_section', default='profile')
 @pass_proxy
 def create_profile(proxy, profile_section):
-    logging.info("Creating profile")
+    logging.info('Creating profile')
     proxy.profile_section = profile_section
     proxy.profile = proxy.get_profile_body()
-    logging.info("Finished creating profile %s" % proxy.profile['_id'])
+    logging.info('Finished creating profile %s' % proxy.profile['_id'])
 
 
 @cli.command()
 @pass_proxy
 def list_profiles(proxy):
-    print("Listing profiles:")
+    print('Listing profiles:')
 
     keys = [key('name'), key('status'), key('_id'),
             key('regionName'), key('cloudProvider')]
@@ -54,7 +54,7 @@ def list_profiles(proxy):
 
     print tabulate([[f(p) for f in keys] for p in proxy.profiles],
                    headers=headers)
-    print "\n"
+    print '\n'
 
 
 @cli.command()
@@ -62,17 +62,17 @@ def list_profiles(proxy):
 @click.option('--cluster_section', default='cluster')
 @pass_proxy
 def create_cluster(proxy, profile_section, cluster_section):
-    logging.info("Createing cluster")
+    logging.info('Createing cluster')
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
     proxy.cluster = proxy.get_cluster_body()
-    logging.info("Finished creting cluster %s" % proxy.cluster['_id'])
+    logging.info('Finished creting cluster %s' % proxy.cluster['_id'])
 
 
 @cli.command()
 @pass_proxy
 def list_clusters(proxy):
-    print("Listing clusters:")
+    print('Listing clusters:')
 
     keys = [key('name'), key('status'), key('_id'),
             profile(proxy.profiles)]
@@ -80,7 +80,7 @@ def list_clusters(proxy):
 
     print tabulate([[f(c) for f in keys] for c in proxy.clusters],
                    headers=headers)
-    print "\n"
+    print '\n'
 
 
 @cli.command()
@@ -88,23 +88,23 @@ def list_clusters(proxy):
 @click.option('--cluster_section', default='cluster')
 @pass_proxy
 def delete_cluster(proxy, profile_section, cluster_section):
-    logging.info("Deleting cluster")
+    logging.info('Deleting cluster')
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
     _id = proxy.cluster['_id']
     del proxy.cluster
-    logging.info("Finished deleting cluster %s" % _id)
+    logging.info('Finished deleting cluster %s' % _id)
 
 
 @cli.command()
 @click.option('--profile_section', default='profile')
 @pass_proxy
 def delete_profile(proxy, profile_section):
-    logging.info("Deleting profile")
+    logging.info('Deleting profile')
     proxy.profile_section = profile_section
     _id = proxy.profile['_id']
     del proxy.profile
-    logging.info("Finished deleting profile %s" % _id)
+    logging.info('Finished deleting profile %s' % _id)
 
 
 @cli.command()
@@ -115,9 +115,9 @@ def launch_cluster(proxy, profile_section, cluster_section):
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
 
-    logging.info("Launching cluster %s" % proxy.cluster['_id'])
+    logging.info('Launching cluster %s' % proxy.cluster['_id'])
     proxy.launch_cluster(proxy.cluster)
-    logging.info("Finished launching cluster")
+    logging.info('Finished launching cluster')
 
 
 @cli.command()
@@ -128,9 +128,9 @@ def terminate_cluster(proxy, profile_section, cluster_section):
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
 
-    logging.info("Terminating cluster %s" % proxy.cluster['_id'])
+    logging.info('Terminating cluster %s' % proxy.cluster['_id'])
     proxy.terminate_cluster(proxy.cluster)
-    logging.info("Finished terminating cluster")
+    logging.info('Finished terminating cluster')
 
 
 def get_aws_instance_info(proxy):
@@ -138,7 +138,7 @@ def get_aws_instance_info(proxy):
         try:
             return instance.state['Name']
         except Exception:
-            return "UNKNOWN"
+            return 'UNKNOWN'
 
     def groups(instance):
         return ','.join([g['GroupId'] for g in instance.security_groups])
@@ -147,7 +147,7 @@ def get_aws_instance_info(proxy):
             state, attr('public_ip_address'), attr('private_ip_address'),
             attr('key_name'), groups]
     headers = ['Name', 'ID', 'Type', 'State', 'Public IP', 'Private IP',
-               'Key Name', "Security Groups"]
+               'Key Name', 'Security Groups']
 
     return headers, [[f(i) for f in keys] for i in proxy.get_instances()]
 
@@ -155,14 +155,14 @@ def get_aws_instance_info(proxy):
 @cli.command()
 @pass_proxy
 def list_aws_instances(proxy):
-    print("Listing AWS instances:")
+    print('Listing AWS instances:')
 
     headers, data = get_aws_instance_info(proxy)
 
     print tabulate(data, headers=headers)
-    print "\n"
+    print '\n'
 
-    logging.info("Finished listing AWS instances")
+    logging.info('Finished listing AWS instances')
 
 
 @cli.command()
@@ -170,17 +170,17 @@ def list_aws_instances(proxy):
 @click.option('--volume_section', default='volume')
 @pass_proxy
 def create_volume(proxy, profile_section, volume_section):
-    logging.info("Creating volume")
+    logging.info('Creating volume')
     proxy.profile_section = profile_section
     proxy.volume_section = volume_section
     proxy.volume = proxy.get_volume_body()
-    logging.info("Finished creating volume %s" % proxy.volume['_id'])
+    logging.info('Finished creating volume %s' % proxy.volume['_id'])
 
 
 @cli.command()
 @pass_proxy
 def list_volumes(proxy):
-    print("Listing volumes:")
+    print('Listing volumes:')
 
     keys = [key('name'), profile(proxy.profiles), key('_id'),
             key('size'), key('status'), key('type'), key('zone')]
@@ -190,7 +190,7 @@ def list_volumes(proxy):
 
     print tabulate([[f(v) for f in keys] for v in proxy.volumes],
                    headers=headers)
-    print "\n"
+    print '\n'
 
 
 def get_aws_volume_info(proxy):
@@ -237,12 +237,12 @@ def get_aws_volume_info(proxy):
 @cli.command()
 @pass_proxy
 def list_aws_volumes(proxy):
-    print("Listing AWS volumes")
+    print('Listing AWS volumes')
 
     headers, data = get_aws_volume_info(proxy)
 
     print tabulate(data, headers=headers)
-    print "\n"
+    print '\n'
 
 
 @cli.command()
@@ -254,12 +254,12 @@ def attach_volume(proxy, profile_section, cluster_section, volume_section):
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
     proxy.volume_section = volume_section
-    logging.info("Attaching volume %s to cluster %s" %
+    logging.info('Attaching volume %s to cluster %s' %
                  (proxy.volume['_id'], proxy.cluster['_id']))
 
     proxy.attach_volume(proxy.cluster, proxy.volume)
 
-    logging.info("Finished attaching volume.")
+    logging.info('Finished attaching volume.')
 
 
 @cli.command()
@@ -271,11 +271,11 @@ def detach_volume(proxy, profile_section, cluster_section, volume_section):
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
     proxy.volume_section = volume_section
-    logging.info("Detaching volume %s" % proxy.volume['_id'])
+    logging.info('Detaching volume %s' % proxy.volume['_id'])
 
     proxy.detach_volume(proxy.volume)
 
-    logging.info("Finished detaching volume.")
+    logging.info('Finished detaching volume.')
 
 
 @cli.command()
@@ -283,25 +283,25 @@ def detach_volume(proxy, profile_section, cluster_section, volume_section):
 @click.option('--volume_section', default='volume')
 @pass_proxy
 def delete_volume(proxy, profile_section, volume_section):
-    logging.info("Deleting volume")
+    logging.info('Deleting volume')
     proxy.profile_section = profile_section
     proxy.volume_section = volume_section
     _id = proxy.volume['_id']
     del proxy.volume
-    logging.info("Finished deleting volume %s" % _id)
+    logging.info('Finished deleting volume %s' % _id)
 
 
 @cli.command()
 @click.pass_context
 def full_status(ctx):
-    print("************************* Full Status ****************************")
+    print('************************* Full Status ****************************')
     ctx.invoke(list_profiles)
     ctx.invoke(list_clusters)
     ctx.invoke(list_volumes)
     ctx.invoke(list_aws_instances)
     ctx.invoke(list_aws_volumes)
-    print("************************** End  Status ***************************")
+    print('************************** End  Status ***************************')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     cli()
