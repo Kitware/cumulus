@@ -61,7 +61,7 @@ class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
         if volume_id:
             volume_id = volume_id[0].value
             model = ModelImporter.model('volume', 'cumulus')
-            volume = model.load(profile_id, user=user, level=AccessType.ADMIN)
+            volume = model.load(volume_id, user=user, level=AccessType.ADMIN)
         else:
             volume = create_volume.s(self, parse('volume').find(kwargs), profile)
 
@@ -110,10 +110,11 @@ def setup_cluster(task, *args, **kwargs):
             'We are using an existing volume: %s' % volume['name'])
     else:
         task.taskflow.logger.info('We are creating an EBS volume.')
+        task.taskflow.logger.info('vol %s' % volume)
         task.logger.info('Volume name %s' % volume['name'])
         profile = kwargs.get('profile')
         volume = create_volume(
-            task, cluster, profile)
+            task, volume, profile)
 
         task.logger.info('Volume created.')
 
@@ -274,6 +275,7 @@ def create_volume(task, volume, profile):
 
     body = {
         'name': volume['name'],
+        'size': volume['size'],
         'type': 'ebs',
         'zone': profile['zone'],
         'profileId': profile['_id']
