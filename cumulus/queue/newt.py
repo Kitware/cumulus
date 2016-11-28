@@ -22,7 +22,7 @@ import os
 from jsonpath_rw import parse
 import requests
 
-from cumulus.queue.slurm import SlurmQueueAdapter
+from cumulus.queue.slurm import SlurmQueueAdapter, AbstractQueueAdapter
 from cumulus.common import check_status
 from cumulus.transport.newt import NEWT_BASE_URL
 
