@@ -117,6 +117,7 @@ class Cluster(BaseResource):
         name = body['name']
         config = body['config']
         user = self.getCurrentUser()
+        config['user'] = user['login']
 
         cluster = self._model.create_newt(user, name, config)
 
