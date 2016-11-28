@@ -61,38 +61,34 @@ class NewtQueueAdapter(SlurmQueueAdapter):
 
         return json_response['jobid']
 
-#    NB: The current status endpoint seem to be broken on cori so
-#        for now fall back to executed squeue manually.
-#
-#     def job_status(self, job):
-#         url = '%s/queue/%s/%s' % (NEWT_BASE_URL, self._machine,
-#                                   job['queueJobId'])
-#         r = self._session.get(url)
-#         check_status(r)
-#         json_response = r.json()
-#
-#         if json_response['status'] != 'OK' or json_response['error']:
-#             raise Exception(json_response['error'])
-#
-#         status = None
-#         slurm_status = self._extract_job_status(json_response, job)
-#
-#         if slurm_status:
-#             if slurm_status in SlurmQueueAdapter.RUNNING_STATE:
-#                 status = JobQueueState.RUNNING
-#             elif slurm_status in SlurmQueueAdapter.ERROR_STATE:
-#                 status = JobQueueState.ERROR
-#             elif slurm_status in SlurmQueueAdapter.QUEUED_STATE:
-#                 status = JobQueueState.QUEUED
-#             elif slurm_status in SlurmQueueAdapter.COMPLETE_STATE:
-#                 status = JobQueueState.COMPLETE
-#
-#         return status
-#
-#     def _extract_job_status(self, job_status_output, job):
-#         status = None
-#
-#         if 'status' in job_status_output:
-#             status = job_status_output['status']
-#
-#         return status
+    def job_statuses(self, jobs):
+        user = parse('config.user').find(self._cluster)
+
+        if not user:
+            raise Exception('Unable to extract user from cluster '
+                            'configuration.')
+
+        user = user[0].value
+        url = '%s/queue/%s?user=%s' % (NEWT_BASE_URL, self._machine, user)
+        r = self._session.get(url)
+        check_status(r)
+        json_response = r.json()
+
+        states = []
+        for job in jobs:
+            slurm_state = self._extract_job_status(json_response, job)
+            state = self.to_job_queue_state(slurm_state)
+            states.append((job, state))
+
+        return states
+
+    def _extract_job_status(self, response, job):
+        status = None
+
+        for job_entry in response:
+            if job_entry['jobid'] == job[AbstractQueueAdapter.QUEUE_JOB_ID] and\
+                    'status' in job_entry:
+                status = job_entry['status']
+                break
+
+        return status
