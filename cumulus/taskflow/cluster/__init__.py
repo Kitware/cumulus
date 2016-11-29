@@ -106,25 +106,23 @@ def setup_cluster(task, *args, **kwargs):
 
     volume = kwargs['volume']
     if '_id' in volume:
-        task.taskflow.logger.info(
-            'We are using an existing volume: %s' % volume['name'])
+        task.taskflow.logger.info('We are using an existing volume: %s' % volume['name'])
     else:
         task.taskflow.logger.info('We are creating an EBS volume.')
         task.taskflow.logger.info('vol %s' % volume)
         task.logger.info('Volume name %s' % volume['name'])
         profile = kwargs.get('profile')
-        volume = create_volume(
-            task, volume, profile)
+        volume = create_volume(task, volume, profile)
 
         task.logger.info('Volume created.')
 
     girder_callback_info = {
-            'girder_api_url': getApiUrl(),
-            'girder_token': get_task_token()['_id']}
+        'girder_api_url': getApiUrl(),
+        'girder_token': get_task_token()['_id']}
     master = p.get_master_instance(cluster['_id'])
     if master['state'] != InstanceState.RUNNING:
-        raise RestException('Master instance is not running!',
-                            400)
+        raise RestException('Master instance is not running!', 400)
+
     # attach volume
     cumulus.ansible.tasks.volume.attach_volume\
         .delay(profile, cluster, master,
