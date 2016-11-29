@@ -27,7 +27,8 @@ from .base import BaseModel
 from ..utility.volume_adapters import get_volume_adapter
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
-from cumulus.common.girder import send_log_notification
+from cumulus.common.girder import send_log_notification, \
+    send_status_notification
 
 
 class Volume(BaseModel):
@@ -108,6 +109,19 @@ class Volume(BaseModel):
         volume = self.load(id, user=user, level=AccessType.WRITE)
         self.update({'_id': ObjectId(id)}, {'$push': {'log': record}})
         send_log_notification('volume', volume, record)
+
+    def update_volume(self, user, volume):
+        volume_id = volume['_id']
+        current_volume = self.load(volume_id, user=user,
+                                   level=AccessType.WRITE)
+
+        previous_status = current_volume['status']
+        current_volume.update(volume)
+
+        if current_volume['status'] != previous_status:
+            send_status_notification('volume', current_volume)
+
+        return self.save(current_volume)
 
     def log_records(self, user, id, offset=0):
         volume = self.load(id, user=user, level=AccessType.READ)

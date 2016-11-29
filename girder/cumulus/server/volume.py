@@ -32,7 +32,8 @@ from .base import BaseResource
 import cumulus
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
-from cumulus.common.girder import get_task_token, _get_profile
+from cumulus.common.girder import get_task_token, _get_profile, \
+    send_status_notification
 
 import cumulus.ansible.tasks.volume
 
@@ -204,8 +205,8 @@ class Volume(BaseResource):
                level=AccessType.ADMIN)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def attach_complete(self, volume, cluster, params):
+        user = self.getCurrentUser()
         path = getBodyJson().get('path', None)
-
         if path is not None:
             cluster.setdefault('volumes', [])
             cluster['volumes'].append(volume['_id'])
@@ -227,12 +228,12 @@ class Volume(BaseResource):
             volume['clusterId'] = cluster['_id']
 
             self.model('cluster', 'cumulus').save(cluster)
-            self.model('volume', 'cumulus').save(volume)
+            self._model.update_volume(user, volume);
         else:
             volume['status'] = VolumeState.ERROR
             volume['msg'] = 'Volume path was not communicated on complete'
 
-            self.model('volume', 'cumulus').save(volume)
+            self._model.update_volume(user, volume);
 
     attach_complete.description = None
 
@@ -279,7 +280,7 @@ class Volume(BaseResource):
                    secret_key, girder_callback_info)
 
         volume['status'] = VolumeState.ATTACHING
-        volume = self.model('volume', 'cumulus').save(volume)
+        volume = self._model.update_volume(self.getCurrentUser(), volume)
 
         return self._model.filter(volume, getCurrentUser())
 
@@ -351,7 +352,7 @@ class Volume(BaseResource):
                    secret_key, girder_callback_info)
 
         volume['status'] = VolumeState.DETACHING
-        volume = self.model('volume', 'cumulus').save(volume)
+        volume = self._model.update_volume(self.getCurrentUser(), volume)
 
         return self._model.filter(volume, getCurrentUser())
 
@@ -383,7 +384,7 @@ class Volume(BaseResource):
         volume['status'] = VolumeState.AVAILABLE
 
         self.model('cluster', 'cumulus').save(cluster)
-        self.model('volume', 'cumulus').save(volume)
+        self._model.update_volume(self.getCurrentUser(), volume)
 
     detach_complete.description = None
 
