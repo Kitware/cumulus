@@ -25,6 +25,7 @@ from celery.canvas import Signature
 
 import cumulus.taskflow
 import cumulus.ansible.tasks.volume
+from cumulus.ansible.tasks.providers import CloudProvider, InstanceState
 from cumulus.tasks.job import terminate_job
 from cumulus.constants import JobState
 
@@ -63,7 +64,8 @@ class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
             model = ModelImporter.model('volume', 'cumulus')
             volume = model.load(volume_id, user=user, level=AccessType.ADMIN)
         else:
-            volume = create_volume.s(self, parse('volume').find(kwargs), profile)
+            volume = create_volume.s(self,
+                                     parse('volume').find(kwargs), profile)
 
         kwargs['volume'] = volume
 
@@ -106,7 +108,8 @@ def setup_cluster(task, *args, **kwargs):
 
     volume = kwargs['volume']
     if '_id' in volume:
-        task.taskflow.logger.info('We are using an existing volume: %s' % volume['name'])
+        task.taskflow.logger.info(
+            'We are using an existing volume: %s' % volume['name'])
     else:
         task.taskflow.logger.info('We are creating an EBS volume.')
         task.taskflow.logger.info('vol %s' % volume)
@@ -117,17 +120,19 @@ def setup_cluster(task, *args, **kwargs):
         task.logger.info('Volume created.')
 
     girder_callback_info = {
-        'girder_api_url': getApiUrl(),
-        'girder_token': get_task_token()['_id']}
+        'girder_api_url': task.taskflow.girder_api_url,
+        'girder_token': task.taskflow.girder_token}
+    p = CloudProvider(dict(**profile))
     master = p.get_master_instance(cluster['_id'])
     if master['state'] != InstanceState.RUNNING:
-        raise RestException('Master instance is not running!', 400)
+        task.logger.exception('Master instance is not running!')
+        raise
 
     # attach volume
     cumulus.ansible.tasks.volume.attach_volume\
         .delay(profile, cluster, master,
                volume, '/data',
-               profile['secret_key'], girder_callback_info)
+               profile['secretAccessKey'], girder_callback_info)
 
     # Call any follow on task
     if 'next' in kwargs:
@@ -166,7 +171,7 @@ def job_terminate(task):
 
 def create_ec2_cluster(task, cluster, profile, ami_spec):
     machine_type = cluster['machine']['id']
-    nodeCount = cluster['clusterSize']-1
+    nodeCount = cluster['clusterSize'] - 1
     launch_spec = 'ec2'
 
     # Look up the external IP of the deployment to user for firewall rules
@@ -230,7 +235,7 @@ def create_ec2_cluster(task, cluster, profile, ami_spec):
         task.taskflow.girder_api_url, task.taskflow.girder_token)
 
     try:
-        cluster = client.post('clusters',  data=json.dumps(body))
+        cluster = client.post('clusters', data=json.dumps(body))
     except HttpError as he:
         task.logger.exception(he.responseText)
         raise
@@ -266,6 +271,7 @@ def create_ec2_cluster(task, cluster, profile, ami_spec):
 
     return cluster
 
+
 @cumulus.taskflow.task
 def create_volume(task, volume, profile):
     client = create_girder_client(
@@ -281,7 +287,7 @@ def create_volume(task, volume, profile):
 
     # create volume model
     try:
-        volume = client.post('clusters',  data=json.dumps(body))
+        volume = client.post('clusters', data=json.dumps(body))
     except HttpError as he:
         task.logger.exception(he.responseText)
         raise
