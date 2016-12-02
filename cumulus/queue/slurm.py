@@ -68,6 +68,7 @@ class SlurmQueueAdapter(AbstractQueueAdapter):
 
     def to_job_queue_state(self, slurm_state):
         state = None
+        slurm_state = slurm_state.lower() if slurm_state else slurm_state
         if slurm_state in SlurmQueueAdapter.RUNNING_STATE:
             state = JobQueueState.RUNNING
         elif slurm_state in SlurmQueueAdapter.ERROR_STATE:
