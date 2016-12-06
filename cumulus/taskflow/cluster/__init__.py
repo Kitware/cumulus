@@ -96,6 +96,18 @@ def setup_cluster(task, *args, **kwargs):
     if 'next' in kwargs:
         kwargs['cluster'] = cluster
         next = Signature.from_dict(kwargs['next'])
+
+        if next.task == 'celery.chain':
+            # If we are dealing with a chain we want to update the arg and
+            # kwargs passed into the chain.
+            first_task = next.kwargs['tasks'][0]
+            if first_task:
+                if args:
+                    first_task.args = tuple(args) + tuple(first_task.args)
+
+                if kwargs:
+                    first_task.kwargs = dict(first_task.kwargs, **kwargs)
+
         next.delay(*args, **kwargs)
 
 
