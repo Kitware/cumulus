@@ -63,11 +63,7 @@ class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
             volume_id = volume_id[0].value
             model = ModelImporter.model('volume', 'cumulus')
             volume = model.load(volume_id, user=user, level=AccessType.ADMIN)
-        else:
-            volume = create_volume.s(self,
-                                     parse('volume').find(kwargs), profile)
-
-        kwargs['volume'] = volume
+            kwargs['volume'] = volume
 
         super(ClusterProvisioningTaskFlow, self).start(
             setup_cluster.s(self, *args, **kwargs))
@@ -111,13 +107,10 @@ def setup_cluster(task, *args, **kwargs):
         task.taskflow.logger.info(
             'We are using an existing volume: %s' % volume['name'])
     else:
-        task.taskflow.logger.info('We are creating an EBS volume.')
-        task.taskflow.logger.info('vol %s' % volume)
-        task.logger.info('Volume name %s' % volume['name'])
+        task.taskflow.logger.info('We are creating a new volume: "%s"' %
+                                  volume['name'])
         profile = kwargs.get('profile')
         volume = create_volume(task, volume, profile)
-
-        task.logger.info('Volume created.')
 
     girder_callback_info = {
         'girder_api_url': task.taskflow.girder_api_url,
@@ -129,10 +122,12 @@ def setup_cluster(task, *args, **kwargs):
         raise
 
     # attach volume
-    cumulus.ansible.tasks.volume.attach_volume\
-        .delay(profile, cluster, master,
-               volume, '/data',
-               profile['secretAccessKey'], girder_callback_info)
+    if volume:
+        cumulus.ansible.tasks.volume.attach_volume\
+            .delay(profile, cluster, master,
+                   volume, '/data',
+                   profile['secretAccessKey'], girder_callback_info)
+        task.logger.info('Volume attached.')
 
     # Call any follow on task
     if 'next' in kwargs:
@@ -272,7 +267,6 @@ def create_ec2_cluster(task, cluster, profile, ami_spec):
     return cluster
 
 
-@cumulus.taskflow.task
 def create_volume(task, volume, profile):
     client = create_girder_client(
         task.taskflow.girder_api_url, task.taskflow.girder_token)
@@ -281,16 +275,20 @@ def create_volume(task, volume, profile):
         'name': volume['name'],
         'size': volume['size'],
         'type': 'ebs',
-        'zone': profile['zone'],
+        'zone': profile['availabilityZone'],
         'profileId': profile['_id']
     }
 
     # create volume model
     try:
-        volume = client.post('clusters', data=json.dumps(body))
+        volume = client.post('volumes', data=json.dumps(body))
     except HttpError as he:
         task.logger.exception(he.responseText)
         raise
+
+    msg = 'Created volume: %s' % volume['_id']
+    task.taskflow.logger.info(msg)
+    task.logger.info(msg)
 
     return volume
 
