@@ -66,6 +66,7 @@ class NewtIntegrationTest(BaseIntegrationTest):
         user = self._client.get('user/me')
         self._user_id = user['_id']
         r = self._client.listFolder(self._user_id, 'user', name='Private')
+        r = list(r)
         self.assertEqual(len(r), 1)
         self._private_folder_id = r[0]['_id']
 

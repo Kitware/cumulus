@@ -26,4 +26,7 @@
 {% if qualityOfService -%}
 #SBATCH --qos={{qualityOfService}}
 {% endif -%}
+{% if constraint -%}
+#SBATCH --constraint={{constraint}}
+{% endif -%}
 
