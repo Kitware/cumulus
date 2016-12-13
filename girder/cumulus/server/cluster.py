@@ -168,7 +168,7 @@ class Cluster(BaseResource):
         'id': 'SshParameters',
         'properties': {
             'ssh': {
-                '$ref': 'UserNameParameter'
+                '$ref': '#/definitions/UserNameParameter'
             }
         }
     }, 'clusters')
@@ -187,7 +187,7 @@ class Cluster(BaseResource):
                                       'either ids or inline config.',
                        'items': {'$ref': 'Id'}},
             'config': {
-                '$ref': 'SshParameters',
+                '$ref': '#/definitions/SshParameters',
                 'host': {'type': 'string',
                          'description': 'The hostname of the head node '
                                         '(trad only)'}
@@ -238,7 +238,7 @@ class Cluster(BaseResource):
         'id': 'ClusterStartParams',
         'properties': {
             'onStart': {
-                '$ref': 'ClusterOnStartParms'
+                '$ref': '#/definitions/ClusterOnStartParms'
             }
         }
     }, 'clusters')
