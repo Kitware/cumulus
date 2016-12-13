@@ -64,7 +64,7 @@ class Volume(BaseResource):
         self._model = self.model('volume', 'cumulus')
 
     def _create_ebs(self, body, zone):
-        user = self.getCurrentUser()
+        user = getCurrentUser()
         name = body['name']
         size = body['size']
         fs = body.get('fs', None)
@@ -277,7 +277,7 @@ class Volume(BaseResource):
                    secret_key, girder_callback_info)
 
         volume['status'] = VolumeState.ATTACHING
-        volume = self._model.update_volume(self.getCurrentUser(), volume)
+        volume = self._model.update_volume(getCurrentUser(), volume)
 
         return self._model.filter(volume, getCurrentUser())
 
@@ -340,18 +340,18 @@ class Volume(BaseResource):
         if master['state'] != InstanceState.RUNNING:
             raise RestException('Master instance is not running!',
                                 400)
-
+        user = self.getCurrentUser()
         cluster = self.model('cluster', 'cumulus').filter(
-            cluster, getCurrentUser(), passphrase=False)
+            cluster, user, passphrase=False)
         cumulus.ansible.tasks.volume.detach_volume\
             .delay(profile, cluster, master,
-                   self._model.filter(volume, getCurrentUser()),
+                   self._model.filter(volume, user),
                    secret_key, girder_callback_info)
 
         volume['status'] = VolumeState.DETACHING
-        volume = self._model.update_volume(self.getCurrentUser(), volume)
+        volume = self._model.update_volume(user, volume)
 
-        return self._model.filter(volume, getCurrentUser())
+        return self._model.filter(volume, user)
 
     detach.description = (
         Description('Detach a volume from a cluster')
@@ -365,8 +365,9 @@ class Volume(BaseResource):
     def detach_complete(self, volume, params):
 
         # First remove from cluster
+        user = self.getCurrentUser()
         cluster = self.model('cluster', 'cumulus').load(volume['clusterId'],
-                                                        user=getCurrentUser(),
+                                                        user=user,
                                                         level=AccessType.ADMIN)
         cluster.setdefault('volumes', []).remove(volume['_id'])
 
@@ -381,7 +382,7 @@ class Volume(BaseResource):
         volume['status'] = VolumeState.AVAILABLE
 
         self.model('cluster', 'cumulus').save(cluster)
-        self._model.update_volume(self.getCurrentUser(), volume)
+        self._model.update_volume(user, volume)
 
     detach_complete.description = None
 
@@ -419,14 +420,15 @@ class Volume(BaseResource):
                 'Volume must be in an "%s" status to be deleted'
                 % VolumeState.AVAILABLE, 400)
 
+        user = getCurrentUser()
         cumulus.ansible.tasks.volume.delete_volume\
-            .delay(profile, self._model.filter(volume, getCurrentUser()),
+            .delay(profile, self._model.filter(volume, user),
                    secret_key, girder_callback_info)
 
         volume['status'] = VolumeState.DELETING
-        volume = self._model.save(volume)
+        volume = self._model.update_volume(user, volume)
 
-        return self._model.filter(volume, getCurrentUser())
+        return self._model.filter(volume, user)
 
     delete.description = (
         Description('Delete a volume')
@@ -450,7 +452,7 @@ class Volume(BaseResource):
 
     @access.user
     def append_to_log(self, id, params):
-        user = self.getCurrentUser()
+        user = getCurrentUser()
 
         if not self._model.load(id, user=user, level=AccessType.ADMIN):
             raise RestException('Volume not found.', code=404)
@@ -462,7 +464,7 @@ class Volume(BaseResource):
 
     @access.user
     def log(self, id, params):
-        user = self.getCurrentUser()
+        user = getCurrentUser()
         offset = 0
         if 'offset' in params:
             offset = int(params['offset'])

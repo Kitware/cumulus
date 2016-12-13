@@ -102,6 +102,7 @@ class Volume(BaseModel):
         self.setGroupAccess(volume, group, level=AccessType.ADMIN)
 
         self.save(volume)
+        send_status_notification('volume', volume)
 
         return volume
 
