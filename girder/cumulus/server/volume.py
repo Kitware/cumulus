@@ -32,7 +32,8 @@ from .base import BaseResource
 import cumulus
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
-from cumulus.common.girder import get_task_token, _get_profile
+from cumulus.common.girder import get_task_token, _get_profile, \
+    send_status_notification
 
 import cumulus.ansible.tasks.volume
 
@@ -382,7 +383,8 @@ class Volume(BaseResource):
         volume['status'] = VolumeState.AVAILABLE
 
         self.model('cluster', 'cumulus').save(cluster)
-        self._model.update_volume(user, volume)
+        self._model.save(volume)
+        send_status_notification('volume', volume)
 
     detach_complete.description = None
 
