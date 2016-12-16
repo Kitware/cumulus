@@ -177,7 +177,7 @@ class Volume(BaseResource):
 
     @access.user
     def find(self, params):
-        user = self.getCurrentUser()
+        user = getCurrentUser()
         query = {}
 
         if 'clusterId' in params:
@@ -204,7 +204,7 @@ class Volume(BaseResource):
                level=AccessType.ADMIN)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def attach_complete(self, volume, cluster, params):
-        user = self.getCurrentUser()
+        user = getCurrentUser()
         path = getBodyJson().get('path', None)
         if path is not None:
             cluster.setdefault('volumes', [])
@@ -341,7 +341,7 @@ class Volume(BaseResource):
         if master['state'] != InstanceState.RUNNING:
             raise RestException('Master instance is not running!',
                                 400)
-        user = self.getCurrentUser()
+        user = getCurrentUser()
         cluster = self.model('cluster', 'cumulus').filter(
             cluster, user, passphrase=False)
         cumulus.ansible.tasks.volume.detach_volume\
@@ -366,7 +366,7 @@ class Volume(BaseResource):
     def detach_complete(self, volume, params):
 
         # First remove from cluster
-        user = self.getCurrentUser()
+        user = getCurrentUser()
         cluster = self.model('cluster', 'cumulus').load(volume['clusterId'],
                                                         user=user,
                                                         level=AccessType.ADMIN)
