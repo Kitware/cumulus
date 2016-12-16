@@ -354,7 +354,6 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          method='PUT', type='application/json',
                          user=self._user, body=json.dumps({"path": "/data"}))
 
-
         r = self.request('/volumes/%s' % volume_id, method='DELETE',
                          user=self._user)
         self.assertStatus(r, 400)
@@ -913,6 +912,9 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
         notifications = self.getSseMessages(stream_r)
 
-        # we get 2 notifications, 1 from the creation and 1 from the log
-        self.assertEqual(len(notifications), 3, 'Expecting two notification, received %d' % len(notifications))
-        self.assertEqual(notifications[2]['type'], 'volume.log', 'Expecting a message with type \'volume.log\'')
+        # we get 4 notifications in stream,
+        # 1 from cluster 'creating' 1 from cluster 'created' in setUp()
+        # 1 from the volume creation and 1 from the volume log
+        self.assertEqual(len(notifications), 4, 'Expecting four notifications, received %d' % len(notifications))
+        self.assertEqual(notifications[2]['type'], 'volume.status', 'Expecting a message with type \'volume.status\' got: %s' % notifications[2]['type'] )
+        self.assertEqual(notifications[3]['type'], 'volume.log', 'Expecting a message with type \'volume.log\' got: %s' % notifications[3]['type'])
