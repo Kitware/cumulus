@@ -495,7 +495,7 @@ class Proxy(object):
             'offset': log_offset
         })
 
-        log_offset += len(r['log'])
+        log_offset = len(r['log'])
 
         for entry in r['log']:
             logging.debug('%s' % entry)
