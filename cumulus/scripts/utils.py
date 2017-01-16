@@ -55,7 +55,7 @@ def attr(name):
     return _attr
 
 
-def profile(profiles):
+def get_profile(profiles):
     profile_dict = {p['_id']: p['name'] for p in profiles}
 
     def _profile(instance):
@@ -544,9 +544,9 @@ class Proxy(object):
             if r['status'] in ['error', 'unexpectederror']:
                 if log_url is not None:
                     raise RuntimeError(
-                        'Cluster has moved into an error state! '
+                        '%s has moved into an error state! \n'
                         'See: %s/%s for more information' %
-                        (self.girder_api_url, log_url))
+                        (status_url, self.girder_api_url, log_url))
                 else:
                     raise RuntimeError(
                         'Operation moved resource into an error state!'
