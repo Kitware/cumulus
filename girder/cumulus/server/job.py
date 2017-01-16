@@ -170,18 +170,18 @@ class Job(BaseResource):
                 'type': 'array',
                 'description': 'Input to the job.',
                 'items': {
-                    '$ref': 'InputItem'
+                    '$ref': '#/definitions/InputItem'
                 }
             },
             'output': {
                 'type': 'array',
                 'description': 'The output to upload.',
                 'items': {
-                    '$ref': 'OutputItem'
+                    '$ref': '#/definitions/OutputItem'
                 }
             },
             'onComplete': {
-                '$ref': 'JobOnCompleteParams'
+                '$ref': '#/definitions/JobOnCompleteParams'
             }
         }
     }, 'jobs')
@@ -263,7 +263,7 @@ class Job(BaseResource):
         'id': 'JobUpdateParameters',
         'properties': {
             'status': {
-                '$ref': 'JobStatus',
+                '$ref': '#/definitions/JobStatus',
                 'description': 'The new status. (optional)'
             },
             'queueJobId': {'type': 'integer',

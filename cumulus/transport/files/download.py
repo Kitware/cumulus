@@ -80,15 +80,20 @@ def _ensure_path(girder_client, girder_folders, parent, path):
 
     parts = path.split('/')
 
+    # Default our parent_id to parent, however this may be updated if we already
+    # have folders created in Girder, see loop below.
+    parent_id = parent
+
     # First identify the folders we have already have in Girder
     index = 0
     for i in range(len(parts), 0, -1):
-        if '/'.join(parts[:i]) in girder_folders:
+        part = '/'.join(parts[:i])
+        if part in girder_folders:
+            parent_id = girder_folders[part]
             index = i
             break
 
     # Now walk through the parts of the path we need to create
-    parent_id = parent
     i = index + 1
     parent_created = False
     for name in parts[index:]:

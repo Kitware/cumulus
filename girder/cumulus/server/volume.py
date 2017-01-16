@@ -32,7 +32,8 @@ from .base import BaseResource
 import cumulus
 from cumulus.constants import VolumeType
 from cumulus.constants import VolumeState
-from cumulus.common.girder import get_task_token, _get_profile
+from cumulus.common.girder import get_task_token, _get_profile, \
+    send_status_notification
 
 import cumulus.ansible.tasks.volume
 
@@ -64,14 +65,13 @@ class Volume(BaseResource):
         self._model = self.model('volume', 'cumulus')
 
     def _create_ebs(self, body, zone):
-        user = self.getCurrentUser()
+        user = getCurrentUser()
         name = body['name']
         size = body['size']
         fs = body.get('fs', None)
         profileId = body['profileId']
 
-        return self.model('volume', 'cumulus').create_ebs(user, profileId,
-                                                          name, zone, size, fs)
+        return self._model.create_ebs(user, profileId, name, zone, size, fs)
 
     @access.user
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.WRITE)
@@ -91,9 +91,9 @@ class Volume(BaseResource):
             if k in body:
                 volume[k] = body[k]
 
-        volume = self._model.save(volume)
-
-        return self._model.filter(volume, getCurrentUser())
+        user = getCurrentUser()
+        volume = self._model.update_volume(user, volume)
+        return self._model.filter(volume, user)
 
     patch.description = (
         Description('Patch a volume')
@@ -143,8 +143,8 @@ class Volume(BaseResource):
         'properties': {
             'name': {'type': 'string',
                      'description': 'The name to give the cluster.'},
-            'profileId':  {'type': 'string',
-                           'description': 'Id of profile to use'},
+            'profileId': {'type': 'string',
+                          'description': 'Id of profile to use'},
             'type': {'type': 'string',
                      'description': 'The type of volume to create ( currently '
                      'only esb )'},
@@ -177,7 +177,7 @@ class Volume(BaseResource):
 
     @access.user
     def find(self, params):
-        user = self.getCurrentUser()
+        user = getCurrentUser()
         query = {}
 
         if 'clusterId' in params:
@@ -185,10 +185,10 @@ class Volume(BaseResource):
 
         limit = params.get('limit', 50)
 
-        volumes = self.model('volume', 'cumulus').find(query=query)
+        volumes = self._model.find(query=query)
         volumes = list(volumes)
 
-        volumes = self.model('volume', 'cumulus') \
+        volumes = self._model \
             .filterResultsByPermission(volumes, user, AccessType.ADMIN,
                                        limit=int(limit))
 
@@ -204,8 +204,8 @@ class Volume(BaseResource):
                level=AccessType.ADMIN)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def attach_complete(self, volume, cluster, params):
-        path = params.get('path', None)
-
+        user = getCurrentUser()
+        path = getBodyJson().get('path', None)
         if path is not None:
             cluster.setdefault('volumes', [])
             cluster['volumes'].append(volume['_id'])
@@ -227,12 +227,11 @@ class Volume(BaseResource):
             volume['clusterId'] = cluster['_id']
 
             self.model('cluster', 'cumulus').save(cluster)
-            self.model('volume', 'cumulus').save(volume)
+            self._model.update_volume(user, volume)
         else:
             volume['status'] = VolumeState.ERROR
             volume['msg'] = 'Volume path was not communicated on complete'
-
-            self.model('volume', 'cumulus').save(volume)
+            self._model.update_volume(user, volume)
 
     attach_complete.description = None
 
@@ -279,7 +278,7 @@ class Volume(BaseResource):
                    secret_key, girder_callback_info)
 
         volume['status'] = VolumeState.ATTACHING
-        volume = self.model('volume', 'cumulus').save(volume)
+        volume = self._model.update_volume(getCurrentUser(), volume)
 
         return self._model.filter(volume, getCurrentUser())
 
@@ -342,18 +341,18 @@ class Volume(BaseResource):
         if master['state'] != InstanceState.RUNNING:
             raise RestException('Master instance is not running!',
                                 400)
-
+        user = getCurrentUser()
         cluster = self.model('cluster', 'cumulus').filter(
-            cluster, getCurrentUser(), passphrase=False)
+            cluster, user, passphrase=False)
         cumulus.ansible.tasks.volume.detach_volume\
             .delay(profile, cluster, master,
-                   self._model.filter(volume, getCurrentUser()),
+                   self._model.filter(volume, user),
                    secret_key, girder_callback_info)
 
         volume['status'] = VolumeState.DETACHING
-        volume = self.model('volume', 'cumulus').save(volume)
+        volume = self._model.update_volume(user, volume)
 
-        return self._model.filter(volume, getCurrentUser())
+        return self._model.filter(volume, user)
 
     detach.description = (
         Description('Detach a volume from a cluster')
@@ -367,8 +366,9 @@ class Volume(BaseResource):
     def detach_complete(self, volume, params):
 
         # First remove from cluster
+        user = getCurrentUser()
         cluster = self.model('cluster', 'cumulus').load(volume['clusterId'],
-                                                        user=getCurrentUser(),
+                                                        user=user,
                                                         level=AccessType.ADMIN)
         cluster.setdefault('volumes', []).remove(volume['_id'])
 
@@ -383,7 +383,8 @@ class Volume(BaseResource):
         volume['status'] = VolumeState.AVAILABLE
 
         self.model('cluster', 'cumulus').save(cluster)
-        self.model('volume', 'cumulus').save(volume)
+        self._model.save(volume)
+        send_status_notification('volume', volume)
 
     detach_complete.description = None
 
@@ -401,7 +402,7 @@ class Volume(BaseResource):
                     'Unable to delete volume,  it is '
                     'associated with an ec2 volume %s' % volume['ec2']['id'])
 
-            self.model('volume', 'cumulus').remove(volume)
+            self._model.remove(volume)
             return None
 
         # Call EC2 to delete volume
@@ -421,14 +422,15 @@ class Volume(BaseResource):
                 'Volume must be in an "%s" status to be deleted'
                 % VolumeState.AVAILABLE, 400)
 
+        user = getCurrentUser()
         cumulus.ansible.tasks.volume.delete_volume\
-            .delay(profile, self._model.filter(volume, getCurrentUser()),
+            .delay(profile, self._model.filter(volume, user),
                    secret_key, girder_callback_info)
 
         volume['status'] = VolumeState.DELETING
-        volume = self.model('volume', 'cumulus').save(volume)
+        volume = self._model.update_volume(user, volume)
 
-        return self._model.filter(volume, getCurrentUser())
+        return self._model.filter(volume, user)
 
     delete.description = (
         Description('Delete a volume')
@@ -437,7 +439,7 @@ class Volume(BaseResource):
     @access.user
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def delete_complete(self, volume, params):
-        self.model('volume', 'cumulus').remove(volume)
+        self._model.remove(volume)
 
     delete_complete.description = None
 
@@ -452,7 +454,7 @@ class Volume(BaseResource):
 
     @access.user
     def append_to_log(self, id, params):
-        user = self.getCurrentUser()
+        user = getCurrentUser()
 
         if not self._model.load(id, user=user, level=AccessType.ADMIN):
             raise RestException('Volume not found.', code=404)
@@ -464,7 +466,7 @@ class Volume(BaseResource):
 
     @access.user
     def log(self, id, params):
-        user = self.getCurrentUser()
+        user = getCurrentUser()
         offset = 0
         if 'offset' in params:
             offset = int(params['offset'])

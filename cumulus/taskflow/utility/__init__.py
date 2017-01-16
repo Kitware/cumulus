@@ -28,9 +28,13 @@ def find_modules(paths, prefix=''):
     for (loader, name, pkg) in pkgutil.iter_modules(paths):
         if pkg:
             package_dir = os.path.join(loader.path, name)
+            nb_modules = 0
             for module in find_modules([package_dir], prefix='%s%s.' % (prefix,
                                                                         name)):
+                nb_modules += 1
                 yield module
+            if nb_modules == 0:
+                yield '%s%s' % (prefix,  name)
         else:
             yield '%s%s' % (prefix,  name)
 
