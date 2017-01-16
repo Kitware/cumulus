@@ -205,7 +205,7 @@ class Volume(BaseResource):
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def attach_complete(self, volume, cluster, params):
         user = getCurrentUser()
-        path = getBodyJson().get('path', None)
+        path = params.get('path', None)
         if path is not None:
             cluster.setdefault('volumes', [])
             cluster['volumes'].append(volume['_id'])
@@ -251,6 +251,7 @@ class Volume(BaseResource):
         girder_callback_info = {
             'girder_api_url': getApiUrl(),
             'girder_token': get_task_token()['_id']}
+        log_write_url = '%s/volumes/%s/log' % (getApiUrl(), volume['_id'])
 
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
@@ -275,7 +276,7 @@ class Volume(BaseResource):
         cumulus.ansible.tasks.volume.attach_volume\
             .delay(profile, cluster, master,
                    self._model.filter(volume, getCurrentUser()), path,
-                   secret_key, girder_callback_info)
+                   secret_key, log_write_url, girder_callback_info)
 
         volume['status'] = VolumeState.ATTACHING
         volume = self._model.update_volume(getCurrentUser(), volume)
@@ -318,6 +319,8 @@ class Volume(BaseResource):
             'girder_api_url': getApiUrl(),
             'girder_token': get_task_token()['_id']}
 
+        log_write_url = '%s/volumes/%s/log' % (getApiUrl(), volume['_id'])
+
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
         aws_volume = p.get_volume(volume)
@@ -347,7 +350,7 @@ class Volume(BaseResource):
         cumulus.ansible.tasks.volume.detach_volume\
             .delay(profile, cluster, master,
                    self._model.filter(volume, user),
-                   secret_key, girder_callback_info)
+                   secret_key, log_write_url, girder_callback_info)
 
         volume['status'] = VolumeState.DETACHING
         volume = self._model.update_volume(user, volume)
@@ -405,6 +408,8 @@ class Volume(BaseResource):
             self._model.remove(volume)
             return None
 
+        log_write_url = '%s/volumes/%s/log' % (getApiUrl(), volume['_id'])
+
         # Call EC2 to delete volume
         profile_id = parse('profileId').find(volume)[0].value
 
@@ -425,7 +430,7 @@ class Volume(BaseResource):
         user = getCurrentUser()
         cumulus.ansible.tasks.volume.delete_volume\
             .delay(profile, self._model.filter(volume, user),
-                   secret_key, girder_callback_info)
+                   secret_key, log_write_url, girder_callback_info)
 
         volume['status'] = VolumeState.DELETING
         volume = self._model.update_volume(user, volume)

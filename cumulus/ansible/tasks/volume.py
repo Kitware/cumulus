@@ -28,7 +28,7 @@ from cumulus.ssh.tasks.key import _key_path
 
 @command.task
 def attach_volume(profile, cluster, instance, volume, path,
-                  secret_key, girder_callback_info):
+                  secret_key, log_write_url,  girder_callback_info):
 
     playbook = os.path.join(get_playbook_directory(),
                             'volumes', 'ec2', 'attach.yml')
@@ -58,6 +58,8 @@ def attach_volume(profile, cluster, instance, volume, path,
                 'AWS_SECRET_ACCESS_KEY': secret_key,
                 'ANSIBLE_HOST_KEY_CHECKING': 'false',
                 'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path(),
+                'LOG_WRITE_URL': log_write_url,
+                'GIRDER_TOKEN': girder_callback_info['girder_token'],
                 'ANSIBLE_LIBRARY': get_library_path()})
 
     inventory = simple_inventory({'head': [instance['public_ip']]})
@@ -69,7 +71,7 @@ def attach_volume(profile, cluster, instance, volume, path,
 
 @command.task
 def detach_volume(profile, cluster, instance, volume,
-                  secret_key, girder_callback_info):
+                  secret_key, log_write_url, girder_callback_info):
 
     playbook = os.path.join(get_playbook_directory(),
                             'volumes', 'ec2', 'detach.yml')
@@ -92,6 +94,8 @@ def detach_volume(profile, cluster, instance, volume,
                 'AWS_SECRET_ACCESS_KEY': secret_key,
                 'ANSIBLE_HOST_KEY_CHECKING': 'false',
                 'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path(),
+                'LOG_WRITE_URL': log_write_url,
+                'GIRDER_TOKEN': girder_callback_info['girder_token'],
                 'ANSIBLE_LIBRARY': get_library_path()})
 
     inventory = simple_inventory({'head': [instance['public_ip']]})
@@ -102,7 +106,8 @@ def detach_volume(profile, cluster, instance, volume,
 
 
 @command.task
-def delete_volume(profile, volume, secret_key, girder_callback_info):
+def delete_volume(profile, volume, secret_key, log_write_url,
+                  girder_callback_info):
 
     playbook = os.path.join(get_playbook_directory(),
                             'volumes', 'ec2', 'delete.yml')
@@ -121,6 +126,8 @@ def delete_volume(profile, volume, secret_key, girder_callback_info):
                 'AWS_SECRET_ACCESS_KEY': secret_key,
                 'ANSIBLE_HOST_KEY_CHECKING': 'false',
                 'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path(),
+                'LOG_WRITE_URL': log_write_url,
+                'GIRDER_TOKEN': girder_callback_info['girder_token'],
                 'ANSIBLE_LIBRARY': get_library_path()})
 
     inventory = simple_inventory('localhost')
