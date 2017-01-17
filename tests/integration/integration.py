@@ -8,11 +8,15 @@ import sys
 import time
 import girder_client
 import paramiko
+from contextlib import contextmanager
+
 from cumulus.scripts.command import (cli, pass_proxy,
                                      get_aws_instance_info,
                                      get_aws_volume_info)
 
-from cumulus.scripts.command import (create_profile,
+from cumulus.scripts.command import (profile,
+                                     cluster,
+                                     create_profile,
                                      create_cluster,
                                      launch_cluster,
                                      create_volume,
@@ -69,21 +73,40 @@ def test_case(func):
     return _catch_exceptions
 
 
+@contextmanager
+def clean_proxy(proxy):
+    if hasattr(proxy, '_volume'):
+        del(proxy._volume)
+    if hasattr(proxy, '_cluster'):
+        del(proxy._cluster)
+    if hasattr(proxy, '_profile'):
+        del(proxy._profile)
+    yield
+
+
+def invoke_with_clean_proxy(ctx, proxy):
+    def _invoke_with_clean_proxy(func, **kwargs):
+        with clean_proxy(proxy):
+            ctx.invoke(func, **kwargs)
+    return invoke_with_clean_proxy
+
+
 @cli.command()
 @click.option('--profile_section', default='profile')
 @test_case
 def test_profile(ctx, proxy, profile_section):
-    assert len(proxy.profiles) == 0, \
-        'Profile already exist!'
+    proxy.profile_section = profile_section
+    num_profiles = len(proxy.profiles)
+    invoke = invoke_with_clean_proxy(ctx, proxy)
 
-    ctx.invoke(create_profile, profile_section=profile_section)
+    invoke(create_profile)
 
-    assert len(proxy.profiles) == 1, \
+    assert len(proxy.profiles) == num_profiles + 1, \
         'After create_profile only one profile should exist'
 
-    ctx.invoke(delete_profile, profile_section=profile_section)
+    invoke(delete_profile)
 
-    assert len(proxy.profiles) == 0, \
+    assert len(proxy.profiles) == num_profiles, \
         'After delete_profile no profiles should exist'
 
 
@@ -92,21 +115,23 @@ def test_profile(ctx, proxy, profile_section):
 @click.option('--cluster_section', default='cluster')
 @test_case
 def test_cluster(ctx, proxy, profile_section, cluster_section):
-    assert len(proxy.profiles) == 0, \
-        'Profile already exist!'
-    assert len(proxy.clusters) == 0, \
-        'Clusters already exist!'
 
-    ctx.invoke(create_profile, profile_section=profile_section)
-    ctx.invoke(create_cluster, cluster_section=cluster_section)
+    num_clusters = len(proxy.clusters)
 
-    assert len(proxy.clusters) == 1, \
+    proxy.profile_section = profile_section
+    proxy.cluster_section = cluster_section
+    invoke = invoke_with_clean_proxy(ctx, proxy)
+
+    invoke(create_profile)
+    invoke(create_cluster)
+
+    assert len(proxy.clusters) == num_clusters + 1, \
         'After create_cluster only one profile should exist'
 
-    ctx.invoke(delete_cluster, cluster_section=cluster_section)
-    ctx.invoke(delete_profile, profile_section=profile_section)
+    invoke(delete_cluster)
+    invoke(delete_profile)
 
-    assert len(proxy.clusters) == 0, \
+    assert len(proxy.clusters) == num_clusters, \
         'After delete_cluster no profiles should exist'
 
 
@@ -119,18 +144,15 @@ def get_instance_hash(proxy):
 @click.option('--cluster_section', default='cluster')
 @test_case
 def test_launch_cluster(ctx, proxy, profile_section, cluster_section):
-    assert len(proxy.profiles) == 0, \
-        'Profile already exist!'
-    assert len(proxy.clusters) == 0, \
-        'Clusters already exist!'
+    proxy.profile_section = profile_section
+    proxy.cluster_section = cluster_section
+    invoke = invoke_with_clean_proxy(ctx, proxy)
 
     begin = get_instance_hash(proxy)
 
-    ctx.invoke(create_profile, profile_section=profile_section)
-    ctx.invoke(create_cluster, cluster_section=cluster_section)
-
-    ctx.invoke(launch_cluster, profile_section=profile_section,
-               cluster_section=cluster_section)
+    invoke(create_profile)
+    invoke(create_cluster)
+    invoke(launch_cluster)
 
     middle = get_instance_hash(proxy)
 
@@ -145,11 +167,9 @@ def test_launch_cluster(ctx, proxy, profile_section, cluster_section):
         assert instance['Type'] == 't2.nano', \
             'Instance {} is not a t2.nano instance'.format(instance['ID'])
 
-    ctx.invoke(terminate_cluster, profile_section=profile_section,
-               cluster_section=cluster_section)
-
-    ctx.invoke(delete_cluster, cluster_section=cluster_section)
-    ctx.invoke(delete_profile, profile_section=profile_section)
+    invoke(terminate_cluster)
+    invoke(delete_cluster)
+    invoke(delete_profile)
 
     end = get_instance_hash(proxy)
 
@@ -169,27 +189,22 @@ def get_volume_hash(proxy):
 @click.option('--volume_section', default='volume')
 @test_case
 def test_volume(ctx, proxy, profile_section, cluster_section, volume_section):
-    assert len(proxy.profiles) == 0, \
-        'Profile already exist!'
-    assert len(proxy.clusters) == 0, \
-        'Clusters already exist!'
-    assert len(proxy.volumes) == 0, \
-        'Volumes already exist!'
+    proxy.profile_section = profile_section
+    proxy.cluster_section = cluster_section
+    proxy.volume_section = volume_section
 
-    ctx.invoke(create_profile, profile_section=profile_section)
-    ctx.invoke(create_cluster, cluster_section=cluster_section)
+    invoke = invoke_with_clean_proxy(ctx, proxy)
 
-    ctx.invoke(launch_cluster, profile_section=profile_section,
-               cluster_section=cluster_section)
+    invoke(create_profile)
+    invoke(create_cluster)
+
+    invoke(launch_cluster)
 
     begin = get_volume_hash(proxy)
 
-    ctx.invoke(create_volume, profile_section=profile_section,
-               volume_section=volume_section)
+    invoke(create_volume)
 
-    ctx.invoke(attach_volume, profile_section=profile_section,
-               cluster_section=cluster_section,
-               volume_section=volume_section)
+    invoke(attach_volume)
 
     after_attach = get_volume_hash(proxy)
 
@@ -214,9 +229,7 @@ def test_volume(ctx, proxy, profile_section, cluster_section, volume_section):
     # cluster has knowledge of girder volume
     assert girder_vol['_id'] in girder_cluster['volumes']
 
-    ctx.invoke(detach_volume, profile_section=profile_section,
-               cluster_section=cluster_section,
-               volume_section=volume_section)
+    invoke(detach_volume)
 
     after_detach = get_volume_hash(proxy)
 
@@ -232,8 +245,7 @@ def test_volume(ctx, proxy, profile_section, cluster_section, volume_section):
     # volume has been removed from local girder cluster's volume list
     assert girder_vol['_id'] not in girder_cluster['volumes']
 
-    ctx.invoke(delete_volume, profile_section=profile_section,
-               volume_section=volume_section)
+    invoke(delete_volume)
 
     after = get_volume_hash(proxy)
 
@@ -243,11 +255,10 @@ def test_volume(ctx, proxy, profile_section, cluster_section, volume_section):
     # Removed locally
     assert len(proxy.volumes) == 0
 
-    ctx.invoke(terminate_cluster, profile_section=profile_section,
-               cluster_section=cluster_section)
+    invoke(terminate_cluster)
 
-    ctx.invoke(delete_cluster, cluster_section=cluster_section)
-    ctx.invoke(delete_profile, profile_section=profile_section)
+    invoke(delete_cluster)
+    invoke(delete_profile)
 
 
 ###############################################################################
