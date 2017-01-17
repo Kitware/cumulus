@@ -206,7 +206,6 @@ class Proxy(object):
 
         return self._user
 
-
     def remote_profile(self, name=None):
         if name is None:
             name = self.profile_name
@@ -216,7 +215,6 @@ class Proxy(object):
                 return p
 
         return None
-
 
     @property
     def profiles(self):
@@ -256,12 +254,12 @@ class Proxy(object):
                 self.user['_id'], self.profile['_id']),
             'available')
 
-
     @profile.deleter
     def profile(self):
         if self.profile is None:
             logging.debug(
-                'No profile with name "%s" found. Skipping.' % self.profile_name)
+                'No profile with name "%s" found. Skipping.' %
+                self.profile_name)
 
             return None
 
@@ -271,7 +269,6 @@ class Proxy(object):
             del(self._profile)
 
         return None
-
 
     def get_profile_body(self):
         if self.profile_section:
@@ -374,7 +371,6 @@ class Proxy(object):
             'available',
             log_url=log_url, timeout=600)
 
-
     def remote_cluster(self, name=None):
         if name is None:
             name = self.cluster_name
@@ -426,8 +422,6 @@ class Proxy(object):
             del(self._cluster)
 
         return None
-
-
 
     def get_traditional_cluster_body(self):
         if self.cluster_section:
@@ -577,7 +571,6 @@ class Proxy(object):
                 raise RuntimeError(e.responseText)
             else:
                 raise e
-
 
         self.wait_for_status(status_url, 'terminated',
                              timeout=timeout,

@@ -7,3 +7,4 @@ cumulus.egg-info/
 dist/
 *~
 *.retry
+.dir-locals.el

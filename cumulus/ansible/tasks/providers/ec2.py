@@ -248,6 +248,7 @@ class EC2Provider(CloudProvider):
     def describe_regions(self, *args, **kwargs):
         return self.client.describe_regions(*args, **kwargs)
 
+
 CloudProvider.register('ec2', EC2Provider)
 
 

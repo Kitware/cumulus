@@ -1,4 +1,3 @@
-import json
 import click
 from utils import logging, Proxy, CONFIG_PARAM
 from utils import (key,
@@ -32,7 +31,6 @@ def cli(ctx, verbose, config, girder_section, aws_section):
         girder_section=girder_section,
         aws_section=aws_section)
     ctx.obj.verbose = verbose
-
 
 
 ###############################################################################
@@ -89,6 +87,7 @@ def delete_profile(proxy):
 #   Cluster Commands
 #
 
+
 @cli.group()
 @click.option('--profile_section', default='profile')
 @click.option('--cluster_section', default='cluster')
@@ -136,7 +135,8 @@ def delete_cluster(proxy):
         logging.info('Deleting cluster "%s"' % proxy.cluster_name)
         try:
             del proxy.cluster
-            logging.info('Finished deleting cluster "%s" (%s)' % (proxy.cluster_name, _id))
+            logging.info('Finished deleting cluster "%s" (%s)' %
+                         (proxy.cluster_name, _id))
         except RuntimeError as e:
             logging.error(e.message)
 
@@ -161,7 +161,6 @@ def launch_cluster(proxy):
             logging.error(e.message)
 
 
-
 @cluster.command(name='terminate')
 @pass_proxy
 def terminate_cluster(proxy):
@@ -170,7 +169,8 @@ def terminate_cluster(proxy):
     elif 'status' in proxy.cluster and \
          proxy.cluster['status'] in ('terminated', 'terminating'):
         logging.info(
-            'Cluster "%s" is either terminating or terminated. Skipping' % proxy.cluster_name)
+            'Cluster "%s" is either terminating or terminated. Skipping' %
+            proxy.cluster_name)
     else:
         try:
             logging.info('Terminating cluster "%s"' % proxy.cluster_name)
@@ -183,8 +183,6 @@ def terminate_cluster(proxy):
             logging.error(e.message)
 
     return None
-
-
 
 ###############################################################################
 #   AWS Commands
@@ -219,7 +217,6 @@ def list_aws_volumes(proxy):
 
     print tabulate(data, headers=headers)
     print '\n'
-
 
 
 def get_aws_instance_info(proxy):
@@ -281,8 +278,6 @@ def get_aws_volume_info(proxy):
 
     return headers, [[f(v) for f in keys] for v in proxy.get_volumes()]
 
-
-
 ###############################################################################
 #   Volume Commands
 #
@@ -297,7 +292,6 @@ def volume(proxy, profile_section, cluster_section, volume_section):
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
     proxy.volume_section = volume_section
-
 
 
 @volume.command(name='create')
@@ -324,7 +318,6 @@ def list_volumes(proxy):
     print '\n'
 
 
-
 @volume.command(name='attach')
 @pass_proxy
 def attach_volume(proxy):
@@ -338,8 +331,8 @@ def attach_volume(proxy):
         # Check we have a running cluster
         if 'status' in proxy.cluster and proxy.cluster['status'] != 'running':
             logging.error(
-                "Can only attach volume to a running cluster (current state: %s)." %
-                proxy.cluster['status'])
+                'Can only attach volume to a running cluster '
+                '(current state: %s).' % proxy.cluster['status'])
             return None
 
         logging.info('Attaching volume "%s" (%s) to cluster "%s" (%s)' %
@@ -352,6 +345,7 @@ def attach_volume(proxy):
         except RuntimeError as e:
             logging.error(e.message)
         return None
+
 
 @volume.command(name='detach')
 @pass_proxy
@@ -387,7 +381,8 @@ def delete_volume(proxy):
         logging.info('Deleting volume "%s"' % proxy.volume_name)
         try:
             del proxy.volume
-            logging.info('Finished deleting volume "%s" (%s)' % (proxy.volume_name,_id))
+            logging.info('Finished deleting volume "%s" (%s)' %
+                         (proxy.volume_name, _id))
         except RuntimeError as e:
             logging.error(e.message)
     except TypeError:
