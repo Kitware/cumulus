@@ -206,6 +206,18 @@ class Proxy(object):
 
         return self._user
 
+
+    def remote_profile(self, name=None):
+        if name is None:
+            name = self.profile_name
+
+        for p in self.profiles:
+            if p['name'] == name:
+                return p
+
+        return None
+
+
     @property
     def profiles(self):
         r = self.get('user/%s/aws/profiles' % self.user['_id'])
@@ -214,61 +226,52 @@ class Proxy(object):
     @property
     def profile(self):
         if not hasattr(self, '_profile'):
-            self._profile = None
-
-        if self._profile is None:
-            # Create or get the profile
-            self.profile = self.get_profile_body()
+            self._profile = self.remote_profile()
 
         return self._profile
 
     @profile.setter
     def profile(self, profile):
-        for p in self.profiles:
-            if p['name'] == profile['name']:
-                logging.info('Using pre-existing profile: %s (%s)' %
-                             (p['name'], p['_id']))
-                self._profile = p
+        rp = self.remote_profile(profile['name'])
+        if rp is not None:
+            logging.debug('Using pre-existing profile: %s (%s)' %
+                          (rp['name'], rp['_id']))
+            self._profile = rp
 
-                self.wait_for_status(
-                    'user/%s/aws/profiles/%s/status' % (
-                        self.user['_id'], self.profile['_id']),
-                    'available')
-                return None
+            self.wait_for_status(
+                'user/%s/aws/profiles/%s/status' % (
+                    self.user['_id'], self.profile['_id']),
+                'available')
+            return None
 
         # Profile could not be found, create it
         r = self.post('user/%s/aws/profiles' % self.user['_id'],
                       data=json.dumps(profile))
 
+        logging.debug('Posted profile %s: %s' % (r['_id'], r))
         self._profile = r
-        logging.debug('Created profile %s: %s' % (r['_id'], r))
 
         self.wait_for_status(
             'user/%s/aws/profiles/%s/status' % (
                 self.user['_id'], self.profile['_id']),
             'available')
-        return None
+
 
     @profile.deleter
     def profile(self):
-        for p in self.profiles:
-            if p['name'] == self.profile_name:
-                try:
-                    self.delete('user/%s/aws/profiles/%s' %
-                                (self.user['_id'], p['_id']))
-                    if hasattr(self, '_profile'):
-                        del(self._profile)
-                except girder_client.HttpError as e:
-                    if e.status == 400:
-                        raise RuntimeError(e.responseText)
-                    else:
-                        raise e
-                return None
+        if self.profile is None:
+            logging.debug(
+                'No profile with name "%s" found. Skipping.' % self.profile_name)
 
-        logging.debug(
-            'No profile with name "%s" found. Skipping' % self.profile_name)
+            return None
+
+        self.delete('user/%s/aws/profiles/%s' %
+                    (self.user['_id'], self.profile['_id']))
+        if hasattr(self, '_profile'):
+            del(self._profile)
 
         return None
+
 
     def get_profile_body(self):
         if self.profile_section:
@@ -283,6 +286,14 @@ class Proxy(object):
         else:
             raise RuntimeError('No profile section found!')
 
+    def remote_volume(self, name=None):
+        if name is None:
+            name = self.volume_name
+        for v in self.volumes:
+            if v['name'] == name:
+                return v
+        return None
+
     @property
     def volumes(self):
         r = self.get('volumes')
@@ -291,23 +302,18 @@ class Proxy(object):
     @property
     def volume(self):
         if not hasattr(self, '_volume'):
-            self._volume = None
-
-        if self._volume is None:
-            # Create or get the profile
-            self.volume = self.get_volume_body()
+            self._volume = self.remote_volume()
 
         return self._volume
 
     @volume.setter
     def volume(self, volume):
-        for v in self.volumes:
-            if v['name'] == volume['name'] and \
-               v['profileId'] == self.profile['_id']:
-                logging.info('Using pre-existing volume: %s (%s)' %
-                             (v['name'], v['_id']))
-                self._volume = v
-                return None
+        rv = self.remote_volume(volume['name'])
+        if rv is not None:
+            logging.debug('Using pre-existing volume: %s (%s)' %
+                          (rv['name'], rv['_id']))
+            self._volume = rv
+            return None
 
         # Volume could not be found, create it
         r = self.post('volumes', data=json.dumps(volume))
@@ -322,36 +328,17 @@ class Proxy(object):
 
     @volume.deleter
     def volume(self):
-        timeout = 300
-        for v in self.volumes:
-            if v['name'] == self.volume_name:
-                start = time.time()
+        if self.volume is None:
+            logging.debug(
+                'No Volume with name "%s" found. Skipping' % self.volume_name)
+            return None
 
-                try:
-                    self.delete('volumes/%s' % v['_id'])
-                    if hasattr(self, '_volume'):
-                        del(self._volume)
-                except girder_client.HttpError as e:
-                    if e.status == 400:
-                        raise RuntimeError(e.responseText)
-                    else:
-                        raise e
+        self.delete('volumes/%s' % self.volume['_id'])
 
-                while True:
-                    try:
-                        self.get('volumes/%s/status' % (v['_id']))
-                    except girder_client.HttpError as e:
-                        if e.status == 400:
-                            return None
-                        else:
-                            raise e
+        if hasattr(self, '_volume'):
+            del(self._volume)
 
-                    if time.time() - start > timeout:
-                        raise RuntimeError(
-                            'Volume at "%s" never deleted' % v['_id'])
-
-        logging.debug(
-            'No profile with name "%s" found. Skipping' % self.profile_name)
+        return None
 
     def get_volume_body(self):
         if self.profile_section:
@@ -387,6 +374,16 @@ class Proxy(object):
             'available',
             log_url=log_url, timeout=600)
 
+
+    def remote_cluster(self, name=None):
+        if name is None:
+            name = self.cluster_name
+
+        for c in self.clusters:
+            if c['name'] == name:
+                return c
+        return None
+
     @property
     def clusters(self):
         r = self.get('clusters')
@@ -395,49 +392,42 @@ class Proxy(object):
     @property
     def cluster(self):
         if not hasattr(self, '_cluster'):
-            self._cluster = None
-
-        if self._cluster is None:
-            self.cluster = self.get_cluster_body()
+            self._cluster = self.remote_cluster()
 
         return self._cluster
 
     @cluster.setter
     def cluster(self, cluster):
-        for c in self.clusters:
-            if c['name'] == cluster['name']:
-                logging.info('Using pre-existing cluster: %s (%s)' %
-                             (c['name'], c['_id']))
-                self._cluster = c
-                return None
+        rc = self.remote_cluster(cluster['name'])
+        if rc is not None:
+            logging.debug('Using pre-existing cluster: %s (%s)' %
+                          (rc['name'], rc['_id']))
+            self._cluster = rc
+            return None
 
         # Profile could not be found, create it
         r = self.post('clusters', data=json.dumps(cluster))
+        logging.debug('Posted cluster %s: %s' % (r['_id'], r))
 
         self._cluster = r
-        logging.debug('Created cluster %s: %s' % (r['_id'], r))
+
         return None
 
     @cluster.deleter
     def cluster(self):
-        for c in self.clusters:
-            if c['name'] == self.cluster_name:
+        if self.cluster is None:
+            logging.debug(
+                'No profile with name "%s" found. Skipping' %
+                self.profile_name)
+            return None
 
-                try:
-                    self.delete('clusters/%s' % c['_id'])
-                    if hasattr(self, '_cluster'):
-                        del(self._cluster)
-                except girder_client.HttpError as e:
-                    if e.status == 400:
-                        raise RuntimeError(e.responseText)
-                    else:
-                        raise e
-                return None
-
-        logging.debug(
-            'No profile with name "%s" found. Skipping' % self.profile_name)
+        self.delete('clusters/%s' % self.cluster['_id'])
+        if hasattr(self, '_cluster'):
+            del(self._cluster)
 
         return None
+
+
 
     def get_traditional_cluster_body(self):
         if self.cluster_section:
@@ -574,10 +564,20 @@ class Proxy(object):
                              log_url=log_url)
 
     def terminate_cluster(self, cluster, timeout=300):
+        if 'status' in cluster and cluster['status'] == 'terminated':
+            return None
+
         status_url = 'clusters/%s/status' % cluster['_id']
         log_url = 'clusters/%s/log' % cluster['_id']
 
-        self.put('clusters/%s/terminate' % cluster['_id'])
+        try:
+            self.put('clusters/%s/terminate' % cluster['_id'])
+        except girder_client.HttpError as e:
+            if e.status == 400:
+                raise RuntimeError(e.responseText)
+            else:
+                raise e
+
 
         self.wait_for_status(status_url, 'terminated',
                              timeout=timeout,
@@ -607,29 +607,44 @@ class Proxy(object):
         logging.debug('GET %s' % url)
         if kwargs:
             logging.debug(kwargs)
-
-        return self.client.get(uri, **kwargs)
+        try:
+            return self.client.get(uri, **kwargs)
+        except girder_client.HttpError as e:
+            error = json.loads(e.responseText)
+            logging.debug(error)
+            raise RuntimeError(error['message'])
 
     def post(self, uri, **kwargs):
         url = '%s/%s' % (self.girder_api_url, uri)
         logging.debug('POST %s' % url)
         if kwargs:
             logging.debug(kwargs)
-
-        return self.client.post(uri, **kwargs)
+        try:
+            return self.client.post(uri, **kwargs)
+        except girder_client.HttpError as e:
+            error = json.loads(e.responseText)
+            raise RuntimeError(error['message'])
 
     def put(self, uri, **kwargs):
         url = '%s/%s' % (self.girder_api_url, uri)
         logging.debug('PUT %s' % url)
         if kwargs:
             logging.debug(kwargs)
-
-        return self.client.put(uri, **kwargs)
+        try:
+            return self.client.put(uri, **kwargs)
+        except girder_client.HttpError as e:
+            error = json.loads(e.responseText)
+            logging.debug(error)
+            raise RuntimeError(error['message'])
 
     def delete(self, uri, **kwargs):
         url = '%s/%s' % (self.girder_api_url, uri)
         logging.debug('DELETE %s' % url)
         if kwargs:
             logging.debug(kwargs)
-
-        return self.client.delete(uri, **kwargs)
+        try:
+            return self.client.delete(uri, **kwargs)
+        except girder_client.HttpError as e:
+            error = json.loads(e.responseText)
+            logging.debug(error)
+            raise RuntimeError(error['message'])

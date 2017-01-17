@@ -1,3 +1,4 @@
+import json
 import click
 from utils import logging, Proxy, CONFIG_PARAM
 from utils import (key,
@@ -48,9 +49,10 @@ def profile(proxy, profile_section):
 @profile.command(name='create')
 @pass_proxy
 def create_profile(proxy):
-    logging.info('Creating profile')
+    logging.info('Creating profile "%s"' % proxy.profile_name)
     proxy.profile = proxy.get_profile_body()
-    logging.info('Finished creating profile %s' % proxy.profile['_id'])
+    logging.info('Finished creating profile "%s" (%s)' %
+                 (proxy.profile_name, proxy.profile['_id']))
 
 
 @profile.command(name='list')
@@ -66,13 +68,22 @@ def list_profiles(proxy):
                    headers=headers)
     print '\n'
 
+
 @profile.command(name='delete')
 @pass_proxy
 def delete_profile(proxy):
-    logging.info('Deleting profile')
-    _id = proxy.profile['_id']
-    del proxy.profile
-    logging.info('Finished deleting profile %s' % _id)
+    try:
+        _id = proxy.profile['_id']
+        logging.info('Deleting profile "%s"' % proxy.profile_name)
+        try:
+            del proxy.profile
+            logging.info('Finished deleting profile "%s" (%s)' %
+                         (proxy.profile_name, _id))
+        except RuntimeError as e:
+            logging.error(e.message)
+
+    except TypeError:
+        logging.info('Found no profile "%s", Skipping.' % proxy.profile_name)
 
 ###############################################################################
 #   Cluster Commands
@@ -86,12 +97,20 @@ def cluster(proxy, profile_section, cluster_section):
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
 
+
 @cluster.command(name='create')
 @pass_proxy
-def create_cluster(proxy):
-    logging.info('Createing cluster')
+@click.pass_context
+def create_cluster(ctx, proxy):
+    logging.info('Createing cluster "%s"' % proxy.cluster_name)
+
+    if proxy.profile is None:
+        ctx.invoke(create_profile)
+
     proxy.cluster = proxy.get_cluster_body()
-    logging.info('Finished creting cluster %s' % proxy.cluster['_id'])
+
+    logging.info('Finished creting cluster "%s" (%s)' %
+                 (proxy.cluster_name, proxy.cluster['_id']))
 
 
 @cluster.command(name='list')
@@ -111,25 +130,60 @@ def list_clusters(proxy):
 @cluster.command(name='delete')
 @pass_proxy
 def delete_cluster(proxy):
-    logging.info('Deleting cluster')
-    _id = proxy.cluster['_id']
-    del proxy.cluster
-    logging.info('Finished deleting cluster %s' % _id)
+    # import pudb; pu.db
+    try:
+        _id = proxy.cluster['_id']
+        logging.info('Deleting cluster "%s"' % proxy.cluster_name)
+        try:
+            del proxy.cluster
+            logging.info('Finished deleting cluster "%s" (%s)' % (proxy.cluster_name, _id))
+        except RuntimeError as e:
+            logging.error(e.message)
+
+    except TypeError:
+        logging.info('No cluster "%s" found. Skipping' % proxy.cluster_name)
+
 
 @cluster.command(name='launch')
 @pass_proxy
 def launch_cluster(proxy):
-    logging.info('Launching cluster %s' % proxy.cluster['_id'])
-    proxy.launch_cluster(proxy.cluster)
-    logging.info('Finished launching cluster')
+    if proxy.cluster is None:
+        logging.error(
+            'No cluster "%s" found. Must create cluster befor launching.' %
+            proxy.cluster_name)
+    else:
+        logging.info('Launching cluster "%s"' % proxy.cluster_name)
+        try:
+            proxy.launch_cluster(proxy.cluster)
+            logging.info('Finished launching cluster %s  (%s)' %
+                         (proxy.cluster_name, proxy.cluster['_id']))
+        except RuntimeError as e:
+            logging.error(e.message)
+
 
 
 @cluster.command(name='terminate')
 @pass_proxy
 def terminate_cluster(proxy):
-    logging.info('Terminating cluster %s' % proxy.cluster['_id'])
-    proxy.terminate_cluster(proxy.cluster)
-    logging.info('Finished terminating cluster')
+    if proxy.cluster is None:
+        logging.info('No cluster "%s" found. Skipping' % proxy.cluster_name)
+    elif 'status' in proxy.cluster and \
+         proxy.cluster['status'] in ('terminated', 'terminating'):
+        logging.info(
+            'Cluster "%s" is either terminating or terminated. Skipping' % proxy.cluster_name)
+    else:
+        try:
+            logging.info('Terminating cluster "%s"' % proxy.cluster_name)
+
+            proxy.terminate_cluster(proxy.cluster)
+
+            logging.info('Finished terminating cluster "%s" (%s)' %
+                         (proxy.cluster_name, proxy.cluster['_id']))
+        except RuntimeError as e:
+            logging.error(e.message)
+
+    return None
+
 
 
 ###############################################################################
@@ -274,31 +328,70 @@ def list_volumes(proxy):
 @volume.command(name='attach')
 @pass_proxy
 def attach_volume(proxy):
-    logging.info('Attaching volume %s to cluster %s' %
-                 (proxy.volume['_id'], proxy.cluster['_id']))
+    if proxy.cluster is None:
+        logging.info('No cluster "%s" found. Skipping' % proxy.cluster_name)
+        return None
+    elif proxy.volume is None:
+        logging.info('No volume "%s" found. Skipping' % proxy.volume_name)
+        return None
+    else:
+        # Check we have a running cluster
+        if 'status' in proxy.cluster and proxy.cluster['status'] != 'running':
+            logging.error(
+                "Can only attach volume to a running cluster (current state: %s)." %
+                proxy.cluster['status'])
+            return None
 
-    proxy.attach_volume(proxy.cluster, proxy.volume)
-
-    logging.info('Finished attaching volume.')
-
+        logging.info('Attaching volume "%s" (%s) to cluster "%s" (%s)' %
+                     (proxy.volume_name, proxy.volume['_id'],
+                      proxy.cluster_name, proxy.cluster['_id']))
+        try:
+            proxy.attach_volume(proxy.cluster, proxy.volume)
+            logging.info('Finished attaching volume "%s" (%s).' %
+                         (proxy.volume_name, proxy.volume['_id']))
+        except RuntimeError as e:
+            logging.error(e.message)
+        return None
 
 @volume.command(name='detach')
 @pass_proxy
 def detach_volume(proxy):
-    logging.info('Detaching volume %s' % proxy.volume['_id'])
+    if proxy.volume is None:
+        logging.info('No volume "%s" found. Skipping' % proxy.volume_name)
+        return None
+    elif 'status' in proxy.volume and \
+         proxy.volume['status'] != 'in-use':
+        logging.error('Cannot detach volume "%s", in state "%s"' %
+                      (proxy.volume_name, proxy.volume['status']))
+        return None
 
-    proxy.detach_volume(proxy.volume)
+    else:
+        try:
+            logging.info('Detaching volume %s' % proxy.volume['_id'])
 
-    logging.info('Finished detaching volume.')
+            proxy.detach_volume(proxy.volume)
+
+            logging.info('Finished detaching volume "%s" (%s).' %
+                         (proxy.volume_name, proxy.volume['_id']))
+        except RuntimeError as e:
+            logging.error(e.message)
+
+    return None
 
 
 @volume.command(name='delete')
 @pass_proxy
 def delete_volume(proxy):
-    logging.info('Deleting volume')
-    _id = proxy.volume['_id']
-    del proxy.volume
-    logging.info('Finished deleting volume %s' % _id)
+    try:
+        _id = proxy.volume['_id']
+        logging.info('Deleting volume "%s"' % proxy.volume_name)
+        try:
+            del proxy.volume
+            logging.info('Finished deleting volume "%s" (%s)' % (proxy.volume_name,_id))
+        except RuntimeError as e:
+            logging.error(e.message)
+    except TypeError:
+        logging.info('No volume "%s" found. skipping' % proxy.cluster_name)
 
 
 ###############################################################################
