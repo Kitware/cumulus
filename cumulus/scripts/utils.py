@@ -330,10 +330,28 @@ class Proxy(object):
                 'No Volume with name "%s" found. Skipping' % self.volume_name)
             return None
 
-        self.delete('volumes/%s' % self.volume['_id'])
+        _id = self.volume['_id']
+
+        timeout = 300
+        self.delete('volumes/%s' % _id)
 
         if hasattr(self, '_volume'):
             del(self._volume)
+
+        start = time.time()
+        while True:
+            try:
+                self.client.get('volumes/%s/status' % _id)
+            except girder_client.HttpError as e:
+                if e.status == 400:
+                    return None
+                else:
+                    raise e
+
+            if time.time() - start > timeout:
+                raise RuntimeError(
+                    'Volume at "%s" never deleted' % _id)
+            time.sleep(1)
 
         return None
 
@@ -564,13 +582,7 @@ class Proxy(object):
         status_url = 'clusters/%s/status' % cluster['_id']
         log_url = 'clusters/%s/log' % cluster['_id']
 
-        try:
-            self.put('clusters/%s/terminate' % cluster['_id'])
-        except girder_client.HttpError as e:
-            if e.status == 400:
-                raise RuntimeError(e.responseText)
-            else:
-                raise e
+        self.put('clusters/%s/terminate' % cluster['_id'])
 
         self.wait_for_status(status_url, 'terminated',
                              timeout=timeout,

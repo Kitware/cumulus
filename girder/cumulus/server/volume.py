@@ -204,8 +204,15 @@ class Volume(BaseResource):
                level=AccessType.ADMIN)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def attach_complete(self, volume, cluster, params):
+
         user = getCurrentUser()
+
         path = params.get('path', None)
+
+        # Is path being passed in as apart of the body json?
+        if path is None:
+            path = getBodyJson().get('path', None)
+
         if path is not None:
             cluster.setdefault('volumes', [])
             cluster['volumes'].append(volume['_id'])

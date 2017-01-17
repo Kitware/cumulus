@@ -88,7 +88,7 @@ def invoke_with_clean_proxy(ctx, proxy):
     def _invoke_with_clean_proxy(func, **kwargs):
         with clean_proxy(proxy):
             ctx.invoke(func, **kwargs)
-    return invoke_with_clean_proxy
+    return _invoke_with_clean_proxy
 
 
 @cli.command()
@@ -459,8 +459,6 @@ def test_traditional(ctx, proxy, profile_section, cluster_section, host, port):
     proxy.wait_for_status('clusters/%s/status' % proxy.cluster['_id'],
                           'running', timeout=60)
 
-
-    import pudb; pu.db
 
     # Create Script
     commands = ['sleep 10', 'cat CumulusIntegrationTestInput']
