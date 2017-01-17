@@ -612,7 +612,10 @@ class Proxy(object):
         except girder_client.HttpError as e:
             error = json.loads(e.responseText)
             logging.debug(error)
-            raise RuntimeError(error['message'])
+            try:
+                raise RuntimeError(error['message'])
+            except KeyError:
+                raise e
 
     def post(self, uri, **kwargs):
         url = '%s/%s' % (self.girder_api_url, uri)
@@ -623,7 +626,10 @@ class Proxy(object):
             return self.client.post(uri, **kwargs)
         except girder_client.HttpError as e:
             error = json.loads(e.responseText)
-            raise RuntimeError(error['message'])
+            try:
+                raise RuntimeError(error['message'])
+            except KeyError:
+                raise e
 
     def put(self, uri, **kwargs):
         url = '%s/%s' % (self.girder_api_url, uri)
@@ -635,7 +641,10 @@ class Proxy(object):
         except girder_client.HttpError as e:
             error = json.loads(e.responseText)
             logging.debug(error)
-            raise RuntimeError(error['message'])
+            try:
+                raise RuntimeError(error['message'])
+            except KeyError:
+                raise e
 
     def delete(self, uri, **kwargs):
         url = '%s/%s' % (self.girder_api_url, uri)
@@ -647,4 +656,7 @@ class Proxy(object):
         except girder_client.HttpError as e:
             error = json.loads(e.responseText)
             logging.debug(error)
-            raise RuntimeError(error['message'])
+            try:
+                raise RuntimeError(error['message'])
+            except KeyError:
+                raise e
