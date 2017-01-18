@@ -8,7 +8,7 @@ Cumulus has a command line script that works by communicating with girder's REST
 + List AWS instances
 + List AWS volumes
 
-This is intended primarily for debugging and [integration tests](tests/integration/README.md), but may be useful outside of these contexts. Because of this it has been seperated from the integration tests and exists as its own standalone tool.
+This is intended primarily for debugging and [integration tests](../../tests/integration/README.md), but may be useful outside of these contexts. Because of this it has been seperated from the integration tests and exists as its own standalone tool.
 
 ## Usage
 
@@ -17,7 +17,7 @@ Once the cumulus python package has been installed the tool should be available 
 
 ## Configuration
 
-By default the cumulus command expects an ```integration.cfg``` to be available in the current working directory.  Different path locations can be specified by using the --config option to cumulus (e.g.  ```cumulus --config=/path/to/integration.cfg [COMMAND]```). An example of the configuration file is [available](tests/integration/integration.example.cfg). By default cumulus will read sections out of this configuration file and use them to run REST requests against girder.  
+By default the cumulus command expects an ```integration.cfg``` to be available in the current working directory.  Different path locations can be specified by using the --config option to cumulus (e.g.  ```cumulus --config=/path/to/integration.cfg [COMMAND]```). An example of the configuration file is [available](../../tests/integration/integration.example.cfg). By default cumulus will read sections out of this configuration file and use them to run REST requests against girder.  
 
 When creating a profile for instance, the cumulus command will look in the ```[profile]``` section of the configuration for information like the ```name``` and ```cloudProvider``` of the profile. What section the cumulus command looks in for profile information can easily be changed via the ```--profile_section``` option. E.g.:
 
