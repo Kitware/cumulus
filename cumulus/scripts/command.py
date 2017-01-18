@@ -63,12 +63,12 @@ def profile(proxy, profile_section):
 def create_profile(proxy):
     '''Idempotently create the profile defined in [profile_section].
 
-Section of the configuration is 'profile' by default.  Use the
-profile_section option on the profile subcommand to specifiy a
-different section from the config. E.g.:
+    Section of the configuration is 'profile' by default.  Use the
+    profile_section option on the profile subcommand to specifiy a
+    different section from the config. E.g.:
 
-$> cumulus profile --profile_section 'other_section' create
-'''
+    $> cumulus profile --profile_section 'other_section' create
+    '''
     logging.info('Creating profile "%s"' % proxy.profile_name)
     proxy.profile = proxy.get_profile_body()
     logging.info('Finished creating profile "%s" (%s)' %
@@ -96,12 +96,12 @@ def list_profiles(proxy):
 def delete_profile(proxy):
     '''Idempotently delete the profile defined in [profile_section].
 
-Section of the configuration is 'profile' by default.  Use the
-profile_section option on the profile subcommand to specifiy a
-different section from the config. E.g.:
+    Section of the configuration is 'profile' by default.  Use the
+    profile_section option on the profile subcommand to specifiy a
+    different section from the config. E.g.:
 
-$> cumulus profile --profile_section 'other_section' delete
-'''
+    $> cumulus profile --profile_section 'other_section' delete
+    '''
 
     try:
         _id = proxy.profile['_id']
@@ -129,7 +129,7 @@ $> cumulus profile --profile_section 'other_section' delete
 @pass_proxy
 def cluster(proxy, profile_section, cluster_section):
     '''Subcommand for creating, listing, launching, terminating and deleting
-clusters.'''
+    clusters.'''
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
 
@@ -140,27 +140,27 @@ clusters.'''
 def create_cluster(ctx, proxy):
     '''Idempotently create the cluster defined in [cluster_section].
 
-Section of the configuration is 'cluster' by default.  Use the
-cluster_section option on the profile subcommand to specifiy a
-different section from the config. E.g.:
+    Section of the configuration is 'cluster' by default.  Use the
+    cluster_section option on the profile subcommand to specifiy a
+    different section from the config. E.g.:
 
-$> cumulus cluster --cluster_section 'other_section' create
+    $> cumulus cluster --cluster_section 'other_section' create
 
-Clusters by default will create the profiles they need based on
-the profile_section passed to the cluster sub-command. E.g.:
+    Clusters by default will create the profiles they need based on
+    the profile_section passed to the cluster sub-command. E.g.:
 
-$> cumulus cluster --profile_section 'other_profile' \\
-                   --cluster_section 'other_cluster' create
+    $> cumulus cluster --profile_section 'other_profile' \\
+                       --cluster_section 'other_cluster' create
 
-This will create a profile from the [other_profile] section
-of the config,  and a cluster from the [other_cluster] section.
-By default running:
+    This will create a profile from the [other_profile] section
+    of the config,  and a cluster from the [other_cluster] section.
+    By default running:
 
-$> cumulus create cluster
+    $> cumulus create cluster
 
-will idempotently create a profile from the [profile] section and
-a cluster from the [cluster] section.
-'''
+    will idempotently create a profile from the [profile] section and
+    a cluster from the [cluster] section.
+    '''
 
     logging.info('Creating cluster "%s"' % proxy.cluster_name)
 
@@ -193,13 +193,13 @@ def list_clusters(proxy):
 def delete_cluster(proxy):
     '''Idempotently delete the cluster defined in [cluster_section].
 
-Section of the configuration is 'cluster' by default.  Use the
-cluster_section option on the cluster subcommand to specifiy a
-different section from the config. E.g.:
+    Section of the configuration is 'cluster' by default.  Use the
+    cluster_section option on the cluster subcommand to specifiy a
+    different section from the config. E.g.:
 
-$> cumulus cluster --cluster_section 'other_section' delete
+    $> cumulus cluster --cluster_section 'other_section' delete
 
-'''
+    '''
     try:
         _id = proxy.cluster['_id']
         logging.info('Deleting cluster "%s"' % proxy.cluster_name)
@@ -219,9 +219,9 @@ $> cumulus cluster --cluster_section 'other_section' delete
 def launch_cluster(proxy):
     '''Launch the cluster defined in [cluster_section].
 
-This will launch the cluster defeind in cluster_section on
-AWS. The cluster must exist in girder before it can be launched.
-'''
+    This will launch the cluster defeind in cluster_section on
+    AWS. The cluster must exist in girder before it can be launched.
+    '''
     if proxy.cluster is None:
         logging.error(
             'No cluster "%s" found. Must create cluster befor launching.' %
@@ -241,10 +241,10 @@ AWS. The cluster must exist in girder before it can be launched.
 def terminate_cluster(proxy):
     '''Terminate the cluster defined in [cluster_section].
 
-This will terminate the cluster defeind in [cluster_section].
-The cluster must exist in girder,  and must have been previously
-launched.
-'''
+    This will terminate the cluster defeind in [cluster_section].
+    The cluster must exist in girder,  and must have been previously
+    launched.
+    '''
     if proxy.cluster is None:
         logging.info('No cluster "%s" found. Skipping' % proxy.cluster_name)
     elif 'status' in proxy.cluster and \
@@ -388,20 +388,20 @@ clusters.'''
 def create_volume(proxy):
     '''Create a volume in girder from the [volume_section].
 
-This command creates a volume in girder. Note that volumes are
-not initially created on AWS until they are attached to a cluster.
+    This command creates a volume in girder. Note that volumes are
+    not initially created on AWS until they are attached to a cluster.
 
-Volume information is read from the configuration file under
-the config section defeind by the --volume_section flag (default
-'volume').  Pass the --volume_section flag to the volume subcommand
-to switch sections. E.g.:
+    Volume information is read from the configuration file under
+    the config section defeind by the --volume_section flag (default
+    'volume').  Pass the --volume_section flag to the volume subcommand
+    to switch sections. E.g.:
 
-$> cumulus volume --volume_section='other_volume' create
+    $> cumulus volume --volume_section='other_volume' create
 
-The volume subcommand also accepts --profile_section and
---cluster_section configuration options for specifying which config
-sections to use for each of those components.
-'''
+    The volume subcommand also accepts --profile_section and
+    --cluster_section configuration options for specifying which config
+    sections to use for each of those components.
+    '''
     logging.info('Creating volume')
     proxy.volume = proxy.get_volume_body()
     logging.info('Finished creating volume %s' % proxy.volume['_id'])
@@ -428,11 +428,11 @@ def list_volumes(proxy):
 @pass_proxy
 def attach_volume(proxy):
     '''Attach volume defined in [volume_section] to cluster
-defined in [cluster_section].
+    defined in [cluster_section].
 
-Volume must first exist in girder (e.g. created via cumulus
-volume create).
-'''
+    Volume must first exist in girder (e.g. created via cumulus
+    volume create).
+    '''
 
     if proxy.cluster is None:
         logging.info('No cluster "%s" found. Skipping' % proxy.cluster_name)
@@ -464,10 +464,10 @@ volume create).
 @pass_proxy
 def detach_volume(proxy):
     '''Detach volume defined in [volume_section] from cluster
-defined in [cluster_section]
+    defined in [cluster_section]
 
-Volume must be attached to a cluster for detach to succeed.
-'''
+    Volume must be attached to a cluster for detach to succeed.
+    '''
 
     if proxy.volume is None:
         logging.info('No volume "%s" found. Skipping' % proxy.volume_name)
@@ -496,11 +496,11 @@ Volume must be attached to a cluster for detach to succeed.
 @pass_proxy
 def delete_volume(proxy):
     '''Delete volume defined in [volume_section] to cluster
-defined in [cluster_section].
+    defined in [cluster_section].
 
-Volume must be in state 'available' (i.e. not attached to any
-cluster) for delete to succeed.
-'''
+    Volume must be in state 'available' (i.e. not attached to any
+    cluster) for delete to succeed.
+    '''
     try:
         _id = proxy.volume['_id']
         logging.info('Deleting volume "%s"' % proxy.volume_name)
@@ -524,8 +524,8 @@ cluster) for delete to succeed.
 def full_status(ctx):
     '''Print the full status of system.
 
-This includes printing girder's profiles, clusters, and volumes
-as well as all AWS instances and AWS volumes.'''
+    This includes printing girder's profiles, clusters, and volumes
+    as well as all AWS instances and AWS volumes.'''
     print('************************* Full Status ****************************')
     ctx.invoke(list_profiles)
     ctx.invoke(list_clusters)
