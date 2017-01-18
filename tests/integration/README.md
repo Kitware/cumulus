@@ -1,9 +1,9 @@
-### Cumulus Integration Tests
+# Cumulus Integration Tests
 
 Cumulus has integration test infrastructure that is based on the cumulus [command line script](../../cumulus/scripts/README.md) it can be fun from this directory by copying ```integration.example.cfg``` to ```integration.cfg``` and adding AWS credentials under the ```[aws]``` section of the file. Once copied,  tests may be run by executing:
 
 ```sh
-$> python integration.py [TEST]
+$> python integration.py -v [TEST]
 ```
 
 Where ```[TEST]``` is one of the following:
