@@ -162,14 +162,14 @@ will idempotently create a profile from the [profile] section and
 a cluster from the [cluster] section.
 '''
 
-    logging.info('Createing cluster "%s"' % proxy.cluster_name)
+    logging.info('Creating cluster "%s"' % proxy.cluster_name)
 
     if proxy.profile is None:
         ctx.invoke(create_profile)
 
     proxy.cluster = proxy.get_cluster_body()
 
-    logging.info('Finished creting cluster "%s" (%s)' %
+    logging.info('Finished creating cluster "%s" (%s)' %
                  (proxy.cluster_name, proxy.cluster['_id']))
 
 
