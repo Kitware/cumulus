@@ -1,3 +1,4 @@
+import six
 import click
 import ConfigParser
 import girder_client
@@ -521,7 +522,7 @@ class Proxy(object):
                         log_url=None, callback=None):
         logging.debug('Waiting for status "%s" at "%s"' % (status, status_url))
 
-        if isinstance(status, basestring):
+        if isinstance(status, six.string_types):
             status = (status, )
 
         if log_url is not None:

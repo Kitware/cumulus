@@ -1,3 +1,4 @@
+from __future__ import print_function
 import click
 from utils import logging, Proxy, CONFIG_PARAM
 from utils import (key,
@@ -62,9 +63,9 @@ def list_profiles(proxy):
             key('regionName'), key('cloudProvider')]
     headers = ['Name', 'Status', 'Profile ID',  'Region', 'Cloud Provider']
 
-    print tabulate([[f(p) for f in keys] for p in proxy.profiles],
-                   headers=headers)
-    print '\n'
+    print(tabulate([[f(p) for f in keys] for p in proxy.profiles],
+                   headers=headers))
+    print('\n')
 
 
 @profile.command(name='delete')
@@ -121,9 +122,9 @@ def list_clusters(proxy):
             get_profile(proxy.profiles)]
     headers = ['Name', 'Status', 'Cluster ID',  'Profile']
 
-    print tabulate([[f(c) for f in keys] for c in proxy.clusters],
-                   headers=headers)
-    print '\n'
+    print(tabulate([[f(c) for f in keys] for c in proxy.clusters],
+                   headers=headers))
+    print('\n')
 
 
 @cluster.command(name='delete')
@@ -202,8 +203,8 @@ def list_aws_instances(proxy):
 
     headers, data = get_aws_instance_info(proxy)
 
-    print tabulate(data, headers=headers)
-    print '\n'
+    print(tabulate(data, headers=headers))
+    print('\n')
 
     logging.info('Finished listing AWS instances')
 
@@ -215,8 +216,8 @@ def list_aws_volumes(proxy):
 
     headers, data = get_aws_volume_info(proxy)
 
-    print tabulate(data, headers=headers)
-    print '\n'
+    print(tabulate(data, headers=headers))
+    print('\n')
 
 
 def get_aws_instance_info(proxy):
@@ -313,9 +314,9 @@ def list_volumes(proxy):
     headers = ['Name', 'Profile', 'Volume ID',
                'Size', 'Status', 'Type', 'Zone']
 
-    print tabulate([[f(v) for f in keys] for v in proxy.volumes],
-                   headers=headers)
-    print '\n'
+    print(tabulate([[f(v) for f in keys] for v in proxy.volumes],
+                   headers=headers))
+    print('\n')
 
 
 @volume.command(name='attach')
