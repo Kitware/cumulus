@@ -138,7 +138,7 @@ def cluster(proxy, profile_section, cluster_section):
 @pass_proxy
 @click.pass_context
 def create_cluster(ctx, proxy):
-    '''Idempotently create the cluster defined in [cluster_section].
+    r'''Idempotently create the cluster defined in [cluster_section].
 
     Section of the configuration is 'cluster' by default.  Use the
     cluster_section option on the profile subcommand to specifiy a
@@ -377,7 +377,7 @@ def get_aws_volume_info(proxy):
 @pass_proxy
 def volume(proxy, profile_section, cluster_section, volume_section):
     '''Subcommand for creating, listing, attaching, detaching and deleting
-clusters.'''
+    clusters.'''
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
     proxy.volume_section = volume_section
