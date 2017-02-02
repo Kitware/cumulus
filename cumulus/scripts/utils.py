@@ -60,7 +60,10 @@ def get_profile(profiles):
     profile_dict = {p['_id']: p['name'] for p in profiles}
 
     def _profile(instance):
-        return profile_dict[instance['profileId']]
+        try:
+            return profile_dict[instance['profileId']]
+        except KeyError:
+            return ''
 
     return _profile
 
