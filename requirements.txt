@@ -12,3 +12,5 @@ enum34==1.0.4
 ansible==2.1
 girder-client==2.0.0
 paramiko==1.16.0
+click==6.6
+tabulate==0.7.5

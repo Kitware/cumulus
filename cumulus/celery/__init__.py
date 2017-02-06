@@ -31,6 +31,7 @@ def oid_safe_dumps(obj):
 def oid_safe_loads(obj):
     return json.loads(obj)
 
+
 register('oid_safe_json', oid_safe_dumps, oid_safe_loads,
          content_type='application/x-oid_safe_json',
          content_encoding='utf-8')
