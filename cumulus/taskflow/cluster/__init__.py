@@ -121,12 +121,14 @@ def setup_cluster(task, *args, **kwargs):
         task.logger.exception('Master instance is not running!')
         raise
 
+    log_write_url = '%s/volumes/%s/log' % (task.taskflow.girder_api_url,
+                                           volume['_id'])
     # attach volume
     if volume:
         cumulus.ansible.tasks.volume.attach_volume\
             .delay(profile, cluster, master,
-                   volume, '/data',
-                   profile['secretAccessKey'], girder_callback_info)
+                   volume, '/data', profile['secretAccessKey'],
+                   log_write_url, girder_callback_info)
         task.logger.info('Volume attached.')
 
     # Call any follow on task
