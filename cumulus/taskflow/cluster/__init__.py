@@ -88,6 +88,7 @@ class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
 @cumulus.taskflow.task
 def setup_cluster(task, *args, **kwargs):
     cluster = kwargs['cluster']
+    profile = kwargs.get('profile')
 
     if '_id' in cluster:
         task.taskflow.logger.info(
@@ -96,40 +97,23 @@ def setup_cluster(task, *args, **kwargs):
         task.taskflow.logger.info('We are creating an EC2 cluster.')
         task.logger.info('Cluster name %s' % cluster['name'])
         kwargs['machine'] = cluster.get('machine')
-        profile = kwargs.get('profile')
         cluster = create_ec2_cluster(
             task, cluster, profile, kwargs['image_spec'])
 
         task.logger.info('Cluster started.')
 
-    volume = kwargs['volume']
-    if '_id' in volume:
+    volume = kwargs.get('volume')
+    if volume and '_id' in volume:
         task.taskflow.logger.info(
             'We are using an existing volume: %s' % volume['name'])
-    else:
+    elif volume:
         task.taskflow.logger.info('We are creating a new volume: "%s"' %
                                   volume['name'])
-        profile = kwargs.get('profile')
         volume = create_volume(task, volume, profile)
 
-    girder_callback_info = {
-        'girder_api_url': task.taskflow.girder_api_url,
-        'girder_token': task.taskflow.girder_token}
-    p = CloudProvider(dict(**profile))
-    master = p.get_master_instance(cluster['_id'])
-    if master['state'] != InstanceState.RUNNING:
-        task.logger.exception('Master instance is not running!')
-        raise
-
-    log_write_url = '%s/volumes/%s/log' % (task.taskflow.girder_api_url,
-                                           volume['_id'])
     # attach volume
     if volume:
-        cumulus.ansible.tasks.volume.attach_volume\
-            .delay(profile, cluster, master,
-                   volume, '/data', profile['secretAccessKey'],
-                   log_write_url, girder_callback_info)
-        task.logger.info('Volume attached.')
+        _attach_volume(task, profile, volume, cluster)
 
     # Call any follow on task
     if 'next' in kwargs:
@@ -293,6 +277,24 @@ def create_volume(task, volume, profile):
     task.logger.info(msg)
 
     return volume
+
+
+def _attach_volume(task, profile, volume, cluster):
+    girder_callback_info = {
+        'girder_api_url': task.taskflow.girder_api_url,
+        'girder_token': task.taskflow.girder_token}
+    p = CloudProvider(dict(**profile))
+    master = p.get_master_instance(cluster['_id'])
+    if master['state'] != InstanceState.RUNNING:
+        task.logger.exception('Master instance is not running!')
+        raise
+    log_write_url = '%s/volumes/%s/log' % (task.taskflow.girder_api_url,
+                                           volume['_id'])
+    cumulus.ansible.tasks.volume.attach_volume\
+        .delay(profile, cluster, master,
+               volume, '/data', profile['secretAccessKey'],
+               log_write_url, girder_callback_info)
+    task.logger.info('Volume attached.')
 
 
 def create_girder_client(girder_api_url, girder_token):
