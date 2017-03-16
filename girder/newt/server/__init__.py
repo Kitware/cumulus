@@ -59,9 +59,5 @@ def load(info):
     setAssetstoreAdapter(AssetstoreType.NEWT, NewtAssetstoreAdapter)
     events.bind('assetstore.update', 'newt', updateAssetstore)
 
-    (Assetstore.createAssetstore.description
-        .param('machine', 'The NERSC machine name.', required=False)
-        .param('baseUrl', 'The NEWT API base URL.', required=False))
-
     info['apiRoot'].newt = Newt()
     info['apiRoot'].newt_assetstores = NewtAssetstore()
