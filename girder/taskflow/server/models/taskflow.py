@@ -25,6 +25,8 @@ from cumulus.common.girder import send_status_notification, \
     send_log_notification
 import six
 
+from ..utility import to_object_id
+
 MAX_RETRIES = 4
 
 
@@ -49,6 +51,56 @@ class Taskflow(AccessControlledModel):
         send_status_notification('taskflow', taskflow)
 
         return taskflow
+
+    def share(self, user, taskflow, users, groups):
+        access_list = taskflow.get('access', {'groups': [], 'users': []})
+        for user_id in users:
+            access_object = {
+                'id': to_object_id(user_id),
+                'level': AccessType.READ
+            }
+            access_list['users'].append(access_object)
+
+        for group_id in groups:
+            access_object = {
+                'id': to_object_id(group_id),
+                'level': AccessType.READ
+            }
+            access_list['groups'].append(access_object)
+
+        tasks = self.model('task', 'taskflow').find_by_taskflow_id(
+            user, taskflow['_id'])
+
+        for task in tasks:
+            task.setUserAccess(access_list['users'], save=True)
+            task.setGroupAccess(access_list['groups'], save=True)
+
+        return self.setAccessList(taskflow, access_list, save=True)
+
+    def unshare(self, user, taskflow, users, groups):
+        access_list = taskflow.get('access', {'groups': [], 'users': []})
+        for user_id in users:
+            access_object = {
+                'id': to_object_id(user_id),
+                'level': AccessType.READ
+            }
+            access_list['users'].append(access_object)
+
+        for group_id in groups:
+            access_object = {
+                'id': to_object_id(group_id),
+                'level': AccessType.READ
+            }
+            access_list['groups'].append(access_object)
+
+        tasks = self.model('task', 'taskflow').find_by_taskflow_id(
+            user, taskflow['_id'])
+
+        for task in tasks:
+            task.setUserAccess(access_list['users'], save=True, force=True)
+            task.setGroupAccess(access_list['groups'], save=True, force=True)
+
+        return self.setAccessList(taskflow, access_list, save=True, force=True)
 
     def append_to_log(self, taskflow, log):
         """

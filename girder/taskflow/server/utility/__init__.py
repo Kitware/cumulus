@@ -16,3 +16,17 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ###############################################################################
+
+from bson.objectid import ObjectId
+
+from girder.models.model_base import ValidationException
+
+
+def to_object_id(id):
+    if id and type(id) is not ObjectId:
+        try:
+            id = ObjectId(id)
+        except Exception:
+            raise ValidationException('Invalid ObjectId: %s' % id)
+
+    return id
