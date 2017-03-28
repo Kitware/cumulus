@@ -71,9 +71,10 @@ class Taskflow(AccessControlledModel):
         tasks = self.model('task', 'taskflow').find_by_taskflow_id(
             user, taskflow['_id'])
 
-        for task in tasks:
-            task.setUserAccess(access_list['users'], save=True)
-            task.setGroupAccess(access_list['groups'], save=True)
+        for task_item in tasks:
+            task = self.model('task', 'taskflow').load(task_item['_id'],
+                                                       user=user)
+            self.setAccessList(task, access_list, save=True, force=True)
 
         return self.setAccessList(taskflow, access_list, save=True)
 
@@ -84,21 +85,30 @@ class Taskflow(AccessControlledModel):
                 'id': to_object_id(user_id),
                 'level': AccessType.READ
             }
-            access_list['users'].append(access_object)
+            try:
+                ind = access_list['users'].index(access_object)
+                del access_list['users'][ind]
+            except ValueError:
+                pass
 
         for group_id in groups:
             access_object = {
                 'id': to_object_id(group_id),
                 'level': AccessType.READ
             }
-            access_list['groups'].append(access_object)
+            try:
+                ind = access_list['groups'].index(access_object)
+                del access_list['groups'][ind]
+            except ValueError:
+                pass
 
         tasks = self.model('task', 'taskflow').find_by_taskflow_id(
             user, taskflow['_id'])
 
-        for task in tasks:
-            task.setUserAccess(access_list['users'], save=True, force=True)
-            task.setGroupAccess(access_list['groups'], save=True, force=True)
+        for task_item in tasks:
+            task = self.model('task', 'taskflow').load(task_item['_id'],
+                                                       user=user)
+            self.setAccessList(task, access_list, save=True, force=True)
 
         return self.setAccessList(taskflow, access_list, save=True, force=True)
 
