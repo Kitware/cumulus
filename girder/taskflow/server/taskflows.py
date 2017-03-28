@@ -417,10 +417,10 @@ class TaskFlows(Resource):
         .param('body', 'Users and group ID\'s to share taskflow with.',
                dataType='ShareProperties', required=True, paramType='body')
     )
-    def share(self, taskflow):
-        user = getCurrentUser()
+    def share(self, taskflow, params):
+        user = self.getCurrentUser()
         body = getBodyJson()
-        return self._model.share(user, taskflow, body.users, body.groups)
+        return self._model.share(user, taskflow, body['users'], body['groups'])
 
     @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
@@ -431,5 +431,8 @@ class TaskFlows(Resource):
         .param('body', 'Users and group ID\'s to remove permissions from.',
                dataType='ShareProperties', required=True, paramType='body')
     )
-    def unshare(self, taskflow):
-        pass
+    def unshare(self, taskflow, params):
+        user = self.getCurrentUser()
+        body = getBodyJson()
+        return self._model.unshare(user, taskflow,
+                                   body['users'], body['groups'])
