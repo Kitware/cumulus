@@ -52,8 +52,13 @@ class Taskflow(AccessControlledModel):
 
         return taskflow
 
-    def share(self, user, taskflow, users, groups):
-        access_list = taskflow.get('access', {'groups': [], 'users': []})
+    def set_access(self, user, taskflow, users, groups, override=False):
+        access_list = {}
+        if (override):
+            access_list = taskflow.get('access', {'groups': [], 'users': []})
+        else:
+            access_list = {'groups': [], 'users': []}
+
         for user_id in users:
             access_object = {
                 'id': to_object_id(user_id),
@@ -78,7 +83,7 @@ class Taskflow(AccessControlledModel):
 
         return self.setAccessList(taskflow, access_list, save=True)
 
-    def unshare(self, user, taskflow, users, groups):
+    def revoke_access(self, user, taskflow, users, groups):
         access_list = taskflow.get('access', {'groups': [], 'users': []})
         for user_id in users:
             access_object = {

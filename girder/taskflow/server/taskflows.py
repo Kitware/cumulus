@@ -53,8 +53,10 @@ class TaskFlows(Resource):
         self.route('POST', (':id', 'tasks'), self.create_task)
         self.route('DELETE', (':id',), self.delete)
         self.route('PUT', (':id', 'delete'), self.delete_finished)
-        self.route('PUT', (':id', 'share'), self.share)
-        self.route('PUT', (':id', 'unshare'), self.unshare)
+        self.route('GET', (':id', 'access'), self.get_access)
+        self.route('PUT', (':id', 'access'), self.set_access)
+        self.route('PATCH', (':id', 'access'), self.append_access)
+        self.route('DELETE', (':id', 'access'), self.revoke_access)
         self.route('GET', (':id', 'tasks'), self.tasks)
         self.route('PUT', (':id', 'tasks', ':taskId', 'finished'),
                    self.task_finished)
@@ -413,28 +415,55 @@ class TaskFlows(Resource):
     @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(
-        Description('Share a taskflow and its tasks with users and groups')
+        Description('Get access list for a taskflow')
+        .param('id', 'The id of taskflow',
+               required=True, paramType='path')
+    )
+    def get_access(self, taskflow, params):
+        return taskflow.get('access', {'groups': [], 'users': []})
+
+    @access.user
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+    @describeRoute(
+        Description('Set access list for a taskflow given a list of user and \
+                    group ids')
+        .param('id', 'The id of taskflow',
+               required=True, paramType='path')
+        .param('body', 'Users and group ID\'s to be authorized.',
+               dataType='ShareProperties', required=True, paramType='body')
+    )
+    def set_access(self, taskflow, params):
+        user = self.getCurrentUser()
+        body = getBodyJson()
+        return self._model.set_access(user, taskflow,
+                                      body['users'], body['groups'], True)
+
+    @access.user
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+    @describeRoute(
+        Description('Append access to a taskflow and its tasks')
         .param('id', 'The id of taskflow',
                required=True, paramType='path')
         .param('body', 'Users and group ID\'s to share taskflow with.',
                dataType='ShareProperties', required=True, paramType='body')
     )
-    def share(self, taskflow, params):
+    def append_access(self, taskflow, params):
         user = self.getCurrentUser()
         body = getBodyJson()
-        return self._model.share(user, taskflow, body['users'], body['groups'])
+        return self._model.set_access(user, taskflow,
+                                      body['users'], body['groups'], False)
 
     @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(
-        Description('Revoke permissions of a taskflow and its tasks')
+        Description('Revoke access to a taskflow and its tasks')
         .param('id', 'The id of taskflow',
                required=True, paramType='path')
-        .param('body', 'Users and group ID\'s to remove permissions from.',
+        .param('body', 'Users and group ID\'s to be unauthorized.',
                dataType='ShareProperties', required=True, paramType='body')
     )
-    def unshare(self, taskflow, params):
+    def revoke_access(self, taskflow, params):
         user = self.getCurrentUser()
         body = getBodyJson()
-        return self._model.unshare(user, taskflow,
-                                   body['users'], body['groups'])
+        return self._model.revoke_access(user, taskflow,
+                                         body['users'], body['groups'])
