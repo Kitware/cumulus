@@ -200,6 +200,35 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
                          type='application/json', body=json.dumps(body), user=self._user)
         self.assertStatus(r, 400)
 
+        # Now test with valid profile
+        body = {
+            'profileId': profile_id,
+            'name': 'mycluster'
+        }
+
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json.dumps(body), user=self._user)
+        self.assertStatus(r, 201)
+
+        # Test that we can provide custom configuration and it will be added
+        # to the cluster.
+        job_dir = '/test'
+        body = {
+            'profileId': profile_id,
+            'name': 'myconfigcluster',
+            'config': {
+                'jobOutputDir': job_dir
+            }
+        }
+
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json.dumps(body), user=self._user)
+        self.assertStatus(r, 201)
+        cluster = r.json
+        self.assertTrue('config' in cluster)
+        self.assertTrue('jobOutputDir' in cluster['config'])
+        self.assertEqual(cluster['config']['jobOutputDir'], job_dir)
+
 
     def test_get(self):
         body = {

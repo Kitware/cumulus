@@ -122,7 +122,7 @@ class Cluster(BaseModel):
 
         return cluster
 
-    def create_ansible(self, user, name, spec, launch_params, profile,
+    def create_ansible(self, user, name, config, spec, launch_params, profile,
                        cluster_type=ClusterType.ANSIBLE):
         try:
             query = {
@@ -145,7 +145,7 @@ class Cluster(BaseModel):
             'profileId': profile['_id'],
             'log': [],
             'status': ClusterStatus.CREATED,
-            'config': {
+            'config': dict(config, **{
                 'scheduler': {
                     'type': 'sge'
                 },
@@ -157,7 +157,7 @@ class Cluster(BaseModel):
                     'spec': spec,
                     'params': launch_params
                 }
-            },
+            }),
             'type': cluster_type
         }
 
