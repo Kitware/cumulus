@@ -55,9 +55,9 @@ class Taskflow(AccessControlledModel):
     def set_access(self, user, taskflow, users, groups, override=False):
         access_list = {}
         if (override):
-            access_list = taskflow.get('access', {'groups': [], 'users': []})
-        else:
             access_list = {'groups': [], 'users': []}
+        else:
+            access_list = taskflow.get('access', {'groups': [], 'users': []})
 
         for user_id in users:
             access_object = {
@@ -84,28 +84,13 @@ class Taskflow(AccessControlledModel):
         return self.setAccessList(taskflow, access_list, save=True)
 
     def revoke_access(self, user, taskflow, users, groups):
-        access_list = taskflow.get('access', {'groups': [], 'users': []})
-        for user_id in users:
-            access_object = {
-                'id': to_object_id(user_id),
-                'level': AccessType.READ
-            }
-            try:
-                ind = access_list['users'].index(access_object)
-                del access_list['users'][ind]
-            except ValueError:
-                pass
-
-        for group_id in groups:
-            access_object = {
-                'id': to_object_id(group_id),
-                'level': AccessType.READ
-            }
-            try:
-                ind = access_list['groups'].index(access_object)
-                del access_list['groups'][ind]
-            except ValueError:
-                pass
+        tf_access_list = taskflow.get('access', {'groups': [], 'users': []})
+        access_list = {
+            'groups': [g for g in tf_access_list['groups']
+                       if str(g['id']) not in groups],
+            'users': [u for u in tf_access_list['users']
+                      if str(u['id']) not in users]
+        }
 
         tasks = self.model('task', 'taskflow').find_by_taskflow_id(
             user, taskflow['_id'])
