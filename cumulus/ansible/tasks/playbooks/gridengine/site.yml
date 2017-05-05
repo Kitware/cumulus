@@ -8,6 +8,9 @@
 
 - name: Master setup
   hosts: master
+  vars:
+    # Set up the NFS exports
+    master_nfs_exports: "{{ master_nfs_exports_extra | default([]) | union(['/home']) }}"
   become: yes
   roles:
     - master
@@ -24,6 +27,9 @@
   hosts:
     - master
     - exec
+  vars:
+    # Set up the NFS exports
+    master_nfs_exports: "{{ master_nfs_exports_extra | default([]) | union(['/home']) }}"
   become: yes
   roles:
     - exec

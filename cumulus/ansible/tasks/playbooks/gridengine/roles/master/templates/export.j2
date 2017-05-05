@@ -1,3 +1,5 @@
 {% for host in groups['exec'] %}
-  /home {{ hostvars[host].private_ip|default(hostvars[host].ansible_hostname) }}(async,no_root_squash,no_subtree_check,rw)
+  {% for dir in master_nfs_exports %}
+    {{ dir }} {{ hostvars[host].private_ip|default(hostvars[host].ansible_hostname) }}(async,no_root_squash,no_subtree_check,rw)
+  {% endfor %}
 {% endfor %}
