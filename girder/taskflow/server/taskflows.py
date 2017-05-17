@@ -55,8 +55,8 @@ class TaskFlows(Resource):
         self.route('PUT', (':id', 'delete'), self.delete_finished)
         self.route('GET', (':id', 'access'), self.get_access)
         self.route('PUT', (':id', 'access'), self.set_access)
-        self.route('PATCH', (':id', 'access'), self.append_access)
-        self.route('DELETE', (':id', 'access'), self.revoke_access)
+        self.route('PATCH', (':id', 'access'), self.patch_access)
+        self.route('PATCH', (':id', 'access', 'revoke'), self.revoke_access)
         self.route('GET', (':id', 'tasks'), self.tasks)
         self.route('PUT', (':id', 'tasks', ':taskId', 'finished'),
                    self.task_finished)
@@ -447,11 +447,11 @@ class TaskFlows(Resource):
         .param('body', 'Users and group ID\'s to share taskflow with.',
                dataType='ShareProperties', required=True, paramType='body')
     )
-    def append_access(self, taskflow, params):
+    def patch_access(self, taskflow, params):
         user = self.getCurrentUser()
         body = getBodyJson()
-        return self._model.set_access(user, taskflow,
-                                      body['users'], body['groups'], False)
+        return self._model.patch_access(user, taskflow,
+                                        body['users'], body['groups'])
 
     @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)

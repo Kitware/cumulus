@@ -30,3 +30,32 @@ def to_object_id(id):
             raise ValidationException('Invalid ObjectId: %s' % id)
 
     return id
+
+
+def merge_access(target, members, level, flags):
+    """
+    :param target: array of acces objects{id, level, flags}...
+    :param members: array of ids
+    :param level: number, AccessType [-1..2]
+    :param flags: array of strings
+    """
+    new_members = []
+    target_ids = [str(item['id']) for item in target]
+    for member_id in members:
+        # append member not in the target
+        if member_id not in target_ids:
+            access_object = {
+                'id': to_object_id(member_id),
+                'level': level,
+                'flags': flags
+            }
+            target.append(access_object)
+            new_members.append(member_id)
+        # update member if it's in the target
+        else:
+            for item in target:
+                if member_id == item['id']:
+                    item['level'] = level
+                    item['flags'] = flags
+                    break
+    return new_members

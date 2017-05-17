@@ -130,7 +130,7 @@ class TaskFlowTestCase(base.TestCase):
         self.assertStatus(r, 200)
 
         # revoke access of _another_user
-        r = self.request('/taskflows/%s/access' % str(taskflow_id), method='DELETE',
+        r = self.request('/taskflows/%s/access' % str(taskflow_id), method='PATCH',
                          type='application/json', body=json_body, user=self._user)
         self.assertStatus(r, 200)
 

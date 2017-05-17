@@ -25,7 +25,7 @@ from cumulus.common.girder import send_status_notification, \
     send_log_notification
 import six
 
-from ..utility import to_object_id
+from ..utility import to_object_id, merge_access
 
 MAX_RETRIES = 4
 
@@ -52,12 +52,8 @@ class Taskflow(AccessControlledModel):
 
         return taskflow
 
-    def set_access(self, user, taskflow, users, groups, override=False):
-        access_list = {}
-        if (override):
-            access_list = {'groups': [], 'users': []}
-        else:
-            access_list = taskflow.get('access', {'groups': [], 'users': []})
+    def set_access(self, user, taskflow, users, groups):
+        access_list = {'groups': [], 'users': []}
 
         for user_id in users:
             access_object = {
@@ -76,6 +72,21 @@ class Taskflow(AccessControlledModel):
         tasks = self.model('task', 'taskflow').find_by_taskflow_id(
             user, taskflow['_id'])
 
+        for task_item in tasks:
+            task = self.model('task', 'taskflow').load(task_item['_id'],
+                                                       user=user)
+            self.setAccessList(task, access_list, save=True, force=True)
+
+        return self.setAccessList(taskflow, access_list, save=True)
+
+    def patch_access(self, user, taskflow, users, groups):
+        access_list = taskflow.get('access', {'groups': [], 'users': []})
+
+        merge_access(access_list['users'], users, AccessType.READ, [])
+        merge_access(access_list['groups'], groups, AccessType.READ, [])
+
+        tasks = self.model('task', 'taskflow').find_by_taskflow_id(
+            user, taskflow['_id'])
         for task_item in tasks:
             task = self.model('task', 'taskflow').load(task_item['_id'],
                                                        user=user)
