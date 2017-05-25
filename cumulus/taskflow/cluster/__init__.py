@@ -28,6 +28,7 @@ import cumulus.ansible.tasks.volume
 from cumulus.ansible.tasks.providers import CloudProvider, InstanceState
 from cumulus.tasks.job import terminate_job
 from cumulus.constants import JobState
+from cumulus.ansible.tasks.utils import check_girder_cluster_status
 
 from girder_client import GirderClient, HttpError
 
@@ -36,7 +37,7 @@ from girder.constants import AccessType
 from girder.utility.model_importer import ModelImporter
 
 CHECKIP_URL = 'http://checkip.amazonaws.com/'
-
+PROVISION_SPEC = 'gridengine/site'
 
 class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
 
@@ -89,6 +90,7 @@ class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
 def setup_cluster(task, *args, **kwargs):
     cluster = kwargs['cluster']
     profile = kwargs.get('profile')
+    volume = kwargs.get('volume')
 
     if '_id' in cluster:
         task.taskflow.logger.info(
@@ -97,12 +99,20 @@ def setup_cluster(task, *args, **kwargs):
         task.taskflow.logger.info('We are creating an EC2 cluster.')
         task.logger.info('Cluster name %s' % cluster['name'])
         kwargs['machine'] = cluster.get('machine')
-        cluster = create_ec2_cluster(
-            task, cluster, profile, kwargs['image_spec'])
+
+        if volume:
+            config = cluster.setdefault('config', {})
+            config['jobOutputDir'] = '/data'
+
+        # Create the model in Girder
+        cluster = create_ec2_cluster(task, cluster, profile,
+            kwargs['image_spec'])
+
+        # Now launch the cluster
+        cluster = launch_ec2_cluster(task, cluster, profile)
 
         task.logger.info('Cluster started.')
 
-    volume = kwargs.get('volume')
     if volume and '_id' in volume:
         task.taskflow.logger.info(
             'We are using an existing volume: %s' % volume['name'])
@@ -111,9 +121,21 @@ def setup_cluster(task, *args, **kwargs):
                                   volume['name'])
         volume = create_volume(task, volume, profile)
 
+    provision_params = {}
+
+    girder_token = task.taskflow.girder_token
+    check_girder_cluster_status(cluster, girder_token, 'provisioning')
+
     # attach volume
     if volume:
-        _attach_volume(task, profile, volume, cluster)
+        volume = _attach_volume(task, profile, volume, cluster)
+        path = volume.get('path')
+        if path:
+            provision_params['master_nfs_exports_extra'] = [path]
+
+    # Now provision
+    cluster = provision_ec2_cluster(
+            task, cluster, profile, provision_params)
 
     # Call any follow on task
     if 'next' in kwargs:
@@ -148,7 +170,6 @@ def job_terminate(task):
 
     jobs = task.taskflow.get('meta', {}).get('jobs', [])
     terminate_jobs(task, client, cluster, jobs)
-
 
 def create_ec2_cluster(task, cluster, profile, ami_spec):
     machine_type = cluster['machine']['id']
@@ -193,23 +214,20 @@ def create_ec2_cluster(task, cluster, profile, ami_spec):
         'source_cidr_ip': source_ip,
         'ec2_pod_rules': ec2_pod_rules
     }
-    provision_spec = 'gridengine/site'
-    provision_params = {
-        'ansible_ssh_user': 'ubuntu'
-    }
+
 
     body = {
         'type': 'ec2',
         'name': cluster['name'],
-        'config': {
+        'config': dict(cluster.get('config', {}), **{
             'launch': {
                 'spec': launch_spec,
                 'params': launch_params
             },
             'provision': {
-                'spec': provision_spec
+                'spec': PROVISION_SPEC
             }
-        },
+        }),
         'profileId': cluster['profileId']
     }
     client = create_girder_client(
@@ -228,6 +246,16 @@ def create_ec2_cluster(task, cluster, profile, ami_spec):
     # Now save cluster id in metadata
     task.taskflow.set_metadata('cluster', cluster)
 
+    return cluster
+
+
+def launch_ec2_cluster(task, cluster, profile):
+    client = create_girder_client(
+        task.taskflow.girder_api_url, task.taskflow.girder_token)
+
+    launch_spec = parse('config.launch.spec').find(cluster)[0].value
+    launch_params = parse('config.launch.params').find(cluster)[0].value
+
     task.logger.info('Starting cluster.')
 
     body = {
@@ -240,14 +268,44 @@ def create_ec2_cluster(task, cluster, profile, ami_spec):
     del profile['secretAccessKey']
     log_write_url = '%s/clusters/%s/log' % (task.taskflow.girder_api_url,
                                             cluster['_id'])
-    provision_params['cluster_state'] = 'running'
-    launch_params['cluster_state'] = 'running'
     girder_token = task.taskflow.girder_token
-    cumulus.ansible.tasks.cluster.start_cluster(
-        launch_spec, provision_spec, cluster, profile, secret_key,
-        launch_params, provision_params, girder_token, log_write_url)
+    launch_params['cluster_state'] = 'running'
+    cumulus.ansible.tasks.cluster.launch_cluster(launch_spec, cluster, profile, secret_key,
+                   launch_params, girder_token, log_write_url, 'running')
 
-    # Get the update to date cluster
+    # Get the update to data cluster
+    cluster = client.get('clusters/%s' % cluster['_id'])
+
+    return cluster
+
+
+def provision_ec2_cluster(task, cluster, profile, provision_params={}):
+
+    if 'ansible_ssh_user' not in provision_params:
+        provision_params['ansible_ssh_user'] = 'ubuntu'
+
+    if 'cluster_state' not in provision_params:
+        provision_params['cluster_state'] = 'running'
+
+    girder_token = task.taskflow.girder_token
+    client = create_girder_client(
+        task.taskflow.girder_api_url, girder_token)
+    secret_key = profile['secretAccessKey']
+    profile = profile.copy()
+    del profile['secretAccessKey']
+    log_write_url = '%s/clusters/%s/log' % (task.taskflow.girder_api_url,
+                                            cluster['_id'])
+
+    check_girder_cluster_status(cluster, girder_token, 'provisioning')
+
+    cumulus.ansible.tasks.cluster.provision_cluster(PROVISION_SPEC, cluster, profile, secret_key,
+                      provision_params, girder_token, log_write_url,
+                      'running')
+
+    # Now update the cluster state to 'running' Is this needed?
+    check_girder_cluster_status(cluster, girder_token, 'running')
+
+    # Get the update to data cluster
     cluster = client.get('clusters/%s' % cluster['_id'])
 
     return cluster
@@ -290,12 +348,17 @@ def _attach_volume(task, profile, volume, cluster):
         raise
     log_write_url = '%s/volumes/%s/log' % (task.taskflow.girder_api_url,
                                            volume['_id'])
-    cumulus.ansible.tasks.volume.attach_volume\
-        .delay(profile, cluster, master,
+    cumulus.ansible.tasks.volume.attach_volume(profile, cluster, master,
                volume, '/data', profile['secretAccessKey'],
                log_write_url, girder_callback_info)
     task.logger.info('Volume attached.')
 
+    # Get the up to date volume
+    client = create_girder_client(
+        task.taskflow.girder_api_url, task.taskflow.girder_token)
+    volume = client.get('volumes/%s' % volume['_id'])
+
+    return volume
 
 def create_girder_client(girder_api_url, girder_token):
     client = GirderClient(apiUrl=girder_api_url)

@@ -27,7 +27,7 @@
     - nfs-server
 
 
-- name: Export /home via NFS
+- name: Export directories via NFS
   become_user: root
   template: src=export.j2 dest=/etc/exports force=true
   when: '"exec" in groups'

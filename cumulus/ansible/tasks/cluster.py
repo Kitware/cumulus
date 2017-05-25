@@ -146,8 +146,10 @@ def terminate_cluster(playbook, cluster, profile, secret_key, extra_vars,
                 'girder_api_url': cumulus.config.girder.baseUrl,
                 'girder_token': girder_token}
 
+            vol_log_url = '%s/volumes/%s/log' % (cumulus.config.girder.baseUrl,
+                                           volume_id)
             detach_volume(profile, cluster, master, volume,
-                          secret_key, girder_callback_info)
+                          secret_key, vol_log_url, girder_callback_info)
 
     inventory = simple_inventory('localhost')
 
