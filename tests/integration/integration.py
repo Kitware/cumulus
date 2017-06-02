@@ -95,7 +95,7 @@ def invoke_with_clean_proxy(ctx, proxy):
 @click.option('--profile_section', default='profile')
 @test_case
 def test_profile(ctx, proxy, profile_section):
-    '''Test profile creation/deletion.'''
+    """Test profile creation/deletion."""
     proxy.profile_section = profile_section
     num_profiles = len(proxy.profiles)
     invoke = invoke_with_clean_proxy(ctx, proxy)
@@ -116,7 +116,7 @@ def test_profile(ctx, proxy, profile_section):
 @click.option('--cluster_section', default='cluster')
 @test_case
 def test_cluster(ctx, proxy, profile_section, cluster_section):
-    '''Test cluster creation/deletion.'''
+    """Test cluster creation/deletion."""
     num_clusters = len(proxy.clusters)
 
     proxy.profile_section = profile_section
@@ -145,7 +145,7 @@ def get_instance_hash(proxy):
 @click.option('--cluster_section', default='cluster')
 @test_case
 def test_launch_cluster(ctx, proxy, profile_section, cluster_section):
-    '''Test launching/terminating a cluster.'''
+    """Test launching/terminating a cluster."""
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
     invoke = invoke_with_clean_proxy(ctx, proxy)
@@ -191,7 +191,7 @@ def get_volume_hash(proxy):
 @click.option('--volume_section', default='volume')
 @test_case
 def test_volume(ctx, proxy, profile_section, cluster_section, volume_section):
-    '''Test attaching/detaching/deleting a volume'''
+    """Test attaching/detaching/deleting a volume"""
     proxy.profile_section = profile_section
     proxy.cluster_section = cluster_section
     proxy.volume_section = volume_section
@@ -299,7 +299,7 @@ def wait_for_taskflow_status(proxy, taskflow_id, state, timeout=60):
 @cli.command()
 @test_case
 def test_simple_taskflow(ctx, proxy):
-    '''Test a simple taskflow'''
+    """Test a simple taskflow"""
     logging.info('Running simple taskflow ...')
     taskflow_id = create_taskflow(
         proxy, 'cumulus.taskflow.core.test.mytaskflows.SimpleTaskFlow')
@@ -312,7 +312,7 @@ def test_simple_taskflow(ctx, proxy):
 @cli.command()
 @test_case
 def test_linked_taskflow(ctx, proxy):
-    '''Test a linked taskflow'''
+    """Test a linked taskflow"""
     logging.info('Running linked taskflow ...')
     taskflow_id = create_taskflow(
         proxy, 'cumulus.taskflow.core.test.mytaskflows.LinkTaskFlow')
@@ -325,7 +325,7 @@ def test_linked_taskflow(ctx, proxy):
 @cli.command()
 @test_case
 def test_terminate_taskflow(ctx, proxy):
-    '''Test terminating a taskflow'''
+    """Test terminating a taskflow"""
     # Test terminating a simple flow
     logging.info('Running simple taskflow ...')
     taskflow_id = create_taskflow(
@@ -360,7 +360,7 @@ def test_terminate_taskflow(ctx, proxy):
 @cli.command()
 @test_case
 def test_chord_taskflow(ctx, proxy):
-    '''Test running a taskflow with a chord'''
+    """Test running a taskflow with a chord"""
     # Now try something with a chord
     logging.info('Running taskflow containing a chord ...')
     taskflow_id = create_taskflow(
@@ -374,7 +374,7 @@ def test_chord_taskflow(ctx, proxy):
 @cli.command()
 @test_case
 def test_connected_taskflow(ctx, proxy):
-    '''Test a connected taskflow'''
+    """Test a connected taskflow"""
     # Now try a workflow that is the two connected together
     logging.info('Running taskflow that connects to parts together ...')
     taskflow_id = create_taskflow(
@@ -390,7 +390,7 @@ def test_connected_taskflow(ctx, proxy):
 @cli.command()
 @test_case
 def test_taskflow(ctx, proxy):
-    '''Run all taskflow tests'''
+    """Run all taskflow tests"""
     ctx.invoke(test_simple_taskflow)
     ctx.invoke(test_linked_taskflow)
     ctx.invoke(test_terminate_taskflow)
@@ -423,7 +423,7 @@ def test_taskflow(ctx, proxy):
 @click.option('--port', default=None)
 @test_case
 def test_traditional(ctx, proxy, profile_section, cluster_section, host, port):
-    '''Test creating a traditional cluster'''
+    """Test creating a traditional cluster"""
     from StringIO import StringIO
 
     logging.info('Starting traditional cluster test...')

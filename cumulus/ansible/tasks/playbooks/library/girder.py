@@ -33,7 +33,7 @@ except ImportError:
 
 __version__ = '0.2.1'
 
-DOCUMENTATION = '''
+DOCUMENTATION = """
 ---
 module: girder
 author: 'Chris Kotfila (chris.kotfila@kitware.com)
@@ -421,7 +421,7 @@ options:
                     - list of local file paths
                     - files will be uploaded to the item
 
-'''
+"""
 
 EXAMPLES = '''
 
@@ -1262,7 +1262,7 @@ class GirderClientModule(GirderClient):
 
     def _promote_or_demote_in_group(self, ret, member_levels, user_levels,
                                     group_id):
-        '''Promote or demote a set of users.
+        """Promote or demote a set of users.
 
         :param ret: the current dict of return values
         :param members_levels: the current access levels of each member
@@ -1271,7 +1271,7 @@ class GirderClientModule(GirderClient):
         :returns: info about what has (or has not) been updated
         :rtype: dict
 
-        '''
+        """
 
         reverse_type = {v: k for k, v in self.access_types.items()}
 
@@ -1405,7 +1405,7 @@ class GirderClientModule(GirderClient):
         return r.put_access(_id, access_list, public=public)
 
     def _process_folders(self, folders, parentId, parentType):
-        '''Process a list of folders from a user or collection.
+        """Process a list of folders from a user or collection.
 
         :param folders: List of folders passed as attribute
                         to user or collection
@@ -1414,7 +1414,7 @@ class GirderClientModule(GirderClient):
         :returns: Nothing
         :rtype: None
 
-        '''
+        """
 
         current_folders = {f['name']: f for f in
                            self.get('folder', {'parentType': parentType,
@@ -1716,12 +1716,12 @@ class GirderClientModule(GirderClient):
 
 
 def main():
-    '''Entry point for ansible girder client module
+    """Entry point for ansible girder client module
 
     :returns: Nothing
     :rtype: NoneType
 
-    '''
+    """
 
     # Default spec for initalizing and authenticating
     argument_spec = {
