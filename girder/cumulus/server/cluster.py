@@ -182,10 +182,6 @@ class Cluster(BaseResource):
             'template':  {'type': 'string',
                           'description': 'The cluster template to use. '
                           '(ec2 only)'},
-            'config': {'type': 'array',
-                       'description': 'List of configuration to use, '
-                                      'either ids or inline config.',
-                       'items': {'$ref': 'Id'}},
             'config': {
                 '$ref': '#/definitions/SshParameters',
                 'host': {'type': 'string',

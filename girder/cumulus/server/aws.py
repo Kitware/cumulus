@@ -162,6 +162,7 @@ def update_profile(user, profile, params):
     ModelImporter.model('aws', 'cumulus').update_aws_profile(getCurrentUser(),
                                                              profile)
 
+
 addModel('AwsUpdateParameters', {
     'id': 'AwsUpdateParameters',
     'properties': {
@@ -203,6 +204,7 @@ def get_profiles(user, params):
 
     return [model.filter(profile, user) for profile in profiles]
 
+
 get_profiles.description = (
     Description('Get the AWS profiles for a user')
     .param('id', 'The id of the user', required=True, paramType='path'))
@@ -216,6 +218,7 @@ def status(user, profile, params):
     return {
         'status': profile['status']
     }
+
 
 addModel('AwsProfileStatus', {
     'id': 'AwsProfileStatus',
@@ -243,6 +246,7 @@ def running_instances(user, profile, params):
     return {
         'runninginstances': get_ec2_client(profile).running_instances()
     }
+
 
 addModel('AwsProfileRunningInstances', {
     'id': 'AwsProfileRunningInstances',
@@ -279,6 +283,7 @@ def max_instances(user, profile, params):
     return {
         'maxinstances': max_instances
     }
+
 
 addModel('AwsProfileMaxInstances', {
     'id': 'AwsProfileRunningInstances',
