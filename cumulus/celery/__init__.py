@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 from celery import Celery
 from cumulus.taskflow.utility import find_taskflow_modules
+from .commonconfig import broker_url
 from kombu.serialization import register
 import json
 
@@ -65,7 +66,7 @@ _routes = {
 }
 
 command = Celery('command',  backend='amqp',
-                 broker='amqp://guest:guest@localhost:5672/',
+                 broker=broker_url,
                  include=_includes)
 
 command.config_from_object('cumulus.celery.commandconfig')
@@ -78,7 +79,7 @@ command.conf.update(
 )
 
 monitor = Celery('monitor',  backend='amqp',
-                 broker='amqp://guest:guest@localhost:5672/',
+                 broker=broker_url,
                  include=_includes)
 
 monitor.config_from_object('cumulus.celery.monitorconfig')
