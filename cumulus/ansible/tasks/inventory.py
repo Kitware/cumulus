@@ -8,14 +8,14 @@ import six
 
 
 class AnsibleInventoryHost(object):
-    '''
+    """
     Represents an Ansible inventory host and its associated variables.
     Implements low level functions for reading and writing the host to
     an inventory file. Note:  This does NOT model an actual host,  but
     rather a host line in an Ansible inventory file. It may represent
     multiple hosts in contexts where pattern matching is used (e.g.
     where a host declared as 'www[01:50].example.com').
-    '''
+    """
     def __init__(self, host, **kwargs):
         self.host = host
         self.variables = OrderedDict(sorted(kwargs.items()))
@@ -52,10 +52,10 @@ class AnsibleInventoryHost(object):
 
 
 class AnsibleInventorySection(object):
-    '''
+    """
     Abstract class that represents a config section in an Ansible inventory
     script.
-    '''
+    """
     def __init__(self, heading, items=None):
         heading = heading.strip()
         heading = '[' + heading if heading[0] != '[' else heading
@@ -82,9 +82,9 @@ class AnsibleInventorySection(object):
 
 
 class AnsibleInventoryGroup(AnsibleInventorySection):
-    '''
+    """
     Class that represents a group section in an Ansible inventory script
-    '''
+    """
 
     def __init__(self, heading, items=None):
         super(AnsibleInventoryGroup, self).__init__(heading, items)
@@ -113,10 +113,10 @@ class AnsibleInventoryGroup(AnsibleInventorySection):
 #        See: http://docs.ansible.com/ansible/intro_inventory.html for more
 #        info on these features.
 class AnsibleInventory(object):
-    '''
+    """
     Represents an Ansible inventory script. It reads and writes an ini-like
     file in the style of an Ansible inventory.
-    '''
+    """
 
     # Could add classes for AnsibleInventoryGroupVars and
     # AnsibleInventoryGroupOfGroups here if these features become
@@ -294,7 +294,7 @@ class AnsibleInventory(object):
 
 
 def simple_inventory(a, b=None):
-    '''Generate an inventory object from a list of arguments
+    """Generate an inventory object from a list of arguments
 
     This is a utility function designed to generate an AnsibleInventory
     object from simple python built-in types. It is intended to cover
@@ -324,7 +324,7 @@ def simple_inventory(a, b=None):
     :returns: an ansible inventory object
     :rtype: AnsibleInventoryObject
 
-    '''
+    """
     # Simple string,  assume a single global host
     if isinstance(a, six.string_types) and b is None:
         return AnsibleInventory([a])

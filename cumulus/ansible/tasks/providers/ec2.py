@@ -57,10 +57,10 @@ class EC2Provider(CloudProvider):
         self._volume_cache = {}
 
     def _get_instance_vars(self, instance):
-        '''
+        """
         Determine what to set as host specific variables in the dynamic
         inventory output. instance is a boto.ec2.instance.
-        '''
+        """
         return {
             'instance_id': instance.id,
             'private_ip': instance.private_ip_address,
@@ -69,17 +69,17 @@ class EC2Provider(CloudProvider):
         }
 
     def _instances_by_name(self, instances):
-        '''
+        """
         Return a generator of the instances grouped by their
         ec2_pod_instance_name tag.
-        '''
+        """
         return groupby(instances,
                        key=lambda instance:
                        {i['Key']: i['Value']
                         for i in instance.tags}['ec2_pod_instance_name'])
 
     def get_inventory(self, cluster_id):
-        '''
+        """
         Retrieve the inventory from a set of regions in an Ansible Dynamic
         Inventory compliant format (see
         http://docs.ansible.com/ansible/developing_inventory.html#script-conventions).
@@ -87,7 +87,7 @@ class EC2Provider(CloudProvider):
         Instances are filtered through instance_filter, grouped by the
         ec2_pod_instance_name tag, and contain host specific variables
         according to get_instance_vars.
-        '''
+        """
         inventory = {}
         instances = []
 

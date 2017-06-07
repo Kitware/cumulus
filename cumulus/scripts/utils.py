@@ -12,45 +12,45 @@ logging.getLogger('botocore').setLevel(logging.CRITICAL)
 
 
 def key(name):
-    '''Produces a function that accesses an item
+    """Produces a function that accesses an item
 
     :param name: the key name for a value on a dictionary
     :returns: A function that when applied to a dict returns value for that key
     :rtype: function
 
-    '''
+    """
 
     def _key(dictionary):
-        '''Wrapped function for accessing an attribute
+        """Wrapped function for accessing an attribute
 
         The attribute 'name' is defined in the enclosing closure.
 
         :param dictionary: an object
         :returns: Value of the 'name' attribute or ''
-        '''
+        """
         return dictionary.get(name, '')
 
     return _key
 
 
 def attr(name):
-    '''Produces a function that accesses an attribute
+    """Produces a function that accesses an attribute
 
     :param name: Name of an attribute
     :returns: A function that when applied to an instance returns the
               value for the attribute 'name'
     :rtype: function
 
-    '''
+    """
 
     def _attr(obj):
-        '''Wrapped function for accessing an attribute
+        """Wrapped function for accessing an attribute
 
         The attribute 'name' is defined in the enclosing closure.
 
         :param dictionary: an object
         :returns: Value of the 'name' attribute or ''
-        '''
+        """
         return getattr(obj, name) if hasattr(obj, name) else ''
 
     return _attr
@@ -79,7 +79,7 @@ def aws_name_from_tag(resource):
 
 
 class ConfigParam(click.ParamType):
-    '''Takes a file string and produces a RawConfigParser object'''
+    """Takes a file string and produces a RawConfigParser object"""
     name = 'config'
 
     def convert(self, value, param, ctx):
@@ -97,7 +97,7 @@ CONFIG_PARAM = ConfigParam()
 
 
 def section_property(prefix, config='config'):
-    '''Creates a property for a specific configuration section
+    """Creates a property for a specific configuration section
 
     This function will create a getter and a setter for a particular
     section of a configuration file. The setter will create a private
@@ -134,7 +134,7 @@ def section_property(prefix, config='config'):
     a known prefix. By default this assumes that the object's config will be
     available as an attribute 'config' on the object. This can by modified by
     passing a different string to the config keword argument.
-    '''
+    """
     private_variable = '_%s_section' % prefix
 
     def __section_getter(self):
