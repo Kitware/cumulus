@@ -423,7 +423,7 @@ class Volume(BaseResource):
         profile, secret_key = _get_profile(profile_id)
 
         girder_callback_info = {
-            'girder_api_url': getApiUrl(),
+            'girder_api_url': cumulus.config.girder.baseUrl,
             'girder_token': get_task_token()['_id']}
 
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
