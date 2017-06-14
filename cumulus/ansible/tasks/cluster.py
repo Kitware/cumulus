@@ -108,7 +108,7 @@ def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
             'host': master['public_ip']
         }
     }
-    headers = {'Girder-Token':  girder_token}
+    headers = {'Girder-Token': girder_token}
     r = requests.patch(status_url, headers=headers, json=updates)
     check_status(r)
 
@@ -138,7 +138,7 @@ def terminate_cluster(playbook, cluster, profile, secret_key, extra_vars,
         for volume_id in cluster['volumes']:
             r = requests.get('%s/volumes/%s' %
                              (cumulus.config.girder.baseUrl, volume_id),
-                             headers={'Girder-Token':  girder_token})
+                             headers={'Girder-Token': girder_token})
             check_status(r)
             volume = r.json()
 
@@ -147,7 +147,7 @@ def terminate_cluster(playbook, cluster, profile, secret_key, extra_vars,
                 'girder_token': girder_token}
 
             vol_log_url = '%s/volumes/%s/log' % (cumulus.config.girder.baseUrl,
-                                           volume_id)
+                                                 volume_id)
             detach_volume(profile, cluster, master, volume,
                           secret_key, vol_log_url, girder_callback_info)
 
