@@ -17,8 +17,8 @@ INFO = 'info'
 
 class CallbackModule(CallbackBase):
 
-    '''
-    '''
+    """
+    """
 
     def __init__(self):
         super(CallbackModule, self).__init__()

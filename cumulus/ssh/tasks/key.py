@@ -36,9 +36,9 @@ def _key_path(profile):
 
 @command.task
 def generate_key_pair(cluster, girder_token=None):
-    '''
+    """
     Task to generate a new key pair for a user.
-    '''
+    """
     cluster_id = cluster['_id']
     status_url = '%s/clusters/%s' \
         % (cumulus.config.girder.baseUrl, cluster_id)
