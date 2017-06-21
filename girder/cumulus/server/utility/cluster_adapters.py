@@ -127,7 +127,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     def launch(self):
         self.status = ClusterStatus.LAUNCHING
 
-        base_url = getApiUrl()
+        base_url = cumulus.config.girder.baseUrl
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
 
@@ -149,7 +149,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     def terminate(self):
         self.status = ClusterStatus.TERMINATING
 
-        base_url = getApiUrl()
+        base_url = cumulus.config.girder.baseUrl
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
 
@@ -170,7 +170,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
     def provision(self):
         self.status = ClusterStatus.PROVISIONING
 
-        base_url = getApiUrl()
+        base_url = cumulus.config.girder.baseUrl
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
 
@@ -205,7 +205,7 @@ class AnsibleClusterAdapter(AbstractClusterAdapter):
             .setdefault('params', {}).update(request_body)
         self.cluster = self.model('cluster', 'cumulus').save(self.cluster)
 
-        base_url = getApiUrl()
+        base_url = cumulus.config.girder.baseUrl
         log_write_url = '%s/clusters/%s/log' % (base_url, self.cluster['_id'])
         girder_token = get_task_token()['_id']
         profile, secret_key = _get_profile(self.cluster['profileId'])
@@ -312,7 +312,7 @@ class TraditionClusterAdapter(AbstractClusterAdapter):
         if self.cluster['status'] == ClusterStatus.CREATING:
             raise RestException('Cluster is not ready to start.', code=400)
 
-        log_write_url = '%s/clusters/%s/log' % (getApiUrl(),
+        log_write_url = '%s/clusters/%s/log' % (cumulus.config.girder.baseUrl,
                                                 self.cluster['_id'])
         girder_token = get_task_token()['_id']
         cumulus.tasks.cluster.test_connection \
@@ -363,7 +363,7 @@ class NewtClusterAdapter(AbstractClusterAdapter):
         return girder_token['_id']
 
     def start(self, request_body):
-        log_write_url = '%s/clusters/%s/log' % (getApiUrl(),
+        log_write_url = '%s/clusters/%s/log' % (cumulus.config.girder.baseUrl,
                                                 self.cluster['_id'])
 
         girder_token = get_task_token(self.cluster)['_id']
@@ -373,7 +373,7 @@ class NewtClusterAdapter(AbstractClusterAdapter):
                 log_write_url=log_write_url, girder_token=girder_token)
 
     def submit_job(self, job):
-        log_url = '%s/jobs/%s/log' % (getApiUrl(), job['_id'])
+        log_url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl, job['_id'])
 
         girder_token = get_task_token(self.cluster)['_id']
         cumulus.tasks.job.submit(
