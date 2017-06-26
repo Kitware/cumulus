@@ -184,8 +184,7 @@ class TaskFlows(Resource):
         self._model.append_to_log(taskflow, json.loads(body))
 
     @access.user
-    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE,
-               requiredFlags='execute')
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(
         Description('Terminate the taskflow ')
         .param(
@@ -212,9 +211,14 @@ class TaskFlows(Resource):
 
         taskflow_instance.terminate()
 
+<<<<<<< HEAD
     @access.token
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN,
                requiredFlags='execute')
+=======
+    @access.user
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+>>>>>>> removed execute flag requirement
     @describeRoute(
         Description('Start the taskflow ')
         .param(
