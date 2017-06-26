@@ -26,7 +26,7 @@ from girder.api.describe import Description
 from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getCurrentUser, getBodyJson
-from girder.api.rest import loadmodel, getApiUrl
+from girder.api.rest import loadmodel
 from .base import BaseResource
 
 import cumulus
@@ -256,9 +256,10 @@ class Volume(BaseResource):
         profile, secret_key = _get_profile(profile_id)
 
         girder_callback_info = {
-            'girder_api_url': getApiUrl(),
+            'girder_api_url': cumulus.config.girder.baseUrl,
             'girder_token': get_task_token()['_id']}
-        log_write_url = '%s/volumes/%s/log' % (getApiUrl(), volume['_id'])
+        log_write_url = '%s/volumes/%s/log' % (cumulus.config.girder.baseUrl,
+                                               volume['_id'])
 
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
@@ -323,10 +324,11 @@ class Volume(BaseResource):
         profile, secret_key = _get_profile(profile_id)
 
         girder_callback_info = {
-            'girder_api_url': getApiUrl(),
+            'girder_api_url': cumulus.config.girder.baseUrl,
             'girder_token': get_task_token()['_id']}
 
-        log_write_url = '%s/volumes/%s/log' % (getApiUrl(), volume['_id'])
+        log_write_url = '%s/volumes/%s/log' % (cumulus.config.girder.baseUrl,
+                                               volume['_id'])
 
         p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
@@ -415,7 +417,8 @@ class Volume(BaseResource):
             self._model.remove(volume)
             return None
 
-        log_write_url = '%s/volumes/%s/log' % (getApiUrl(), volume['_id'])
+        log_write_url = '%s/volumes/%s/log' % (cumulus.config.girder.baseUrl,
+                                               volume['_id'])
 
         # Call EC2 to delete volume
         profile_id = parse('profileId').find(volume)[0].value

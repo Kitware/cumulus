@@ -18,12 +18,13 @@
 ###############################################################################
 
 import cherrypy
+import cumulus
 
 from girder.api import access
 from girder.api.describe import Description, describeRoute
 from girder.constants import AccessType, SortDir
 from girder.api.docs import addModel
-from girder.api.rest import RestException, getBodyJson, getApiUrl, loadmodel
+from girder.api.rest import RestException, getBodyJson, loadmodel
 from .base import BaseResource
 
 from cumulus import tasks
@@ -205,7 +206,7 @@ class Job(BaseResource):
         cluster = cluster_model.load(job['clusterId'], user=user,
                                      level=AccessType.ADMIN)
 
-        base_url = getApiUrl()
+        base_url = cumulus.config.girder.baseUrl
         self._model.update_status(user, id, JobState.TERMINATING)
 
         log_url = '%s/jobs/%s/log' % (base_url, id)

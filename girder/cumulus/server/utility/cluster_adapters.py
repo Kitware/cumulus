@@ -22,7 +22,7 @@ from jsonpath_rw import parse
 
 from girder.utility.model_importer import ModelImporter
 from girder.models.model_base import ValidationException
-from girder.api.rest import RestException, getApiUrl, getCurrentUser
+from girder.api.rest import RestException, getCurrentUser
 
 from cumulus.constants import ClusterType, ClusterStatus
 from cumulus.common.girder import get_task_token, _get_profile
@@ -100,7 +100,8 @@ class AbstractClusterAdapter(ModelImporter):
                 pass
 
     def submit_job(self, job):
-        log_url = '%s/jobs/%s/log' % (getApiUrl(), job['_id'])
+        log_url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl,
+                                      job['_id'])
 
         girder_token = get_task_token()['_id']
         cumulus.tasks.job.submit(
