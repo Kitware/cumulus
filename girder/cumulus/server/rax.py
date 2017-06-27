@@ -52,23 +52,23 @@ def _filter(profile):
 @access.user
 @loadmodel(model='user', level=AccessType.WRITE)
 def create_profile(user, params):
-    pass
-#     body = getBodyJson()
-#     requireParams(['name', 'accessKeyId', 'secretAccessKey', 'regionName',
-#                    'availabilityZone'], body)
-#
-#     profile_type = 'ec2' if 'cloudProvider' not in body.keys() \
-#                    else body['cloudProvider']
-#
-#     model = ModelImporter.model('aws', 'cumulus')
-#     profile = model.create_profile(user['_id'], body['name'],
-#                                    profile_type,
-#                                    body['accessKeyId'],
-#                                    body['secretAccessKey'], body['regionName'],
-#                                    body['availabilityZone'],
-#                                    body.get('publicIPs', False))
-#
-#     # Now fire of a task to create a key pair for this profile
+    body = getBodyJson()
+    requireParams(['userName', 'name', 'apiKey', 'regionName'], body)
+
+    profile_type = 'rax' if 'cloudProvider' not in body.keys() \
+                   else body['cloudProvider']
+
+    model = ModelImporter.model('rax', 'cumulus')
+    profile = model.create_profile(user['_id'],
+                                   profile_type,
+                                   body['name'],
+                                   body['userName'],
+                                   body['regionName'])
+
+    profile['status'] = 'available'
+    model.update_rax_profile(user, profile)
+
+#     TODO: Create keypair
 #     try:
 #         cumulus.aws.ec2.tasks.key.generate_key_pair.delay(
 #             _filter(profile), get_task_token()['_id'])
@@ -85,6 +85,9 @@ def create_profile(user, params):
 #         raise
 
 
+    return model.filter(profile, getCurrentUser())
+
+
 addModel('RaxParameters', {
     'id': 'RaxParameters',
     'required': ['name', 'accessKeyId', 'secretAccessKey', 'regionName',
@@ -92,14 +95,13 @@ addModel('RaxParameters', {
     'properties': {
         'name': {'type': 'string',
                  'description': 'The name of the profile.'},
-        'accessKeyId':  {'type': 'string',
-                         'description': 'The aws access key id'},
-        'secretAccessKey': {'type': 'string',
-                            'description': 'The aws secret access key'},
+        'userName':  {'type': 'string',
+                      'description': 'The Rackspace Username'},
+        'apiKey': {'type': 'string',
+                   'description': 'The Rackspace API Key'},
         'regionName': {'type': 'string',
-                       'description': 'The aws region'},
-        'availabilityZone': {'type': 'string',
-                             'description': 'The aws availablility zone'}
+                       'description': 'The Rackspace region'},
+
     }
 }, 'user')
 
@@ -118,27 +120,27 @@ create_profile.description = (
 @loadmodel(model='rax', plugin='cumulus',  map={'profileId': 'profile'},
            level=AccessType.WRITE)
 def delete_profile(user, profile, params):
-    pass
-#     query = {
-#         'profileId': profile['_id']
-#     }
-#
-#     if ModelImporter.model('volume', 'cumulus').findOne(query):
-#         raise RestException('Unable to delete profile as it is associated with'
-#                             ' a volume', 400)
-#
-#     if ModelImporter.model('cluster', 'cumulus').findOne(query):
-#         raise RestException('Unable to delete profile as it is associated with'
-#                             ' a cluster', 400)
-#
-#     # Clean up key associate with profile
+
+    query = {
+        'profileId': profile['_id']
+    }
+
+    if ModelImporter.model('volume', 'cumulus').findOne(query):
+        raise RestException('Unable to delete profile as it is associated with'
+                            ' a volume', 400)
+
+    if ModelImporter.model('cluster', 'cumulus').findOne(query):
+        raise RestException('Unable to delete profile as it is associated with'
+                            ' a cluster', 400)
+
+#     TODO: Delete Key Pair
 #     cumulus.aws.ec2.tasks.key.delete_key_pair.delay(_filter(profile),
 #                                                     get_task_token()['_id'])
 #
 #     client = get_ec2_client(profile)
 #     client.delete_key_pair(KeyName=str(profile['_id']))
-#
-#     ModelImporter.model('aws', 'cumulus').remove(profile)
+
+    ModelImporter.model('rax', 'cumulus').remove(profile)
 
 
 delete_profile.description = (
@@ -197,16 +199,15 @@ update_profile.description = (
 @access.user
 @loadmodel(model='user', level=AccessType.READ)
 def get_profiles(user, params):
-    pass
-#     user = getCurrentUser()
-#     model = ModelImporter.model('aws', 'cumulus')
-#     limit = params.get('limit', 50)
-#     profiles = model.find_profiles(user['_id'])
-#
-#     profiles = model.filterResultsByPermission(profiles, user, AccessType.READ,
-#                                                limit=int(limit))
-#
-#     return [model.filter(profile, user) for profile in profiles]
+    user = getCurrentUser()
+    model = ModelImporter.model('rax', 'cumulus')
+    limit = params.get('limit', 50)
+    profiles = model.find_profiles(user['_id'])
+
+    profiles = model.filterResultsByPermission(profiles, user, AccessType.READ,
+                                               limit=int(limit))
+
+    return [model.filter(profile, user) for profile in profiles]
 
 
 get_profiles.description = (
@@ -219,10 +220,9 @@ get_profiles.description = (
 @loadmodel(model='rax', plugin='cumulus',  map={'profileId': 'profile'},
            level=AccessType.WRITE)
 def status(user, profile, params):
-    pass
-#     return {
-#         'status': profile['status']
-#     }
+    return {
+        'status': profile['status']
+    }
 
 
 addModel('RaxProfileStatus', {

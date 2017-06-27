@@ -161,7 +161,8 @@ class Aws(BaseModel):
 
     def find_profiles(self, userId):
         query = {
-            'userId': userId
+            'userId': userId,
+            'cloudProvider': 'ec2'
         }
 
         return self.find(query)

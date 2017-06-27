@@ -35,11 +35,10 @@ class Rax(BaseModel):
 
     def initialize(self):
         self.name = 'rax'
-#         self.ensureIndices(['userId', 'name'])
-#         self.exposeFields(level=AccessType.READ, fields=(
-#             '_id', 'name', 'accessKeyId', 'regionName', 'regionHost',
-#             'availabilityZone', 'status', 'errorMessage', 'publicIPs',
-#             'cloudProvider'))
+        self.ensureIndices(['userId', 'name'])
+        self.exposeFields(level=AccessType.READ, fields=(
+            '_id', 'name', 'userName', 'regionName', 'status',
+            'errorMessage', 'cloudProvider'))
 
 #    def _validate_region(self, client, doc):
 #
@@ -84,7 +83,7 @@ class Rax(BaseModel):
 #             raise ValidationException(ece.message)
 
     def validate(self, doc):
-        pass
+        return doc
 #         name = doc['name']
 #
 #         if type(doc['publicIPs']) != bool:
@@ -134,52 +133,46 @@ class Rax(BaseModel):
 #
 #         return doc
 
-    def create_profile(self, userId, name, profile_type, access_key_id,
-                       secret_access_key, region_name, availability_zone,
-                       public_ips):
-        pass
-#         user = getCurrentUser()
-#         profile = {
-#             'name': name,
-#             'cloudProvider': profile_type,
-#             'accessKeyId': access_key_id,
-#             'secretAccessKey': secret_access_key,
-#             'regionName': region_name,
-#             'availabilityZone': availability_zone,
-#             'userId': userId,
-#             'status': 'creating',
-#             'publicIPs': public_ips
-#         }
-#
-#         profile = self.setUserAccess(profile, user, level=AccessType.ADMIN,
-#                                      save=False)
-#         group = {
-#             '_id': ObjectId(self.get_group_id())
-#         }
-#         profile = self.setGroupAccess(profile, group, level=AccessType.ADMIN)
-#
-#         return self.save(profile)
+    def create_profile(self, userId, profile_type, name, user_name, region_name):
+        user = getCurrentUser()
+        profile = {
+            'name': name,
+            'userName': user_name,
+            'cloudProvider': profile_type,
+            'regionName': region_name,
+            'userId': userId,
+            'status': 'creating'
+        }
+
+        profile = self.setUserAccess(profile, user, level=AccessType.ADMIN,
+                                     save=False)
+        group = {
+            '_id': ObjectId(self.get_group_id())
+        }
+        profile = self.setGroupAccess(profile, group, level=AccessType.ADMIN)
+
+        return self.save(profile)
 
     def find_profiles(self, userId):
-        pass
-#         query = {
-#             'userId': userId
-#         }
-#
-#         return self.find(query)
+        query = {
+            'userId': userId,
+            'cloudProvider': 'rax'
+        }
+
+        return self.find(query)
+
 
     def update_rax_profile(self, user, profile):
-        pass
-#         profile_id = profile['_id']
-#         current_profile = self.load(profile_id, user=user,
-#                                     level=AccessType.ADMIN)
-#         new_status = profile['status']
-#         if current_profile['status'] != new_status:
-#             notification = {
-#                 '_id': profile_id,
-#                 'status': new_status
-#             }
-#             create_notifications('profile', 'status', notification,
-#                                  current_profile)
-#
-#         return self.save(profile)
+        profile_id = profile['_id']
+        current_profile = self.load(profile_id, user=user,
+                                    level=AccessType.ADMIN)
+        new_status = profile['status']
+        if current_profile['status'] != new_status:
+            notification = {
+                '_id': profile_id,
+                'status': new_status
+            }
+            create_notifications('profile', 'status', notification,
+                                 current_profile)
+
+        return self.save(profile)
