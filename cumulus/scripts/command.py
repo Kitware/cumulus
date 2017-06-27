@@ -1,6 +1,6 @@
 from __future__ import print_function
 import click
-from utils import logging, Proxy, CONFIG_PARAM
+from utils import logging, Proxy, RAXProxy, AWSProxy, CONFIG_PARAM
 from utils import (key,
                    attr,
                    get_profile,
@@ -20,14 +20,18 @@ VOLUME_SECTION_HELP = \
 @click.group()
 @click.option('-v', '--verbose', count=True,
               help='Print logging information.')
+@click.option('-t', '--type', "_type", type=click.Choice(['aws', 'rax']),
+              help='Type of Cloud Provider', default='aws')
 @click.option('--config', default='integration.cfg', type=CONFIG_PARAM,
               help='Speficy the config file path')
 @click.option('--girder_section', default='girder',
               help='Section of the config that specifies girder variables')
 @click.option('--aws_section', default='aws',
               help='Section of the config that specifies AWS variables')
+@click.option('--rax_section', default='rax',
+              help='Section of the config that specifies RAX variables')
 @click.pass_context
-def cli(ctx, verbose, config, girder_section, aws_section):
+def cli(ctx, verbose, _type, config, girder_section, aws_section, rax_section):
 
     if verbose == 1:
         logging.basicConfig(
@@ -38,10 +42,17 @@ def cli(ctx, verbose, config, girder_section, aws_section):
             format='%(asctime)s %(levelname)-5s - %(message)s',
             level=logging.DEBUG)
 
-    ctx.obj = Proxy(
-        config,
-        girder_section=girder_section,
-        aws_section=aws_section)
+    if _type == 'rax':
+        ctx.obj = RAXProxy(
+            config,
+            girder_section=girder_section,
+            rax_section=rax_section)
+    else:
+        ctx.obj = AWSProxy(
+            config,
+            girder_section=girder_section,
+            aws_section=aws_section)
+
     ctx.obj.verbose = verbose
 
 
@@ -102,7 +113,6 @@ def delete_profile(proxy):
 
     $> cumulus profile --profile_section 'other_section' delete
     """
-
     try:
         _id = proxy.profile['_id']
         logging.info('Deleting profile "%s"' % proxy.profile_name)

@@ -161,17 +161,17 @@ def section_property(prefix, config='config'):
 
 class Proxy(object):
 
-    aws_section = section_property('aws')
     girder_section = section_property('girder')
     profile_section = section_property('profile')
     cluster_section = section_property('cluster')
     volume_section = section_property('volume')
 
-    def __init__(self, config, aws_section='aws', girder_section='girder'):
+    profile_base_url = ''
+
+    def __init__(self, config, girder_section='girder'):
         self.verbose = 0
         self.config = config
 
-        self.aws_section = aws_section
         self.girder_section = girder_section
 
         self.client = girder_client.GirderClient(apiUrl=self.girder_api_url)
@@ -222,7 +222,7 @@ class Proxy(object):
 
     @property
     def profiles(self):
-        r = self.get('user/%s/aws/profiles' % self.user['_id'])
+        r = self.get(self.profile_base_url % self.user['_id'])
         return r
 
     @property
@@ -241,20 +241,20 @@ class Proxy(object):
             self._profile = rp
 
             self.wait_for_status(
-                'user/%s/aws/profiles/%s/status' % (
+                (self.profile_base_url + '%s/status') % (
                     self.user['_id'], self.profile['_id']),
                 'available')
             return None
 
         # Profile could not be found, create it
-        r = self.post('user/%s/aws/profiles' % self.user['_id'],
+        r = self.post(self.profile_base_url % self.user['_id'],
                       data=json.dumps(profile))
 
         logging.debug('Posted profile %s: %s' % (r['_id'], r))
         self._profile = r
 
         self.wait_for_status(
-            'user/%s/aws/profiles/%s/status' % (
+            (self.profile_base_url + '%s/status') % (
                 self.user['_id'], self.profile['_id']),
             'available')
 
@@ -267,7 +267,7 @@ class Proxy(object):
 
             return None
 
-        self.delete('user/%s/aws/profiles/%s' %
+        self.delete((self.profile_base_url + '%s') %
                     (self.user['_id'], self.profile['_id']))
         if hasattr(self, '_profile'):
             del(self._profile)
@@ -275,17 +275,7 @@ class Proxy(object):
         return None
 
     def get_profile_body(self):
-        if self.profile_section:
-            return {
-                'accessKeyId': self.aws_access_key_id,
-                'availabilityZone': self.aws_availabilityZone,
-                'name': self.profile_name,
-                'regionName': self.aws_regionName,
-                'cloudProvider': self.profile_cloudProvider,
-                'secretAccessKey': self.aws_secret_access_key
-            }
-        else:
-            raise RuntimeError('No profile section found!')
+        raise NotImplementedError('get_body_profile not implemented in Proxy')
 
     def remote_volume(self, name=None):
         if name is None:
@@ -360,16 +350,7 @@ class Proxy(object):
         return None
 
     def get_volume_body(self):
-        if self.profile_section:
-            return {
-                'name': self.volume_name,
-                'profileId': self.profile['_id'],
-                'size': self.volume_size,
-                'type': self.volume_type,
-                'zone': self.volume_zone
-            }
-        else:
-            raise RuntimeError('No profile section found!')
+        raise NotImplementedError('get_volume_body() not implemented in Proxy')
 
     def attach_volume(self, cluster, volume, path='/mnt/data'):
         self.put('volumes/%s/clusters/%s/attach' %
@@ -445,56 +426,8 @@ class Proxy(object):
 
         return None
 
-    def get_traditional_cluster_body(self):
-        if self.cluster_section:
-            return {
-                'config': {
-                    'ssh': {
-                        'user': self.cluster_user
-                    },
-                    'host': self.cluster_host,
-                    'port': self.cluster_port
-                },
-                'name': self.cluster_name,
-                'type': 'trad'
-            }
-        else:
-            raise RuntimeError('No cluster section found!')
-
-    def get_ansible_cluster_body(self):
-        if self.cluster_section:
-            return {
-                'config': {
-                    'launch': {
-                        'spec': 'ec2',
-                        'params': {
-                            'master_instance_type':
-                            self.cluster_master_instance_type,
-                            'master_instance_ami':
-                            self.cluster_master_instance_ami,
-                            'node_instance_count':
-                            self.cluster_node_instance_count,
-                            'node_instance_type':
-                            self.cluster_node_instance_type,
-                            'node_instance_ami':
-                            self.cluster_node_instance_ami,
-                            'terminate_wait_timeout':
-                            int(self.cluster_terminate_wait_timeout)
-                        }
-                    }
-                },
-                'profileId': self.profile['_id'],
-                'name': self.cluster_name,
-                'type': self.cluster_type
-            }
-        else:
-            raise RuntimeError('No cluster section found!')
-
     def get_cluster_body(self):
-        if self.cluster_type == 'trad':
-            return self.get_traditional_cluster_body()
-        else:
-            return self.get_ansible_cluster_body()
+        raise NotImplementedError('get_cluster_body() is not impelemtned in Proxy')
 
     def check_log(self, log_url, log_offset):
         r = self.get(log_url, parameters={
@@ -543,7 +476,7 @@ class Proxy(object):
                                   (ex.status, log_url))
 
             r = self.get(status_url)
-
+            print status_url
             if r['status'] in status:
                 break
 
@@ -669,3 +602,111 @@ class Proxy(object):
                 raise RuntimeError(error['message'])
             except KeyError:
                 raise e
+
+
+class AWSProxy(Proxy):
+    aws_section = section_property('aws')
+    profile_base_url = 'user/%s/aws/profiles/'
+
+    def __init__(self, config, aws_section='aws', girder_section='girder'):
+        super(AWSProxy, self).__init__(config, girder_section=girder_section)
+        self.aws_section = aws_section
+
+    def get_volume_body(self):
+        if self.profile_section:
+            return {
+                'name': self.volume_name,
+                'profileId': self.profile['_id'],
+                'size': self.volume_size,
+                'type': self.volume_type,
+                'zone': self.volume_zone
+            }
+        else:
+            raise RuntimeError('No profile section found!')
+
+    def get_profile_body(self):
+        if self.profile_section:
+            return {
+                'accessKeyId': self.aws_access_key_id,
+                'availabilityZone': self.aws_availabilityZone,
+                'name': self.profile_name,
+                'regionName': self.aws_regionName,
+                'cloudProvider': self.profile_cloudProvider,
+                'secretAccessKey': self.aws_secret_access_key
+            }
+        else:
+            raise RuntimeError('No profile section found!')
+
+
+    def get_cluster_body(self):
+        if self.cluster_type == 'trad':
+            return self.get_traditional_cluster_body()
+        else:
+            return self.get_ansible_cluster_body()
+
+
+    def _get_traditional_cluster_body(self):
+        if self.cluster_section:
+            return {
+                'config': {
+                    'ssh': {
+                        'user': self.cluster_user
+                    },
+                    'host': self.cluster_host,
+                    'port': self.cluster_port
+                },
+                'name': self.cluster_name,
+                'type': 'trad'
+            }
+        else:
+            raise RuntimeError('No cluster section found!')
+
+    def _get_ansible_cluster_body(self):
+        if self.cluster_section:
+            return {
+                'config': {
+                    'launch': {
+                        'spec': 'ec2',
+                        'params': {
+                            'master_instance_type':
+                            self.cluster_master_instance_type,
+                            'master_instance_ami':
+                            self.cluster_master_instance_ami,
+                            'node_instance_count':
+                            self.cluster_node_instance_count,
+                            'node_instance_type':
+                            self.cluster_node_instance_type,
+                            'node_instance_ami':
+                            self.cluster_node_instance_ami,
+                            'terminate_wait_timeout':
+                            int(self.cluster_terminate_wait_timeout)
+                        }
+                    }
+                },
+                'profileId': self.profile['_id'],
+                'name': self.cluster_name,
+                'type': self.cluster_type
+            }
+        else:
+            raise RuntimeError('No cluster section found!')
+
+
+class RAXProxy(Proxy):
+    rax_section = section_property('rax')
+    profile_base_url = 'user/%s/rax/profiles/'
+
+    def __init__(self, config, rax_section='rax', girder_section='girder'):
+
+        super(RAXProxy, self).__init__(config, girder_section=girder_section)
+        self.rax_section = rax_section
+
+    def get_profile_body(self):
+        if self.profile_section:
+            return {
+                'name': self.profile_name,
+                'userName':  self.rax_userName,
+                'apiKey': self.rax_apiKey,
+                'regionName': self.rax_regionName
+            }
+        else:
+            raise RuntimeError('No profile section found!')
