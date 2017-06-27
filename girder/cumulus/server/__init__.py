@@ -21,7 +21,7 @@ from .cluster import Cluster
 from .job import Job
 from .script import Script
 from .volume import Volume
-from . import aws
+from . import aws, rax
 
 
 def load(info):
@@ -31,3 +31,4 @@ def load(info):
     info['apiRoot'].volumes = Volume()
     # Augment user resource with aws profiles
     aws.load(info['apiRoot'])
+    rax.load(info['apiRoot'])
