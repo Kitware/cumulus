@@ -709,3 +709,21 @@ class RAXProxy(Proxy):
             }
         else:
             raise RuntimeError('No profile section found!')
+
+
+    def get_cluster_body(self):
+        if self.cluster_section:
+            return {
+                'config': {
+                    'launch': {
+                        'spec': 'rax',
+                        'params': {
+                        }
+                    }
+                },
+                'profileId': self.profile['_id'],
+                'name': self.cluster_name,
+                'type': self.cluster_type
+            }
+        else:
+            raise RuntimeError('No cluster section found!')

@@ -6,6 +6,7 @@ from utils import (key,
                    get_profile,
                    aws_name_from_tag)
 from tabulate import tabulate
+from ConfigParser import NoOptionError, NoSectionError
 
 pass_proxy = click.make_pass_decorator(Proxy)
 
@@ -21,7 +22,7 @@ VOLUME_SECTION_HELP = \
 @click.option('-v', '--verbose', count=True,
               help='Print logging information.')
 @click.option('-t', '--type', "_type", type=click.Choice(['aws', 'rax']),
-              help='Type of Cloud Provider', default='aws')
+              help='Type of Cloud Provider', default=None)
 @click.option('--config', default='integration.cfg', type=CONFIG_PARAM,
               help='Speficy the config file path')
 @click.option('--girder_section', default='girder',
@@ -41,6 +42,12 @@ def cli(ctx, verbose, _type, config, girder_section, aws_section, rax_section):
         logging.basicConfig(
             format='%(asctime)s %(levelname)-5s - %(message)s',
             level=logging.DEBUG)
+
+    if _type is None:
+        try:
+            _type = config.get('default', 'type')
+        except (NoOptionError, NoSectionError):
+            _type = 'aws'
 
     if _type == 'rax':
         ctx.obj = RAXProxy(
