@@ -16,5 +16,6 @@
 
 from .base import CloudProvider, InstanceState
 from .ec2 import EC2Provider
+from .rax import RAXProvider
 
-__all__ = ('CloudProvider', 'InstanceState', 'EC2Provider')
+__all__ = ('CloudProvider', 'InstanceState', 'EC2Provider', RAXProvider)

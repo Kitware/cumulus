@@ -18,43 +18,35 @@
 
 from cumulus.constants import VolumeState
 from jsonpath_rw import parse
-import boto3.ec2
 from itertools import groupby
 import json
 import os
 
 from cumulus.ansible.tasks.providers.base import CloudProvider, InstanceState
 from girder.api.rest import ModelImporter
-
+from rackspace import connection
 
 class RAXProvider(CloudProvider):
-     InstanceState = {
-#         0: InstanceState.PENDING,
-#         16: InstanceState.RUNNING,
-#         32: InstanceState.SHUTTINGDOWN,
-#         48: InstanceState.TERMINATED,
-#         64: InstanceState.STOPPING,
-#         80: InstanceState.STOPPED
-     }
+    # InstanceState = {}
 
     def __init__(self, profile):
-        pass
-#         self.girder_profile_id = profile.get('_id', None)
-#
-#         for key, value in profile.items():
-#             setattr(self, key, value)
-#
-#         if not hasattr(self, 'secretAccessKey'):
-#             try:
-#                 profile = ModelImporter.model('aws', 'cumulus').load(
-#                     self.girder_profile_id)
-#
-#                 self.secretAccessKey = profile.get('secreteAccessKey', None)
-#             # Cumulus plugin libraries are not available
-#             except ImportError:
-#                 self.secretAccessKey = None
-#
-#         self._volume_cache = {}
+        self._connection = None
+        self.girder_profile_id = profile.get('_id', None)
+
+        for key, value in profile.items():
+            setattr(self, key, value)
+
+        if not hasattr(self, 'apiKey'):
+            try:
+                profile = ModelImporter.model('rax', 'cumulus').load(
+                    self.girder_profile_id)
+
+                self.apiKey = profile.get('apiKey', None)
+            # Cumulus plugin libraries are not available
+            except ImportError:
+                self.apiKey = None
+
+        self._volume_cache = {}
 
 #     def _get_instance_vars(self, instance):
 #         """
@@ -235,16 +227,34 @@ class RAXProvider(CloudProvider):
 
     @property
     def client(self):
-        return None
-        # return self.ec2.meta.client
+        if self._connection is None:
+            self._connection = connection.Connection(
+                username=self.userName,
+                api_key=self.apiKey,
+                region=self.regionName)
+        return self._connection
 
     def create_key_pair(self, *args, **kwargs):
-        pass
-        # return self.client.create_key_pair(*args, **kwargs)
+        key_name = kwargs.get('KeyName', None)
+        if key_name is None:
+            raise RuntimeError(
+                'Must provide "KeyName" to CloudProvider.create_key_pair()')
+
+        keypair = self.client.compute.find_keypair(key_name)
+
+        if not keypair:
+            keypair = self.client.compute.create_keypair(name=key_name)
+
+        return keypair.private_key
 
     def delete_key_pair(self, *args, **kwargs):
-        pass
-        # return self.client.delete_key_pair(*args, **kwargs)
+        key_name = kwargs.get('KeyName', None)
+        if key_name is None:
+            raise RuntimeError(
+                'Must provide "KeyName" to CloudProvider.create_key_pair()')
+
+        self.client.compute.delete_keypair(key_name)
+
 
     def describe_account_attributes(self, *args, **kwargs):
         pass

@@ -22,7 +22,7 @@ import json
 from jsonpath_rw import parse
 
 import cumulus
-# import cumulus.aws.ec2.tasks.key
+import cumulus.rax.tasks.key
 
 from cumulus.common.girder import get_task_token
 # from cumulus.aws.ec2 import get_ec2_client
@@ -63,35 +63,29 @@ def create_profile(user, params):
                                    profile_type,
                                    body['name'],
                                    body['userName'],
+                                   body['apiKey'],
                                    body['regionName'])
 
-    profile['status'] = 'available'
-    model.update_rax_profile(user, profile)
+    # TODO: Create keypair
+    try:
+        cumulus.rax.tasks.key.generate_key_pair.delay(
+            _filter(profile), get_task_token()['_id'])
 
-#     TODO: Create keypair
-#     try:
-#         cumulus.aws.ec2.tasks.key.generate_key_pair.delay(
-#             _filter(profile), get_task_token()['_id'])
-#
-#         cherrypy.response.status = 201
-#         cherrypy.response.headers['Location'] \
-#             = '/user/%s/aws/profile/%s' % (str(user['_id']),
-#                                            str(profile['_id']))
-#
-#         return model.filter(profile, getCurrentUser())
-#     except Exception:
-#         # Remove profile if error occurs fire of task
-#         model.remove(profile)
-#         raise
+        cherrypy.response.status = 201
+        cherrypy.response.headers['Location'] \
+            = '/user/%s/aws/profile/%s' % (str(user['_id']),
+                                           str(profile['_id']))
 
-
-    return model.filter(profile, getCurrentUser())
+        return model.filter(profile, getCurrentUser())
+    except Exception:
+        # Remove profile if error occurs fire of task
+        model.remove(profile)
+        raise
 
 
 addModel('RaxParameters', {
     'id': 'RaxParameters',
-    'required': ['name', 'accessKeyId', 'secretAccessKey', 'regionName',
-                 'regionHost', 'availabilityZone'],
+    'required': ['name', 'userName', 'apiKey', 'cloudProvider', 'regionName'],
     'properties': {
         'name': {'type': 'string',
                  'description': 'The name of the profile.'},
@@ -133,12 +127,9 @@ def delete_profile(user, profile, params):
         raise RestException('Unable to delete profile as it is associated with'
                             ' a cluster', 400)
 
-#     TODO: Delete Key Pair
-#     cumulus.aws.ec2.tasks.key.delete_key_pair.delay(_filter(profile),
-#                                                     get_task_token()['_id'])
-#
-#     client = get_ec2_client(profile)
-#     client.delete_key_pair(KeyName=str(profile['_id']))
+    # TODO: Delete Key Pair
+    cumulus.rax.tasks.key.delete_key_pair.delay(_filter(profile),
+                                                get_task_token()['_id'])
 
     ModelImporter.model('rax', 'cumulus').remove(profile)
 
@@ -155,17 +146,14 @@ delete_profile.description = (
 @loadmodel(model='rax', plugin='cumulus',  map={'profileId': 'profile'},
            level=AccessType.WRITE)
 def update_profile(user, profile, params):
-    pass
-#     body = getBodyJson()
-#     properties = ['accessKeyId', 'secretAccessKey', 'status', 'errorMessage',
-#                   'publicIPs', 'cloudProvider']
-#     for prop in properties:
-#         if prop in body:
-#             profile[prop] = body[prop]
-#
-#     ModelImporter.model('aws', 'cumulus').update_aws_profile(getCurrentUser(),
-#                                                              profile)
-#
+    body = getBodyJson()
+    properties = ['name', 'status', 'userName', 'apiKey', 'regionName']
+    for prop in properties:
+        if prop in body:
+            profile[prop] = body[prop]
+
+    ModelImporter.model('rax', 'cumulus').update_rax_profile(getCurrentUser(),
+                                                             profile)
 
 
 addModel('RaxUpdateParameters', {

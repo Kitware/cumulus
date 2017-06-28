@@ -133,11 +133,13 @@ class Rax(BaseModel):
 #
 #         return doc
 
-    def create_profile(self, userId, profile_type, name, user_name, region_name):
+    def create_profile(self, userId, profile_type, name, user_name,
+                       apiKey, region_name):
         user = getCurrentUser()
         profile = {
             'name': name,
             'userName': user_name,
+            'apiKey': apiKey,
             'cloudProvider': profile_type,
             'regionName': region_name,
             'userId': userId,
@@ -160,7 +162,6 @@ class Rax(BaseModel):
         }
 
         return self.find(query)
-
 
     def update_rax_profile(self, user, profile):
         profile_id = profile['_id']

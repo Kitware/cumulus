@@ -43,7 +43,8 @@ _includes = [
     'cumulus.tasks.cluster',
     'cumulus.tasks.job',
     'cumulus.ssh.tasks.key',
-    'cumulus.aws.ec2.tasks.key'
+    'cumulus.aws.ec2.tasks.key',
+    'cumulus.rax.tasks.key'
 ]
 
 taskflow_modules = find_taskflow_modules()

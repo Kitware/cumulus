@@ -476,7 +476,6 @@ class Proxy(object):
                                   (ex.status, log_url))
 
             r = self.get(status_url)
-            print status_url
             if r['status'] in status:
                 break
 
@@ -640,9 +639,9 @@ class AWSProxy(Proxy):
 
     def get_cluster_body(self):
         if self.cluster_type == 'trad':
-            return self.get_traditional_cluster_body()
+            return self._get_traditional_cluster_body()
         else:
-            return self.get_ansible_cluster_body()
+            return self._get_ansible_cluster_body()
 
 
     def _get_traditional_cluster_body(self):
