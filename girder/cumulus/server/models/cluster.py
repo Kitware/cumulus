@@ -122,8 +122,7 @@ class Cluster(BaseModel):
 
         return cluster
 
-    def create_ansible(self, user, name, spec, launch_params, profile,
-                       cluster_type=ClusterType.ANSIBLE):
+    def get_profile(self, user, profile):
         try:
             query = {
                 'userId': user['_id'],
@@ -136,7 +135,17 @@ class Cluster(BaseModel):
         profile = self.model('aws', 'cumulus').findOne(query)
 
         if profile is None:
+            profile = self.model('rax', 'cumulus').findOne(query)
+
+        if profile is None:
             raise ValidationException('Profile must be specified!')
+
+        return profile
+
+    def create_ansible(self, user, name, spec, launch_params, profile,
+                       cluster_type=ClusterType.ANSIBLE):
+
+        profile = self.get_profile(user, profile)
 
         # Should do some template validation here
 

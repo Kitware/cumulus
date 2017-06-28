@@ -23,6 +23,7 @@ import six
 
 class ClusterType:
     EC2 = 'ec2'
+    RAX = 'rax'
     ANSIBLE = 'ansible'
     TRADITIONAL = 'trad'
     NEWT = 'newt'
@@ -30,6 +31,7 @@ class ClusterType:
     @staticmethod
     def is_valid_type(type):
         return type == ClusterType.EC2 or \
+            type == ClusterType.RAX or \
             type == ClusterType.TRADITIONAL or \
             type == ClusterType.ANSIBLE or \
             type == ClusterType.NEWT

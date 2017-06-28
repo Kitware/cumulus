@@ -73,6 +73,9 @@ class Cluster(BaseResource):
     def _create_ec2(self, params, body):
         return self._create_ansible(params, body, cluster_type=ClusterType.EC2)
 
+    def _create_rax(self, params, body):
+        return self._create_ansible(params, body, cluster_type=ClusterType.RAX)
+
     def _create_ansible(self, params, body, cluster_type=ClusterType.ANSIBLE):
 
         self.requireParams(['name', 'profileId'], body)
@@ -136,6 +139,8 @@ class Cluster(BaseResource):
 
         if cluster_type == ClusterType.EC2:
             cluster = self._create_ec2(params, body)
+        if cluster_type == ClusterType.RAX:
+            cluster = self._create_rax(params, body)
         elif cluster_type == ClusterType.ANSIBLE:
             cluster = self._create_ansible(params, body)
         elif cluster_type == ClusterType.TRADITIONAL:
