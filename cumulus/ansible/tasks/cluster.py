@@ -37,19 +37,19 @@ logger = get_task_logger(__name__)
 @command.task
 def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
                       girder_token, log_write_url, post_status):
-
+    p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
     playbook = get_playbook_path(playbook)
     playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
 
     env = os.environ.copy()
-    env.update({'AWS_ACCESS_KEY_ID': profile['accessKeyId'],
-                'AWS_SECRET_ACCESS_KEY': secret_key,
-                'GIRDER_TOKEN': girder_token,
+    env.update({'GIRDER_TOKEN': girder_token,
                 'LOG_WRITE_URL': log_write_url,
                 'CLUSTER_ID': cluster['_id'],
                 'REGION_NAME': profile['regionName'],
                 'ANSIBLE_HOST_KEY_CHECKING': 'false',
                 'ANSIBLE_CALLBACK_PLUGINS': get_callback_plugins_path()})
+
+    env.update({p.get_env_vars()})
 
     inventory = os.path.join(os.path.dirname(__file__), 'providers', 'ec2.py')
 
@@ -81,23 +81,22 @@ def start_cluster(launch_playbook, provision_playbook, cluster, profile,
 @command.task
 def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
                    girder_token, log_write_url, post_status):
+    p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
+
     playbook = get_playbook_path(playbook)
     playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
 
     env = os.environ.copy()
-    env.update({'AWS_ACCESS_KEY_ID': profile['accessKeyId'],
-                'AWS_SECRET_ACCESS_KEY': secret_key,
-                'GIRDER_TOKEN': girder_token,
+    env.update({'GIRDER_TOKEN': girder_token,
                 'LOG_WRITE_URL': log_write_url,
                 'CLUSTER_ID': cluster['_id']})
+    env.update(p.get_env_vars())
 
     inventory = simple_inventory('localhost')
 
     with inventory.to_tempfile() as inventory_path:
         ansible = run_playbook(playbook, inventory_path, playbook_variables,
                                env=env, verbose=3)
-
-    p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
     master = p.get_master_instance(cluster['_id'])
 
@@ -119,20 +118,19 @@ def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
 @command.task
 def terminate_cluster(playbook, cluster, profile, secret_key, extra_vars,
                       girder_token, log_write_url, post_status):
+    p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
     playbook = get_playbook_path(playbook)
     playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
 
     env = os.environ.copy()
-    env.update({'AWS_ACCESS_KEY_ID': profile['accessKeyId'],
-                'AWS_SECRET_ACCESS_KEY': secret_key,
-                'GIRDER_TOKEN': girder_token,
+    env.update({'GIRDER_TOKEN': girder_token,
                 'LOG_WRITE_URL': log_write_url,
                 'CLUSTER_ID': cluster['_id']})
+    env.update(p.get_env_vars())
 
     # if there are any volumes,  make sure to detach them first.
     if 'volumes' in cluster and len(cluster['volumes']):
-        p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
         master = p.get_master_instance(cluster['_id'])
 
         for volume_id in cluster['volumes']:

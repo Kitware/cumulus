@@ -36,15 +36,15 @@ class RAXProvider(CloudProvider):
         for key, value in profile.items():
             setattr(self, key, value)
 
-        if not hasattr(self, 'apiKey'):
+        if not hasattr(self, 'secretAccessKey'):
             try:
                 profile = ModelImporter.model('rax', 'cumulus').load(
                     self.girder_profile_id)
 
-                self.apiKey = profile.get('apiKey', None)
+                self.secretAccessKey = profile.get('secretAccessKey', None)
             # Cumulus plugin libraries are not available
             except ImportError:
-                self.apiKey = None
+                self.secretAccessKey = None
 
         self._volume_cache = {}
 
@@ -69,6 +69,10 @@ class RAXProvider(CloudProvider):
 #                        key=lambda instance:
 #                        {i['Key']: i['Value']
 #                         for i in instance.tags}['ec2_pod_instance_name'])
+
+    def get_env_vars(self):
+        return {'RAX_APIKEY': self.secretAccessKey,
+                'RAX_USERNAME': self.userName}
 
     def get_inventory(self, cluster_id):
         """
@@ -230,7 +234,7 @@ class RAXProvider(CloudProvider):
         if self._connection is None:
             self._connection = connection.Connection(
                 username=self.userName,
-                api_key=self.apiKey,
+                api_key=self.secretAccessKey,
                 region=self.regionName)
         return self._connection
 
@@ -273,19 +277,19 @@ CloudProvider.register('rax', RAXProvider)
 
 
 if __name__ == '__main__':
-    pass
-#     REQUIRED_ENV_VARS = ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY',
-#                          'CLUSTER_ID', 'REGION_NAME')
-#
-#     for required_env_var in REQUIRED_ENV_VARS:
-#         if os.environ.get(required_env_var, '') == '':
-#             raise Exception('Required env var %s not given to Cumulus'
-#                             'inventory.' % required_env_var)
-#
-#     p = CloudProvider({
-#         'accessKeyId': os.environ.get('AWS_ACCESS_KEY_ID'),
-#         'secretAccessKey': os.environ.get('AWS_SECRET_ACCESS_KEY'),
-#         'cloudProvider': 'ec2'
-#     })
-#
-#     print(json.dumps(p.get_inventory(os.environ.get('CLUSTER_ID'))))
+    REQUIRED_ENV_VARS = ('RAX_USERNAME', 'RAX_APIKEY', 'CLUSTER_ID',
+                         'REGION_NAME')
+
+    for required_env_var in REQUIRED_ENV_VARS:
+        if os.environ.get(required_env_var, '') == '':
+            raise Exception('Required env var %s not given to Cumulus'
+                            'inventory.' % required_env_var)
+
+    p = CloudProvider({
+        'userName': os.environ.get('RAX_USERNAME'),
+        'secretAccessKey': os.environ.get('RAX_APIKEY'),
+        'regionName': os.environ.get('REGION_NAME'),
+        'cloudProvider': 'rax'
+    })
+
+    print(json.dumps(p.get_inventory(os.environ.get('CLUSTER_ID'))))

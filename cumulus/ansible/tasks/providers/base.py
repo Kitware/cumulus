@@ -52,6 +52,9 @@ class CloudProvider(object):
     def register(cls, key, subcls):
         cls.__provider_registry__[key] = subcls
 
+    def get_env_vars(self):
+        raise NotImplementedError('Must be implemented by subclass')
+
     def get_inventory(self):
         raise NotImplementedError('Must be implemented by subclass')
 

@@ -78,6 +78,10 @@ class EC2Provider(CloudProvider):
                        {i['Key']: i['Value']
                         for i in instance.tags}['ec2_pod_instance_name'])
 
+    def get_env_vars(self):
+        return {'AWS_ACCESS_KEY_ID': self.accessKeyId,
+                'AWS_SECRET_ACCESS_KEY': self.secretAccessKey}
+
     def get_inventory(self, cluster_id):
         """
         Retrieve the inventory from a set of regions in an Ansible Dynamic
