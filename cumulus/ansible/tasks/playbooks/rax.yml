@@ -1,0 +1,24 @@
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    rax_apikey: "{{ lookup('env', 'RAX_APIKEY') }}"
+  tasks:
+    - name: "A TEST DEBUG MESSAGE"
+      debug: msg="{{ rax_apikey }}"
+
+#     - rax:
+#         api_key: "{{ lookup('env', 'RACKSPACE_API_KEY') }}"
+#         username: "chris.kotfila"
+#         name: "test Server"
+#         flavor: 4
+#         image: 'c86c7b56-02c5-4e79-826a-b1c895167bee' # Ubuntu 16.04 LTS (Xenial Xerus) (PVHVM)
+#         key_name: minastirith
+#         wait: yes
+#         region: 'IAD'
+#         networks:
+#           - test
+#       register: rax
+#
+#     - debug: msg="{{ rax }}"

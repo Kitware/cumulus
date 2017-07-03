@@ -138,7 +138,7 @@ class RAXProvider(CloudProvider):
 #                     if host != '_meta'])
 
     def get_master_instance(self, cluster_id):
-        pass
+        return {'public_ip': "PUBLIC_IP"}
 #         cluster_id = str(cluster_id)
 #
 #         instances = list(self.ec2.instances.filter(Filters=[
