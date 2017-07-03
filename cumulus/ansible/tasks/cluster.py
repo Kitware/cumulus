@@ -26,10 +26,10 @@ from celery.utils.log import get_task_logger
 from cumulus.ansible.tasks.utils import get_playbook_path
 from cumulus.ansible.tasks.utils import check_girder_cluster_status
 from cumulus.ansible.tasks.utils import get_callback_plugins_path
-from cumulus.ansible.tasks.utils import get_playbook_variables
 from cumulus.ansible.tasks.utils import run_playbook
 from cumulus.ansible.tasks.utils import check_ansible_return_code
 from cumulus.ansible.tasks.volume import detach_volume
+from cumulus.ssh.tasks.key import _key_path
 
 logger = get_task_logger(__name__)
 
@@ -38,8 +38,11 @@ logger = get_task_logger(__name__)
 def provision_cluster(playbook, cluster, profile, secret_key, extra_vars,
                       girder_token, log_write_url, post_status):
     p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
+
     playbook = get_playbook_path(playbook)
-    playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
+
+    playbook_variables = p.get_playbook_vars(cluster,
+        **dict(ansible_ssh_private_key_file=_key_path(profile), **extra_vars))
 
     env = os.environ.copy()
     env.update({'GIRDER_TOKEN': girder_token,
@@ -84,7 +87,8 @@ def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
     p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
     playbook = get_playbook_path(playbook)
-    playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
+
+    playbook_variables = p.get_playbook_vars(cluster, **extra_vars)
 
     env = os.environ.copy()
     env.update({'GIRDER_TOKEN': girder_token,
@@ -121,7 +125,9 @@ def terminate_cluster(playbook, cluster, profile, secret_key, extra_vars,
     p = CloudProvider(dict(secretAccessKey=secret_key, **profile))
 
     playbook = get_playbook_path(playbook)
-    playbook_variables = get_playbook_variables(cluster, profile, extra_vars)
+
+    playbook_variables = p.get_playbook_vars(cluster,
+        **dict(ansible_ssh_private_key_file=_key_path(profile), **extra_vars))
 
     env = os.environ.copy()
     env.update({'GIRDER_TOKEN': girder_token,

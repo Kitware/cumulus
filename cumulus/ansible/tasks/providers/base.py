@@ -55,6 +55,9 @@ class CloudProvider(object):
     def get_env_vars(self):
         raise NotImplementedError('Must be implemented by subclass')
 
+    def get_playbook_vars(self, cluster):
+        raise NotImplementedError('Must be implemented by subclass')
+
     def get_inventory(self):
         raise NotImplementedError('Must be implemented by subclass')
 

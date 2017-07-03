@@ -74,6 +74,21 @@ class RAXProvider(CloudProvider):
         return {'RAX_APIKEY': self.secretAccessKey,
                 'RAX_USERNAME': self.userName}
 
+    def get_playbook_vars(self, cluster, **kwargs):
+        playbook_variables = {
+            'cluster_region': self.regionName,
+            'cluster_id': cluster['_id'],
+        }
+
+        if 'rax_keyname' not in playbook_variables:
+            playbook_variables['rax_keyname'] = self.girder_profile_id
+
+        playbook_variables.update(kwargs)
+
+        return playbook_variables
+
+
+
     def get_inventory(self, cluster_id):
         """
         Retrieve the inventory from a set of regions in an Ansible Dynamic

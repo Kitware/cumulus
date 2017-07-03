@@ -82,6 +82,22 @@ class EC2Provider(CloudProvider):
         return {'AWS_ACCESS_KEY_ID': self.accessKeyId,
                 'AWS_SECRET_ACCESS_KEY': self.secretAccessKey}
 
+
+    def get_playbook_vars(self, cluster, **kwargs):
+        playbook_variables = {
+            'cluster_region': self.regionName,
+            'cluster_zone': self.availabilityZone,
+            'cluster_id': cluster['_id'],
+        }
+
+        # If no keyname is provided use the one associated with the profile
+        if 'aws_keyname' not in playbook_variables:
+            playbook_variables['aws_keyname'] = self.girder_profile_id
+
+        playbook_variables.update(kwargs)
+
+        return playbook_variables
+
     def get_inventory(self, cluster_id):
         """
         Retrieve the inventory from a set of regions in an Ansible Dynamic

@@ -23,7 +23,6 @@ import cumulus
 import requests
 from cumulus.common import check_status
 from celery.utils.log import get_task_logger
-from cumulus.ssh.tasks.key import _key_path
 
 logger = get_task_logger(__name__)
 
@@ -80,25 +79,6 @@ def run_playbook(playbook, inventory, extra_vars=None,
 
         if p.poll() is not None:
             return p.wait()
-
-
-def get_playbook_variables(cluster, profile, extra_vars):
-    # Default variables all playbooks will need
-    playbook_variables = {
-        'cluster_region': profile['regionName'],
-        'cluster_zone': profile['availabilityZone'],
-        'cluster_id': cluster['_id'],
-        'ansible_ssh_private_key_file': _key_path(profile)
-    }
-
-    # Update with variables passed in from the cluster adapater
-    playbook_variables.update(extra_vars)
-
-    # If no keyname is provided use the one associated with the profile
-    if 'aws_keyname' not in playbook_variables:
-        playbook_variables['aws_keyname'] = profile['_id']
-
-    return playbook_variables
 
 
 def check_girder_cluster_status(cluster, girder_token, post_status):
