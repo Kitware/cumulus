@@ -60,10 +60,19 @@ def _get_profile(profile_id):
     except InvalidId:
         query['name'] = profile_id
 
-    profile = ModelImporter.model('aws', 'cumulus').findOne(query)
-    secret = profile['secretAccessKey']
+    try:
+        profile = ModelImporter.model('aws', 'cumulus').findOne(query)
+        secret = profile['secretAccessKey']
 
-    profile = ModelImporter.model('aws', 'cumulus').filter(profile, user)
+        profile = ModelImporter.model('aws', 'cumulus').filter(profile, user)
+    except (KeyError, TypeError):
+        profile = ModelImporter.model('rax', 'cumulus').findOne(query)
+        secret = profile['apiKey']
+
+        profile = ModelImporter.model('rax', 'cumulus').filter(profile, user)
+    except Exception:
+        profile = secret = None
+
 
     if profile is None:
         raise ValidationException('Profile must be specified!')
