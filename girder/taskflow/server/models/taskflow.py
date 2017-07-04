@@ -77,6 +77,11 @@ class Taskflow(AccessControlledModel):
                                                        user=user)
             self.setAccessList(task, access_list, save=True, force=True)
 
+        jobs = taskflow.get('meta', {}).get('jobs', [])
+        for job_item in jobs:
+            job = self.model('job', 'cumulus').load(job_item['_id'], user=user)
+            self.setAccessList(job, access_list, save=True, force=True)
+
         return self.setAccessList(taskflow, access_list, save=True)
 
     def patch_access(self, user, taskflow, users, groups):
@@ -91,6 +96,15 @@ class Taskflow(AccessControlledModel):
             task = self.model('task', 'taskflow').load(task_item['_id'],
                                                        user=user)
             self.setAccessList(task, access_list, save=True, force=True)
+
+        jobs = taskflow.get('meta', {}).get('jobs', [])
+        for job_item in jobs:
+            job = self.model('job', 'cumulus').load(job_item['_id'], user=user)
+            job_access = job.get('access', {'groups': [], 'users': []})
+            merge_access(job_access['users'], users, AccessType.READ, [])
+            merge_access(job_access['groups'], groups, AccessType.READ, [])
+            print 'new access: %s' % job_access
+            self.setAccessList(job, job_access, save=True, force=True)
 
         return self.setAccessList(taskflow, access_list, save=True)
 
@@ -110,6 +124,18 @@ class Taskflow(AccessControlledModel):
             task = self.model('task', 'taskflow').load(task_item['_id'],
                                                        user=user)
             self.setAccessList(task, access_list, save=True, force=True)
+
+        jobs = taskflow.get('meta', {}).get('jobs', [])
+        for job_item in jobs:
+            job = self.model('job', 'cumulus').load(job_item['_id'], user=user)
+            job_access = job.get('access', {'groups': [], 'users': []})
+            new_job_access = {
+                'groups': [g for g in job_access['groups']
+                           if str(g['id']) not in groups],
+                'users': [u for u in job_access['users']
+                          if str(u['id']) not in users]
+            }
+            self.setAccessList(job, new_job_access, save=True, force=True)
 
         return self.setAccessList(taskflow, access_list, save=True, force=True)
 
