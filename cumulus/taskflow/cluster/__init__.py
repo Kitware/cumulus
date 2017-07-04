@@ -92,11 +92,13 @@ def setup_cluster(task, *args, **kwargs):
     cluster = kwargs['cluster']
     profile = kwargs.get('profile')
     volume = kwargs.get('volume')
+    new = False
 
     if '_id' in cluster:
         task.taskflow.logger.info(
             'We are using an existing cluster: %s' % cluster['name'])
     else:
+        new = True
         task.taskflow.logger.info('We are creating an EC2 cluster.')
         task.logger.info('Cluster name %s' % cluster['name'])
         kwargs['machine'] = cluster.get('machine')
@@ -122,20 +124,21 @@ def setup_cluster(task, *args, **kwargs):
                                   volume['name'])
         volume = create_volume(task, volume, profile)
 
-    provision_params = {}
-
-    girder_token = task.taskflow.girder_token
-    check_girder_cluster_status(cluster, girder_token, 'provisioning')
-
-    # attach volume
-    if volume:
-        volume = _attach_volume(task, profile, volume, cluster)
-        path = volume.get('path')
-        if path:
-            provision_params['master_nfs_exports_extra'] = [path]
-
     # Now provision
-    cluster = provision_ec2_cluster(task, cluster, profile, provision_params)
+    if new:
+        provision_params = {}
+
+        girder_token = task.taskflow.girder_token
+        check_girder_cluster_status(cluster, girder_token, 'provisioning')
+
+        # attach volume
+        if volume:
+            volume = _attach_volume(task, profile, volume, cluster)
+            path = volume.get('path')
+            if path:
+                provision_params['master_nfs_exports_extra'] = [path]
+
+        cluster = provision_ec2_cluster(task, cluster, profile, provision_params)
 
     # Call any follow on task
     if 'next' in kwargs:
