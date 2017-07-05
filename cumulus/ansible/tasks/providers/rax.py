@@ -71,13 +71,14 @@ class RAXProvider(CloudProvider):
 #                         for i in instance.tags}['ec2_pod_instance_name'])
 
     def get_env_vars(self):
-        return {'RAX_APIKEY': self.secretAccessKey,
+        return {'RAX_API_KEY': self.secretAccessKey,
                 'RAX_USERNAME': self.userName}
 
     def get_playbook_vars(self, cluster, **kwargs):
         playbook_variables = {
             'cluster_region': self.regionName,
             'cluster_id': cluster['_id'],
+            'user_name': self.userName
         }
 
         if 'rax_keyname' not in playbook_variables:
@@ -292,8 +293,8 @@ CloudProvider.register('rax', RAXProvider)
 
 
 if __name__ == '__main__':
-    REQUIRED_ENV_VARS = ('RAX_USERNAME', 'RAX_APIKEY', 'CLUSTER_ID',
-                         'REGION_NAME')
+    REQUIRED_ENV_VARS = ('RAX_USERNAME', 'RAX_API_KEY', 'CLUSTER_ID',
+                         'RAX_REGION')
 
     for required_env_var in REQUIRED_ENV_VARS:
         if os.environ.get(required_env_var, '') == '':
@@ -302,8 +303,8 @@ if __name__ == '__main__':
 
     p = CloudProvider({
         'userName': os.environ.get('RAX_USERNAME'),
-        'secretAccessKey': os.environ.get('RAX_APIKEY'),
-        'regionName': os.environ.get('REGION_NAME'),
+        'secretAccessKey': os.environ.get('RAX_API_KEY'),
+        'regionName': os.environ.get('RAX_REGION'),
         'cloudProvider': 'rax'
     })
 

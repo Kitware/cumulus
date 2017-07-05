@@ -1,0 +1,10 @@
+- name: Block until instance transitions to 'ACTIVE'
+  rax_facts:
+    api_key: "{{ rax_apikey }}"
+    username: "{{ user_name }}"
+    region: "{{ cluster_region }}"
+    id: "{{ item }}"
+  register: instance
+  until: "{{ instance['ansible_facts']['rax_status'] == 'ACTIVE' }}"
+  retries: 360
+  delay: 5

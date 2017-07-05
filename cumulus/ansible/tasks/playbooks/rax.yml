@@ -3,22 +3,59 @@
   gather_facts: false
   become: false
   vars:
-    rax_apikey: "{{ lookup('env', 'RAX_APIKEY') }}"
+    rax_apikey: "{{ lookup('env', 'RAX_API_KEY') }}"
   tasks:
-    - name: "A TEST DEBUG MESSAGE"
-      debug: msg="{{ rax_apikey }}"
+    - name: Add Network associated with Cluster ID
+      rax_network:
+        api_key: "{{ rax_apikey }}"
+        username: "{{ user_name }}"
+        region: "{{ cluster_region }}"
+        label: "{{ cluster_id }}"
+        cidr: "{{ cluster_cidr }}"
+      when: cluster_cidr is defined
+      register: cluster_network
 
-#     - rax:
-#         api_key: "{{ lookup('env', 'RACKSPACE_API_KEY') }}"
-#         username: "chris.kotfila"
-#         name: "test Server"
-#         flavor: 4
-#         image: 'c86c7b56-02c5-4e79-826a-b1c895167bee' # Ubuntu 16.04 LTS (Xenial Xerus) (PVHVM)
-#         key_name: minastirith
-#         wait: yes
-#         region: 'IAD'
-#         networks:
-#           - test
-#       register: rax
-#
-#     - debug: msg="{{ rax }}"
+    - set_fact:
+        cluster_networks: "{% if 'networks' in cluster_network: %}[cluster_id]{% else %}[]{% endif %}"
+
+    - name: Launch Master Instance
+      rax:
+        api_key: "{{ rax_apikey }}"
+        username: "{{ user_name }}"
+        name: "Master ({{ cluster_id }})"
+        flavor: "{{ master_flavor }}"
+        image: "{{master_image_id }}" # Ubuntu 16.04 LTS (Xenial Xerus) (PVHVM)
+        key_name: "{{ rax_keyname }}"
+        region: "{{ cluster_region }}"
+        networks: "{{ cluster_networks + ['public', 'private'] }}"
+        group: "master_{{ cluster_id }}"
+        meta:
+          node_type: 'master'
+          cluster_id: '{{ cluster_id }}'
+        exact_count: yes
+        count: 1
+      register: rax_instances
+
+    - set_fact:
+        rax_master: "{{ rax_instances['instances'][0] }}"
+
+    - name: Launch Node Instance(s)
+      rax:
+        api_key: "{{ rax_apikey }}"
+        username: "{{ user_name }}"
+        name: "Node ({{ cluster_id }}) "
+        flavor: "{{ node_flavor }}"
+        image: "{{node_image_id }}" # Ubuntu 16.04 LTS (Xenial Xerus) (PVHVM)
+        key_name: "{{ rax_keyname }}"
+        region: "{{ cluster_region }}"
+        networks: "{{ cluster_networks + ['public', 'private'] }}"
+        group: "node_{{ cluster_id }}"
+        meta:
+          node_type: 'node'
+          cluster_id: '{{ cluster_id }}'
+        exact_count: yes
+        count: "{{ node_count }}"
+      register: rax_instances
+
+    - include: get_instance_facts.yml
+      with_items: "{{ ([rax_master] + rax_instances['instances']) | map(attribute='id') | list }}"
