@@ -25,7 +25,8 @@ from cumulus.common.girder import send_status_notification, \
     send_log_notification
 import six
 
-from ..utility import to_object_id, merge_access
+from ..utility import to_object_id, merge_access, \
+    set_access_for_list, patch_access_for_list, revoke_access_for_list
 
 MAX_RETRIES = 4
 
@@ -69,18 +70,13 @@ class Taskflow(AccessControlledModel):
             }
             access_list['groups'].append(access_object)
 
-        tasks = self.model('task', 'taskflow').find_by_taskflow_id(
-            user, taskflow['_id'])
+        task_model = self.model('task', 'taskflow')
+        tasks = task_model.find_by_taskflow_id(user, taskflow['_id'])
+        set_access_for_list(user, task_model, tasks, access_list)
 
-        for task_item in tasks:
-            task = self.model('task', 'taskflow').load(task_item['_id'],
-                                                       user=user)
-            self.setAccessList(task, access_list, save=True, force=True)
-
+        job_model = self.model('job', 'cumulus')
         jobs = taskflow.get('meta', {}).get('jobs', [])
-        for job_item in jobs:
-            job = self.model('job', 'cumulus').load(job_item['_id'], user=user)
-            self.setAccessList(job, access_list, save=True, force=True)
+        set_access_for_list(user, job_model, jobs, access_list)
 
         return self.setAccessList(taskflow, access_list, save=True)
 
@@ -90,21 +86,15 @@ class Taskflow(AccessControlledModel):
         merge_access(access_list['users'], users, AccessType.READ, [])
         merge_access(access_list['groups'], groups, AccessType.READ, [])
 
-        tasks = self.model('task', 'taskflow').find_by_taskflow_id(
-            user, taskflow['_id'])
-        for task_item in tasks:
-            task = self.model('task', 'taskflow').load(task_item['_id'],
-                                                       user=user)
-            self.setAccessList(task, access_list, save=True, force=True)
+        # add access to tasks
+        task_model = self.model('task', 'taskflow')
+        tasks = task_model.find_by_taskflow_id(user, taskflow['_id'])
+        patch_access_for_list(user, task_model, tasks, users, groups)
 
+        # add access to jobs
+        job_model = self.model('job', 'cumulus')
         jobs = taskflow.get('meta', {}).get('jobs', [])
-        for job_item in jobs:
-            job = self.model('job', 'cumulus').load(job_item['_id'], user=user)
-            job_access = job.get('access', {'groups': [], 'users': []})
-            merge_access(job_access['users'], users, AccessType.READ, [])
-            merge_access(job_access['groups'], groups, AccessType.READ, [])
-            print 'new access: %s' % job_access
-            self.setAccessList(job, job_access, save=True, force=True)
+        patch_access_for_list(user, job_model, jobs, users, groups)
 
         return self.setAccessList(taskflow, access_list, save=True)
 
@@ -117,25 +107,15 @@ class Taskflow(AccessControlledModel):
                       if str(u['id']) not in users]
         }
 
-        tasks = self.model('task', 'taskflow').find_by_taskflow_id(
-            user, taskflow['_id'])
+        # revoke tasks
+        task_model = self.model('task', 'taskflow')
+        tasks = task_model.find_by_taskflow_id(user, taskflow['_id'])
+        revoke_access_for_list(user, task_model, tasks, users, groups)
 
-        for task_item in tasks:
-            task = self.model('task', 'taskflow').load(task_item['_id'],
-                                                       user=user)
-            self.setAccessList(task, access_list, save=True, force=True)
-
+        # revoke jobs
+        job_model = self.model('job', 'cumulus')
         jobs = taskflow.get('meta', {}).get('jobs', [])
-        for job_item in jobs:
-            job = self.model('job', 'cumulus').load(job_item['_id'], user=user)
-            job_access = job.get('access', {'groups': [], 'users': []})
-            new_job_access = {
-                'groups': [g for g in job_access['groups']
-                           if str(g['id']) not in groups],
-                'users': [u for u in job_access['users']
-                          if str(u['id']) not in users]
-            }
-            self.setAccessList(job, new_job_access, save=True, force=True)
+        revoke_access_for_list(user, job_model, jobs, users, groups)
 
         return self.setAccessList(taskflow, access_list, save=True, force=True)
 

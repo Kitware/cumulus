@@ -18,7 +18,7 @@
 ###############################################################################
 
 from bson.objectid import ObjectId
-
+from girder.constants import AccessType
 from girder.models.model_base import ValidationException
 
 
@@ -59,3 +59,34 @@ def merge_access(target, members, level, flags):
                     item['flags'] = flags
                     break
     return new_members
+
+
+def set_access_for_list(user, model, target_list, access_list,
+                        level=AccessType.READ, flags=[]):
+    for item in target_list:
+        obj = model.load(item['_id'], user=user)
+        model.setAccessList(obj, access_list, save=True, force=True)
+
+
+def patch_access_for_list(user, model, target_list, users, groups,
+                          level=AccessType.READ, flags=[]):
+    for item in target_list:
+        obj = model.load(item['_id'], user=user)
+        obj_access = obj.get('access', {'groups': [], 'users': []})
+        merge_access(obj_access['users'], users, level, flags)
+        merge_access(obj_access['groups'], groups, level, flags)
+        model.setAccessList(obj, obj_access, save=True, force=True)
+
+
+def revoke_access_for_list(user, model, target_list, users, groups,
+                           level=AccessType.READ, flags=[]):
+    for item in target_list:
+            obj = model.load(item['_id'], user=user)
+            obj_access = obj.get('access', {'groups': [], 'users': []})
+            new_access = {
+                'groups': [g for g in obj_access['groups']
+                           if str(g['id']) not in groups],
+                'users': [u for u in obj_access['users']
+                          if str(u['id']) not in users]
+            }
+            model.setAccessList(obj, new_access, save=True, force=True)
