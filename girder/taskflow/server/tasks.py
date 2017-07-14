@@ -97,7 +97,7 @@ class Tasks(Resource):
     @loadmodel(model='task', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(None)
     def log(self, task, params):
-        body = cherrypy.request.body.read()
+        body = cherrypy.request.body.read().decode('utf8')
 
         if not body:
             raise RestException('Log entry must be provided', code=400)

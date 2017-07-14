@@ -51,12 +51,11 @@ class RESTfulLogHandler(logging.Handler):
             r.raise_for_status()
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
-                print >> sys.stderr, \
-                    'Logging endpoint appears to have disappeared.'
+                sys.stderr.write(
+                    'Logging endpoint appears to have disappeared.\n')
             else:
                 raise e
         except Exception as e:
             traceback.print_stack()
             if r:
-                print >> sys.stderr, \
-                    'Unable to POST log record: %s' % r.content
+                sys.stderr.write('Unable to POST log record: %s\n' % r.content)
