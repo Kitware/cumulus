@@ -75,7 +75,7 @@ class TaskFlows(Resource):
         }
     }, 'taskflows')
 
-    @access.user
+    @access.token
     @filtermodel(model='taskflow', plugin='taskflow')
     @describeRoute(
         Description('Create the taskflow')
@@ -107,7 +107,7 @@ class TaskFlows(Resource):
 
         return taskflow
 
-    @access.user
+    @access.token
     @filtermodel(model='taskflow', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(
@@ -148,7 +148,7 @@ class TaskFlows(Resource):
     def status(self, taskflow, params):
         return {'status': taskflow['status']}
 
-    @access.user
+    @access.token
     @filtermodel(model='taskflow', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
@@ -207,7 +207,7 @@ class TaskFlows(Resource):
 
         taskflow_instance.terminate()
 
-    @access.user
+    @access.token
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(
         Description('Start the taskflow ')
@@ -238,7 +238,7 @@ class TaskFlows(Resource):
 
         workflow.start(**params)
 
-    @access.user
+    @access.token
     @filtermodel(model='taskflow', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(
@@ -284,7 +284,7 @@ class TaskFlows(Resource):
         cherrypy.response.status = 202
         return taskflow
 
-    @access.user
+    @access.token
     @filtermodel(model='task', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
@@ -343,7 +343,7 @@ class TaskFlows(Resource):
 
         return task
 
-    @access.user
+    @access.token
     @filtermodel(model='taskflow', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(None)
@@ -361,13 +361,13 @@ class TaskFlows(Resource):
         return self._model.collection.find_one_and_update(
             query, update, return_document=ReturnDocument.AFTER)
 
-    @access.user
+    @access.token
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(None)
     def delete_finished(self, taskflow, params):
         self._model.delete(taskflow)
 
-    @access.user
+    @access.token
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
         Description(

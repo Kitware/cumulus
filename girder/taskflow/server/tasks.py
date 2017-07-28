@@ -42,7 +42,7 @@ class Tasks(Resource):
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = self.model('task', 'taskflow')
 
-    @access.user
+    @access.token
     @filtermodel(model='task', plugin='taskflow')
     @loadmodel(model='task', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(
@@ -71,7 +71,7 @@ class Tasks(Resource):
 
         return self._model.update_task(user, task, status=status)
 
-    @access.user
+    @access.token
     @loadmodel(model='task', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
         Description('Get the task status')
@@ -80,7 +80,7 @@ class Tasks(Resource):
     def status(self, task, params):
         return {'status': task['status']}
 
-    @access.user
+    @access.token
     @filtermodel(model='task', plugin='taskflow')
     @loadmodel(model='task', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
@@ -93,7 +93,7 @@ class Tasks(Resource):
     def get(self, task, params):
         return task
 
-    @access.user
+    @access.token
     @loadmodel(model='task', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(None)
     def log(self, task, params):
@@ -104,7 +104,7 @@ class Tasks(Resource):
 
         self._model.append_to_log(task, json.loads(body))
 
-    @access.user
+    @access.token
     @loadmodel(model='task', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
         Description('Get log entries for task')
