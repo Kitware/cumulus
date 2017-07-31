@@ -138,7 +138,8 @@ def setup_cluster(task, *args, **kwargs):
             if path:
                 provision_params['master_nfs_exports_extra'] = [path]
 
-        cluster = provision_ec2_cluster(task, cluster, profile, provision_params)
+        cluster = provision_ec2_cluster(task, cluster, profile,
+                                        provision_params)
 
     # Call any follow on task
     if 'next' in kwargs:
