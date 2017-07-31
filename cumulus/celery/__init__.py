@@ -19,8 +19,9 @@
 
 from __future__ import absolute_import
 from celery import Celery
+from celery.datastructures import force_mapping
 from cumulus.taskflow.utility import find_taskflow_modules
-from .commonconfig import broker_url
+from . import commonconfig, commandconfig, monitorconfig
 from kombu.serialization import register
 import json
 
@@ -66,10 +67,10 @@ _routes = {
 }
 
 command = Celery('command',  backend='amqp',
-                 broker=broker_url,
                  include=_includes)
 
-command.config_from_object('cumulus.celery.commandconfig')
+command.config_from_object(commonconfig)
+command.conf.update(force_mapping(commandconfig))
 command.conf.update(
     CELERY_ROUTES=_routes,
     CELERY_TASK_SERIALIZER='oid_safe_json',
@@ -79,10 +80,10 @@ command.conf.update(
 )
 
 monitor = Celery('monitor',  backend='amqp',
-                 broker=broker_url,
                  include=_includes)
 
-monitor.config_from_object('cumulus.celery.monitorconfig')
+monitor.config_from_object(commonconfig)
+monitor.conf.update(force_mapping(monitorconfig))
 monitor.conf.update(
     CELERY_ROUTES=_routes
 )

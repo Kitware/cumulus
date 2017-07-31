@@ -75,7 +75,7 @@ class TaskFlows(Resource):
         }
     }, 'taskflows')
 
-    @access.user
+    @access.token
     @filtermodel(model='taskflow', plugin='taskflow')
     @describeRoute(
         Description('Create the taskflow')
@@ -95,7 +95,7 @@ class TaskFlows(Resource):
             load_class(taskflow['taskFlowClass'])
         except Exception as ex:
             msg = 'Unable to load taskflow class: %s (%s)' % \
-                  (taskflow['taskFlowClass'], ex.message)
+                  (taskflow['taskFlowClass'], ex)
             logger.exception(msg)
             traceback.print_exc()
             raise RestException(msg, 400)
@@ -107,7 +107,7 @@ class TaskFlows(Resource):
 
         return taskflow
 
-    @access.user
+    @access.token
     @filtermodel(model='taskflow', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(
@@ -148,7 +148,7 @@ class TaskFlows(Resource):
     def status(self, taskflow, params):
         return {'status': taskflow['status']}
 
-    @access.user
+    @access.token
     @filtermodel(model='taskflow', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
@@ -173,7 +173,7 @@ class TaskFlows(Resource):
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(None)
     def log(self, taskflow, params):
-        body = cherrypy.request.body.read()
+        body = cherrypy.request.body.read().decode('utf8')
         if not body:
             raise RestException('Log entry must be provided', code=400)
 
@@ -207,7 +207,7 @@ class TaskFlows(Resource):
 
         taskflow_instance.terminate()
 
-    @access.user
+    @access.token
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(
         Description('Start the taskflow ')
@@ -215,6 +215,10 @@ class TaskFlows(Resource):
             'id',
             'The id of task',
             required=True, paramType='path')
+        .param(
+            'body',
+            'The input to the taskflow',
+            required=False, paramType='body')
     )
     def start(self, taskflow, params):
         user = self.getCurrentUser()
@@ -234,7 +238,7 @@ class TaskFlows(Resource):
 
         workflow.start(**params)
 
-    @access.user
+    @access.token
     @filtermodel(model='taskflow', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(
@@ -280,7 +284,7 @@ class TaskFlows(Resource):
         cherrypy.response.status = 202
         return taskflow
 
-    @access.user
+    @access.token
     @filtermodel(model='task', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
@@ -339,7 +343,7 @@ class TaskFlows(Resource):
 
         return task
 
-    @access.user
+    @access.token
     @filtermodel(model='taskflow', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(None)
@@ -357,13 +361,13 @@ class TaskFlows(Resource):
         return self._model.collection.find_one_and_update(
             query, update, return_document=ReturnDocument.AFTER)
 
-    @access.user
+    @access.token
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(None)
     def delete_finished(self, taskflow, params):
         self._model.delete(taskflow)
 
-    @access.user
+    @access.token
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
         Description(

@@ -23,6 +23,7 @@ from girder.constants import AccessType
 from cumulus.taskflow import TaskFlowState, TaskState
 from cumulus.common.girder import send_status_notification, \
     send_log_notification
+import six
 
 MAX_RETRIES = 4
 
@@ -72,7 +73,7 @@ class Taskflow(AccessControlledModel):
         Utility method to convert and dictionary into 'path' 'value' pairs
         that can be passed to $set operator
         """
-        for k, v in d.iteritems():
+        for k, v in six.iteritems(d):
             if isinstance(v, dict) and v:
                 if not path:
                     new_path = k
