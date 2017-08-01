@@ -160,9 +160,9 @@
   tags:
     - master
 
-- name: Copy over all.q configuration
+- name: Template all.q configuration
   become_user: sgeadmin
-  copy: src=all.q dest=/tmp/all.q
+  template: src=all.q.j2 dest=/tmp/all.q
   tags:
     - master
 

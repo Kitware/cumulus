@@ -12,7 +12,7 @@ qtype                 BATCH INTERACTIVE
 ckpt_list             NONE
 pe_list               make, orte
 rerun                 FALSE
-slots                 1
+slots                 {{ hostvars[(groups.exec | default([]) + groups.master)[0]].get('ansible_processor_count', 1) }}
 tmpdir                /tmp
 shell                 /bin/csh
 prolog                NONE
