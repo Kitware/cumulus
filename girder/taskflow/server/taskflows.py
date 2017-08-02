@@ -211,14 +211,8 @@ class TaskFlows(Resource):
 
         taskflow_instance.terminate()
 
-<<<<<<< HEAD
     @access.token
-    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN,
-               requiredFlags='execute')
-=======
-    @access.user
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
->>>>>>> removed execute flag requirement
     @describeRoute(
         Description('Start the taskflow ')
         .param(

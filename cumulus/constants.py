@@ -19,10 +19,6 @@
 
 
 import six
-from girder.constants import registerAccessFlag
-
-registerAccessFlag('execute', 'Execute taskflows', description='Allow \
-                   users to start and stop taskflows', admin=True)
 
 
 class ClusterType:
