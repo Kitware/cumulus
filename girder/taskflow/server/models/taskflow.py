@@ -25,6 +25,9 @@ from cumulus.common.girder import send_status_notification, \
     send_log_notification
 import six
 
+from ..utility import to_object_id, merge_access, \
+    set_access_for_list, patch_access_for_list, revoke_access_for_list
+
 MAX_RETRIES = 4
 
 
@@ -49,6 +52,72 @@ class Taskflow(AccessControlledModel):
         send_status_notification('taskflow', taskflow)
 
         return taskflow
+
+    def set_access(self, user, taskflow, users, groups):
+        access_list = {'groups': [], 'users': []}
+
+        for user_id in users:
+            access_object = {
+                'id': to_object_id(user_id),
+                'level': AccessType.READ
+            }
+            access_list['users'].append(access_object)
+
+        for group_id in groups:
+            access_object = {
+                'id': to_object_id(group_id),
+                'level': AccessType.READ
+            }
+            access_list['groups'].append(access_object)
+
+        task_model = self.model('task', 'taskflow')
+        tasks = task_model.find_by_taskflow_id(user, taskflow['_id'])
+        set_access_for_list(user, task_model, tasks, access_list)
+
+        job_model = self.model('job', 'cumulus')
+        jobs = taskflow.get('meta', {}).get('jobs', [])
+        set_access_for_list(user, job_model, jobs, access_list)
+
+        return self.setAccessList(taskflow, access_list, save=True)
+
+    def patch_access(self, user, taskflow, users, groups):
+        access_list = taskflow.get('access', {'groups': [], 'users': []})
+
+        merge_access(access_list['users'], users, AccessType.READ, [])
+        merge_access(access_list['groups'], groups, AccessType.READ, [])
+
+        # add access to tasks
+        task_model = self.model('task', 'taskflow')
+        tasks = task_model.find_by_taskflow_id(user, taskflow['_id'])
+        patch_access_for_list(user, task_model, tasks, users, groups)
+
+        # add access to jobs
+        job_model = self.model('job', 'cumulus')
+        jobs = taskflow.get('meta', {}).get('jobs', [])
+        patch_access_for_list(user, job_model, jobs, users, groups)
+
+        return self.setAccessList(taskflow, access_list, save=True)
+
+    def revoke_access(self, user, taskflow, users, groups):
+        tf_access_list = taskflow.get('access', {'groups': [], 'users': []})
+        access_list = {
+            'groups': [g for g in tf_access_list['groups']
+                       if str(g['id']) not in groups],
+            'users': [u for u in tf_access_list['users']
+                      if str(u['id']) not in users]
+        }
+
+        # revoke tasks
+        task_model = self.model('task', 'taskflow')
+        tasks = task_model.find_by_taskflow_id(user, taskflow['_id'])
+        revoke_access_for_list(user, task_model, tasks, users, groups)
+
+        # revoke jobs
+        job_model = self.model('job', 'cumulus')
+        jobs = taskflow.get('meta', {}).get('jobs', [])
+        revoke_access_for_list(user, job_model, jobs, users, groups)
+
+        return self.setAccessList(taskflow, access_list, save=True, force=True)
 
     def append_to_log(self, taskflow, log):
         """
