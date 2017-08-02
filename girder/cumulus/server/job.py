@@ -285,7 +285,7 @@ class Job(BaseResource):
     def status(self, id, params):
         user = self.getCurrentUser()
 
-        job = self._model.load(id, user=user, level=AccessType.WRITE)
+        job = self._model.load(id, user=user, level=AccessType.READ)
 
         if not job:
             raise RestException('Job not found.', code=404)

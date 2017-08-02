@@ -53,6 +53,10 @@ class TaskFlows(Resource):
         self.route('POST', (':id', 'tasks'), self.create_task)
         self.route('DELETE', (':id',), self.delete)
         self.route('PUT', (':id', 'delete'), self.delete_finished)
+        self.route('GET', (':id', 'access'), self.get_access)
+        self.route('PUT', (':id', 'access'), self.set_access)
+        self.route('PATCH', (':id', 'access'), self.patch_access)
+        self.route('PATCH', (':id', 'access', 'revoke'), self.revoke_access)
         self.route('GET', (':id', 'tasks'), self.tasks)
         self.route('PUT', (':id', 'tasks', ':taskId', 'finished'),
                    self.task_finished)
@@ -370,8 +374,7 @@ class TaskFlows(Resource):
     @access.token
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
-        Description(
-        'Get log entries for task')
+        Description('Get log entries for task')
         .param(
             'id',
             'The task to get log entries for.', paramType='path')
@@ -386,3 +389,79 @@ class TaskFlows(Resource):
             offset = int(params['offset'])
 
         return {'log': taskflow['log'][offset:]}
+
+    addModel('ShareProperties', {
+        'id': 'ShareProperties',
+        'properties': {
+            'users': {
+                'type': 'array',
+                'items': {
+                    'type': 'string'
+                },
+                'description': 'array of user id\'s'
+            },
+            'groups': {
+                'type': 'array',
+                'items': {
+                    'type': 'string'
+                },
+                'description': 'array of group id\'s'
+            }
+        }
+    }, 'taskflows')
+
+    @access.user
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+    @describeRoute(
+        Description('Get access list for a taskflow')
+        .param('id', 'The id of taskflow',
+               required=True, paramType='path')
+    )
+    def get_access(self, taskflow, params):
+        return taskflow.get('access', {'groups': [], 'users': []})
+
+    @access.user
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+    @describeRoute(
+        Description('Set access list for a taskflow given a list of user and \
+                    group ids')
+        .param('id', 'The id of taskflow',
+               required=True, paramType='path')
+        .param('body', 'Users and group ID\'s to be authorized.',
+               dataType='ShareProperties', required=True, paramType='body')
+    )
+    def set_access(self, taskflow, params):
+        user = self.getCurrentUser()
+        body = getBodyJson()
+        return self._model.set_access(user, taskflow,
+                                      body['users'], body['groups'], True)
+
+    @access.user
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+    @describeRoute(
+        Description('Append access to a taskflow and its tasks')
+        .param('id', 'The id of taskflow',
+               required=True, paramType='path')
+        .param('body', 'Users and group ID\'s to share taskflow with.',
+               dataType='ShareProperties', required=True, paramType='body')
+    )
+    def patch_access(self, taskflow, params):
+        user = self.getCurrentUser()
+        body = getBodyJson()
+        return self._model.patch_access(user, taskflow,
+                                        body['users'], body['groups'])
+
+    @access.user
+    @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
+    @describeRoute(
+        Description('Revoke access to a taskflow and its tasks')
+        .param('id', 'The id of taskflow',
+               required=True, paramType='path')
+        .param('body', 'Users and group ID\'s to be unauthorized.',
+               dataType='ShareProperties', required=True, paramType='body')
+    )
+    def revoke_access(self, taskflow, params):
+        user = self.getCurrentUser()
+        body = getBodyJson()
+        return self._model.revoke_access(user, taskflow,
+                                         body['users'], body['groups'])

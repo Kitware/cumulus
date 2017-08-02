@@ -64,7 +64,6 @@ class TaskFlowTestCase(base.TestCase):
 
         self._group = self.model('group').createGroup('cumulus', self._cumulus)
 
-
     def test_taskflow_sse(self):
         body = {
             'taskFlowClass': 'cumulus.taskflow.core.test.mytaskflows.SimpleTaskFlow',
@@ -80,7 +79,7 @@ class TaskFlowTestCase(base.TestCase):
 
         # connect to cluster notification stream
         stream_r = self.request('/notification/stream', method='GET', user=self._user,
-                         isJson=False, params={'timeout': 0})
+                                isJson=False, params={'timeout': 0})
         self.assertStatusOk(stream_r)
 
         # add a log entry
@@ -96,3 +95,46 @@ class TaskFlowTestCase(base.TestCase):
         self.assertEqual(len(notifications), 2, 'Expecting two notification, received %d' % len(notifications))
         self.assertEqual(notifications[0]['type'], 'taskflow.status', 'Expecting a message with type \'taskflow.status\'')
         self.assertEqual(notifications[1]['type'], 'taskflow.log', 'Expecting a message with type \'taskflow.log\'')
+
+    def test_access(self):
+        body = {
+            'taskFlowClass': 'cumulus.taskflow.core.test.mytaskflows.SimpleTaskFlow',
+            'name': 'test_taskflow'
+        }
+
+        json_body = json.dumps(body)
+
+        r = self.request('/taskflows', method='POST',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 201)
+        taskflow_id = r.json['_id']
+
+        # check empty access
+        r = self.request('/taskflows/%s/access' % str(taskflow_id), method='GET',
+                         type='application/json', user=self._user)
+        self.assertStatus(r, 200)
+        self.assertEqual(len(r.json['users']), 1)
+        self.assertEqual(str(r.json['users'][0]['id']), str(self._user['_id']))
+
+        # grant access to _another_user
+        body = {'groups': [],
+                'users': [str(self._another_user['_id'])]}
+        json_body = json.dumps(body)
+        r = self.request('/taskflows/%s/access' % str(taskflow_id), method='PATCH',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 200)
+
+        # fetch the taskflow using one of the added users
+        r = self.request('/taskflows/%s' % str(taskflow_id), method='GET',
+                         type='application/json', user=self._another_user)
+        self.assertStatus(r, 200)
+
+        # revoke access of _another_user
+        r = self.request('/taskflows/%s/access' % str(taskflow_id), method='PATCH',
+                         type='application/json', body=json_body, user=self._user)
+        self.assertStatus(r, 200)
+
+        # fetch the taskflow using one of the added users
+        r = self.request('/taskflows/%s' % str(taskflow_id), method='GET',
+                         type='application/json', user=self._another_user)
+        self.assertStatus(r, 403)
