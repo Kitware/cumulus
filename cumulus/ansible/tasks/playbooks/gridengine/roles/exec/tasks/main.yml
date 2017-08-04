@@ -30,14 +30,16 @@
     - exec
     - nfs-client
 
-- name: Mounting /home from master
+- name: Mounting data directories from master
   become_user: root
   mount:
-    name: /home
-    src: "{{ hostvars[groups['master'][0]].private_ip }}:/home"
+    name: "{{ item }}"
+    src: "{{ hostvars[groups['master'][0]].private_ip }}:{{ item }}"
     fstype: nfs
     state: mounted
-  when: inventory_hostname != groups['master'][0]
+  with_items: "{{ master_nfs_exports }}"
+  when:
+    - inventory_hostname != groups['master'][0]
   tags:
     - exec
     - nfs-client

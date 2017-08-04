@@ -11,6 +11,14 @@
       fail:
         msg: "Mount path must be passed in as path"
       when: path is not defined or path == ""
+    # If we are running NFS shut it down or it will stop the unmount
+    - name: Stop NFS if its running
+      become: yes
+      become_user: root
+      service:
+        name: nfs-kernel-server
+        state: stopped
+      ignore_errors: yes
 
     - block:
         - mount:

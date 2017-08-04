@@ -84,7 +84,7 @@ def list_profiles(proxy):
 
     keys = [key('name'), key('status'), key('_id'),
             key('regionName'), key('cloudProvider')]
-    headers = ['Name', 'Status', 'Profile ID',  'Region', 'Cloud Provider']
+    headers = ['Name', 'Status', 'Profile ID', 'Region', 'Cloud Provider']
 
     print(tabulate([[f(p) for f in keys] for p in proxy.profiles],
                    headers=headers))
@@ -181,7 +181,7 @@ def list_clusters(proxy):
 
     keys = [key('name'), key('status'), key('_id'),
             get_profile(proxy.profiles)]
-    headers = ['Name', 'Status', 'Cluster ID',  'Profile']
+    headers = ['Name', 'Status', 'Cluster ID', 'Profile']
 
     print(tabulate([[f(c) for f in keys] for c in proxy.clusters],
                    headers=headers))

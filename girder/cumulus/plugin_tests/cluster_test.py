@@ -22,6 +22,7 @@ import json
 import mock
 from bson.objectid import ObjectId
 
+import cumulus
 from cumulus.transport.files import get_assetstore_url_base
 from cumulus.testing import AssertCallsMixin
 
@@ -199,6 +200,35 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
         r = self.request('/clusters', method='POST',
                          type='application/json', body=json.dumps(body), user=self._user)
         self.assertStatus(r, 400)
+
+        # Now test with valid profile
+        body = {
+            'profileId': profile_id,
+            'name': 'mycluster'
+        }
+
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json.dumps(body), user=self._user)
+        self.assertStatus(r, 201)
+
+        # Test that we can provide custom configuration and it will be added
+        # to the cluster.
+        job_dir = '/test'
+        body = {
+            'profileId': profile_id,
+            'name': 'myconfigcluster',
+            'config': {
+                'jobOutputDir': job_dir
+            }
+        }
+
+        r = self.request('/clusters', method='POST',
+                         type='application/json', body=json.dumps(body), user=self._user)
+        self.assertStatus(r, 201)
+        cluster = r.json
+        self.assertTrue('config' in cluster)
+        self.assertTrue('jobOutputDir' in cluster['config'])
+        self.assertEqual(cluster['config']['jobOutputDir'], job_dir)
 
 
     def test_get(self):
@@ -585,7 +615,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
                  u'output': [{   u'itemId': u'546a1844ff34c70456111185'}],
                  u'status': u'created',
                  u'userId': str(self._user['_id'])},
-             u'http://127.0.0.1/api/v1/jobs/%s/log' % job_id],
+             u'%s/jobs/%s/log' % (cumulus.config.girder.baseUrl, job_id)],
          {   }]]
 
         self.assertCalls(submit.call_args_list, expected_submit_call)
@@ -656,7 +686,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
                  u'secret',
                  {   u'cluster_state': u'absent'},
                  u'token',
-                 u'http://127.0.0.1/api/v1/clusters/%s/log' % cluster_id,
+                 u'%s/clusters/%s/log' % (cumulus.config.girder.baseUrl, cluster_id),
                  u'terminated'],
              {   }]]
 
@@ -785,7 +815,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
                          user=self._user)
 
         self.assertStatusOk(r)
-        expected = [[[{u'status': u'created', u'userId': str(self._user['_id']), u'config': {u'host': u'myhost', u'ssh': {u'user': u'bob', u'key': cluster_id}, u'scheduler': {u'type': u'sge'}}, u'_id': cluster_id, u'type': u'trad', u'name': u'my trad cluster'}], {u'girder_token': u'token', u'log_write_url': u'http://127.0.0.1/api/v1/clusters/%s/log' % cluster_id}]]
+        expected = [[[{u'status': u'created', u'userId': str(self._user['_id']), u'config': {u'host': u'myhost', u'ssh': {u'user': u'bob', u'key': cluster_id}, u'scheduler': {u'type': u'sge'}}, u'_id': cluster_id, u'type': u'trad', u'name': u'my trad cluster'}], {u'girder_token': u'token', u'log_write_url': u'%s/clusters/%s/log' % (cumulus.config.girder.baseUrl, cluster_id)}]]
         self.assertEqual(expected, self.normalize(test_connection.call_args_list))
 
 

@@ -80,10 +80,11 @@ class Cluster(BaseResource):
         name = body['name']
         playbook = get_property('config.launch.spec', body, default='default')
         launch_params = get_property('config.launch.params', body, default={})
+        config = get_property('config', body, default={})
         profile_id = body['profileId']
         user = self.getCurrentUser()
 
-        cluster = self._model.create_ansible(user, name, playbook,
+        cluster = self._model.create_ansible(user, name, config, playbook,
                                              launch_params, profile_id,
                                              cluster_type=cluster_type)
 
