@@ -162,7 +162,7 @@ def download_job_input(cluster, job, log_write_url=None, girder_token=None):
 
     # Create job directory
     with get_connection(girder_token, cluster) as conn:
-        conn.mkdir(job_directory(cluster, job))
+        conn.makedirs(job_directory(cluster, job))
 
     log.info('Downloading input for "%s"' % job['name'])
 
@@ -277,7 +277,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
 
             script = _generate_submission_script(job, cluster, job_params)
 
-            conn.mkdir(job_dir, ignore_failure=True)
+            conn.makedirs(job_dir, ignore_failure=True)
             # put the script to master
             conn.put(StringIO(script), os.path.join(job_dir, script_name))
 
