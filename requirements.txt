@@ -10,7 +10,7 @@ six==1.9.0
 jsonpath-rw==1.4.0
 enum34==1.0.4 ; python_version < '3.4'
 ansible==2.1
-girder-client==2.0.0
+girder-client==2.3.0
 paramiko==1.16.0
 click==6.6
 tabulate==0.7.5
