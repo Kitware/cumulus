@@ -507,7 +507,7 @@ def task_failure_handler(sender=None, task_id=None, exception=None,
 
             msg = 'Exception raise by task.'
             logger.error(
-                msg, exc_info=[type(exception), exception.message, traceback])
+                msg, exc_info=[type(exception), exception, traceback])
 
         except HttpError as ex:
             if taskflow_task_id:
