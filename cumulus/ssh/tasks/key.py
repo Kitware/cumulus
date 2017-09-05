@@ -80,7 +80,7 @@ def generate_key_pair(cluster, girder_token=None):
                            json={'status': 'error'})
         check_status(r)
         # Log the error message
-        log.error(ex.message)
+        log.error(ex)
 
 
 @command.task
