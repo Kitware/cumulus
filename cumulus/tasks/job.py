@@ -135,7 +135,7 @@ def download_job_input_items(cluster, job, log_write_url=None,
         r = requests.patch(status_url, headers=headers,
                            json={'status': 'error'})
         check_status(r)
-        get_job_logger(job, girder_token).exception(ex.message)
+        get_job_logger(job, girder_token).exception(str(ex))
 
 
 def download_job_input_folders(cluster, job, log_write_url=None,
@@ -318,7 +318,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
         r = requests.patch(status_url, headers=headers,
                            json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
-        get_job_logger(job, girder_token).exception(ex.message)
+        get_job_logger(job, girder_token).exception(str(ex))
         raise
 
 
@@ -446,7 +446,7 @@ class Running(JobState):
                                  tail_path)
                 except Exception as ex:
                     get_job_logger(self.job,
-                                   self.girder_token).exception(ex.message)
+                                   self.girder_token).exception(str(ex))
 
     def next(self, job_queue_status):
         if not job_queue_status or job_queue_status == JobQueueState.COMPLETE:
@@ -675,14 +675,14 @@ def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None,
         r = requests.patch(cluster_url, headers=headers,
                            json={'status': 'error'})
         check_status(r)
-        get_cluster_logger(cluster, girder_token).exception(ex.message)
+        get_cluster_logger(cluster, girder_token).exception(str(ex))
 
     except Exception as ex:
         traceback.print_exc()
         r = requests.patch(cluster_url, headers=headers,
                            json={'status': 'error'})
         check_status(r)
-        get_cluster_logger(cluster, girder_token).exception(ex.message)
+        get_cluster_logger(cluster, girder_token).exception(str(ex))
         raise
 
 
@@ -763,7 +763,7 @@ def upload_job_output_to_item(cluster, job, log_write_url=None, job_dir=None,
         r = requests.patch(status_url, headers=headers,
                            json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
-        get_job_logger(job, girder_token).exception(ex.message)
+        get_job_logger(job, girder_token).exception(str(ex))
 
 
 def upload_job_output_to_folder(cluster, job, log_write_url=None, job_dir=None,
@@ -905,7 +905,7 @@ def monitor_process(task, cluster, job, pid, nohup_out_path,
         r = requests.patch(status_url, headers=headers,
                            json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
-        get_job_logger(job, girder_token).exception(ex.message)
+        get_job_logger(job, girder_token).exception(str(ex))
         raise
 
 
@@ -964,7 +964,7 @@ def terminate_job(cluster, job, log_write_url=None, girder_token=None):
         r = requests.patch(status_url, headers=headers,
                            json={'status': JobState.UNEXPECTEDERROR})
         check_status(r)
-        get_job_logger(job, girder_token).exception(ex.message)
+        get_job_logger(job, girder_token).exception(str(ex))
         raise
     finally:
         if script_filepath and os.path.exists(script_filepath):
