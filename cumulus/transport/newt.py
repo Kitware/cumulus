@@ -21,6 +21,7 @@ import os
 from contextlib import contextmanager
 import stat
 import re
+import six
 
 import requests
 from paramiko import SFTPAttributes
@@ -110,7 +111,7 @@ class NewtClusterConnection(AbstractConnection):
         url = '%s/command/%s' % (NEWT_BASE_URL, self._machine)
 
         # NEWT requires all commands are issued using a full executable path
-        for (name, full_path) in commands.iteritems():
+        for (name, full_path) in six.iteritems(commands):
             command = re.sub(r'^%s[ ]*' % name, '%s ' % full_path, command)
 
         data = {
@@ -195,7 +196,7 @@ class NewtClusterConnection(AbstractConnection):
         output = self.execute(newt_stat_command + remote_path)[0]
         values = dict(s.split('=') for s in output.split(','))
         attributes = SFTPAttributes()
-        for (key, value) in values.iteritems():
+        for (key, value) in six.iteritems(values):
             try:
                 value = int(value)
             except ValueError:
