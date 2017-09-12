@@ -20,9 +20,13 @@
 import cherrypy
 import os
 import requests
+from jsonpath_rw import parse
 
-from girder.models.model_base import ValidationException
+from girder.models.model_base import ValidationException, GirderException
 from girder.utility.abstract_assetstore_adapter import AbstractAssetstoreAdapter
+from girder.api.rest import getCurrentUser
+
+BUF_LEN = 65536
 
 
 class NewtAssetstoreAdapter(AbstractAssetstoreAdapter):
@@ -51,15 +55,29 @@ class NewtAssetstoreAdapter(AbstractAssetstoreAdapter):
 
         full_path = file['path']
         url = '%s/file/%s/%s?view=read' % (self.newt_base_url, self.machine, full_path)
+        if headers:
+            raise cherrypy.HTTPRedirect(url)
+        else:
+            session_id = parse('newt.sessionId').find(getCurrentUser())
+            if len(session_id) > 0:
+                session_id = session_id[0].value
 
-        raise cherrypy.HTTPRedirect(url)
+            if session_id is None:
+                raise GirderException('Missing NEWT session id')
 
+            def stream():
+                cookies = dict(newt_sessionid=session_id)
+                r = requests.get(url, cookies=cookies, stream=True)
+                for chunk in r.iter_content(chunk_size=BUF_LEN):
+                    if chunk:
+                        yield chunk
+            return stream
 
     def _import_path(self, parent, user, path, parent_type='folder'):
         url = '%s/file/%s/%s' % (self.newt_base_url, self.machine, path)
 
         if 'newt_sessionid' not in cherrypy.request.cookie:
-            raise Exception('Missing newt_sessionid')
+            raise GirderException('Missing newt_sessionid')
 
         newt_sessionid = cherrypy.request.cookie['newt_sessionid'].value
         cookies = dict(newt_sessionid=newt_sessionid)
