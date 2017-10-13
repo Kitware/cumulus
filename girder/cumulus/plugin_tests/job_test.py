@@ -328,6 +328,33 @@ class JobTestCase(base.TestCase):
         }
         self.assertEqual(data, expected, 'Unexpected notification data')
 
+        body = {
+            'metadata': {
+                'my': 'data'
+            }
+        }
+
+        # Test update metadata property
+        r = self.request('/jobs/%s' % str(job_id), method='PATCH',
+                         type='application/json', body=json.dumps(body),
+                         user=self._cumulus)
+
+        self.assertTrue('metadata' in r.json)
+        self.assertEqual(r.json['metadata'], body['metadata'])
+
+        # Update again
+        body = {
+            'metadata': {
+                'my': 'data2',
+                'new': 1
+            }
+        }
+        r = self.request('/jobs/%s' % str(job_id), method='PATCH',
+                         type='application/json', body=json.dumps(body),
+                         user=self._cumulus)
+
+        self.assertTrue('metadata' in r.json)
+        self.assertEqual(r.json['metadata'], body['metadata'])
 
     def test_log(self):
         body = {
