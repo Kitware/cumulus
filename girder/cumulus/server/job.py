@@ -273,7 +273,7 @@ class Job(BaseResource):
             'queueJobId': {'type': 'integer',
                            'description': 'The native queue job id. (optional)'},
             'metadata': {'type': 'object',
-                         'description': 'Application metadata.'}
+                         'description': 'Application metadata. (optional)'}
         }
     }, 'jobs')
 
