@@ -251,6 +251,9 @@ class Job(BaseResource):
         if 'dir' in body:
             job['dir'] = body['dir']
 
+        if 'metadata' in body:
+            job['metadata'] = body['metadata']
+
         job = self._model.update_job(user, job)
 
         # Don't return the access object
@@ -268,7 +271,9 @@ class Job(BaseResource):
                 'description': 'The new status. (optional)'
             },
             'queueJobId': {'type': 'integer',
-                           'description': 'The native queue job id. (optional)'}
+                           'description': 'The native queue job id. (optional)'},
+            'metadata': {'type': 'object',
+                         'description': 'Application metadata. (optional)'}
         }
     }, 'jobs')
 
