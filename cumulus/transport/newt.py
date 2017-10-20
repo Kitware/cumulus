@@ -164,7 +164,7 @@ class NewtClusterConnection(AbstractConnection):
             if not ignore_failure:
                 raise
 
-    def makedirs(self, remote_path, ignore_failure=False):
+    def makedirs(self, remote_path):
         command = newt_mkdir_path
         command += ' -p %s' % remote_path
 

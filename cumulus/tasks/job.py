@@ -277,7 +277,7 @@ def submit_job(cluster, job, log_write_url=None, girder_token=None,
 
             script = _generate_submission_script(job, cluster, job_params)
 
-            conn.makedirs(job_dir, ignore_failure=True)
+            conn.makedirs(job_dir)
             # put the script to master
             conn.put(StringIO(script), os.path.join(job_dir, script_name))
 
