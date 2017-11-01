@@ -28,8 +28,15 @@ from girder.constants import SettingKey
 from girder.utility.model_importer import ModelImporter
 from girder.constants import AssetstoreType, AccessType
 from girder.api.docs import addModel
+from girder.models.setting import Setting
+from girder.models.user import User
+from girder.models.item import Item
+from girder.models.file import File
+from girder.models.assetstore import Assetstore
 
-from .constants import NEWT_BASE_URL
+
+from .constants import NEWT_BASE_URL, PluginSettings
+
 
 class Newt(Resource):
     def __init__(self):
@@ -47,22 +54,24 @@ class Newt(Resource):
             'newt.id': user_id
         }
 
-        user = self.model('user').findOne(query)
+        user = User().findOne(query)
         set_id = not user
 
         # Existing users using NEWT for the first time will not have an user id
         if not user:
-            user = self.model('user').findOne({'email': email})
+            user = User().findOne({'email': email})
 
         # Create the user if it's still not found
         if not user:
-            policy = self.model('setting').get(SettingKey.REGISTRATION_POLICY)
-            if policy != 'open':
-                raise RestException(
-                    'Registration on this instance is closed. Contact an '
-                    'administrator to create an account for you.')
+            policy = Setting().get(SettingKey.REGISTRATION_POLICY)
+            if policy == 'closed':
+                ignore = Setting().get(PluginSettings.IGNORE_REGISTRATION_POLICY)
+                if not ignore:
+                    raise RestException(
+                        'Registration on this instance is closed. Contact an '
+                        'administrator to create an account for you.')
 
-            user = self.model('user').createUser(
+            user = User().createUser(
                 login=user_name, password=None, firstName=first_name,
                 lastName=last_name, email=email)
         else:
@@ -83,7 +92,7 @@ class Newt(Resource):
 
         user.setdefault('newt', {})['sessionId'] = session_id
 
-        user = self.model('user').save(user)
+        user = User().save(user)
 
         return user
 
@@ -135,7 +144,7 @@ class Newt(Resource):
     def session_id(self, params):
         user = getCurrentUser()
 
-        user = self.model('user').load(user['_id'], fields=['newt'], force=True)
+        user = User().load(user['_id'], fields=['newt'], force=True)
 
         return {
             'sessionId': user.get('newt', {}).get('sessionId')
@@ -147,7 +156,7 @@ class Newt(Resource):
 def create_assetstore(params):
     """Create a new NEWT assetstore."""
 
-    return ModelImporter.model('assetstore').save({
+    return Assetstore().save({
         'type': AssetstoreType.NEWT,
         'name': params.get('name'),
         'newt': {
@@ -176,18 +185,18 @@ class NewtAssetstore(Resource):
         user = self.getCurrentUser()
 
         mime_type = params.get('mimeType')
-        item = self.model('item').load(id=item_id, user=user,
-                                      level=AccessType.WRITE, exc=True)
+        item = Item().load(id=item_id, user=user,
+                           level=AccessType.WRITE, exc=True)
 
-        file = self.model('file').createFile(
+        file = File().createFile(
                         name=name, creator=user, item=item, reuseExisting=True,
                         assetstore=assetstore, mimeType=mime_type, size=size)
 
         file['path'] = path
         file['imported'] = True
-        self.model('file').save(file)
+        self.File().save(file)
 
-        return self.model('file').filter(file)
+        return File().filter(file)
 
     addModel('CreateFileParams', {
         'id': 'CreateFileParams',
