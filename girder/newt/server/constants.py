@@ -18,3 +18,6 @@
 ###############################################################################
 
 NEWT_BASE_URL = 'https://newt.nersc.gov/newt'
+
+class PluginSettings:
+    IGNORE_REGISTRATION_POLICY = 'newt.ignore_registration_policy'
