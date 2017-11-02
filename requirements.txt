@@ -6,7 +6,7 @@ requests-toolbelt==0.3.0
 jsonschema==2.4.0
 easydict==1.5
 Jinja2==2.7.3
-six==1.9.0
+six==1.11.0
 jsonpath-rw==1.4.0
 enum34==1.0.4 ; python_version < '3.4'
 ansible==2.1
