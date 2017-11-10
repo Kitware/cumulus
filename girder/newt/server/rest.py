@@ -25,7 +25,6 @@ from girder.api.rest import Resource, RestException, getCurrentUser, getBodyJson
 from girder.api.rest import loadmodel
 from girder.api import access
 from girder.constants import SettingKey
-from girder.utility.model_importer import ModelImporter
 from girder.constants import AssetstoreType, AccessType
 from girder.api.docs import addModel
 from girder.models.setting import Setting
@@ -194,7 +193,7 @@ class NewtAssetstore(Resource):
 
         file['path'] = path
         file['imported'] = True
-        self.File().save(file)
+        File().save(file)
 
         return File().filter(file)
 
