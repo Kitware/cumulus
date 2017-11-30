@@ -11,6 +11,7 @@
 #SBATCH --output=dummy-123432423.o%j
 #SBATCH --error=dummy-123432423.e%j
 #SBATCH --workdir=
+#SBATCH --unbuffered
 
 ls
 sleep 20

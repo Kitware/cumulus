@@ -12,6 +12,7 @@
 #SBATCH --error=dummy-123432423.e%j
 #SBATCH --workdir=
 #SBATCH --ntasks=12312312
+#SBATCH --unbuffered
 
 ls
 sleep 20

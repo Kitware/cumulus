@@ -13,6 +13,7 @@
 #SBATCH --workdir=
 #SBATCH --nodes=12312312
 #SBATCH --cpus-per-task=8
+#SBATCH --unbuffered
 
 ls
 sleep 20
