@@ -19,9 +19,11 @@ before_install:
     - pushd "${HOME}/build"
     - git clone https://github.com/girder/girder.git
     - export IGNORE_PLUGINS=celery_jobs,geospatial,google_analytics,hdfs_assetstore,jquery_widgets,meta
-    - pip install -r girder/requirements.txt
-    - pip install -r girder/requirements-dev.txt
-    - pip install girder/
+    - pushd girder
+    - pip install -r requirements.txt
+    - pip install -r requirements-dev.txt
+    - pip install .
+    - popd
     - CACHE=$HOME/.cache source $HOME/build/girder/scripts/install_mongo.sh
     - mkdir /tmp/db
     - mongod --dbpath=/tmp/db >/dev/null 2>/dev/null &
