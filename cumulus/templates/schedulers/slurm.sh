@@ -29,4 +29,6 @@
 {% if constraint -%}
 #SBATCH --constraint={{constraint}}
 {% endif -%}
-
+{% if unbuffered is not defined or unbuffered -%}
+#SBATCH --unbuffered
+{% endif -%}

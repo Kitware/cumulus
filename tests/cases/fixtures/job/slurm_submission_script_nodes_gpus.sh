@@ -13,6 +13,7 @@
 #SBATCH --workdir=
 #SBATCH --nodes=12312312
 #SBATCH --gres=gpu:2
+#SBATCH --unbuffered
 
 ls
 sleep 20
