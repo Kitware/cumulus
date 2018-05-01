@@ -142,7 +142,7 @@ def _folder_id_before(conn, path, cluster, encoded_id):
 def _item_before(conn, path, cluster, encoded_id):
     items = []
     for entry in conn.list(path):
-        if not stat.S_ISDIR(path['mode']):
+        if not stat.S_ISDIR(entry['mode']):
             item_path = os.path.join(path, entry['name'])
             item_id = _generate_id(cluster['_id'], item_path)
             items.append({
@@ -153,7 +153,7 @@ def _item_before(conn, path, cluster, encoded_id):
                 "description": "",
                 "folderId": encoded_id,
                 "name": entry['name'],
-                "size": 0,
+                "size": entry['size'],
                 # TODO: Need to convert to right format
                 "updated": entry['date']
             })
@@ -163,22 +163,23 @@ def _item_before(conn, path, cluster, encoded_id):
 @access.user
 @_decode_id
 def _item_id_before(conn, path, cluster, encoded_id):
-    item = conn.list(path).next()
-    parent_path = os.path.dirname(path)
-    parent_id = _generate_id(cluster['_id'], parent_path)
+    #item = conn.list(path).next()
+    for item in conn.list(path):
+        parent_path = os.path.dirname(path)
+        parent_id = _generate_id(cluster['_id'], parent_path)
 
-    return {
-        "_id": encoded_id,
-        "_modelType": "item",
-        # TODO: Need to convert to right format
-        "created": item['date'],
-        "description": "",
-        "folderId": parent_id,
-        "name": item['name'],
-        "size": 0,
-        # TODO: Need to convert to right format
-        "updated": item['date']
-    }
+        return {
+            "_id": encoded_id,
+            "_modelType": "item",
+            # TODO: Need to convert to right format
+            "created": item['date'],
+            "description": "",
+            "folderId": parent_id,
+            "name": item['name'],
+            "size": item['size'],
+            # TODO: Need to convert to right format
+            "updated": item['date']
+        }
 
 
 @access.user

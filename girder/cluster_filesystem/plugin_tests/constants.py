@@ -11,7 +11,7 @@ CLUSTER_LOAD = {
 
 PATH = '/a/b/c'
 
-ID_FIELDS = {
+DIR_ID_FIELDS = {
     'clusterId': 'dummy',
     'path': PATH
 }
@@ -67,7 +67,7 @@ FILE1 = {
     'user': 'user',
     'mode': stat.S_IFREG,
     'date': 'Feb  7 16:26',
-    'size': 0
+    'size': 123
 }
 
 FILE2 = {
@@ -76,7 +76,7 @@ FILE2 = {
     'user': 'user',
     'mode': stat.S_IFREG,
     'date': 'Feb  7 16:26',
-    'size': 0
+    'size': 456
 }
 
 FILE3 = {
@@ -85,5 +85,10 @@ FILE3 = {
     'user': 'user',
     'mode': stat.S_IFREG,
     'date': 'Feb  7 16:26',
-    'size': 0
+    'size': 78910
+}
+
+FILE_ID_FIELDS = {
+    'clusterId': 'dummy',
+    'path': "{}/{}".format(PATH, FILE1['name'])
 }
