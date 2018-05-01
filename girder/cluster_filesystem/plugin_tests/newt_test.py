@@ -25,30 +25,58 @@ import os
 
 from pytest_girder.assertions import assertStatusOk, assertStatus
 
-from .constants import CURR_DIR, PARENT_DIR, DIR1, DIR2, FILE1
+from .constants import (
+    CLUSTER_LOAD, PATH, ID_FIELDS,
+    CURR_DIR, PARENT_DIR,
+    DIR1, DIR2, DIR3,
+    FILE1, FILE2, FILE3
+)
 
 
-def _assert(listing, received, id_fields, is_curr_dir=False):
-    if is_curr_dir:
-        dir_name = os.path.split(id_fields['path'])[1]
+def _assert_dir(listing, received, id_fields, is_curr=False):
+    if is_curr:
+        dir_name = os.path.basename(id_fields['path'])
         assert dir_name  == received['name']
     else:
         assert listing['name'] == received['name']
     assert listing['size'] == received['size']
     assert not received['public']
     assert received['parentCollection'] == 'folder'
-    parent_id = json.loads(urllib.parse.unquote_plus(received['parentId']))
-    if is_curr_dir:
-        pass
-    else:
-        assert  parent_id == id_fields
+    
+    listed_parent = id_fields.copy()
+    received_parent = json.loads(urllib.parse.unquote_plus(received['parentId']))
+    _assert_parent(listed_parent, received_parent, is_curr)
+    
     id = json.loads(urllib.parse.unquote_plus(received['_id']))
     assert id['clusterId'] == 'dummy'
-    assert id['path'] == os.path.join(parent_id['path'], received['name'])
+    #assert id['path'] == os.path.join(parent_id['path'], received['name'])
     if listing['mode'] == stat.S_IFDIR:
         assert received['_modelType'] == 'folder'
     elif listing['mode'] == stat.S_IFREG:
         assert received['_modelType'] == 'file'
+
+def _assert_base():
+    pass
+
+def _assert_parent(listed, received, is_curr=False):
+    if is_curr:
+        listed['path'] = os.path.dirname(listed['path'])
+    assert listed == received
+    
+
+def _set_mock_connection_list(conn):
+    conn.list.return_value = [PARENT_DIR, CURR_DIR]
+    folders = [DIR1, DIR2, DIR3]
+    files  = [FILE1, FILE2, FILE3]
+    conn.list.return_value.extend(folders)
+    conn.list.return_value.extend(files)
+    return folders, files
+
+def _set_mock_cluster(cluster):
+    cluster_model = cluster.return_value
+    cluster_model.load.return_value = CLUSTER_LOAD
+    return
+    
 
 
 @pytest.mark.plugin('cluster_filesystem')
@@ -56,34 +84,10 @@ def _assert(listing, received, id_fields, is_curr_dir=False):
 @mock.patch('girder.plugins.cluster_filesystem.Cluster')
 def test_folder(cluster, get_connection, server, user):
     conn = get_connection.return_value.__enter__.return_value
+    folders, files = _set_mock_connection_list(conn)
+    _set_mock_cluster(cluster)
 
-    conn.list.return_value = [
-        PARENT_DIR,
-        CURR_DIR,
-        DIR1,
-        DIR2, {
-        'name': 'file1',
-        'group': 'group',
-        'user': 'user',
-        'mode': 0,
-        'date': 'Feb  7 16:26',
-        'size': 0
-    }]
-    cluster_model = cluster.return_value
-    cluster_model.load.return_value = {
-        '_id': 'dummy',
-        'type': 'newt',
-        'name': 'eyeofnewt',
-        'config': {
-            'host': 'cori'
-        }
-    }
-    path ='/a/b/c'
-    id_fields = {
-        'clusterId': 'dummy',
-        'path': path
-    }
-    id = urllib.parse.quote_plus(json.dumps(id_fields))
+    id = urllib.parse.quote_plus(json.dumps(ID_FIELDS))
 
     params = {
         'parentId': id
@@ -91,51 +95,43 @@ def test_folder(cluster, get_connection, server, user):
     r = server.request('/folder', method='GET',
                        type='application/json', params=params, user=user)
     assertStatusOk(r)
-    assert len(r.json) == 2
-    (received_dir1, received_dir2) = r.json
 
-    _assert(DIR1, received_dir1, id_fields)
-    _assert(DIR2, received_dir2, id_fields)
+    received_folders = r.json
+    assert len(received_folders) == len(folders)
+    for listed, received in zip(folders, received_folders):
+        _assert_dir(listed, received, ID_FIELDS)
 
-    assert conn.list.call_args_list == [mock.call(path)]
+    assert conn.list.call_args_list == [mock.call(PATH)]
 
 @pytest.mark.plugin('cluster_filesystem')
 @mock.patch('girder.plugins.cluster_filesystem.get_connection')
 @mock.patch('girder.plugins.cluster_filesystem.Cluster')
 def test_folder_id(cluster, get_connection, server, user):
     conn = get_connection.return_value.__enter__.return_value
-    dir = {
-        'name': '.',
-        'group': 'group',
-        'user': 'user',
-        'mode': stat.S_IFDIR,
-        'date': 'Feb  7 16:26',
-        'size': 0
-    }
     conn.list.return_value = [
-        dir
+        CURR_DIR
     ]
 
-    cluster_model = cluster.return_value
-    cluster_model.load.return_value = {
-        '_id': 'dummy',
-        'type': 'newt',
-        'name': 'eyeofnewt',
-        'config': {
-            'host': 'cori'
-        }
-    }
+    _set_mock_cluster(cluster)
 
-    path = '/a/b/c'
-    id_fields = {
-        'clusterId': 'dummy',
-        'path': path
-    }
-    id = urllib.parse.quote_plus(json.dumps(id_fields))
+    id = urllib.parse.quote_plus(json.dumps(ID_FIELDS))
 
     r = server.request('/folder/%s' % id, method='GET',
                        type='application/json', user=user)
     assertStatusOk(r)
     folder = r.json
-    _assert(CURR_DIR, folder, id_fields, is_curr_dir=True)
+    _assert_dir(CURR_DIR, folder, ID_FIELDS, is_curr=True)
 
+
+@pytest.mark.plugin('cluster_filesystem')
+@mock.patch('girder.plugins.cluster_filesystem.get_connection')
+@mock.patch('girder.plugins.cluster_filesystem.Cluster')
+def test_item(cluster, get_connection, server, user):
+    pass
+
+
+@pytest.mark.plugin('cluster_filesystem')
+@mock.patch('girder.plugins.cluster_filesystem.get_connection')
+@mock.patch('girder.plugins.cluster_filesystem.Cluster')
+def test_item_id(cluster, get_connection, server, user):
+    pass
