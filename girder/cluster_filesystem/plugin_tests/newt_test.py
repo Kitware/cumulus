@@ -46,7 +46,7 @@ def _assert_dir(listed, received, id_fields, is_curr=False):
     assert received['_modelType'] == 'folder'
 
 
-def _assert_file(listed, received, id_fields, is_curr=False):
+def _assert_item(listed, received, id_fields, is_curr=False):
     _assert_base(listed, received, id_fields)
 
     listed_parent = id_fields.copy()
@@ -54,6 +54,12 @@ def _assert_file(listed, received, id_fields, is_curr=False):
     _assert_parent(listed_parent, received_parent, is_curr)
 
     assert received['_modelType'] == 'item'
+
+def _assert_file(listed, received, id_fields):
+    _assert_base(listed, received, id_fields)
+    assert received['_modelType'] == 'file'
+
+
 
 
 
@@ -87,7 +93,7 @@ def _set_mock_connection_list(conn):
 def _set_mock_cluster(cluster):
     cluster_model = cluster.return_value
     cluster_model.load.return_value = CLUSTER_LOAD
-    return
+    
     
 
 
@@ -157,8 +163,7 @@ def test_item(cluster, get_connection, server, user):
     received_files = r.json
     assert len(received_files) == len(files)
     for listed, received in zip(files, received_files):
-        pass
-        _assert_file(listed, received, DIR_ID_FIELDS)
+        _assert_item(listed, received, DIR_ID_FIELDS)
 
     assert conn.list.call_args == mock.call(PATH)
 
@@ -175,15 +180,52 @@ def test_item_id(cluster, get_connection, server, user):
 
     id = urllib.parse.quote_plus(json.dumps(FILE_ID_FIELDS))
 
-    params = {
-        'folderId': id
-    }
     r = server.request('/item/%s' % id, method='GET',
-                       type='application/json', params=params, user=user)
+                       type='application/json', user=user)
     assertStatusOk(r)
 
     received_file = r.json
-    _assert_file(FILE1, received_file, FILE_ID_FIELDS, is_curr=True)
+    _assert_item(FILE1, received_file, FILE_ID_FIELDS, is_curr=True)
 
-    assert conn.list.call_args == mock.call("{}/{}".format(PATH, FILE1['name']))
+    #assert conn.list.call_args == mock.call("{}/{}".format(PATH, FILE1['name']))
 
+
+@pytest.mark.plugin('cluster_filesystem')
+@mock.patch('girder.plugins.cluster_filesystem.get_connection')
+@mock.patch('girder.plugins.cluster_filesystem.Cluster')
+def test_item_files(cluster, get_connection, server, user):
+    conn = get_connection.return_value.__enter__.return_value
+    conn.list.return_value = iter([
+        FILE1
+    ])
+    _set_mock_cluster(cluster)
+
+    id = urllib.parse.quote_plus(json.dumps(FILE_ID_FIELDS))
+
+    r = server.request('/item/%s/files' % id, method='GET',
+                       type='application/octet-stream', user=user)
+    assertStatusOk(r)
+
+    received_file = r.json
+    _assert_file(FILE1, received_file, FILE_ID_FIELDS)
+
+
+@pytest.mark.plugin('cluster_filesystem')
+@mock.patch('girder.plugins.cluster_filesystem.get_connection')
+@mock.patch('girder.plugins.cluster_filesystem.Cluster')
+def test_file_id(cluster, get_connection, server, user):
+    conn = get_connection.return_value.__enter__.return_value
+    conn.list.return_value = iter([
+        FILE1
+    ])
+    _set_mock_cluster(cluster)
+
+    id = urllib.parse.quote_plus(json.dumps(FILE_ID_FIELDS))
+
+    r = server.request('/file/%s' % id, method='GET',
+                       type='application/octet-stream', user=user)
+    assertStatusOk(r)
+
+    received_file = r.json
+    _assert_file(FILE1, received_file, FILE_ID_FIELDS)
+    

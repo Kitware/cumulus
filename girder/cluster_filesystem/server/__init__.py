@@ -59,7 +59,6 @@ def _decode_id(func=None, key='id'):
 
     @functools.wraps(func)
     def wrapped(event, **kwargs):
-
         if 'params' in event.info and key in event.info['params']:
             id = event.info['params'][key]
         elif key in event.info:
@@ -163,29 +162,29 @@ def _item_before(conn, path, cluster, encoded_id):
 @access.user
 @_decode_id
 def _item_id_before(conn, path, cluster, encoded_id):
-    #item = conn.list(path).next()
-    for item in conn.list(path):
-        parent_path = os.path.dirname(path)
-        parent_id = _generate_id(cluster['_id'], parent_path)
+    item = next(conn.list(path))
+    
+    parent_path = os.path.dirname(path)
+    parent_id = _generate_id(cluster['_id'], parent_path)
 
-        return {
-            "_id": encoded_id,
-            "_modelType": "item",
-            # TODO: Need to convert to right format
-            "created": item['date'],
-            "description": "",
-            "folderId": parent_id,
-            "name": item['name'],
-            "size": item['size'],
-            # TODO: Need to convert to right format
-            "updated": item['date']
-        }
+    return {
+        "_id": encoded_id,
+        "_modelType": "item",
+        # TODO: Need to convert to right format
+        "created": item['date'],
+        "description": "",
+        "folderId": parent_id,
+        "name": item['name'],
+        "size": item['size'],
+        # TODO: Need to convert to right format
+        "updated": item['date']
+    }
 
 
 @access.user
 @_decode_id
-def _item_files_before(conn, path, encoded_id):
-    file = conn.list(path).next()
+def _item_files_before(conn, path, cluster, encoded_id):
+    file = next(conn.list(path))
 
     return {
         "_id": encoded_id,
@@ -199,10 +198,13 @@ def _item_files_before(conn, path, encoded_id):
         "itemId": encoded_id,
         "mimeType": "application/octet-stream",
         "name": file['name'],
-        "size": file['size']
+        "size": file['size'],
+        # TODO: Need to convert to right format
+        "updated": file['date'],
     }
 
 
+@access.user
 def _file_id_before(event):
     return _item_files_before(event)
 
@@ -216,7 +218,6 @@ def _file_download_before(conn, path, cluster_id, **rest):
 
 
 def load(info):
-
     events.bind('rest.get.folder.before', 'newt_folders',_folder_before)
     events.bind('rest.get.folder/:id.before', 'newt_folders',_folder_id_before)
     events.bind('rest.get.item.before', 'newt_folders',_item_before)
