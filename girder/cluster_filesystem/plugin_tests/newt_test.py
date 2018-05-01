@@ -25,6 +25,30 @@ import os
 
 from pytest_girder.assertions import assertStatusOk, assertStatus
 
+from .constants import CURR_DIR, PARENT_DIR, DIR1, DIR2, FILE1
+
+
+def _assert(listing, received, id_fields, is_curr_dir=False):
+    if is_curr_dir:
+        dir_name = os.path.split(id_fields['path'])[1]
+        assert dir_name  == received['name']
+    else:
+        assert listing['name'] == received['name']
+    assert listing['size'] == received['size']
+    assert not received['public']
+    assert received['parentCollection'] == 'folder'
+    parent_id = json.loads(urllib.parse.unquote_plus(received['parentId']))
+    if is_curr_dir:
+        pass
+    else:
+        assert  parent_id == id_fields
+    id = json.loads(urllib.parse.unquote_plus(received['_id']))
+    assert id['clusterId'] == 'dummy'
+    assert id['path'] == os.path.join(parent_id['path'], received['name'])
+    if listing['mode'] == stat.S_IFDIR:
+        assert received['_modelType'] == 'folder'
+    elif listing['mode'] == stat.S_IFREG:
+        assert received['_modelType'] == 'file'
 
 
 @pytest.mark.plugin('cluster_filesystem')
@@ -32,43 +56,12 @@ from pytest_girder.assertions import assertStatusOk, assertStatus
 @mock.patch('girder.plugins.cluster_filesystem.Cluster')
 def test_folder(cluster, get_connection, server, user):
     conn = get_connection.return_value.__enter__.return_value
-    parent = {
-        'name': '..',
-        'group': 'group',
-        'user': 'user',
-        'mode': stat.S_IFDIR,
-        'date': 'Feb  7 16:26',
-        'size': 0
-    }
-    dir = {
-        'name': '.',
-        'group': 'group',
-        'user': 'user',
-        'mode': stat.S_IFDIR,
-        'date': 'Feb  7 16:26',
-        'size': 0
-    }
-    dir1 = {
-        'name': 'dir1',
-        'group': 'group',
-        'user': 'user',
-        'mode': stat.S_IFDIR,
-        'date': 'Feb  7 16:26',
-        'size': 0
-    }
-    dir2 = {
-        'name': 'dir2',
-        'group': 'group',
-        'user': 'user',
-        'mode': stat.S_IFDIR,
-        'date': 'Feb  7 16:26',
-        'size': 0
-    }
+
     conn.list.return_value = [
-        parent,
-        dir,
-        dir1,
-        dir2, {
+        PARENT_DIR,
+        CURR_DIR,
+        DIR1,
+        DIR2, {
         'name': 'file1',
         'group': 'group',
         'user': 'user',
@@ -101,20 +94,8 @@ def test_folder(cluster, get_connection, server, user):
     assert len(r.json) == 2
     (received_dir1, received_dir2) = r.json
 
-    def _assert(listing, received):
-        assert listing['name'] == received['name']
-        assert listing['size'] == received['size']
-        assert not received['public']
-        assert received['parentCollection'] == 'folder'
-        parent_id = json.loads(urllib.parse.unquote_plus(received['parentId']))
-        assert  parent_id == id_fields
-        id = json.loads(urllib.parse.unquote_plus(received['_id']))
-        assert id['clusterId'] == 'dummy'
-        assert id['path'] == os.path.join(parent_id['path'], received['name'])
-        assert received['_modelType'] == 'folder'
-
-    _assert(dir1, received_dir1)
-    _assert(dir2, received_dir2)
+    _assert(DIR1, received_dir1, id_fields)
+    _assert(DIR2, received_dir2, id_fields)
 
     assert conn.list.call_args_list == [mock.call(path)]
 
@@ -132,14 +113,9 @@ def test_folder_id(cluster, get_connection, server, user):
         'size': 0
     }
     conn.list.return_value = [
-        dir, {
-        'name': 'file1',
-        'group': 'group',
-        'user': 'user',
-        'mode': 0,
-        'date': 'Feb  7 16:26',
-        'size': 0
-    }]
+        dir
+    ]
+
     cluster_model = cluster.return_value
     cluster_model.load.return_value = {
         '_id': 'dummy',
@@ -150,9 +126,10 @@ def test_folder_id(cluster, get_connection, server, user):
         }
     }
 
+    path = '/a/b/c'
     id_fields = {
         'clusterId': 'dummy',
-        'path': '/a/b/c'
+        'path': path
     }
     id = urllib.parse.quote_plus(json.dumps(id_fields))
 
@@ -160,4 +137,5 @@ def test_folder_id(cluster, get_connection, server, user):
                        type='application/json', user=user)
     assertStatusOk(r)
     folder = r.json
-    assert folder['name'] == 'c'
+    _assert(CURR_DIR, folder, id_fields, is_curr_dir=True)
+
