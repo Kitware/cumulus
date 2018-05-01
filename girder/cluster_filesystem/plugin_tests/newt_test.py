@@ -23,6 +23,8 @@ from six.moves import urllib
 import pytest
 import os
 
+import girder.events
+
 from pytest_girder.assertions import assertStatusOk, assertStatus
 
 from .constants import (
@@ -33,6 +35,25 @@ from .constants import (
     FILE1, FILE2, FILE3
 )
 
+
+
+@pytest.fixture
+def unbound_server(server):
+    yield server
+
+    events = [
+        ('rest.get.folder.before', 'newt_folders'),
+        ('rest.get.folder/:id.before', 'newt_folders'),
+        ('rest.get.item.before', 'newt_folders'),
+        ('rest.get.item/:id.before', 'newt_folders'),
+        ('rest.get.item/:id/files.before', 'new_folders'),
+        ('rest.get.file/:id.before', 'newt_folders'),
+        ('rest.get.file/:id/download.before', 'newt_folders')
+    ]
+
+    for event_name, handler_name in events:
+        girder.events.unbind(event_name, handler_name)
+    
 
 def _assert_dir(listed, received, id_fields, is_curr=False):
     _assert_base(listed, received, id_fields, is_curr)
@@ -100,7 +121,7 @@ def _set_mock_cluster(cluster):
 @pytest.mark.plugin('cluster_filesystem')
 @mock.patch('girder.plugins.cluster_filesystem.get_connection')
 @mock.patch('girder.plugins.cluster_filesystem.Cluster')
-def test_folder(cluster, get_connection, server, user):
+def test_folder(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
     folders, files = _set_mock_connection_list(conn)
     _set_mock_cluster(cluster)
@@ -110,7 +131,7 @@ def test_folder(cluster, get_connection, server, user):
     params = {
         'parentId': id
     }
-    r = server.request('/folder', method='GET',
+    r = unbound_server.request('/folder', method='GET',
                        type='application/json', params=params, user=user)
     assertStatusOk(r)
 
@@ -124,7 +145,7 @@ def test_folder(cluster, get_connection, server, user):
 @pytest.mark.plugin('cluster_filesystem')
 @mock.patch('girder.plugins.cluster_filesystem.get_connection')
 @mock.patch('girder.plugins.cluster_filesystem.Cluster')
-def test_folder_id(cluster, get_connection, server, user):
+def test_folder_id(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
     conn.list.return_value = [
         CURR_DIR
@@ -134,7 +155,7 @@ def test_folder_id(cluster, get_connection, server, user):
 
     id = urllib.parse.quote_plus(json.dumps(DIR_ID_FIELDS))
 
-    r = server.request('/folder/%s' % id, method='GET',
+    r = unbound_server.request('/folder/%s' % id, method='GET',
                        type='application/json', user=user)
     assertStatusOk(r)
     folder = r.json
@@ -146,7 +167,7 @@ def test_folder_id(cluster, get_connection, server, user):
 @pytest.mark.plugin('cluster_filesystem')
 @mock.patch('girder.plugins.cluster_filesystem.get_connection')
 @mock.patch('girder.plugins.cluster_filesystem.Cluster')
-def test_item(cluster, get_connection, server, user):
+def test_item(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
     folders, files = _set_mock_connection_list(conn)
     _set_mock_cluster(cluster)
@@ -156,7 +177,7 @@ def test_item(cluster, get_connection, server, user):
     params = {
         'folderId': id
     }
-    r = server.request('/item', method='GET',
+    r = unbound_server.request('/item', method='GET',
                        type='application/json', params=params, user=user)
     assertStatusOk(r)
 
@@ -171,7 +192,7 @@ def test_item(cluster, get_connection, server, user):
 @pytest.mark.plugin('cluster_filesystem')
 @mock.patch('girder.plugins.cluster_filesystem.get_connection')
 @mock.patch('girder.plugins.cluster_filesystem.Cluster')
-def test_item_id(cluster, get_connection, server, user):
+def test_item_id(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
     conn.list.return_value = iter([
         FILE1
@@ -180,7 +201,7 @@ def test_item_id(cluster, get_connection, server, user):
 
     id = urllib.parse.quote_plus(json.dumps(FILE_ID_FIELDS))
 
-    r = server.request('/item/%s' % id, method='GET',
+    r = unbound_server.request('/item/%s' % id, method='GET',
                        type='application/json', user=user)
     assertStatusOk(r)
 
@@ -193,7 +214,7 @@ def test_item_id(cluster, get_connection, server, user):
 @pytest.mark.plugin('cluster_filesystem')
 @mock.patch('girder.plugins.cluster_filesystem.get_connection')
 @mock.patch('girder.plugins.cluster_filesystem.Cluster')
-def test_item_files(cluster, get_connection, server, user):
+def test_item_files(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
     conn.list.return_value = iter([
         FILE1
@@ -202,7 +223,7 @@ def test_item_files(cluster, get_connection, server, user):
 
     id = urllib.parse.quote_plus(json.dumps(FILE_ID_FIELDS))
 
-    r = server.request('/item/%s/files' % id, method='GET',
+    r = unbound_server.request('/item/%s/files' % id, method='GET',
                        type='application/octet-stream', user=user)
     assertStatusOk(r)
 
@@ -213,7 +234,7 @@ def test_item_files(cluster, get_connection, server, user):
 @pytest.mark.plugin('cluster_filesystem')
 @mock.patch('girder.plugins.cluster_filesystem.get_connection')
 @mock.patch('girder.plugins.cluster_filesystem.Cluster')
-def test_file_id(cluster, get_connection, server, user):
+def test_file_id(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
     conn.list.return_value = iter([
         FILE1
@@ -222,7 +243,7 @@ def test_file_id(cluster, get_connection, server, user):
 
     id = urllib.parse.quote_plus(json.dumps(FILE_ID_FIELDS))
 
-    r = server.request('/file/%s' % id, method='GET',
+    r = unbound_server.request('/file/%s' % id, method='GET',
                        type='application/octet-stream', user=user)
     assertStatusOk(r)
 
