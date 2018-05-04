@@ -60,29 +60,22 @@ def _assert_dir(listed, received, id_fields, is_curr=False):
     assert not received['public']
     assert received['parentCollection'] == 'folder'
     
-    listed_parent = id_fields.copy()
     received_parent = json.loads(urllib.parse.unquote_plus(received['parentId']))
-    _assert_parent(listed_parent, received_parent, is_curr)
-    #assert id['path'] == os.path.join(parent_id['path'], received['name'])
+    _assert_parent(id_fields, received_parent, is_curr)
     assert received['_modelType'] == 'folder'
 
 
 def _assert_item(listed, received, id_fields, is_curr=False):
     _assert_base(listed, received, id_fields)
 
-    listed_parent = id_fields.copy()
     received_parent = json.loads(urllib.parse.unquote_plus(received['folderId']))
-    _assert_parent(listed_parent, received_parent, is_curr)
+    _assert_parent(id_fields, received_parent, is_curr)
 
     assert received['_modelType'] == 'item'
 
 def _assert_file(listed, received, id_fields):
     _assert_base(listed, received, id_fields)
     assert received['_modelType'] == 'file'
-
-
-
-
 
 def _assert_base(listed, received, id_fields, is_curr=False):
     if is_curr:
@@ -98,6 +91,7 @@ def _assert_base(listed, received, id_fields, is_curr=False):
     assert id['clusterId'] == 'dummy'
 
 def _assert_parent(listed, received, is_curr=False):
+    listed = listed.copy()
     if is_curr:
         listed['path'] = os.path.dirname(listed['path'])
     assert listed == received
@@ -207,8 +201,6 @@ def test_item_id(cluster, get_connection, unbound_server, user):
 
     received_file = r.json
     _assert_item(FILE1, received_file, FILE_ID_FIELDS, is_curr=True)
-
-    #assert conn.list.call_args == mock.call("{}/{}".format(PATH, FILE1['name']))
 
 
 @pytest.mark.plugin('cluster_filesystem')

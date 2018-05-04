@@ -1,6 +1,6 @@
 import datetime as dt
 
-def dateParser(timestring):
+def date_parser(timestring):
     """
         Parse a datetime string from ls -l and return a standard isotime
         
@@ -27,12 +27,10 @@ def dateParser(timestring):
         
         delta_this = abs((now-this_year).total_seconds())
         delta_last = abs((now-last_year).total_seconds())
-        print(delta_this, delta_last)
         if (delta_this > delta_last):
             date = last_year
         else:
             date = this_year
-        print(date.microsecond)
             
     except ValueError:
         try:
