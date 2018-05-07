@@ -36,10 +36,6 @@ def date_parser(timestring):
         try:
             date = dt.datetime.strptime(timestring, older_time_format)
         except ValueError:
-            date = dt.datetime.now()
-            date = dt.datetime(year=date.year,
-                                   month=date.month, day=date.day,
-                                   hour=date.hour, minute=date.minute,
-                                   second=date.second, microsecond=0)
+            return timestring
     return date.isoformat()
 
