@@ -90,5 +90,5 @@ FILE3 = {
 
 FILE_ID_FIELDS = {
     'clusterId': 'dummy',
-    'path': "{}/{}".format(PATH, FILE1['name'])
+    'path': "%s/%s" % (PATH, FILE1['name'])
 }

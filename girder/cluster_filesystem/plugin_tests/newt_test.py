@@ -23,8 +23,6 @@ from six.moves import urllib
 import pytest
 import os
 
-import girder.events
-
 from pytest_girder.assertions import assertStatusOk, assertStatus
 
 from .constants import (
@@ -35,25 +33,8 @@ from .constants import (
     FILE1, FILE2, FILE3
 )
 
-
-
-@pytest.fixture
-def unbound_server(server):
-    yield server
-
-    events = [
-        ('rest.get.folder.before', 'newt_folders'),
-        ('rest.get.folder/:id.before', 'newt_folders'),
-        ('rest.get.item.before', 'newt_folders'),
-        ('rest.get.item/:id.before', 'newt_folders'),
-        ('rest.get.item/:id/files.before', 'new_folders'),
-        ('rest.get.file/:id.before', 'newt_folders'),
-        ('rest.get.file/:id/download.before', 'newt_folders')
-    ]
-
-    for event_name, handler_name in events:
-        girder.events.unbind(event_name, handler_name)
-    
+from . import unbound_server
+ 
 
 def _assert_dir(listed, received, id_fields, is_curr=False):
     _assert_base(listed, received, id_fields, is_curr)
@@ -78,14 +59,15 @@ def _assert_file(listed, received, id_fields):
     assert received['_modelType'] == 'file'
 
 def _assert_base(listed, received, id_fields, is_curr=False):
+    from cluster_filesystem.server.dateutils import date_parser
     if is_curr:
         dir_name = os.path.basename(id_fields['path'])
         assert dir_name  == received['name']
     else:
         assert listed['name'] == received['name']
     assert listed['size'] == received['size']
-    assert listed['date'] == received['created']
-    assert listed['date'] == received['updated']
+    assert date_parser(listed['date']) == received['created']
+    assert date_parser(listed['date']) == received['updated']
 
     id = json.loads(urllib.parse.unquote_plus(received['_id']))
     assert id['clusterId'] == 'dummy'

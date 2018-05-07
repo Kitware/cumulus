@@ -37,6 +37,47 @@ from cumulus.transport import get_connection
 from girder.plugins.cumulus.models.cluster import Cluster
 from girder.api.rest import getCurrentUser, getCurrentToken
 
+import datetime as dt
+
+def date_parser(timestring):
+    """
+        Parse a datetime string from ls -l and return a standard isotime
+        
+        ls -l returns dates in two different formats:
+        
+        May  2 09:06 (for dates within 6 months from now)
+        May  2 2018  (for dates further away)
+        
+        Best would be to return ls -l --full-time,
+        but unfortunately we have no control over the remote API
+    """
+    
+    recent_time_format = "%b %d %H:%M"
+    older_time_format = "%b %d %Y"
+    try:
+        date = dt.datetime.strptime(timestring, recent_time_format)
+        now = dt.datetime.now()
+        this_year = dt.datetime(year=now.year,
+                           month=date.month, day=date.day,
+                           hour=date.hour, minute=date.minute)
+        last_year = dt.datetime(year=now.year-1,
+                           month=date.month, day=date.day,
+                           hour=date.hour, minute=date.minute)
+        
+        delta_this = abs((now-this_year).total_seconds())
+        delta_last = abs((now-last_year).total_seconds())
+        if (delta_this > delta_last):
+            date = last_year
+        else:
+            date = this_year
+            
+    except ValueError:
+        try:
+            date = dt.datetime.strptime(timestring, older_time_format)
+        except ValueError:
+            return timestring
+    return date.isoformat()
+
 NEWT_BASE_URL = 'https://newt.nersc.gov/newt'
 
 def _parse_id(id):
@@ -98,16 +139,14 @@ def _folder_before(conn, path, cluster, encoded_id, **rest):
             folders.append({
                 '_id': entry_id,
                 '_modelType': 'folder',
-                # TODO: Need to convert to right format
-                'created': entry['date'],
+                'created': date_parser(entry['date']),
                 'description': '',
                 'name': entry['name'],
                 'parentCollection': 'folder',
                 'parentId': encoded_id,
                 'public': False,
                 'size': entry['size'],
-                # TODO: Need to convert to right format
-                'updated': entry['date']
+                'updated': date_parser(entry['date'])
             })
 
     return folders
@@ -123,16 +162,14 @@ def _folder_id_before(conn, path, cluster, encoded_id):
             return {
                 '_id': encoded_id,
                 '_modelType': 'folder',
-                # TODO: Need to convert to right format
-                'created': entry['date'],
+                'created': date_parser(entry['date']),
                 'description': '',
                 'name': name,
                 'parentCollection': 'folder',
                 'parentId': parent_id,
                 'public': False,
                 'size': entry['size'],
-                # TODO: Need to convert to right format
-                'updated': entry['date']
+                'updated': date_parser(entry['date'])
             }
 
 
@@ -147,14 +184,12 @@ def _item_before(conn, path, cluster, encoded_id):
             items.append({
                 "_id": item_id,
                 "_modelType": "item",
-                # TODO: Need to convert to right format
-                "created": entry['date'],
+                "created": date_parser(entry['date']),
                 "description": "",
                 "folderId": encoded_id,
                 "name": entry['name'],
                 "size": entry['size'],
-                # TODO: Need to convert to right format
-                "updated": entry['date']
+                "updated": date_parser(entry['date']),
             })
 
     return items
@@ -170,14 +205,12 @@ def _item_id_before(conn, path, cluster, encoded_id):
     return {
         "_id": encoded_id,
         "_modelType": "item",
-        # TODO: Need to convert to right format
-        "created": item['date'],
+        "created": date_parser(item['date']),
         "description": "",
         "folderId": parent_id,
         "name": item['name'],
         "size": item['size'],
-        # TODO: Need to convert to right format
-        "updated": item['date']
+        "updated": date_parser(item['date'])
     }
 
 
@@ -190,8 +223,7 @@ def _item_files_before(conn, path, cluster, encoded_id):
         "_id": encoded_id,
         "_modelType": "file",
         "assetstoreId": None,
-        # TODO: Need to convert to right format
-        "created": file['date'],
+        "created": date_parser(file['date']),
         "exts": [
             os.path.splitext(file['name'])[1]
         ],
@@ -199,8 +231,7 @@ def _item_files_before(conn, path, cluster, encoded_id):
         "mimeType": "application/octet-stream",
         "name": file['name'],
         "size": file['size'],
-        # TODO: Need to convert to right format
-        "updated": file['date'],
+        "updated": date_parser(file['date'])
     }
 
 
