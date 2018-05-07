@@ -42,16 +42,16 @@ import datetime as dt
 def date_parser(timestring):
     """
         Parse a datetime string from ls -l and return a standard isotime
-        
+
         ls -l returns dates in two different formats:
-        
+
         May  2 09:06 (for dates within 6 months from now)
         May  2 2018  (for dates further away)
-        
+
         Best would be to return ls -l --full-time,
         but unfortunately we have no control over the remote API
     """
-    
+
     recent_time_format = "%b %d %H:%M"
     older_time_format = "%b %d %Y"
     try:
@@ -63,14 +63,14 @@ def date_parser(timestring):
         last_year = dt.datetime(year=now.year-1,
                            month=date.month, day=date.day,
                            hour=date.hour, minute=date.minute)
-        
+
         delta_this = abs((now-this_year).total_seconds())
         delta_last = abs((now-last_year).total_seconds())
         if (delta_this > delta_last):
             date = last_year
         else:
             date = this_year
-            
+
     except ValueError:
         try:
             date = dt.datetime.strptime(timestring, older_time_format)
@@ -78,7 +78,6 @@ def date_parser(timestring):
             return timestring
     return date.isoformat()
 
-NEWT_BASE_URL = 'https://newt.nersc.gov/newt'
 
 def _parse_id(id):
     id = json.loads(id)
@@ -198,7 +197,7 @@ def _item_before(conn, path, cluster, encoded_id):
 @_decode_id
 def _item_id_before(conn, path, cluster, encoded_id):
     item = next(conn.list(path))
-    
+
     parent_path = os.path.dirname(path)
     parent_id = _generate_id(cluster['_id'], parent_path)
 
@@ -243,9 +242,7 @@ def _file_id_before(event):
 @access.cookie
 @_decode_id
 def _file_download_before(conn, path, cluster_id, **rest):
-    cluster = Cluster().load()
-    url = '%s/file/%s/%s?view=read' % (NEWT_BASE_URL, cluster['hostName'], path)
-    raise cherrypy.HTTPRedirect(url)
+    return conn.get(path)
 
 
 def load(info):
