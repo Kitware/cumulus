@@ -246,11 +246,11 @@ def _file_download_before(conn, path, cluster_id, **rest):
 
 
 def load(info):
-    events.bind('rest.get.folder.before', 'newt_folders',_folder_before)
-    events.bind('rest.get.folder/:id.before', 'newt_folders',_folder_id_before)
-    events.bind('rest.get.item.before', 'newt_folders',_item_before)
-    events.bind('rest.get.item/:id.before', 'newt_folders',_item_id_before)
-    events.bind('rest.get.item/:id/files.before', 'new_folders', _item_files_before)
-    events.bind('rest.get.file/:id.before', 'newt_folders',_file_id_before)
-    events.bind('rest.get.file/:id/download.before', 'newt_folders',_file_download_before)
+    events.bind('rest.get.folder.before', 'cluster_filesystem',_folder_before)
+    events.bind('rest.get.folder/:id.before', 'cluster_filesystem',_folder_id_before)
+    events.bind('rest.get.item.before', 'cluster_filesystem',_item_before)
+    events.bind('rest.get.item/:id.before', 'cluster_filesystem',_item_id_before)
+    events.bind('rest.get.item/:id/files.before', 'cluster_filesystem', _item_files_before)
+    events.bind('rest.get.file/:id.before', 'cluster_filesystem',_file_id_before)
+    events.bind('rest.get.file/:id/download.before', 'cluster_filesystem',_file_download_before)
 
