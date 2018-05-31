@@ -28,14 +28,15 @@ import functools
 from girder import events
 from girder.api import access
 from girder.api.v1.assetstore import Assetstore
-from girder.constants import AssetstoreType, AccessType
+from girder.constants import AssetstoreType, AccessType, TokenScope
 from girder.utility.assetstore_utilities import setAssetstoreAdapter
 from girder.models.model_base import ValidationException
 from girder.utility import setting_utilities
+from girder.api.describe import Description, autoDescribeRoute
 
 from cumulus.transport import get_connection
 from girder.plugins.cumulus.models.cluster import Cluster
-from girder.api.rest import getCurrentUser, getCurrentToken
+from girder.api.rest import getCurrentUser, getCurrentToken, RestException
 
 import datetime as dt
 
@@ -78,6 +79,9 @@ def date_parser(timestring):
             return timestring
     return date.isoformat()
 
+def _mtime_isoformat(mtime):
+    return dt.datetime.fromtimestamp(mtime).isoformat()
+
 
 def _parse_id(id):
     id = json.loads(id)
@@ -107,22 +111,24 @@ def _decode_id(func=None, key='id'):
             # Request is not well formed, delegate to core.
             return
 
+        cluster_id = None
         try:
             decoded_id = urllib.parse.unquote_plus(id)
             (cluster_id, path) = _parse_id(decoded_id)
             # If we have successfully decoded the id, then prevent the default
             event.preventDefault()
 
+        except ValueError:
+            pass
+
+        if cluster_id is not None:
             cluster = Cluster().load(cluster_id,  user=getCurrentUser())
 
             token = getCurrentToken()
             with get_connection(token['_id'], cluster) as conn:
-                response = func(conn, path, cluster=cluster, encoded_id=id)
+               response = func(conn, path, cluster=cluster, encoded_id=id)
 
             event.addResponse(response)
-        except ValueError:
-            pass
-
 
     return wrapped
 
@@ -196,41 +202,42 @@ def _item_before(conn, path, cluster, encoded_id):
 @access.user
 @_decode_id
 def _item_id_before(conn, path, cluster, encoded_id):
-    item = next(conn.list(path))
+    file_stat = conn.stat(path)
 
     parent_path = os.path.dirname(path)
+    name = os.path.basename(path)
     parent_id = _generate_id(cluster['_id'], parent_path)
 
     return {
         "_id": encoded_id,
         "_modelType": "item",
-        "created": date_parser(item['date']),
+        "created": _mtime_isoformat(file_stat.st_mtime),
         "description": "",
         "folderId": parent_id,
-        "name": item['name'],
-        "size": item['size'],
-        "updated": date_parser(item['date'])
+        "name": name,
+        "size": file_stat.st_size,
+        "updated": _mtime_isoformat(file_stat.st_mtime)
     }
 
 
 @access.user
 @_decode_id
 def _item_files_before(conn, path, cluster, encoded_id):
-    file = next(conn.list(path))
-
+    file_stat = conn.stat(path)
+    name = os.path.basename(path)
     return {
         "_id": encoded_id,
         "_modelType": "file",
         "assetstoreId": None,
-        "created": date_parser(file['date']),
+        "created": _mtime_isoformat(file_stat.st_mtime),
         "exts": [
-            os.path.splitext(file['name'])[1]
+            os.path.splitext(name)[1]
         ],
         "itemId": encoded_id,
         "mimeType": "application/octet-stream",
-        "name": file['name'],
-        "size": file['size'],
-        "updated": date_parser(file['date'])
+        "name": name,
+        "size": file_stat.st_size,
+        "updated": _mtime_isoformat(file_stat.st_mtime)
     }
 
 
@@ -244,6 +251,51 @@ def _file_id_before(event):
 def _file_download_before(conn, path, cluster_id, **rest):
     return conn.get(path)
 
+# Rest endpoint to start file system traversal.
+@access.user(scope=TokenScope.DATA_READ)
+@autoDescribeRoute(
+    Description('Fetches information about a path on the clusters filesystem.')
+    .modelParam('id', 'The cluster id',
+                model=Cluster, destName='cluster',
+                level=AccessType.READ, paramType='path')
+    .param('path', 'The filesystem path.', required=True, paramType='query')
+)
+
+
+def _get_path(cluster, path):
+    basename = os.path.basename(path)
+    token = getCurrentToken()
+
+    with get_connection(token['_id'], cluster) as conn:
+        entry = conn.stat(path)
+
+        entry_id = _generate_id(cluster['_id'], path)
+        parent_id = _generate_id(cluster['_id'], os.path.dirname(path))
+        model = {
+            '_id': entry_id,
+            'size': entry.st_size,
+            'name': basename,
+            'created': _mtime_isoformat(entry.st_mtime),
+            'updated': _mtime_isoformat(entry.st_mtime)
+        }
+        if stat.S_ISDIR(entry.st_mode):
+            model['_modelType'] =  'folder'
+            model['description'] =  ''
+            model['parentCollection'] = 'folder'
+            model['parentId'] =  parent_id
+            model['public'] =  False
+
+            return model
+        elif stat.S_ISREG(entry.st_mode):
+            model['_modelType'] = "file"
+            model['assetstoreId'] = None
+            model["exts"] = [
+                os.path.splitext(basename)[1]
+            ]
+            model['itemId'] = parent_id,
+            model['mimeType'] = 'application/octet-stream'
+
+            return model
 
 def load(info):
     events.bind('rest.get.folder.before', 'cluster_filesystem',_folder_before)
@@ -253,4 +305,6 @@ def load(info):
     events.bind('rest.get.item/:id/files.before', 'cluster_filesystem', _item_files_before)
     events.bind('rest.get.file/:id.before', 'cluster_filesystem',_file_id_before)
     events.bind('rest.get.file/:id/download.before', 'cluster_filesystem',_file_download_before)
+
+    info['apiRoot'].clusters.route('GET', (':id', 'filesystem'), _get_path)
 

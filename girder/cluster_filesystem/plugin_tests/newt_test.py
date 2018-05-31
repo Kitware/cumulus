@@ -23,6 +23,8 @@ from six.moves import urllib
 import pytest
 import os
 
+from paramiko import SFTPAttributes
+
 from pytest_girder.assertions import assertStatusOk, assertStatus
 
 from .constants import (
@@ -34,13 +36,13 @@ from .constants import (
 )
 
 from . import unbound_server
- 
+
 
 def _assert_dir(listed, received, id_fields, is_curr=False):
     _assert_base(listed, received, id_fields, is_curr)
     assert not received['public']
     assert received['parentCollection'] == 'folder'
-    
+
     received_parent = json.loads(urllib.parse.unquote_plus(received['parentId']))
     _assert_parent(id_fields, received_parent, is_curr)
     assert received['_modelType'] == 'folder'
@@ -77,7 +79,7 @@ def _assert_parent(listed, received, is_curr=False):
     if is_curr:
         listed['path'] = os.path.dirname(listed['path'])
     assert listed == received
-    
+
 
 def _set_mock_connection_list(conn):
     conn.list.return_value = [PARENT_DIR, CURR_DIR]
@@ -90,8 +92,8 @@ def _set_mock_connection_list(conn):
 def _set_mock_cluster(cluster):
     cluster_model = cluster.return_value
     cluster_model.load.return_value = CLUSTER_LOAD
-    
-    
+
+
 
 
 @pytest.mark.plugin('cluster_filesystem')
@@ -170,9 +172,10 @@ def test_item(cluster, get_connection, unbound_server, user):
 @mock.patch('girder.plugins.cluster_filesystem.Cluster')
 def test_item_id(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
-    conn.list.return_value = iter([
-        FILE1
-    ])
+    stat_attr = conn.stat.return_value = SFTPAttributes()
+    stat_attr.st_size = 123
+    stat_attr.st_mtime = 1518038760.0
+
     _set_mock_cluster(cluster)
 
     id = urllib.parse.quote_plus(json.dumps(FILE_ID_FIELDS))
@@ -190,9 +193,10 @@ def test_item_id(cluster, get_connection, unbound_server, user):
 @mock.patch('girder.plugins.cluster_filesystem.Cluster')
 def test_item_files(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
-    conn.list.return_value = iter([
-        FILE1
-    ])
+    stat_attr = conn.stat.return_value = SFTPAttributes()
+    stat_attr.st_size = 123
+    stat_attr.st_mtime = 1518038760.0
+
     _set_mock_cluster(cluster)
 
     id = urllib.parse.quote_plus(json.dumps(FILE_ID_FIELDS))
@@ -210,9 +214,10 @@ def test_item_files(cluster, get_connection, unbound_server, user):
 @mock.patch('girder.plugins.cluster_filesystem.Cluster')
 def test_file_id(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
-    conn.list.return_value = iter([
-        FILE1
-    ])
+    stat_attr = conn.stat.return_value = SFTPAttributes()
+    stat_attr.st_size = 123
+    stat_attr.st_mtime = 1518038760.0
+
     _set_mock_cluster(cluster)
 
     id = urllib.parse.quote_plus(json.dumps(FILE_ID_FIELDS))
@@ -223,4 +228,4 @@ def test_file_id(cluster, get_connection, unbound_server, user):
 
     received_file = r.json
     _assert_file(FILE1, received_file, FILE_ID_FIELDS)
-    
+
