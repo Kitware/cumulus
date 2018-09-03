@@ -8,3 +8,6 @@ dist/
 *~
 *.retry
 .dir-locals.el
+.cache
+.pytest_cache
+

@@ -1,0 +1,6 @@
+{
+    "name": "Cluster filesystem",
+    "description": "Provides remote file browsing capabilities for cluster filesystems.",
+    "dependencies": ["cumulus"],
+    "version": "0.1.0"
+}
