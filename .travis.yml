@@ -17,7 +17,7 @@ before_install:
     - pip install -U pip
     # First install Girder
     - pushd "${HOME}/build"
-    - git clone https://github.com/girder/girder.git
+    - git clone -b 2.x-maintenance https://github.com/girder/girder.git
     - export IGNORE_PLUGINS=celery_jobs,geospatial,google_analytics,hdfs_assetstore,jquery_widgets,meta
     - pushd girder
     - pip install -r requirements-dev.txt
