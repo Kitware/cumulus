@@ -24,6 +24,7 @@ from cumulus.taskflow.utility import find_taskflow_modules
 from . import commonconfig, commandconfig, monitorconfig
 from kombu.serialization import register
 import json
+import jsonpickle
 
 
 def oid_safe_dumps(obj):
@@ -36,6 +37,10 @@ def oid_safe_loads(obj):
 
 register('oid_safe_json', oid_safe_dumps, oid_safe_loads,
          content_type='application/x-oid_safe_json',
+         content_encoding='utf-8')
+
+register('jsonpickle', jsonpickle.encode, jsonpickle.decode,
+         content_type='application/json',
          content_encoding='utf-8')
 
 _includes = [
@@ -74,7 +79,7 @@ command.conf.update(force_mapping(commandconfig))
 command.conf.update(
     CELERY_ROUTES=_routes,
     CELERY_TASK_SERIALIZER='oid_safe_json',
-    CELERY_ACCEPT_CONTENT=('json', 'oid_safe_json'),
+    CELERY_ACCEPT_CONTENT=('json', 'oid_safe_json', 'jsonpickle'),
     CELERY_RESULT_SERIALIZER='json',
     CELERYD_PREFETCH_MULTIPLIER=1
 )

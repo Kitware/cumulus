@@ -15,3 +15,4 @@ girder-client==2.3.0
 paramiko==1.16.0
 click==6.7
 tabulate==0.7.5
+jsonpickle==1.0.0
