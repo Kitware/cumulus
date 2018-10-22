@@ -18,6 +18,7 @@
 ###############################################################################
 
 from __future__ import absolute_import
+from bson.objectid import ObjectId
 from celery import Celery
 from celery.datastructures import force_mapping
 from cumulus.taskflow.utility import find_taskflow_modules
@@ -38,6 +39,15 @@ def oid_safe_loads(obj):
 register('oid_safe_json', oid_safe_dumps, oid_safe_loads,
          content_type='application/x-oid_safe_json',
          content_encoding='utf-8')
+
+# Ensure ObjectIds are converted to string,
+# so it will work correctly with the internal serializer
+@jsonpickle.handlers.register(ObjectId, base=True)
+class ObjectIdHandler(jsonpickle.handlers.BaseHandler):
+    def flatten(self, obj, data):
+        data = str(obj)
+    def restore(self, data):
+        return data
 
 register('jsonpickle', jsonpickle.encode, jsonpickle.decode,
          content_type='application/json',
