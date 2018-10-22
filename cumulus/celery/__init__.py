@@ -100,5 +100,6 @@ monitor = Celery('monitor',  backend='amqp',
 monitor.config_from_object(commonconfig)
 monitor.conf.update(force_mapping(monitorconfig))
 monitor.conf.update(
-    CELERY_ROUTES=_routes
+    CELERY_ROUTES=_routes,
+    CELERY_ACCEPT_CONTENT=('json', 'jsonpickle')
 )
