@@ -664,7 +664,7 @@ def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None,
                 # Try again
                 task.retry(countdown=5)
                 return
-            except paramiko.ssh_exception.NoValidConnectionsError as ex:
+            except paramiko.ssh_exception.NoValidConnectionsError:
                 # Try again
                 task.retry(countdown=5)
                 return

@@ -15,8 +15,8 @@ def flatten_ec2_result(ec2_result):
 def process_hosts_spec(hosts_spec, pod_name):
     result = {}
     for key, value in hosts_spec.items():
-        value['groups'] = list(set(value.get('groups', ())) |
-                               set((pod_name,)))
+        value['groups'] = list(set(value.get('groups', ()))
+                               | set((pod_name,)))
 
         if 'volumes' in value:
             new_volumes = []

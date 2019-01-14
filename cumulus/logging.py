@@ -55,7 +55,7 @@ class RESTfulLogHandler(logging.Handler):
                     'Logging endpoint appears to have disappeared.\n')
             else:
                 raise e
-        except Exception as e:
+        except Exception:
             traceback.print_stack()
             if r:
                 sys.stderr.write('Unable to POST log record: %s\n' % r.content)
