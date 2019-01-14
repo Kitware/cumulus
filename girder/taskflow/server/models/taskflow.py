@@ -19,6 +19,7 @@
 
 from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
+from girder import events
 
 from cumulus.taskflow import TaskFlowState, TaskState
 from cumulus.common.girder import send_status_notification, \
@@ -271,4 +272,5 @@ class Taskflow(AccessControlledModel):
 
         if taskflow['status'] != new_status:
             taskflow['status'] = new_status
+            events.trigger('cumulus.taskflow.status_update', {'taskflow': taskflow})
             send_status_notification('taskflow', taskflow)
