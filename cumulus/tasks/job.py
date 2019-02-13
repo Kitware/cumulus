@@ -654,7 +654,8 @@ def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None,
                 # Now see if we still have jobs to monitor
                 running_states = set(
                     [JobState.CREATED, JobState.QUEUED,
-                     JobState.RUNNING, JobState.TERMINATING]
+                     JobState.RUNNING, JobState.TERMINATING,
+                     JobState.UPLOADING]
                 )
 
                 # Do we have any job still in a running state?
