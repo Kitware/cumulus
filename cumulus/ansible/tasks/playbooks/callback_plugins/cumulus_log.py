@@ -1,3 +1,4 @@
+from __future__ import print_function
 import requests
 import cumulus
 from cumulus.common import get_post_logger
@@ -83,7 +84,7 @@ class CallbackModule(CallbackBase):
 
             r = requests.patch(status_url, headers=headers, json=updates)
             if r.status_code != 200:
-                print >> sys.stderr, r.content
+                print(r.content, file=sys.stderr)
                 r.raise_for_status()
 
     def runner_on_ok(self, host, res):

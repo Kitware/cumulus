@@ -552,13 +552,17 @@ class Uploading(JobState):
         # Fire off task to upload the output
         log.info('Job "%s" complete' % job_name)
 
-        if 'output' in self.job and len(self.job['output']) == 0:
+        upload = self.job.get('uploadOutput', True)
+
+        if not upload or len(self.job.get('output', [])) == 0:
             return Complete(self)
 
         return self
 
     def run(self):
-        if 'output' in self.job and len(self.job['output']) > 0:
+        upload = self.job.get('uploadOutput', True)
+
+        if upload and len(self.job.get('output', [])) > 0:
             upload_job_output.delay(self.cluster, self.job,
                                     log_write_url=self.log_write_url,
                                     job_dir=self.job['dir'],
