@@ -31,11 +31,12 @@ from girder.api.v1.assetstore import Assetstore
 from girder.constants import AssetstoreType, AccessType, TokenScope
 from girder.utility.assetstore_utilities import setAssetstoreAdapter
 from girder.models.model_base import ValidationException
+from girder.plugin import GirderPlugin
 from girder.utility import setting_utilities
 from girder.api.describe import Description, autoDescribeRoute
 
 from cumulus.transport import get_connection
-from girder.plugins.cumulus.models.cluster import Cluster
+from cumulus_plugin.models.cluster import Cluster
 from girder.api.rest import getCurrentUser, getCurrentToken, RestException
 
 import datetime as dt
@@ -297,14 +298,16 @@ def _get_path(cluster, path):
 
             return model
 
-def load(info):
-    events.bind('rest.get.folder.before', 'cluster_filesystem',_folder_before)
-    events.bind('rest.get.folder/:id.before', 'cluster_filesystem',_folder_id_before)
-    events.bind('rest.get.item.before', 'cluster_filesystem',_item_before)
-    events.bind('rest.get.item/:id.before', 'cluster_filesystem',_item_id_before)
-    events.bind('rest.get.item/:id/files.before', 'cluster_filesystem', _item_files_before)
-    events.bind('rest.get.file/:id.before', 'cluster_filesystem',_file_id_before)
-    events.bind('rest.get.file/:id/download.before', 'cluster_filesystem',_file_download_before)
+class ClusterFileSystemPlugin(GirderPlugin):
+    DISPLAY_NAME = 'Cluster filesystem'
 
-    info['apiRoot'].clusters.route('GET', (':id', 'filesystem'), _get_path)
+    def load(self, info):
+        events.bind('rest.get.folder.before', 'cluster_filesystem',_folder_before)
+        events.bind('rest.get.folder/:id.before', 'cluster_filesystem',_folder_id_before)
+        events.bind('rest.get.item.before', 'cluster_filesystem',_item_before)
+        events.bind('rest.get.item/:id.before', 'cluster_filesystem',_item_id_before)
+        events.bind('rest.get.item/:id/files.before', 'cluster_filesystem', _item_files_before)
+        events.bind('rest.get.file/:id.before', 'cluster_filesystem',_file_id_before)
+        events.bind('rest.get.file/:id/download.before', 'cluster_filesystem',_file_download_before)
 
+        info['apiRoot'].clusters.route('GET', (':id', 'filesystem'), _get_path)
