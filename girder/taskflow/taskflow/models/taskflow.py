@@ -19,6 +19,7 @@
 
 from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
+from girder.utility.model_importer import ModelImporter
 from girder import events
 
 from cumulus.taskflow import TaskFlowState, TaskState
@@ -71,11 +72,11 @@ class Taskflow(AccessControlledModel):
             }
             access_list['groups'].append(access_object)
 
-        task_model = self.model('task', 'taskflow')
+        task_model = ModelImporter.model('task', 'taskflow')
         tasks = task_model.find_by_taskflow_id(user, taskflow['_id'])
         set_access_for_list(user, task_model, tasks, access_list)
 
-        job_model = self.model('job', 'cumulus')
+        job_model = ModelImporter.model('job', 'cumulus')
         jobs = taskflow.get('meta', {}).get('jobs', [])
         set_access_for_list(user, job_model, jobs, access_list)
 
@@ -88,12 +89,12 @@ class Taskflow(AccessControlledModel):
         merge_access(access_list['groups'], groups, AccessType.READ, [])
 
         # add access to tasks
-        task_model = self.model('task', 'taskflow')
+        task_model = ModelImporter.model('task', 'taskflow')
         tasks = task_model.find_by_taskflow_id(user, taskflow['_id'])
         patch_access_for_list(user, task_model, tasks, users, groups)
 
         # add access to jobs
-        job_model = self.model('job', 'cumulus')
+        job_model = ModelImporter.model('job', 'cumulus')
         jobs = taskflow.get('meta', {}).get('jobs', [])
         patch_access_for_list(user, job_model, jobs, users, groups)
 
@@ -109,12 +110,12 @@ class Taskflow(AccessControlledModel):
         }
 
         # revoke tasks
-        task_model = self.model('task', 'taskflow')
+        task_model = ModelImporter.model('task', 'taskflow')
         tasks = task_model.find_by_taskflow_id(user, taskflow['_id'])
         revoke_access_for_list(user, task_model, tasks, users, groups)
 
         # revoke jobs
-        job_model = self.model('job', 'cumulus')
+        job_model = ModelImporter.model('job', 'cumulus')
         jobs = taskflow.get('meta', {}).get('jobs', [])
         revoke_access_for_list(user, job_model, jobs, users, groups)
 
@@ -198,7 +199,7 @@ class Taskflow(AccessControlledModel):
             'taskFlowId': taskflow['_id']
         }
 
-        self.model('task', 'taskflow').removeWithQuery(query)
+        ModelImporter.model('task', 'taskflow').removeWithQuery(query)
         self.remove(taskflow)
 
     def status(self, user, taskflow):
@@ -216,7 +217,7 @@ class Taskflow(AccessControlledModel):
                                       TaskFlowState.DELETING]:
                 return taskflow['status']
 
-        tasks = self.model('task', 'taskflow').find_by_taskflow_id(
+        tasks = ModelImporter.model('task', 'taskflow').find_by_taskflow_id(
             user, taskflow['_id'])
 
         task_status = [t['status'] for t in tasks]

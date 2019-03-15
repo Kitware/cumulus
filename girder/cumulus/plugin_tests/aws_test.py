@@ -25,6 +25,8 @@ from cumulus.aws.ec2 import ClientErrorCode
 from cumulus.testing import AssertCallsMixin
 from cumulus.constants import VolumeState
 
+from girder.utility.model_importer import ModelImporter
+
 def setUpModule():
     base.enabledPlugins.append('cumulus')
     base.startServer()
@@ -36,7 +38,7 @@ def tearDownModule():
 
 class AwsTestCase(AssertCallsMixin, base.TestCase):
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    @mock.patch('cumulus_plugin.models.aws.get_ec2_client')
     def setUp(self, get_ec2_client, *args):
         super(AwsTestCase, self).setUp()
 
@@ -60,9 +62,9 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
             'password': 'goodpassword'
         })
         self._cumulus, self._user, self._another_user = \
-            [self.model('user').createUser(**user) for user in users]
+            [ModelImporter.model('user').createUser(**user) for user in users]
 
-        self._group = self.model('group').createGroup('cumulus', self._cumulus)
+        self._group = ModelImporter.model('group').createGroup('cumulus', self._cumulus)
 
         # Create a AWS profile
         self._availability_zone = 'cornwall-2b'
@@ -103,7 +105,7 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatus(r, 201)
         self._cluster_id = str(r.json['_id'])
 
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    @mock.patch('cumulus_plugin.models.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     def test_create(self, generate_key_pair, get_ec2_client):
         ec2_client = get_ec2_client.return_value
@@ -182,7 +184,7 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
             u'publicIPs': False
         }
 
-        profile = self.model('aws', 'cumulus').load(profile_id, force=True)
+        profile = ModelImporter.model('aws', 'cumulus').load(profile_id, force=True)
         del profile['_id']
         del profile['access']
         del profile['userId']
@@ -197,7 +199,7 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
                          user=self._user)
         self.assertStatus(r, 400)
 
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    @mock.patch('cumulus_plugin.models.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     def test_create_public_ips(self, generate_key_pair, get_ec2_client):
 
@@ -245,7 +247,7 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
             u'publicIPs': True
         }
 
-        profile = self.model('aws', 'cumulus').load(profile_id, force=True)
+        profile = ModelImporter.model('aws', 'cumulus').load(profile_id, force=True)
         del profile['_id']
         del profile['access']
         del profile['userId']
@@ -253,7 +255,7 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
 
 
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    @mock.patch('cumulus_plugin.models.aws.get_ec2_client')
     def test_update(self, get_ec2_client, delay):
         region_host = 'cornwall.ec2.amazon.com'
         ec2_client = get_ec2_client.return_value
@@ -291,7 +293,7 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
                          user=self._user)
         self.assertStatusOk(r)
 
-        profile = self.model('aws', 'cumulus').load(profile_id, user=self._user)
+        profile = ModelImporter.model('aws', 'cumulus').load(profile_id, user=self._user)
         self.assertEqual(profile['accessKeyId'], change_value, 'Value was not changed')
 
         # Try changing profile that doesn't exist
@@ -315,7 +317,7 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
                          type='application/json', body=json.dumps(body),
                          user=self._user)
         self.assertStatusOk(r)
-        profile = self.model('aws', 'cumulus').load(profile_id, user=self._user)
+        profile = ModelImporter.model('aws', 'cumulus').load(profile_id, user=self._user)
         del profile['access']
         del profile['userId']
         del profile['_id']
@@ -349,7 +351,7 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
                          type='application/json', body=json.dumps(body),
                          user=self._user)
         self.assertStatusOk(r)
-        profile = self.model('aws', 'cumulus').load(profile_id, user=self._user)
+        profile = ModelImporter.model('aws', 'cumulus').load(profile_id, user=self._user)
         del profile['access']
         del profile['userId']
         del profile['_id']
@@ -393,7 +395,7 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
                          type='application/json', body=json.dumps(body),
                          user=self._user)
         self.assertStatusOk(r)
-        profile = self.model('aws', 'cumulus').load(profile_id, user=self._user)
+        profile = ModelImporter.model('aws', 'cumulus').load(profile_id, user=self._user)
         del profile['access']
         del profile['userId']
         del profile['_id']
@@ -413,10 +415,10 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
         self.assertEqual(profile, expected, 'Profile values not updated')
 
     @mock.patch('cumulus.ansible.tasks.volume.delete_volume.delay')
-    @mock.patch('girder.plugins.cumulus.aws.get_ec2_client')
+    @mock.patch('cumulus_plugin.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.delete_key_pair.delay')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    @mock.patch('cumulus_plugin.models.aws.get_ec2_client')
     def test_delete(self, get_ec2_client, generate_key_pair, delete_key_pair,
                     aws_get_ec2_client, delete_volume_delay):
         region_host = 'cornwall.ec2.amazon.com'
@@ -448,7 +450,7 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
         r = self.request(delete_url, method='DELETE', user=self._user)
         self.assertStatusOk(r)
 
-        profile = self.model('aws', 'cumulus').load(profile_id)
+        profile = ModelImporter.model('aws', 'cumulus').load(profile_id)
 
         self.assertFalse(profile, 'Expect profiles to be empty')
 
@@ -552,7 +554,7 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatus(r, 400)
 
         # Patch the call to get_volume so we can pass the state test in delete
-        with mock.patch('girder.plugins.cumulus.volume.CloudProvider') as provider:
+        with mock.patch('cumulus_plugin.volume.CloudProvider') as provider:
             provider.return_value.get_volume.return_value = {'state': VolumeState.AVAILABLE}
             # delete the volume
             delete_volume_url = '/volumes/%s' % volume_id
@@ -570,7 +572,7 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatusOk(r)
 
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    @mock.patch('cumulus_plugin.models.aws.get_ec2_client')
     def test_get(self, get_ec2_client, generate_key_pair):
         region_host = 'cornwall.ec2.amazon.com'
         get_ec2_client = get_ec2_client.return_value
@@ -632,9 +634,9 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
 
         self.assertEqual(r.json[1:], [profile1, profile2], 'Check profiles were returned')
 
-    @mock.patch('girder.plugins.cumulus.aws.get_ec2_client')
+    @mock.patch('cumulus_plugin.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    @mock.patch('cumulus_plugin.models.aws.get_ec2_client')
     def test_running_instances(self, get_ec2_client, generate_key_pair, aws_get_ec2_client):
         region_host = 'cornwall.ec2.amazon.com'
         ec2_client = get_ec2_client.return_value
@@ -674,9 +676,9 @@ class AwsTestCase(AssertCallsMixin, base.TestCase):
         }
         self.assertEqual(expected, r.json)
 
-    @mock.patch('girder.plugins.cumulus.aws.get_ec2_client')
+    @mock.patch('cumulus_plugin.aws.get_ec2_client')
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    @mock.patch('cumulus_plugin.models.aws.get_ec2_client')
     def test_max_instances(self, get_ec2_client, generate_key_pair, aws_get_ec2_client):
         region_host = 'cornwall.ec2.amazon.com'
         ec2_client = get_ec2_client.return_value

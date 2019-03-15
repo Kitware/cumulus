@@ -25,6 +25,7 @@ from contextlib import contextmanager
 
 from girder.models.model_base import ValidationException
 from girder.utility.abstract_assetstore_adapter import AbstractAssetstoreAdapter
+from girder.utility.model_importer import ModelImporter
 from girder import events
 from girder.api.rest import RestException
 
@@ -134,21 +135,21 @@ class SftpAssetstoreAdapter(AbstractAssetstoreAdapter):
                 if name in ['.', '..']:
                     continue
                 if stat.S_ISDIR(p.st_mode):
-                    folder = self.model('folder').createFolder(
+                    folder = ModelImporter.model('folder').createFolder(
                         parent=parent, name=name, parentType=parent_type,
                         creator=user, reuseExisting=True)
 
                     self._import_path(folder, user, full_path, parent_type='folder', ssh=ssh)
                 else:
                     size = p.st_size
-                    item = self.model('item').createItem(
+                    item = ModelImporter.model('item').createItem(
                         name=name, creator=user, folder=parent, reuseExisting=True)
-                    file = self.model('file').createFile(
+                    file = ModelImporter.model('file').createFile(
                         name=name, creator=user, item=item, reuseExisting=True,
                         assetstore=self.assetstore, mimeType=None, size=size)
                     file['imported'] = True
                     file['path'] = full_path
-                    self.model('file').save(file)
+                    ModelImporter.model('file').save(file)
 
     def importData(self, parent, parentType, params, progress, user, **kwargs):
         import_path = params.get('importPath', '').strip()

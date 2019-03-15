@@ -26,6 +26,7 @@ from girder.api import access
 from girder.constants import SettingKey
 from girder.constants import AssetstoreType, AccessType
 from girder.api.docs import addModel
+from girder.utility.model_importer import ModelImporter
 
 class SftpAssetstoreResource(Resource):
     def __init__(self):
@@ -42,7 +43,7 @@ class SftpAssetstoreResource(Resource):
         params = getBodyJson()
         self.requireParams(('name', 'host', 'user'), params)
 
-        return self.model('assetstore').save({
+        return ModelImporter.model('assetstore').save({
             'type': AssetstoreType.SFTP,
             'name': params.get('name'),
             'sftp': {
@@ -85,18 +86,18 @@ class SftpAssetstoreResource(Resource):
         user = self.getCurrentUser()
 
         mime_type = params.get('mimeType')
-        item = self.model('item').load(id=item_id, user=user,
+        item = ModelImporter.model('item').load(id=item_id, user=user,
                                       level=AccessType.WRITE, exc=True)
 
-        file = self.model('file').createFile(
+        file = ModelImporter.model('file').createFile(
                         name=name, creator=user, item=item, reuseExisting=True,
                         assetstore=assetstore, mimeType=mime_type, size=size)
 
         file['path'] = path
         file['imported'] = True
-        self.model('file').save(file)
+        ModelImporter.model('file').save(file)
 
-        return self.model('file').filter(file)
+        return ModelImporter.model('file').filter(file)
 
     addModel('CreateFileParams', {
         'id': 'CreateFileParams',

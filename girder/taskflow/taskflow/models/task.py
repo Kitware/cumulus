@@ -20,6 +20,7 @@ import datetime
 
 from girder.models.model_base import AccessControlledModel
 from girder.constants import AccessType
+from girder.utility.model_importer import ModelImporter
 
 from cumulus.common.girder import send_status_notification, \
     send_log_notification
@@ -51,7 +52,7 @@ class Task(AccessControlledModel):
         now = datetime.datetime.utcnow()
         task['created'] = now
 
-        model = self.model('taskflow', 'taskflow')
+        model = ModelImporter.model('taskflow', 'taskflow')
 
         doc = self.setUserAccess(task, user, level=AccessType.ADMIN, save=True)
         # increment the number of active tasks
@@ -127,7 +128,7 @@ class Task(AccessControlledModel):
             task = self.save(task)
 
             # Update the state of the parent taskflow
-            self.model('taskflow', 'taskflow').update_state(
+            ModelImporter.model('taskflow', 'taskflow').update_state(
                 user, task['taskFlowId'])
 
             send_status_notification('task', task)

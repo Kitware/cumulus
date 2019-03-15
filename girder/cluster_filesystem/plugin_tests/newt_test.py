@@ -97,8 +97,8 @@ def _set_mock_cluster(cluster):
 
 
 @pytest.mark.plugin('cluster_filesystem')
-@mock.patch('girder.plugins.cluster_filesystem.get_connection')
-@mock.patch('girder.plugins.cluster_filesystem.Cluster')
+@mock.patch('cluster_filesystem.get_connection')
+@mock.patch('cluster_filesystem.Cluster')
 def test_folder(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
     folders, files = _set_mock_connection_list(conn)
@@ -121,8 +121,8 @@ def test_folder(cluster, get_connection, unbound_server, user):
     assert conn.list.call_args == mock.call(PATH)
 
 @pytest.mark.plugin('cluster_filesystem')
-@mock.patch('girder.plugins.cluster_filesystem.get_connection')
-@mock.patch('girder.plugins.cluster_filesystem.Cluster')
+@mock.patch('cluster_filesystem.get_connection')
+@mock.patch('cluster_filesystem.Cluster')
 def test_folder_id(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
     conn.list.return_value = [
@@ -143,8 +143,8 @@ def test_folder_id(cluster, get_connection, unbound_server, user):
 
 
 @pytest.mark.plugin('cluster_filesystem')
-@mock.patch('girder.plugins.cluster_filesystem.get_connection')
-@mock.patch('girder.plugins.cluster_filesystem.Cluster')
+@mock.patch('cluster_filesystem.get_connection')
+@mock.patch('cluster_filesystem.Cluster')
 def test_item(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
     folders, files = _set_mock_connection_list(conn)
@@ -168,8 +168,8 @@ def test_item(cluster, get_connection, unbound_server, user):
 
 
 @pytest.mark.plugin('cluster_filesystem')
-@mock.patch('girder.plugins.cluster_filesystem.get_connection')
-@mock.patch('girder.plugins.cluster_filesystem.Cluster')
+@mock.patch('cluster_filesystem.get_connection')
+@mock.patch('cluster_filesystem.Cluster')
 def test_item_id(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
     stat_attr = conn.stat.return_value = SFTPAttributes()
@@ -189,8 +189,8 @@ def test_item_id(cluster, get_connection, unbound_server, user):
 
 
 @pytest.mark.plugin('cluster_filesystem')
-@mock.patch('girder.plugins.cluster_filesystem.get_connection')
-@mock.patch('girder.plugins.cluster_filesystem.Cluster')
+@mock.patch('cluster_filesystem.get_connection')
+@mock.patch('cluster_filesystem.Cluster')
 def test_item_files(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
     stat_attr = conn.stat.return_value = SFTPAttributes()
@@ -210,8 +210,8 @@ def test_item_files(cluster, get_connection, unbound_server, user):
 
 
 @pytest.mark.plugin('cluster_filesystem')
-@mock.patch('girder.plugins.cluster_filesystem.get_connection')
-@mock.patch('girder.plugins.cluster_filesystem.Cluster')
+@mock.patch('cluster_filesystem.get_connection')
+@mock.patch('cluster_filesystem.Cluster')
 def test_file_id(cluster, get_connection, unbound_server, user):
     conn = get_connection.return_value.__enter__.return_value
     stat_attr = conn.stat.return_value = SFTPAttributes()
