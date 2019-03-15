@@ -31,7 +31,7 @@ from girder.api.v1.assetstore import Assetstore
 from girder.constants import AssetstoreType, AccessType, TokenScope
 from girder.utility.assetstore_utilities import setAssetstoreAdapter
 from girder.models.model_base import ValidationException
-from girder.plugin import GirderPlugin
+from girder.plugin import getPlugin, GirderPlugin
 from girder.utility import setting_utilities
 from girder.api.describe import Description, autoDescribeRoute
 
@@ -302,6 +302,8 @@ class ClusterFileSystemPlugin(GirderPlugin):
     DISPLAY_NAME = 'Cluster filesystem'
 
     def load(self, info):
+        getPlugin('cumulus_plugin').load(info)
+
         events.bind('rest.get.folder.before', 'cluster_filesystem',_folder_before)
         events.bind('rest.get.folder/:id.before', 'cluster_filesystem',_folder_id_before)
         events.bind('rest.get.item.before', 'cluster_filesystem',_item_before)
