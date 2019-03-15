@@ -17,7 +17,7 @@ before_install:
     - pip install -U pip
     # First install Girder
     - pushd "${HOME}/build"
-    - git clone -b 2.x-maintenance https://github.com/girder/girder.git
+    - git clone https://github.com/girder/girder.git
     - export IGNORE_PLUGINS=celery_jobs,geospatial,google_analytics,hdfs_assetstore,jquery_widgets,meta
     - pushd girder
     - pip install -r requirements-dev.txt
@@ -31,7 +31,7 @@ before_install:
     # Install plugins
     - popd
     - pushd girder
-    - ls | xargs -n1 -I {} ln -s `pwd`/{} $HOME/build/girder/plugins/{}
+    - ls | xargs -n1 -I {} pip install `pwd`/{}
     - popd
     # Install CMake
     - CACHE=$HOME/.cache CMAKE_VERSION=3.1.0 CMAKE_SHORT_VERSION=3.1 source $HOME/build/girder/scripts/install_cmake.sh
