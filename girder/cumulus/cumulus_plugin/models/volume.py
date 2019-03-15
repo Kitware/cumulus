@@ -23,6 +23,7 @@ from jsonpath_rw import parse
 from girder.models.model_base import ValidationException
 from girder.constants import AccessType
 from girder.api.rest import getCurrentUser
+from girder.utility.model_importer import ModelImporter
 from .base import BaseModel
 from ..utility.volume_adapters import get_volume_adapter
 from cumulus.constants import VolumeType
@@ -54,7 +55,7 @@ class Volume(BaseModel):
         profile_id = parse('profileId').find(volume)
         if profile_id:
             profile_id = profile_id[0].value
-            profile = self.model('aws', 'cumulus').load(profile_id,
+            profile = ModelImporter.model('aws', 'cumulus').load(profile_id,
                                                         user=getCurrentUser())
 
             if not profile:

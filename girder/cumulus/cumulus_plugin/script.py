@@ -24,6 +24,7 @@ from girder.api.describe import Description
 from girder.api.docs import addModel
 from girder.constants import AccessType
 from girder.api.rest import RestException
+from girder.utility.model_importer import ModelImporter
 from .base import BaseResource
 
 
@@ -37,7 +38,7 @@ class Script(BaseResource):
         self.route('PATCH', (':id', 'import'), self.import_script)
         self.route('PUT', (':id', 'access'), self.update_access)
         self.route('DELETE', (':id',), self.delete)
-        self._model = self.model('script', 'cumulus')
+        self._model = ModelImporter.model('script', 'cumulus')
 
     def _clean(self, config):
         del config['access']

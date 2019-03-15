@@ -25,6 +25,7 @@ from girder.api.describe import Description, describeRoute
 from girder.constants import AccessType, SortDir
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, loadmodel
+from girder.utility.model_importer import ModelImporter
 from .base import BaseResource
 
 from cumulus import tasks
@@ -46,7 +47,7 @@ class Job(BaseResource):
         self.route('GET', (':id',), self.get)
         self.route('GET', (), self.find)
 
-        self._model = self.model('job', 'cumulus')
+        self._model = ModelImporter.model('job', 'cumulus')
 
     def _clean(self, job):
         del job['access']
@@ -69,7 +70,7 @@ class Job(BaseResource):
                                 code=400)
 
         if 'scriptId' in body:
-            script = self.model('script', 'cumulus').load(body['scriptId'],
+            script = ModelImporter.model('script', 'cumulus').load(body['scriptId'],
                                                           user=user,
                                                           level=AccessType.READ)
             if not script:
@@ -79,7 +80,7 @@ class Job(BaseResource):
             body['commands'] = script['commands']
 
         if 'onTerminate' in body and 'scriptId' in body['onTerminate']:
-            script = self.model('script', 'cumulus') \
+            script = ModelImporter.model('script', 'cumulus') \
                 .load(body['onTerminate']['scriptId'], user=user,
                       level=AccessType.READ)
             if not script:
@@ -202,7 +203,7 @@ class Job(BaseResource):
         if not job:
             raise RestException('Job not found.', code=404)
 
-        cluster_model = self.model('cluster', 'cumulus')
+        cluster_model = ModelImporter.model('cluster', 'cumulus')
         cluster = cluster_model.load(job['clusterId'], user=user,
                                      level=AccessType.ADMIN)
 
@@ -438,7 +439,7 @@ class Job(BaseResource):
 
         # Clean up any job output
         if 'clusterId' in job:
-            cluster_model = self.model('cluster', 'cumulus')
+            cluster_model = ModelImporter.model('cluster', 'cumulus')
             cluster = cluster_model.load(job['clusterId'], user=user,
                                          level=AccessType.READ)
 

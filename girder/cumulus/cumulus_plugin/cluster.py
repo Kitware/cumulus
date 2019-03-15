@@ -28,6 +28,7 @@ from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, loadmodel
 from girder.models.model_base import ValidationException
+from girder.utility.model_importer import ModelImporter
 from .base import BaseResource
 from cumulus.constants import ClusterType, ClusterStatus
 from .utility.cluster_adapters import get_cluster_adapter
@@ -56,7 +57,7 @@ class Cluster(BaseResource):
         self.route('GET', (), self.find)
 
         # TODO Findout how to get plugin name rather than hardcoding it
-        self._model = self.model('cluster', 'cumulus')
+        self._model = ModelImporter.model('cluster', 'cumulus')
 
     @access.user
     def handle_log_record(self, id, params):
@@ -464,7 +465,7 @@ class Cluster(BaseResource):
         if cluster['status'] != ClusterStatus.RUNNING:
             raise RestException('Cluster is not running', code=400)
 
-        job_model = self.model('job', 'cumulus')
+        job_model = ModelImporter.model('job', 'cumulus')
         job = job_model.load(
             job_id, user=user, level=AccessType.ADMIN)
 

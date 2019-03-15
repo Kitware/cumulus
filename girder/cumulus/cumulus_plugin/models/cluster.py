@@ -22,6 +22,7 @@ from girder.models.model_base import ValidationException
 from bson.objectid import ObjectId, InvalidId
 from girder.constants import AccessType
 from girder.api.rest import RestException, getCurrentUser
+from girder.utility.model_importer import ModelImporter
 from .base import BaseModel
 from cumulus.constants import ClusterType, ClusterStatus, QueueType
 
@@ -133,7 +134,7 @@ class Cluster(BaseModel):
                 'userId': user['_id'],
                 'name': profile}
 
-        profile = self.model('aws', 'cumulus').findOne(query)
+        profile = ModelImporter.model('aws', 'cumulus').findOne(query)
 
         if profile is None:
             raise ValidationException('Profile must be specified!')

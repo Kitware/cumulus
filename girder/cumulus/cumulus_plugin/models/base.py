@@ -18,6 +18,7 @@
 ###############################################################################
 
 from girder.models.model_base import AccessControlledModel
+from girder.utility.model_importer import ModelImporter
 import cumulus
 
 
@@ -30,7 +31,7 @@ class BaseModel(AccessControlledModel):
     def get_group_id(self):
 
         if not self._group_id:
-            group = self.model('group').find({
+            group = ModelImporter.model('group').find({
                 'name': cumulus.config.girder.group
             })
 

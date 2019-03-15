@@ -27,6 +27,7 @@ from girder.constants import AccessType
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getCurrentUser, getBodyJson
 from girder.api.rest import loadmodel
+from girder.utility.model_importer import ModelImporter
 from .base import BaseResource
 
 import cumulus
@@ -62,7 +63,7 @@ class Volume(BaseResource):
         self.route('DELETE', (':id', ), self.delete)
         self.route('PUT', (':id', 'delete', 'complete'), self.delete_complete)
 
-        self._model = self.model('volume', 'cumulus')
+        self._model = ModelImporter.model('volume', 'cumulus')
 
     def _create_ebs(self, body, zone):
         user = getCurrentUser()
@@ -233,7 +234,7 @@ class Volume(BaseResource):
             # Add cluster id to volume
             volume['clusterId'] = cluster['_id']
 
-            self.model('cluster', 'cumulus').save(cluster)
+            ModelImporter.model('cluster', 'cumulus').save(cluster)
             self._model.update_volume(user, volume)
         else:
             volume['status'] = VolumeState.ERROR
@@ -279,7 +280,7 @@ class Volume(BaseResource):
             raise RestException('Master instance is not running!',
                                 400)
 
-        cluster = self.model('cluster', 'cumulus').filter(
+        cluster = ModelImporter.model('cluster', 'cumulus').filter(
             cluster, getCurrentUser(), passphrase=False)
         cumulus.ansible.tasks.volume.attach_volume\
             .delay(profile, cluster, master,
@@ -346,7 +347,7 @@ class Volume(BaseResource):
         except KeyError:
             raise RestException('path is not set on this volume!', 400)
 
-        cluster = self.model('cluster', 'cumulus').load(volume['clusterId'],
+        cluster = ModelImporter.model('cluster', 'cumulus').load(volume['clusterId'],
                                                         user=getCurrentUser(),
                                                         level=AccessType.ADMIN)
         master = p.get_master_instance(cluster['_id'])
@@ -354,7 +355,7 @@ class Volume(BaseResource):
             raise RestException('Master instance is not running!',
                                 400)
         user = getCurrentUser()
-        cluster = self.model('cluster', 'cumulus').filter(
+        cluster = ModelImporter.model('cluster', 'cumulus').filter(
             cluster, user, passphrase=False)
         cumulus.ansible.tasks.volume.detach_volume\
             .delay(profile, cluster, master,
@@ -379,7 +380,7 @@ class Volume(BaseResource):
 
         # First remove from cluster
         user = getCurrentUser()
-        cluster = self.model('cluster', 'cumulus').load(volume['clusterId'],
+        cluster = ModelImporter.model('cluster', 'cumulus').load(volume['clusterId'],
                                                         user=user,
                                                         level=AccessType.ADMIN)
         cluster.setdefault('volumes', []).remove(volume['_id'])
@@ -394,7 +395,7 @@ class Volume(BaseResource):
 
         volume['status'] = VolumeState.AVAILABLE
 
-        self.model('cluster', 'cumulus').save(cluster)
+        ModelImporter.model('cluster', 'cumulus').save(cluster)
         self._model.save(volume)
         send_status_notification('volume', volume)
 
