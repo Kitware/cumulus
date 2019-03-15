@@ -22,7 +22,7 @@ before_install:
     - pushd girder
     - pip install -r requirements-dev.txt
     - pip install .
-    - pip install clients/python
+    - pip install girder-client
     - popd
     - popd
     # Install mongodb and plugins
