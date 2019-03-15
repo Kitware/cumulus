@@ -29,6 +29,7 @@ from girder.api import access
 from girder.api.docs import addModel
 from girder.api.describe import describeRoute, Description
 from girder.constants import AccessType
+from girder.utility.model_importer import ModelImporter
 import sys
 from bson.objectid import ObjectId
 
@@ -62,7 +63,7 @@ class TaskFlows(Resource):
                    self.task_finished)
         self.route('GET', (':id', 'log'), self.get_log)
 
-        self._model = self.model('taskflow', 'taskflow')
+        self._model = ModelImporter.model('taskflow', 'taskflow')
 
     def _check_status(self, request):
         if request.status_code != 200:
@@ -198,7 +199,7 @@ class TaskFlows(Resource):
 
         self._model.save(taskflow)
         constructor = load_class(taskflow['taskFlowClass'])
-        token = self.model('token').createToken(user=user, days=7)
+        token = ModelImporter.model('token').createToken(user=user, days=7)
         taskflow_instance = constructor(
             id=str(taskflow['_id']),
             girder_token=token['_id'],
@@ -233,7 +234,7 @@ class TaskFlows(Resource):
             params = {}
 
         constructor = load_class(taskflow['taskFlowClass'])
-        token = self.model('token').createToken(user=user, days=7)
+        token = ModelImporter.model('token').createToken(user=user, days=7)
 
         workflow = constructor(
             id=str(taskflow['_id']),
@@ -260,7 +261,7 @@ class TaskFlows(Resource):
             raise RestException('Taskflow is running', 400)
 
         constructor = load_class(taskflow['taskFlowClass'])
-        token = self.model('token').createToken(user=user, days=7)
+        token = ModelImporter.model('token').createToken(user=user, days=7)
 
         if taskflow['status'] != TaskFlowState.DELETING:
 
@@ -305,7 +306,7 @@ class TaskFlows(Resource):
         if states:
             states = json.loads(states)
 
-        cursor = self.model('task', 'taskflow').find_by_taskflow_id(
+        cursor = ModelImporter.model('task', 'taskflow').find_by_taskflow_id(
             user, ObjectId(taskflow['_id']), states=states)
 
         return [task for task in cursor]
@@ -340,7 +341,7 @@ class TaskFlows(Resource):
 
         self.requireParams(['celeryTaskId'], task)
 
-        task = self.model('task', 'taskflow').create(user, taskflow, task)
+        task = ModelImporter.model('task', 'taskflow').create(user, taskflow, task)
 
         cherrypy.response.status = 201
         cherrypy.response.headers['Location'] = '/tasks/%s' % task['_id']

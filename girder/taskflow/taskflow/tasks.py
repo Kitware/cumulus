@@ -26,7 +26,7 @@ from girder.api.rest import Resource
 from girder.api import access
 from girder.api.describe import Description, describeRoute
 from girder.constants import AccessType
-
+from girder.utility.model_importer import ModelImporter
 
 class Tasks(Resource):
 
@@ -40,7 +40,7 @@ class Tasks(Resource):
         self.route('GET', (':id', 'log'), self.get_log)
 
         # TODO Findout how to get plugin name rather than hardcoding it
-        self._model = self.model('task', 'taskflow')
+        self._model = ModelImporter.model('task', 'taskflow')
 
     @access.token
     @filtermodel(model='task', plugin='taskflow')

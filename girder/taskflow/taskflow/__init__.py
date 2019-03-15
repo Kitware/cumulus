@@ -17,10 +17,21 @@
 #  limitations under the License.
 ###############################################################################
 
+from girder.plugin import GirderPlugin
+from girder.utility.model_importer import ModelImporter
+
 from .tasks import Tasks
 from .taskflows import TaskFlows
 
+from .models.task import Task as TaskModel
+from .models.taskflow import Taskflow as TaskflowModel
 
-def load(info):
-    info['apiRoot'].tasks = Tasks()
-    info['apiRoot'].taskflows = TaskFlows()
+class TaskFlowPlugin(GirderPlugin):
+    DISPLAY_NAME = 'TaskFlow'
+
+    def load(self, info):
+        ModelImporter.registerModel('task', TaskModel, 'taskflow')
+        ModelImporter.registerModel('taskflow', TaskflowModel, 'taskflow')
+
+        info['apiRoot'].tasks = Tasks()
+        info['apiRoot'].taskflows = TaskFlows()
