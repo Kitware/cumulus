@@ -1,6 +1,0 @@
-{
-    "name": "SFTP plugin",
-    "description": "Import of files on remote host via SFTP",
-    "dependencies": [],
-    "version": "0.1.0"
-}
