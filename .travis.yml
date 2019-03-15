@@ -32,6 +32,7 @@ before_install:
     - mongod --dbpath=/tmp/db >/dev/null 2>/dev/null &
     - mongod --version
     - pushd girder
+    - pip install `pwd`/cumulus # Install this one first as others depend on it
     - ls | xargs -n1 -I {} pip install `pwd`/{}
     - popd
     # Install CMake
