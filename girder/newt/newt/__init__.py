@@ -25,6 +25,7 @@ from girder.constants import AssetstoreType, AccessType
 from girder.utility.assetstore_utilities import setAssetstoreAdapter
 from girder.models.model_base import ValidationException
 from girder.utility import setting_utilities
+from girder.plugin import GirderPlugin
 
 from .rest import Newt, NewtAssetstore, create_assetstore
 from .constants import NEWT_BASE_URL, PluginSettings
@@ -61,11 +62,13 @@ def validateIgnoreRegistrationPolicy(doc):
         raise ValidationException('Ignore registration policy setting must be boolean.', 'value')
 
 
-def load(info):
+class NewtPlugin(GirderPlugin):
+    DISPLAY_NAME = 'NEWT plugin'
 
-    AssetstoreType.NEWT = 'newt'
-    setAssetstoreAdapter(AssetstoreType.NEWT, NewtAssetstoreAdapter)
-    events.bind('assetstore.update', 'newt', updateAssetstore)
+    def load(self, info):
+        AssetstoreType.NEWT = 'newt'
+        setAssetstoreAdapter(AssetstoreType.NEWT, NewtAssetstoreAdapter)
+        events.bind('assetstore.update', 'newt', updateAssetstore)
 
-    info['apiRoot'].newt = Newt()
-    info['apiRoot'].newt_assetstores = NewtAssetstore()
+        info['apiRoot'].newt = Newt()
+        info['apiRoot'].newt_assetstores = NewtAssetstore()

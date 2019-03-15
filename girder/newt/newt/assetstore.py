@@ -22,7 +22,8 @@ import os
 import requests
 from jsonpath_rw import parse
 
-from girder.models.model_base import ValidationException, GirderException
+from girder.exceptions import GirderException
+from girder.models.model_base import ValidationException
 from girder.utility.abstract_assetstore_adapter import AbstractAssetstoreAdapter
 from girder.api.rest import getCurrentUser
 
