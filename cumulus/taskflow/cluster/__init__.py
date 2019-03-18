@@ -34,7 +34,10 @@ from girder_client import GirderClient, HttpError
 
 from girder.api.rest import getCurrentUser
 from girder.constants import AccessType
-from girder.utility.model_importer import ModelImporter
+
+from cumulus_plugin.models.aws import Aws as AwsModel
+from cumulus_plugin.models.cluster import Cluster as ClusterModel
+from cumulus_plugin.models.volume import Volume as VolumeModel
 
 CHECKIP_URL = 'http://checkip.amazonaws.com/'
 PROVISION_SPEC = 'gridengine/site'
@@ -48,7 +51,7 @@ class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
         cluster_id = parse('cluster._id').find(kwargs)
         if cluster_id:
             cluster_id = cluster_id[0].value
-            model = ModelImporter.model('cluster', 'cumulus')
+            model = ClusterModel()
             cluster = model.load(cluster_id, user=user, level=AccessType.ADMIN)
             cluster = model.filter(cluster, user, passphrase=False)
             kwargs['cluster'] = cluster
@@ -56,14 +59,14 @@ class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
         profile_id = parse('cluster.profileId').find(kwargs)
         if profile_id:
             profile_id = profile_id[0].value
-            model = ModelImporter.model('aws', 'cumulus')
+            model = AwsModel()
             profile = model.load(profile_id, user=user, level=AccessType.ADMIN)
             kwargs['profile'] = profile
 
         volume_id = parse('volume._id').find(kwargs)
         if volume_id:
             volume_id = volume_id[0].value
-            model = ModelImporter.model('volume', 'cumulus')
+            model = VolumeModel()
             volume = model.load(volume_id, user=user, level=AccessType.ADMIN)
             kwargs['volume'] = volume
 

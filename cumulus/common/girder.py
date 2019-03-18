@@ -28,6 +28,8 @@ from girder.constants import AccessType
 import cumulus
 from cumulus.constants import ClusterType
 
+from cumulus_plugin.models.aws import Aws as AwsModel
+
 
 def get_task_token(cluster=None):
     """
@@ -60,10 +62,10 @@ def _get_profile(profile_id):
     except InvalidId:
         query['name'] = profile_id
 
-    profile = ModelImporter.model('aws', 'cumulus').findOne(query)
+    profile = AwsModel().findOne(query)
     secret = profile['secretAccessKey']
 
-    profile = ModelImporter.model('aws', 'cumulus').filter(profile, user)
+    profile = AwsModel().filter(profile, user)
 
     if profile is None:
         raise ValidationException('Profile must be specified!')
