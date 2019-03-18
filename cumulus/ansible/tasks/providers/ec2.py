@@ -24,7 +24,6 @@ import json
 import os
 
 from cumulus.ansible.tasks.providers.base import CloudProvider, InstanceState
-from girder.api.rest import ModelImporter
 
 
 class EC2Provider(CloudProvider):
@@ -46,8 +45,9 @@ class EC2Provider(CloudProvider):
 
         if not hasattr(self, 'secretAccessKey'):
             try:
-                profile = ModelImporter.model('aws', 'cumulus').load(
-                    self.girder_profile_id)
+                # Import the model from the girder plugin
+                from cumulus_plugin.models.aws import Aws as AwsModel
+                profile = AwsModel().load(self.girder_profile_id)
 
                 self.secretAccessKey = profile.get('secreteAccessKey', None)
             # Cumulus plugin libraries are not available
