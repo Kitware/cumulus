@@ -35,10 +35,6 @@ from girder_client import GirderClient, HttpError
 from girder.api.rest import getCurrentUser
 from girder.constants import AccessType
 
-from cumulus_plugin.models.aws import Aws as AwsModel
-from cumulus_plugin.models.cluster import Cluster as ClusterModel
-from cumulus_plugin.models.volume import Volume as VolumeModel
-
 CHECKIP_URL = 'http://checkip.amazonaws.com/'
 PROVISION_SPEC = 'gridengine/site'
 
@@ -46,6 +42,14 @@ PROVISION_SPEC = 'gridengine/site'
 class ClusterProvisioningTaskFlow(cumulus.taskflow.TaskFlow):
 
     def start(self, *args, **kwargs):
+
+        # Import the required models
+        # If these are registered elsewhere, we may be able to use
+        # the ModelImporter instead.
+        from cumulus_plugin.models.aws import Aws as AwsModel
+        from cumulus_plugin.models.cluster import Cluster as ClusterModel
+        from cumulus_plugin.models.volume import Volume as VolumeModel
+
         user = getCurrentUser()
         # Load the cluster
         cluster_id = parse('cluster._id').find(kwargs)
