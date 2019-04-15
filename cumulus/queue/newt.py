@@ -64,7 +64,10 @@ class NewtQueueAdapter(SlurmQueueAdapter):
     def job_statuses(self, jobs):
         user = parse('config.user').find(self._cluster)
 
+        print("user: %s " % str(user))
+
         if not user:
+            print("exception")
             raise Exception('Unable to extract user from cluster '
                             'configuration.')
 
@@ -74,11 +77,15 @@ class NewtQueueAdapter(SlurmQueueAdapter):
         check_status(r)
         json_response = r.json()
 
+        print("json_response: %s" % str(json_response))
+
         states = []
         for job in jobs:
             slurm_state = self._extract_job_status(json_response, job)
             state = self.to_job_queue_state(slurm_state)
             states.append((job, state))
+
+        print(states)
 
         return states
 

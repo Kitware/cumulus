@@ -631,8 +631,10 @@ def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None,
                     r = requests.get(status_url, headers=headers)
                     check_status(r)
                     current_status = r.json()['status']
+                    print("current_status: %s" % str(current_status))
 
                     if current_status == JobState.TERMINATED:
+                        print("terminated")
                         continue
 
                     job_status = from_string(current_status, task=task,
@@ -662,9 +664,12 @@ def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None,
                 )
 
                 # Do we have any job still in a running state?
+                print("new: %s" % str(new_states))
+                print('retry: %s' % str(new_states & running_states))
                 if new_states & running_states:
                     task.retry(countdown=monitor_interval)
             except EOFError:
+                print("error")
                 # Try again
                 task.retry(countdown=5)
                 return
