@@ -786,7 +786,9 @@ def upload_job_output_to_folder(cluster, job, log_write_url=None, job_dir=None,
                     folder_id = output['folderId']
                     path = os.path.join(job_dir, output['path'])
                     download_path(conn, girder_token, folder_id, path,
-                                  assetstore_base_url, assetstore_id)
+                                  assetstore_base_url, assetstore_id,
+                                  include=output.get('include'),
+                                  exclude=output.get('exclude'))
     except HttpError as e:
         job['status'] = JobState.ERROR
         url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl, job['_id'])
