@@ -552,13 +552,17 @@ class Uploading(JobState):
         # Fire off task to upload the output
         log.info('Job "%s" complete' % job_name)
 
-        if 'output' in self.job and len(self.job['output']) == 0:
+        upload = self.job.get('uploadOutput', True)
+
+        if not upload or len(self.job.get('output', [])) == 0:
             return Complete(self)
 
         return self
 
     def run(self):
-        if 'output' in self.job and len(self.job['output']) > 0:
+        upload = self.job.get('uploadOutput', True)
+
+        if upload and len(self.job.get('output', [])) > 0:
             upload_job_output.delay(self.cluster, self.job,
                                     log_write_url=self.log_write_url,
                                     job_dir=self.job['dir'],
@@ -664,7 +668,7 @@ def _monitor_jobs(task, cluster, jobs, log_write_url=None, girder_token=None,
                 # Try again
                 task.retry(countdown=5)
                 return
-            except paramiko.ssh_exception.NoValidConnectionsError as ex:
+            except paramiko.ssh_exception.NoValidConnectionsError:
                 # Try again
                 task.retry(countdown=5)
                 return
@@ -782,7 +786,9 @@ def upload_job_output_to_folder(cluster, job, log_write_url=None, job_dir=None,
                     folder_id = output['folderId']
                     path = os.path.join(job_dir, output['path'])
                     download_path(conn, girder_token, folder_id, path,
-                                  assetstore_base_url, assetstore_id)
+                                  assetstore_base_url, assetstore_id,
+                                  include=output.get('include'),
+                                  exclude=output.get('exclude'))
     except HttpError as e:
         job['status'] = JobState.ERROR
         url = '%s/jobs/%s/log' % (cumulus.config.girder.baseUrl, job['_id'])

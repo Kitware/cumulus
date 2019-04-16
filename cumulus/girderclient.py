@@ -17,6 +17,7 @@
 #  limitations under the License.
 ###############################################################################
 
+from __future__ import print_function
 import requests
 from requests_toolbelt import MultipartEncoder
 import os
@@ -42,7 +43,7 @@ class GirderBase(object):
     def check_status(self, request):
         if request.status_code != 200:
             if request.headers['Content-Type'] == 'application/json':
-                print >> sys.stderr, request.json()
+                print(request.json(), file=sys.stderr)
             request.raise_for_status()
 
 

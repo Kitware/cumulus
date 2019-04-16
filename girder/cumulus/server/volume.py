@@ -112,7 +112,7 @@ class Volume(BaseResource):
         self.requireParams(['name', 'type', 'size', 'profileId'], body)
 
         if not VolumeType.is_valid_type(body['type']):
-                raise RestException('Invalid volume type.', code=400)
+            raise RestException('Invalid volume type.', code=400)
 
         profile_id = parse('profileId').find(body)
         if not profile_id:

@@ -67,15 +67,15 @@ class AnsibleInventorySection(object):
 
     @property
     def name(self):
-        raise NotImplemented('Must be implemented by subclass')
+        raise NotImplementedError('Must be implemented by subclass')
 
     @name.setter
     def name(self, value):
-        raise NotImplemented('Must be implemented by subclass')
+        raise NotImplementedError('Must be implemented by subclass')
 
     @staticmethod
     def treat(line):
-        raise NotImplemented('Must be implemented by subclass')
+        raise NotImplementedError('Must be implemented by subclass')
 
     def append(self, item):
         self.items.append(item)
@@ -124,7 +124,7 @@ class AnsibleInventory(object):
     section_classes = [AnsibleInventoryGroup]
 
     # Empty line or whitespace or starts with #
-    ignore_lines = re.compile('^\s+$|^#')
+    ignore_lines = re.compile(r'^\s+$|^#')
 
     @staticmethod
     def as_host(val):

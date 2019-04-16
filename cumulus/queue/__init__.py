@@ -50,7 +50,7 @@ def get_queue_adapter(cluster, cluster_connection=None):
             system = QueueType.SGE
 
     if system not in type_to_adapter:
-            raise Exception('Unsupported queuing system: %s' % system)
+        raise Exception('Unsupported queuing system: %s' % system)
     else:
         cls = type_to_adapter[system]
 

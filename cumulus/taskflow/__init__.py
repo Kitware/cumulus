@@ -426,7 +426,7 @@ def task_before_sent_handler(headers=None, body=None, **kwargs):
             current_task.request.headers[TASKFLOW_RETRY_HEADER] \
                 = body['retries']
         else:
-                # This is a new task so create a taskflow task instance
+            # This is a new task so create a taskflow task instance
             body = {
                 'celeryTaskId': body['id'],
                 'name': body['task']

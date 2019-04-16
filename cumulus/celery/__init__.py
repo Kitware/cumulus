@@ -18,12 +18,14 @@
 ###############################################################################
 
 from __future__ import absolute_import
+from bson.objectid import ObjectId
 from celery import Celery
 from celery.datastructures import force_mapping
 from cumulus.taskflow.utility import find_taskflow_modules
 from . import commonconfig, commandconfig, monitorconfig
 from kombu.serialization import register
 import json
+import jsonpickle
 
 
 def oid_safe_dumps(obj):
@@ -36,6 +38,23 @@ def oid_safe_loads(obj):
 
 register('oid_safe_json', oid_safe_dumps, oid_safe_loads,
          content_type='application/x-oid_safe_json',
+         content_encoding='utf-8')
+
+
+# Ensure ObjectIds are converted to string,
+# so it will work correctly with the internal serializer
+@jsonpickle.handlers.register(ObjectId, base=True)
+class ObjectIdHandler(jsonpickle.handlers.BaseHandler):
+    def flatten(self, obj, data):
+        data = str(obj)
+        return data
+
+    def restore(self, data):
+        return data
+
+
+register('jsonpickle', jsonpickle.encode, jsonpickle.decode,
+         content_type='application/json',
          content_encoding='utf-8')
 
 _includes = [
@@ -74,7 +93,7 @@ command.conf.update(force_mapping(commandconfig))
 command.conf.update(
     CELERY_ROUTES=_routes,
     CELERY_TASK_SERIALIZER='oid_safe_json',
-    CELERY_ACCEPT_CONTENT=('json', 'oid_safe_json'),
+    CELERY_ACCEPT_CONTENT=('json', 'oid_safe_json', 'jsonpickle'),
     CELERY_RESULT_SERIALIZER='json',
     CELERYD_PREFETCH_MULTIPLIER=1
 )
@@ -85,5 +104,6 @@ monitor = Celery('monitor',  backend='amqp',
 monitor.config_from_object(commonconfig)
 monitor.conf.update(force_mapping(monitorconfig))
 monitor.conf.update(
-    CELERY_ROUTES=_routes
+    CELERY_ROUTES=_routes,
+    CELERY_ACCEPT_CONTENT=('json', 'jsonpickle')
 )

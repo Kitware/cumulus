@@ -38,7 +38,7 @@ class SgeQueueAdapter(AbstractQueueAdapter):
         return output
 
     def _parse_job_id(self, submit_output):
-        m = re.match('^[Yy]our job (\\d+)', submit_output[0])
+        m = re.match(r'^[Yy]our job (\d+)', submit_output[0])
         if not m:
             raise Exception('Unable to extraction job id from: %s'
                             % submit_output[0])
@@ -79,7 +79,7 @@ class SgeQueueAdapter(AbstractQueueAdapter):
         state = None
         job_id = job[AbstractQueueAdapter.QUEUE_JOB_ID]
         for line in job_status_output:
-            m = re.match('^\\s*(\\d+)\\s+\\S+\\s+\\S+\\s+\\S+\\s+(\\w+)',
+            m = re.match(r'^\s*(\d+)\s+\S+\s+\S+\s+\S+\s+(\w+)',
                          line)
             if m and m.group(1) == job_id:
                 state = m.group(2).lower()
@@ -92,7 +92,7 @@ class SgeQueueAdapter(AbstractQueueAdapter):
         output = self._cluster_connection.execute('qconf -sp %s' % parallel_env)
 
         for line in output:
-            m = re.match('slots[\s]+(\d+)', line)
+            m = re.match(r'slots[\s]+(\d+)', line)
             if m:
                 slots = m.group(1)
                 break

@@ -48,8 +48,8 @@ def generate_key_pair(cluster, girder_token=None):
     try:
         new_key = RSAKey.generate(bits=4096)
         passphrase = ''.join(random.SystemRandom()
-                             .choice(string.ascii_uppercase +
-                                     string.digits) for _ in range(64))
+                             .choice(string.ascii_uppercase
+                                     + string.digits) for _ in range(64))
         key_path = os.path.join(cumulus.config.ssh.keyStore, cluster_id)
 
         new_key.write_private_key_file(key_path, password=passphrase)

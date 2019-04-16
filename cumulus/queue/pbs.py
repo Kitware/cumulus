@@ -21,7 +21,7 @@ class PbsQueueAdapter(AbstractQueueAdapter):
         return output
 
     def _parse_job_id(self, submit_output):
-        m = re.match('^(\\d+)\..*', submit_output[0])
+        m = re.match(r'^(\d+)\..*', submit_output[0])
         if not m:
             raise Exception('Unable to extraction job id from: %s'
                             % submit_output[0])
@@ -68,7 +68,7 @@ class PbsQueueAdapter(AbstractQueueAdapter):
         state = None
         job_id = job[AbstractQueueAdapter.QUEUE_JOB_ID]
         for line in job_status_output:
-            m = re.match('^\\s*(\\d+)\\S*\\s+\\S+\\s+\\S+\\s+\\S+\\s+(\\w+)',
+            m = re.match(r'^\s*(\d+)\S*\s+\S+\s+\S+\s+\S+\s+(\w+)',
                          line)
 
             if m and m.group(1) == job_id:
