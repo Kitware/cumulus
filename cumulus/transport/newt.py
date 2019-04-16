@@ -259,6 +259,7 @@ class NewtClusterConnection(AbstractConnection):
             del path['hardlinks']
 
             path['mode'] = self._perms_to_mode(perms)
+            path['size'] = int(path['size'])
             yield path
 
     @property

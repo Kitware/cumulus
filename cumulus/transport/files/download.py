@@ -175,7 +175,7 @@ def _import_path(cluster_connection, girder_client, parent, root_path,
                 folder_id = _ensure_path(girder_client, girder_folders, parent,
                                          path)
 
-            size = int(p['size'])
+            size = p['size']
             item = girder_client.createItem(folder_id, name, '')
 
             if not upload:
