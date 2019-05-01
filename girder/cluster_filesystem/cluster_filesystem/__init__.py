@@ -247,7 +247,7 @@ def _file_id_before(event):
     return _item_files_before(event)
 
 
-@access.cookie
+@access.public(cookie=True)
 @_decode_id
 def _file_download_before(conn, path, cluster_id, **rest):
     return conn.get(path)
