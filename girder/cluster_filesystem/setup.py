@@ -10,7 +10,7 @@ setup(
       'cumulus',
       'cumulus-plugin',
       'easydict==1.5',
-      'paramiko==1.16.0'
+      'paramiko==2.4.2'
     ],
     entry_points={
       'girder.plugin': [
