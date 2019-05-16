@@ -24,7 +24,7 @@ from girder.api.describe import Description
 from girder.api.rest import Resource, RestException, getCurrentUser, getBodyJson
 from girder.api.rest import loadmodel
 from girder.api import access
-from girder.constants import SettingKey
+from girder.settings import SettingKey
 from girder.constants import AssetstoreType, AccessType
 from girder.api.docs import addModel
 from girder.models.setting import Setting
