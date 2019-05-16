@@ -25,7 +25,7 @@ import datetime as dt
 from . import unbound_server
 
 @pytest.mark.plugin('cluster_filesystem')
-@mock.patch('girder.plugins.cluster_filesystem.Cluster')
+@mock.patch('cluster_filesystem.Cluster')
 def test_date_parser(cluster, unbound_server):
     from cluster_filesystem.server.dateutils import date_parser
     # pass a string in the format:

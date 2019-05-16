@@ -26,6 +26,7 @@ import cumulus
 from cumulus.transport.files import get_assetstore_url_base
 from cumulus.testing import AssertCallsMixin
 
+from girder.utility.model_importer import ModelImporter
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
@@ -61,9 +62,9 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
             'password': 'goodpassword'
         })
         self._cumulus, self._user, self._another_user = \
-            [self.model('user').createUser(**user) for user in users]
+            [ModelImporter.model('user').createUser(**user) for user in users]
 
-        self._group = self.model('group').createGroup('cumulus', self._cumulus)
+        self._group = ModelImporter.model('group').createGroup('cumulus', self._cumulus)
 
         self._valid_key = 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDJ0wahxwaNbCDdbRll9FypQRXQv5PXQSTh1IeSynTcZZWSyQH4JhoI0lb3/IW7GllIkWblEuyv2SHzXMKRaaFuwmnU1zsY6Y55N6DJt0e9TvieT8MfaM2e7qqaN+0RS2aFb8iw3i+G80tmFVJWuNm7AITVVPf60Nbc5Bgk9qVIa4BakJ3SmW0p/iHT3CStb/k+psevFYyYCEw5l3+3ejPh9b/3423yRzq5r0cyOw8y8fIe4JV8MlE4z2huc/o9Xpw8mzNim7QdobNOylwJsvIYtB4d+MTqvsnt16e22BS/FKuTXx6jGRFFtYNWwwDQe9IIxYb6dPs1XPKVx081nRUwNjar2um41XUOhPx1N5+LfbrYkACVEZiEkW/Ph6hu0PsYQXbL00sWzrzIunixepn5c2dMnDvugvGQA54Z0EXgIYHnetJp2Xck1pJH6oNSSyA+5Mx5QAH5MFNL3YOnGxGBLrkUfK9Ff7QOiZdqXbZoXXS49WtL42Jsv8SgFu3w5NLffvD6/vCOBHwWxh+8VLg5n28M7pZ8+xyMBidkGkG9di2PfV4XsSAeoIc5utgbUJFT6URr2pW9KT4FxTq/easgiJFZUz48SNAjcBneElB9bjAaGf47BPfCNsIAWU2c9MZJWjURpWtzfk21k2/BAfBPs2VNb8dapY6dNinxLqbPIQ== your_email@example.com'
 
@@ -79,7 +80,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
             'publicIPs' : False,
             'regionName' : 'us-west-1'
         }
-        self._user_profile = self.model('aws', 'cumulus').save(
+        self._user_profile = ModelImporter.model('aws', 'cumulus').save(
             self._user_profile, validate=False)
 
         self._another_user_profile = {
@@ -93,7 +94,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
             'publicIPs' : False,
             'regionName' : 'us-west-1'
         }
-        self._another_user_profile = self.model('aws', 'cumulus').save(
+        self._another_user_profile = ModelImporter.model('aws', 'cumulus').save(
             self._another_user_profile, validate=False)
 
 
@@ -164,7 +165,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatus(r, 201)
 
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    @mock.patch('cumulus_plugin.models.aws.get_ec2_client')
     def test_create_using_aws_profile(self, get_ec2_client, generate_key_pair):
         # First create a profile
         region_host = 'cornwall.ec2.amazon.com'
@@ -651,7 +652,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
 
         self.assertStatusOk(r)
 
-        group_id = self.model('cluster', 'cumulus').get_group_id()
+        group_id = ModelImporter.model('cluster', 'cumulus').get_group_id()
         expected = \
             [   [   [   u'default',
                  {   u'_id': cluster_id,
@@ -990,7 +991,7 @@ class ClusterTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatus(r, 404)
 
         # Assert that assetstore is gone
-        self.assertIsNone(self.model('assetstore').load(cluster['assetstoreId']))
+        self.assertIsNone(ModelImporter.model('assetstore').load(cluster['assetstoreId']))
 
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
     def test_create_scheduler_type(self, generate_key_pair):
