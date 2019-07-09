@@ -19,7 +19,6 @@
 
 from __future__ import print_function
 import requests
-from requests_toolbelt import MultipartEncoder
 import os
 import json
 import argparse
@@ -117,18 +116,13 @@ class DirectoryUploader(GirderBase):
 
                 part = fp.read(chunk_size)
 
-                m = MultipartEncoder(
-                    fields=[('uploadId',  upload_id),
-                            ('offset', str(uploaded)),
-                            ('chunk', (name, part, 'application/octet-stream'))]
-
-                )
-
+                params['uploadId'] = upload_id
+                params['offset'] = uploaded
                 headers = self._headers.copy()
-                headers['Content-Type'] = m.content_type
+                headers['Content-Type'] = 'application/octet-stream'
 
                 r = requests.post('%s/file/chunk' % self._base_url,
-                                  params=params, data=m, headers=headers)
+                                  params=params, data=part, headers=headers)
                 self.check_status(r)
 
                 uploaded += chunk_size
