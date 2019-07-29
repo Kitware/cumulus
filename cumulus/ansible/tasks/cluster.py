@@ -91,7 +91,8 @@ def launch_cluster(playbook, cluster, profile, secret_key, extra_vars,
                 'LOG_WRITE_URL': log_write_url,
                 'CLUSTER_ID': cluster['_id']})
 
-    inventory = simple_inventory('localhost')
+    # Need to set the python interpreter. Either inventory or host_vars/ dir next to inventory.
+    inventory = simple_inventory('localhost ansible_python_interpreter=python')
 
     with inventory.to_tempfile() as inventory_path:
         ansible = run_playbook(playbook, inventory_path, playbook_variables,

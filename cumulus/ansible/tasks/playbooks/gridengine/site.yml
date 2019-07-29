@@ -1,6 +1,7 @@
 - name: Setup groups for gridengine playbook
   hosts: localhost
   tasks:
+  - debug: var=groups
   - add_host:  name={{item}} groups=master
     with_items: "{{groups['head']}}"
   - add_host:  name={{item}} groups=exec

@@ -1,43 +1,35 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
+import json
+import os
 
-###############################################################################
-#  Copyright Kitware Inc.
-#
-#  Licensed under the Apache License, Version 2.0 ( the 'License' );
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an 'AS IS' BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
-###############################################################################
+from inspect import getmembers, ismethod, isfunction, getargspec
+import requests
+import six
 
 # Ansible's module magic requires this to be
 # 'from ansible.module_utils.basic import *' otherwise it will error out. See:
 # https://github.com/ansible/ansible/blob/v1.9.4-1/lib/ansible/module_common.py#L41-L59
 # For more information on this magic. For now we noqa to prevent flake8 errors
 from ansible.module_utils.basic import *  # noqa
-from inspect import getmembers, ismethod, getargspec
 
 try:
-    from girder_client import GirderClient, AuthenticationError, HttpError
+    from girder_client import GirderClient, AuthenticationError
     HAS_GIRDER_CLIENT = True
 except ImportError:
     HAS_GIRDER_CLIENT = False
 
+try:
+    from girder.utility.s3_assetstore_adapter import DEFAULT_REGION
+except ImportError:
+    DEFAULT_REGION = 'us-east-1'
 
-__version__ = '0.2.1'
+__version__ = '0.3.0'
 
 DOCUMENTATION = """
 ---
 module: girder
-author: 'Chris Kotfila (chris.kotfila@kitware.com)
-version_added: '0.1'
+author: "Kitware, Inc. <kitware@kitware.com>
+version_added: "0.1"
 short_description: A module that wraps girder_client
 requirements: [ girder_client==1.1.0 ]
 description:
@@ -65,6 +57,11 @@ options:
         default: None
         description:
             - full URL base of the girder instance API
+    apiKey:
+        required: false
+        default: None
+        description:
+            - pass in an apiKey instead of username/password
 
 
     scheme:
@@ -111,11 +108,11 @@ options:
                 - (See note on 'user')
     state:
         required: false
-        default: 'present'
-        choices: ['present', 'absent']
+        default: "present"
+        choices: ["present", "absent"]
         description:
             - Used to indicate the presence or absence of a resource
-              - e.g.,  user, plugin, assetstore
+              - e.g.,  user, assetstore
 
     user:
         required: false
@@ -161,14 +158,6 @@ options:
                           - If true,  make the user an administrator.
 
 
-    plugin:
-        required: false
-        description:
-            - Specify what plugins should be activated (state: present)
-              or deactivated (state: absent).
-            - Takes a list of plugin names,  incorrect names are silently
-              ignored
-
     assetstore:
         required: false
         description:
@@ -181,7 +170,7 @@ options:
                           - Name of the assetstore
                   type:
                       required: true
-                      choices: ['filesystem', 'gridfs', 's3', 'hdfs']
+                      choices: ['filesystem', 'gridfs', 's3', 'hdfs', 'database']
                       description:
                           - Currently only 'filesystem' has been tested
                   readOnly:
@@ -225,29 +214,38 @@ options:
                            - The S3 bucket to store data in
 
                    prefix:
-                       required: true
+                       required: false
                        description:
                            - Optional path prefix within the bucket under which
                              files will be stored
 
                    accessKeyId:
-                       required: true
+                       required: false
                        description:
                            - the AWS access key ID to use for authentication
 
                    secret:
-                       required: true
+                       required: false
                        description:
                            - the AWS secret key to use for authentication
 
                    service:
                        required: false
-                       default: s3.amazonaws.com
+                       default: ''
                        description:
                            - The S3 service host (for S3 type)
+                           - Only set this if you're not using AWS S3.
                            - This can be used to specify a protocol and port
                              -  use the form [http[s]://](host domain)[:(port)]
                            - Do not include the bucket name here
+
+                   region:
+                       required: false
+                       default: us-east
+
+                   inferCredentials:
+                       required: false
+                       default: false
 
               options (hdfs) (EXPERIMENTAL):
                    host:
@@ -297,7 +295,7 @@ options:
                             - the login name
                     type:
                         required: true
-                        choices: ['member', 'moderator', 'admin']
+                        choices: ["member", "moderator", "admin"]
                         description:
                             - Access level for that user in the group
 
@@ -322,6 +320,10 @@ options:
                     - A list of folder options
                     - Specified by the 'folder' option to the girder module
                     - (see 'folder:')
+            public:
+                required: false
+                description:
+                    - Set to true if the collection is public or false if private
             access:
                 required: false
                 description:
@@ -356,19 +358,23 @@ options:
                     - Description of the folder
             parentType:
                 required: true
-                choices: ['user', 'folder', 'collection']
+                choices: ["user", "folder", "collection"]
                 description:
                     - The type of the parent
             parentId:
                 required: true
                 description:
-                    - The ID of the parent collection
+                    - The ID of the parent collection/folder/user
             folders:
                 required: false
                 description:
                     - A list of folder options
                     - Specified by the 'folder' option to the girder module
                     - (see 'folder:')
+            public:
+                required: false
+                description:
+                    - Set to true if the folder is public or false if private
             access:
                 required: false
                 description:
@@ -421,9 +427,22 @@ options:
                     - list of local file paths
                     - files will be uploaded to the item
 
+     setting:
+        required: false
+        description:
+            - Get/set the values of system settings
+        options:
+            key:
+                required: true
+                description:
+                    - The key identifying this setting
+            value:
+                required: true if state = present, else false
+                description:
+                    - The value to set
 """
 
-EXAMPLES = '''
+EXAMPLES = """
 
 
 #############
@@ -431,40 +450,40 @@ EXAMPLES = '''
 ###
 
 
-# Ensure 'admin' user exists
+# Ensure "admin" user exists
 - name: Create 'admin' User
   girder:
     user:
-      firstName: 'Chris'
-      lastName: 'Kotfila'
-      login: 'admin'
-      password: 'letmein'
-      email: 'chris.kotfila@kitware.com'
+      firstName: "John"
+      lastName: "Doe"
+      login: "admin"
+      password: "letmein"
+      email: "john.due@test.com"
       admin: yes
     state: present
 
 # Ensure a 'foobar' user exists
 - name: Create 'foobar' User
   girder:
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     user:
-      firstName: 'Foo'
-      lastName: 'Bar'
-      login: 'foobar'
-      password: 'foobarbaz'
-      email: 'foo.bar@kitware.com'
+      firstName: "Foo"
+      lastName: "Bar"
+      login: "foobar"
+      password: "foobarbaz"
+      email: "foo.bar@test.com"
       admin: yes
     state: present
 
 # Remove the 'foobar' user
 - name: Remove 'foobar' User
-  username: 'admin'
-  password: 'letmein'
+  username: "admin"
+  password: "letmein"
   girder:
     user:
-      login: 'foobar'
-      password: 'foobarbaz'
+      login: "foobar"
+      password: "foobarbaz"
     state: absent
 
 ############
@@ -475,52 +494,52 @@ EXAMPLES = '''
 - name: Create 'alice' User
   girder:
     port: 8080
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     user:
-      firstName: 'Alice'
-      lastName: 'Test'
-      login: 'alice'
-      password: 'letmein'
-      email: 'alice.test@kitware.com'
+      firstName: "Alice"
+      lastName: "Doe"
+      login: "alice"
+      password: "letmein"
+      email: "alice.doe@test.com"
     state: present
 
 # Create a 'bill' user
 - name: Create 'bill' User
   girder:
     port: 8080
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     user:
-      firstName: 'Bill'
-      lastName: 'Test'
-      login: 'bill'
-      password: 'letmein'
-      email: 'bill.test@kitware.com'
+      firstName: "Bill"
+      lastName: "Doe"
+      login: "bill"
+      password: "letmein"
+      email: "bill.doe@test.com"
     state: present
 
 # Create a 'chris' user
 - name: Create 'chris' User
   girder:
     port: 8080
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     user:
-      firstName: 'Chris'
-      lastName: 'Test'
-      login: 'chris'
-      password: 'letmein'
-      email: 'chris.test@kitware.com'
+      firstName: "Chris"
+      lastName: "Doe"
+      login: "chris"
+      password: "letmein"
+      email: "chris.doe@test.com"
     state: present
 
 - name: Create a test group with users
   girder:
     port: 8080
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     group:
-      name: 'Test Group'
-      description: 'Basic test group'
+      name: "Test Group"
+      description: "Basic test group"
       users:
         - login: alice
           type: member
@@ -536,52 +555,17 @@ EXAMPLES = '''
 - name: Remove bill from group
   girder:
     port: 8080
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     group:
-      name: 'Test Group'
-      description: 'Basic test group'
+      name: "Test Group"
+      description: "Basic test group"
       users:
         - login: alice
           type: member
         - login: chris
           type: admin
     state: present
-
-#############
-# Example using 'plugins'
-###
-
-# To enable or disable all plugins you may pass the '*'
-# argument.  This does not (yet) support arbitrary regexes
-- name: Disable all plugins
-  girder:
-    username: 'admin'
-    password: 'letmein'
-    plugins: '*'
-    state: absent
-
-- name: Enable thumbnails plugin
-  girder:
-    username: 'admin'
-    password: 'letmein'
-    port: 8080
-    plugins:
-      - thumbnails
-    state: present
-
-# Note that 'thumbnails'  is still enabled from the previous task,
-# the 'plugins' task ensures that plugins are enabled or disabled,
-# it does NOT define the complete list of enabled or disabled plugins.
-- name: Ensure jobs and gravatar plugins are enabled
-  girder:
-    username: 'admin'
-    password: 'letmein'
-    plugins:
-      - jobs
-      - gravatar
-    state: present
-
 
 
 ############
@@ -590,23 +574,23 @@ EXAMPLES = '''
 
 - name: Create filesystem assetstore
   girder:
-    username: 'admin'
-     password: 'letmein'
+    username: "admin"
+     password: "letmein"
      assetstore:
-       name: 'Temp Filesystem Assetstore'
-       type: 'filesystem'
-       root: '/data/'
+       name: "Temp Filesystem Assetstore"
+       type: "filesystem"
+       root: "/data/"
        current: true
      state: present
 
 - name: Delete filesystem assetstore
   girder:
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     assetstore:
-      name: 'Temp Filesystem Assetstore'
-      type: 'filesystem'
-      root: '/tmp/'
+      name: "Temp Filesystem Assetstore"
+      type: "filesystem"
+      root: "/tmp/"
     state: absent
 
 
@@ -614,55 +598,55 @@ EXAMPLES = '''
 # Examples using collections, folders, items and files
 #
 
-# Creates a test collection called 'Test Collection'
+# Creates a test collection called "Test Collection"
 - name: Create collection
   girder:
     port: 8080
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     collection:
-      name: 'Test Collection'
-      description: 'A test collection'
+      name: "Test Collection"
+      description: "A test collection"
   register: test_collection
 
-# Creates a folder called 'test folder' under 'Test Collection'
+# Creates a folder called "test folder" under "Test Collection"
 - name: Create folder
   girder:
     port: 8080
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     folder:
-      parentType: 'collection'
-      parentId: '{{test_collection['gc_return']['_id'] }}'
-      name: 'test folder'
-      description: 'A test folder'
+      parentType: "collection"
+      parentId: "{{test_collection['gc_return']['_id'] }}"
+      name: "test folder"
+      description: "A test folder"
   register: test_folder
 
-# Creates an item called 'test item' under 'test folder'
+# Creates an item called "test item" under "test folder"
 - name: Create an item
   girder:
     port: 8080
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     item:
-      folderId: '{{test_folder['gc_return']['_id'] }}'
-      name: 'test item'
-      description: 'A test item'
+      folderId: "{{test_folder['gc_return']['_id'] }}"
+      name: "test item"
+      description: "A test item"
   register: test_item
 
 # Upload files on the localhost at /tmp/data/test1.txt and
 # /tmp/data/test2.txt to the girder instance under the item
-# 'test item'
+# "test item"
 # Note:  the list is idempotent and will remove files that are
 # not listed under the item. Files are checked for both name
 # and size to determine if they should be updated.
 - name: Upload files
   girder:
     port: 8080
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     files:
-      itemId: '{{ test_item['gc_return']['_id'] }}'
+      itemId: "{{ test_item['gc_return']['_id'] }}"
       sources:
         - /tmp/data/test1.txt
         - /tmp/data/test2.txt
@@ -676,17 +660,17 @@ EXAMPLES = '''
 - name: Create collection with a folder and a subfolder
   girder:
     port: 8080
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     collection:
-      name: 'Test Collection'
-      description: 'A test collection'
+      name: "Test Collection"
+      description: "A test collection"
       folders:
-        - name: 'test folder'
-          description: 'A test folder'
+        - name: "test folder"
+          description: "A test folder"
           folders:
-            - name: 'test subfolder'
-            - name: 'test subfolder 2'
+            - name: "test subfolder"
+            - name: "test subfolder 2"
   register: test_collection
 
 
@@ -699,11 +683,11 @@ EXAMPLES = '''
 - name: Create collection with access
   girder:
     port: 8080
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     collection:
-      name: 'Test Collection'
-      description: 'A test collection'
+      name: "Test Collection"
+      description: "A test collection"
       public: no
       access:
         users:
@@ -717,11 +701,11 @@ EXAMPLES = '''
 - name: Add group to Test Collection
   girder:
     port: 8080
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     collection:
-      name: 'Test Collection'
-      description: 'A test collection'
+      name: "Test Collection"
+      description: "A test collection"
       public: no
       access:
         users:
@@ -739,13 +723,13 @@ EXAMPLES = '''
 - name: Add Test Folder with access
   girder:
     port: 8080
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     folder:
-      parentType: 'collection'
-      parentId: '{{test_collection['gc_return']['_id'] }}'
-      name: 'test folder'
-      description: 'A test folder'
+      parentType: "collection"
+      parentId: "{{test_collection['gc_return']['_id'] }}"
+      name: "test folder"
+      description: "A test folder"
       access:
         users:
           - login: bill
@@ -768,15 +752,15 @@ EXAMPLES = '''
     username: 'admin'
     password: 'letmein'
     get:
-      path: 'users'
+      path: "users"
     register: ret_val
 
 # Prints debugging messages with the emails of the users
 # From the last task by accessing 'gc_return' of the registered
 # variable 'ret_val'
 - name: print emails of users
-  debug: msg='{{ item['email'] }}'
-  with_items: '{{ ret_val['gc_return'] }}'
+  debug: msg="{{ item['email'] }}"
+  with_items: "{{ ret_val['gc_return'] }}"
 
 
 #############
@@ -786,58 +770,87 @@ EXAMPLES = '''
 # Supports get, post, put, delete methods,  but does
 # not guarantee idempotence on these methods!
 
-- name: Restart the server
+- name: Run a system check
   girder:
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     put:
-      path: 'system/restart'
+      path: "system/check"
 
 # An example of posting an item to Girder
 # Note that this is NOT idempotent. Running
-# multiple times will create 'An Item', 'An Item (1)',
-# 'An Item (2)', etc..
+# multiple times will create "An Item", "An Item (1)",
+# "An Item (2)", etc..
 
 - name: Get Me
   girder:
-    username: 'admin'
-    password: 'letmein'
+    username: "admin"
+    password: "letmein"
     get:
-      path: 'user/me'
+      path: "user/me"
   register: ret
 
 # Show use of 'token' for subsequent authentication
 - name: Get my public folder
   girder:
-    token: '{{ ret['token'] }}'
+    token: "{{ ret['token'] }}"
     get:
-      path: 'folder'
+      path: "folder"
       parameters:
-        parentType: 'user'
-        parentId: '{{ ret['gc_return']['_id'] }}'
-        text: 'Public'
+        parentType: "user"
+        parentId: "{{ ret['gc_return']['_id'] }}"
+        text: "Public"
   register: ret
 
 
 - name: Post an item to my public folder
   girder:
-    host: 'data.kitware.com'
+    host: "data.kitware.com"
     scheme: 'https'
-    token: '{{ ret['token'] }}'
+    token: "{{ ret['token'] }}"
     post:
-      path: 'item'
+      path: "item"
       parameters:
-        folderId: '{{ ret['gc_return'][0]['_id'] }}'
-        name: 'An Item'
+        folderId: "{{ ret['gc_return'][0]['_id'] }}"
+        name: "An Item"
 
 
-'''
+"""
+
+
+def unjsonify(a):
+    """Convert json parts to python objects.
+
+    Tries to convert a json string or a compund object consisting of partial
+    json strings to a full python object.  Returns either a json scalar (string,
+    int, float), a list or dict of json scalars, or any combination of lists and
+    dicts that eventually end at json scalars.
+
+    Note that this function does not detect cycles in an object graph and, if
+    provided an object with one, will run until out of memory, at the stack
+    limit, or until at some other run-time limit.
+    """
+    # if string, try to loads() it
+    if isinstance(a, six.string_types):
+        try:
+            a = json.loads(a)
+            # pass-through to below
+        except ValueError:
+            return a
+
+    if isinstance(a, list):
+        return [unjsonify(x) for x in a]
+
+    if isinstance(a, dict):
+        return {str(k): unjsonify(v) for k, v in a.items()}
+
+    return None
 
 
 def class_spec(cls, include=None):
     include = include if include is not None else []
 
-    for fn, method in getmembers(cls, predicate=ismethod):
+    for fn, method in getmembers(cls, predicate=lambda f: ismethod(f) or isfunction(f)):
         if fn in include:
             spec = getargspec(method)
             # Note: must specify the kind of data we accept
@@ -902,11 +915,11 @@ class Resource(object):
         try:
             ret = self.client.post(self.resource_type, body, **kwargs)
             self.client.changed = True
-        except HttpError as htErr:
+        except requests.HTTPError as htErr:
             try:
                 # If we can't create the item,  try and return
                 # The item with the same name
-                ret = self.resource_by_name[args['name']]
+                ret = self.resource_by_name[kwargs['name']]
             except KeyError:
                 raise htErr
         return ret
@@ -921,10 +934,15 @@ class Resource(object):
         if _id in self.resources:
             current = self.resources[_id]
             # if body is a subset of current we don't actually need to update
-            if set(body.items()) <= set(current.items()):
-                return current
-            else:
-                return self.__apply(_id, self.client.put, body, **kwargs)
+            try:
+                if set(body.items()) <= set(
+                        {k: v for k, v in current.items() if k in body}.items()):
+                    return current
+            except TypeError:
+                # If a current value is unhashable, we throw a TypeError, but
+                # should still update it.
+                pass
+            return self.__apply(_id, self.client.put, body, **kwargs)
         else:
             raise Exception('{} does not exist!'.format(_id))
 
@@ -1018,9 +1036,9 @@ class GirderClientModule(GirderClient):
 
     # Exclude these methods from both 'raw' mode
     _include_methods = ['get', 'put', 'post', 'delete', 'patch',
-                        'plugins', 'user', 'assetstore',
+                        'user', 'assetstore',
                         'collection', 'folder', 'item', 'files',
-                        'group']
+                        'group', 'setting']
 
     _debug = True
 
@@ -1059,6 +1077,14 @@ class GirderClientModule(GirderClient):
                 self.authenticate(
                     username=self.module.params['username'],
                     password=self.module.params['password'])
+
+            except AuthenticationError:
+                self.fail('Could not Authenticate!')
+
+        elif self.module.params['apiKey'] is not None:
+            try:
+                self.authenticate(
+                    apiKey=self.module.params['apiKey'])
 
             except AuthenticationError:
                 self.fail('Could not Authenticate!')
@@ -1156,7 +1182,7 @@ class GirderClientModule(GirderClient):
         try:
             user = self.get('/resource/lookup',
                             {'path': '/user/{}'.format(login)})
-        except HttpError:
+        except requests.HTTPError:
             user = None
         return user
 
@@ -1164,7 +1190,7 @@ class GirderClientModule(GirderClient):
         try:
             # Could potentially fail if we have more 50 groups
             group = {g['name']: g for g in self.get('group')}['name']
-        except (KeyError, HttpError):
+        except (KeyError, requests.HTTPError):
             group = None
         return group
 
@@ -1251,8 +1277,8 @@ class GirderClientModule(GirderClient):
 
                 # Make sure 'changed' is handled correctly if we've
                 # manipulated the group's users in any way
-                if (len(ret['added']) != 0 or len(ret['removed']) != 0 or
-                        len(ret['updated']) != 0):
+                if (len(ret['added']) != 0 or len(ret['removed']) != 0
+                        or len(ret['updated']) != 0):
                     self.changed = True
 
         elif self.module.params['state'] == 'absent':
@@ -1272,11 +1298,10 @@ class GirderClientModule(GirderClient):
         :rtype: dict
 
         """
-
         reverse_type = {v: k for k, v in self.access_types.items()}
 
-        for login in (set(member_levels.keys()) &
-                      set(user_levels.keys())):
+        for login in (set(member_levels.keys())
+                      & set(user_levels.keys())):
             user = self._get_user_by_login(login)
             _id = user['_id']
 
@@ -1377,7 +1402,7 @@ class GirderClientModule(GirderClient):
         groups = access.get('groups', None)
 
         if groups is not None:
-            assert set(g['type'] for g in groups) <= \
+            assert set(g['type'] for g in groups if 'type' in g) <= \
                 set(self.access_types.keys()), 'Invalid access type!'
 
             # Hash of name -> group information
@@ -1385,12 +1410,13 @@ class GirderClientModule(GirderClient):
             all_groups = {g['name']: g for g in self.get('group')}
 
             access_list['groups'] = [{'id': all_groups[g['name']]['_id'],
-                                      'level': self.access_types[g['type']]}
+                                      'level': self.access_types[g['type']]
+                                      if 'type' in g else g['level']}
                                      for g in groups]
 
         if users is not None:
 
-            assert set(u['type'] for u in users) <= \
+            assert set(u['type'] for u in users if 'type' in u) <= \
                 set(self.access_types.keys()), 'Invalid access type!'
 
             # Hash of login -> user information
@@ -1399,13 +1425,15 @@ class GirderClientModule(GirderClient):
                              for u in users}
 
             access_list['users'] = [{'id': current_users[u['login']]['_id'],
-                                     'level': self.access_types[u['type']]}
+                                     'level': self.access_types[u['type']]
+                                     if 'type' in u else u['level']}
                                     for u in users]
 
         return r.put_access(_id, access_list, public=public)
 
     def _process_folders(self, folders, parentId, parentType):
-        """Process a list of folders from a user or collection.
+        """
+        Process a list of folders from a user or collection.
 
         :param folders: List of folders passed as attribute
                         to user or collection
@@ -1413,9 +1441,7 @@ class GirderClientModule(GirderClient):
         :param parentType: one of 'user' or 'collection'
         :returns: Nothing
         :rtype: None
-
         """
-
         current_folders = {f['name']: f for f in
                            self.get('folder', {'parentType': parentType,
                                                'parentId': parentId})}
@@ -1430,8 +1456,8 @@ class GirderClientModule(GirderClient):
                         **kwargs)
 
         # Make sure we remove folders not listed
-        for name in (set(current_folders.keys()) -
-                     set([f['name'] for f in folders])):
+        for name in (set(current_folders.keys())
+                     - set([f['name'] for f in folders])):
 
             original_state = self.module.params['state']
             self.module.params['state'] = 'absent'
@@ -1450,9 +1476,26 @@ class GirderClientModule(GirderClient):
 
         if self.module.params['state'] == 'present':
             if r.name_exists(name):
+                # While we can set public when we create the collection, we
+                # cannot update the public/private status of a collection
+                # via the PUT /collection/%s endpoint. Currently this is
+                # possible through the API by hitting the
+                # PUT /collection/%s/access endpoint with public=true and
+                # the access dict equal to {}
+                if r.resources_by_name[name]['public'] != public:
+                    _id = r.resources_by_name[name]['_id']
+                    self.changed = True
+                    self._access(r, r.get_access(_id), _id, public=public)
+                    # invalidate the resource cache - this forces us to pick up
+                    # the change in 'public' attribute despite it not being
+                    # an attribute we can modify
+                    r._resources = None
+
                 ret = r.update_by_name(name, {k: v for k, v in valid_fields
                                               if v is not None})
+
             else:
+                valid_fields.append(('public', public))
                 ret = r.create({k: v for k, v in valid_fields
                                 if v is not None})
         if folders is not None:
@@ -1467,49 +1510,6 @@ class GirderClientModule(GirderClient):
 
         return ret
 
-    def plugins(self, *plugins):
-        import json
-        ret = []
-
-        available_plugins = self.get('system/plugins')
-        self.message['debug']['available_plugins'] = available_plugins
-
-        plugins = set(plugins)
-        enabled_plugins = set(available_plugins['enabled'])
-
-        # Could maybe be expanded to handle all regular expressions?
-        if '*' in plugins:
-            plugins = set(available_plugins['all'].keys())
-
-        # Fail if plugins are passed in that are not available
-        if not plugins <= set(available_plugins['all'].keys()):
-            self.fail('%s, not available!' %
-                      ','.join(list(plugins -
-                                    set(available_plugins['all'].keys()))))
-
-        # If we're trying to ensure plugins are present
-        if self.module.params['state'] == 'present':
-            # If plugins is not a subset of enabled plugins:
-            if not plugins <= enabled_plugins:
-                # Put the union of enabled_plugins nad plugins
-                ret = self.put('system/plugins',
-                               {'plugins':
-                                json.dumps(list(plugins | enabled_plugins))})
-                self.changed = True
-
-        # If we're trying to ensure plugins are absent
-        elif self.module.params['state'] == 'absent':
-            # If there are plugins in the list that are enabled
-            if len(enabled_plugins & plugins):
-
-                # Put the difference of enabled_plugins and plugins
-                ret = self.put('system/plugins',
-                               {'plugins':
-                                json.dumps(list(enabled_plugins - plugins))})
-                self.changed = True
-
-        return ret
-
     def user(self, login, password, firstName=None,
              lastName=None, email=None, admin=False, folders=None):
 
@@ -1520,7 +1520,7 @@ class GirderClientModule(GirderClient):
                                   ('lastName', lastName), ('email', email)]:
                 if var is None:
                     self.fail('%s must be set if state '
-                              'is "present"' % var_name)
+                              "is 'present'" % var_name)
 
             try:
                 ret = self.authenticate(username=login,
@@ -1545,6 +1545,8 @@ class GirderClientModule(GirderClient):
                                  'email': email,
                                  'admin': 'true' if admin else 'false'})
                     self.changed = True
+
+                ret = me
             # User does not exist (with this login info)
             except AuthenticationError:
                 ret = self.post('user', parameters={
@@ -1587,22 +1589,27 @@ class GirderClientModule(GirderClient):
 
     assetstore_types = {
         'filesystem': 0,
-        'girdfs': 1,
+        'gridfs': 1,
         's3': 2,
-        'hdfs': 'hdfs'
+        'hdfs': 'hdfs',
+        'database': 'database'
     }
 
     def __validate_hdfs_assetstore(self, *args, **kwargs):
         # Check if hdfs plugin is available,  enable it if it isn't
         pass
 
+    def __validate_database_assetstore(self, *args, **kwargs):
+        pass
+
     def assetstore(self, name, type, root=None, db=None, mongohost=None,
                    replicaset='', bucket=None, prefix='', accessKeyId=None,
-                   secret=None, service='s3.amazonaws.com', host=None,
+                   secret=None, service='', host=None,
                    port=None, path=None, user=None, webHdfsPort=None,
-                   readOnly=False, current=False):
+                   dbtype=None, dburi=None, readOnly=False, current=False,
+                   region=DEFAULT_REGION, inferCredentials=False):
 
-            # Fail if somehow we have an asset type not in assetstore_types
+        # Fail if somehow we have an asset type not in assetstore_types
         if type not in self.assetstore_types.keys():
             self.fail('assetstore type %s is not implemented!' % type)
 
@@ -1617,18 +1624,18 @@ class GirderClientModule(GirderClient):
                        'replicaset': replicaset},
             's3': {'name': name,
                    'type': self.assetstore_types[type],
-                   'bucket': bucket,
-                   'prefix': prefix,
-                   'accessKeyId': accessKeyId,
-                   'secret': secret,
-                   'service': service},
+                   'bucket': bucket},
             'hdfs': {'name': name,
                      'type': self.assetstore_types[type],
                      'host': host,
                      'port': port,
                      'path': path,
                      'user': user,
-                     'webHdfsPort': webHdfsPort}
+                     'webHdfsPort': webHdfsPort},
+            'database': {'name': name,
+                         'type': self.assetstore_types[type],
+                         'dbtype': dbtype,
+                         'dburi': dburi}
         }
 
         # Fail if we don't have all the required attributes
@@ -1641,6 +1648,12 @@ class GirderClientModule(GirderClient):
         # Set optional arguments in the hash
         argument_hash[type]['readOnly'] = readOnly
         argument_hash[type]['current'] = current
+        argument_hash[type]['prefix'] = prefix
+        argument_hash[type]['accessKeyId'] = accessKeyId
+        argument_hash[type]['secret'] = secret
+        argument_hash[type]['service'] = service
+        argument_hash[type]['region'] = region
+        argument_hash[type]['inferCredentials'] = inferCredentials
 
         ret = []
         # Get the current assetstores
@@ -1668,7 +1681,8 @@ class GirderClientModule(GirderClient):
                 updateable = ['root', 'mongohost', 'replicaset', 'bucket',
                               'prefix', 'db', 'accessKeyId', 'secret',
                               'service', 'host', 'port', 'path', 'user',
-                              'webHdfsPort', 'current']
+                              'webHdfsPort', 'current', 'dbtype', 'dburi',
+                              'region', 'inferCredentials']
 
                 # tuples of (key,  value) for fields that can be updated
                 # in the assetstore
@@ -1682,7 +1696,7 @@ class GirderClientModule(GirderClient):
                                      for k in updateable
                                      if k in argument_hash[type].keys())
 
-                # if arg_hash_items not a proper subset of assetstore_items
+                # if arg_hash_items not a subset of assetstore_items
                 if not arg_hash_items <= assetstore_items:
                     # Update
                     ret = self.put('assetstore/%s' % id,
@@ -1711,18 +1725,67 @@ class GirderClientModule(GirderClient):
                 id = assetstores[name]['_id']
                 ret = self.delete('assetstore/%s' % id,
                                   parameters=argument_hash[type])
+                self.changed = True
+
+        return ret
+
+    def setting(self, key, value=None):
+        ret = {}
+
+        if value is None:
+            value = ''
+
+        if self.module.params['state'] == 'present':
+            # Get existing setting value to determine self.changed
+            existing_value = self.get('system/setting', parameters={'key': key})
+
+            if existing_value is None:
+                existing_value = ''
+
+            params = {
+                'key': key,
+                'value': json.dumps(value)
+            }
+
+            try:
+                response = self.put('system/setting', data=params)
+            except requests.HTTPError as e:
+                self.fail(e.response.json()['message'])
+
+            if response:
+                self.changed = unjsonify(existing_value) != unjsonify(value)
+
+            if self.changed:
+                ret['previous_value'] = existing_value
+                ret['current_value'] = value
+            else:
+                ret['previous_value'] = ret['current_value'] = existing_value
+
+        elif self.module.params['state'] == 'absent':
+            # Removing a setting is a way of explicitly forcing it to be the default
+            existing_value = self.get('system/setting', parameters={'key': key})
+            default = self.get('system/setting', parameters={'key': key, 'default': 'default'})
+
+            if existing_value != default:
+                try:
+                    self.delete('system/setting', parameters={'key': key})
+                    self.changed = True
+
+                    ret['previous_value'] = existing_value
+                    ret['current_value'] = default
+                except requests.HTTPError as e:
+                    self.fail(e.response.json()['message'])
 
         return ret
 
 
 def main():
-    """Entry point for ansible girder client module
+    """
+    Entry point for ansible girder client module
 
     :returns: Nothing
     :rtype: NoneType
-
     """
-
     # Default spec for initalizing and authenticating
     argument_spec = {
         # __init__
@@ -1737,7 +1800,8 @@ def main():
         # authenticate
         'username': dict(),
         'password': dict(),
-        'token':    dict(),
+        'token': dict(),
+        'apiKey': dict(),
 
         # General
         'state': dict(default='present', choices=['present', 'absent'])
@@ -1748,10 +1812,10 @@ def main():
     for method in gcm.required_one_of:
         argument_spec[method] = dict(type=gcm.spec[method]['type'])
 
-    module = AnsibleModule(
+    module = AnsibleModule(  # noqa
         argument_spec=argument_spec,
         required_one_of=[gcm.required_one_of,
-                         ['token', 'username', 'user']],
+                         ['token', 'username', 'user', 'apiKey']],
         required_together=[['username', 'password']],
         mutually_exclusive=gcm.required_one_of,
         supports_check_mode=False)
@@ -1762,10 +1826,10 @@ def main():
     try:
         gcm(module)
 
-    except HttpError as e:
+    except requests.HTTPError as e:
         import traceback
         module.fail_json(msg='%s:%s\n%s\n%s' % (e.__class__, str(e),
-                                                e.responseText,
+                                                e.response.text,
                                                 traceback.format_exc()))
     except Exception as e:
         import traceback

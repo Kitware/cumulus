@@ -2,7 +2,8 @@
 - hosts: head
   tasks:
     - block:
-        - fail:
+        - name: Fail if profile_id is not set
+          fail:
             msg: "Profile ID must be passed in as profile_id"
           when: profile_id is not defined or profile_id == ""
 

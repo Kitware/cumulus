@@ -10,7 +10,7 @@
 
 
 - name: Gather facts about remote instances
-  ec2_remote_facts:
+  ec2_instance_facts:
     filters:
       instance-state-name: 'running'
       "tag:ec2_pod": "{{ cluster_id }}"

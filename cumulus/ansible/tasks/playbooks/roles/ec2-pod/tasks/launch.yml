@@ -140,7 +140,7 @@
 # with a public_ip/public_dns_name attribute of 'null.'   It seems like maybe there is a race
 #  condition where the ansible script completes before the public_ip is assigned?
 - name: Poll instance data to get public DNS names
-  ec2_remote_facts:
+  ec2_instance_facts:
     filters:
       instance-id: >-
         {{ (master.tagged_instances | default([]) +

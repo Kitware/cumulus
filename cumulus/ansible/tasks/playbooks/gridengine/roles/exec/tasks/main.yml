@@ -1,10 +1,11 @@
 - name: Install grid engine packages on exec node
   apt:
-    name={{ item }}
+    name="{{ packages }}"
     state=present
     update_cache=yes
   become_user: root
-  with_items:
+  vars:
+    packages:
     - gridengine-client
     - gridengine-exec
   tags:

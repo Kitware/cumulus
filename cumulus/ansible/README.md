@@ -4,7 +4,7 @@
    First you will need to get your user id from the system. Login and go to the api (usually at http://127.0.0.1:8080/api/v1/).  Under ```user``` there is an endpoint user/me.  Click "Try it out!" and copy the user id.
 
 ## Setup profile
-   Next set up a profile:  Under ```user``` there is a POST endpoint ```/user/{id}/aws/profiles``` This takes a json object withe the following keys:
+   Next set up a profile:  Under ```user``` there is a POST endpoint ```/user/{id}/aws/profiles``` This takes a json object with the the following keys:
 ```json
     {
       "accessKeyId": "<<ACCESSKEYID>>",
@@ -15,7 +15,7 @@
     }
 ```
 
-```name``` must be unique. This will return a profile,  copy the id from the ```_id``` field. you will have to supply your AWS access key and secret access key.
+```name``` must be unique. This will return a profile, copy the id from the ```_id``` field. You will have to supply your AWS access key and secret access key.
 
 ## Create a cluster
    Finally create the cluster under the ```cluster``` endpoint with the following json:
