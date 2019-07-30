@@ -37,7 +37,7 @@
     - nfs-server
 
 - name: Start NFS server
-  service: name=nfs-kernel-server state=running
+  service: name=nfs-kernel-server state=started
   when: '"exec" in groups'
   tags:
     - master
@@ -46,7 +46,16 @@
 - name: Add master node as the submit host
   become_user: sgeadmin
   shell: qconf -as {{ ansible_hostname }}
-  ignore_errors: true
+  # ignore_errors: true
+  tags:
+    - master
+
+- name: Debug IP address
+  become_user: sgeadmin
+  debug:
+    msg: Private {{hostvars[item].private_ip}} template {{hostvars[item].private_ip|default(hostvars[item].ansible_hostname)}}
+  with_items:
+    - "{{ groups.exec | default([]) + groups.master }}"
   tags:
     - master
 
@@ -60,16 +69,28 @@
 
 - name: Add exec hosts
   become_user: sgeadmin
-  shell: qconf -Me /tmp/exec_host_{{item}}
-  ignore_errors: true
+  shell: qconf -Ae /tmp/exec_host_{{item}}
+  # ignore_errors: true
   with_items:
     - "{{ groups.exec | default([]) + groups.master }}"
   tags:
     - master
 
+- name: Find exec host files
+  become_user: sgeadmin
+  find:
+    paths: /tmp
+    patterns: exec_host*
+  register: files_to_delete
+  tags:
+    - master
+
 - name: Cleanup exec host files
   become_user: sgeadmin
-  shell: rm /tmp/exec_host*
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{ files_to_delete.files }}"
   ignore_errors: true
   tags:
     - master
