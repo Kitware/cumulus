@@ -152,7 +152,7 @@ def terminate_cluster(playbook, cluster, profile, secret_key, extra_vars,
             detach_volume(profile, cluster, master, volume,
                           secret_key, vol_log_url, girder_callback_info)
 
-    inventory = simple_inventory('localhost')
+    inventory = simple_inventory('localhost ansible_python_interpreter=python')
 
     with inventory.to_tempfile() as inventory_path:
         ansible = run_playbook(playbook, inventory_path, playbook_variables,

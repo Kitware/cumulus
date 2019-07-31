@@ -45,7 +45,7 @@ class CallbackModule(CallbackBase):
         data = {} if data is None else data
 
         invocation = data.pop('invocation', None)
-        if invocation is not None:
+        if invocation is not None and 'module_name' in invocation:
             data['module_name'] = invocation['module_name']
 
         if self.log_write_url is not None and \

@@ -1,10 +1,11 @@
 - name: Install mpich2 on all nodes
   apt:
-    name={{ item }}
+    name="{{ packages }}"
     state=present
     update_cache=yes
   become_user: root
-  with_items:
+  vars:
+    packages:
     - build-essential
     - mpich2
   tags:

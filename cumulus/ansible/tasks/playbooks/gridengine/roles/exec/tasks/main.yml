@@ -22,7 +22,7 @@
     - exec
 
 - name: Start execd
-  service: name=gridengine-exec state=running
+  service: name=gridengine-exec state=started
 
 - name: Install NFS client
   apt: name=nfs-common
