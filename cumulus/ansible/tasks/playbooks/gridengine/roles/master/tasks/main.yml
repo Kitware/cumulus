@@ -229,6 +229,12 @@
   tags:
     - master
 
+- name: Clean up sched_conf
+  become_user: sgeadmin
+  file: path=/tmp/sched_conf state=absent
+  tags:
+    - master
+
 - name: Generate SSH key for access between nodes
   user: name=ubuntu generate_ssh_key=yes
   # register: keygen_output
@@ -252,37 +258,29 @@
   tags:
     - master
 
-# This should allow ssh to all exec nodes, but we still get
-# the message that the host is not in known hosts.
-# - name: Add all host keys to known_hosts
-#   become_user: ubuntu
-#   shell: ssh-keyscan -H {{item}} >> ~/.ssh/known_hosts
-#   with_items: "{{ hosts.stdout.split(' ') }}"
-#   tags:
-#   - master
+# Because /home is shared, and the ssh key is shared,
+# this should allow ssh to all exec nodes.
+# Do both IP and private hostname since mpi seems to use IP.
+- name: Add all host IPs to known_hosts
+  become_user: ubuntu
+  shell: ssh-keyscan -H {{hostvars[item].private_ip|default(hostvars[item].ansible_hostname)}} >> ~/.ssh/known_hosts
+  with_items:
+    - "{{ groups.exec | default([]) + groups.master }}"
+  tags:
+    - exec
 
-# # Use a hammer. Disable host-key checking.
+- name: Add all hostnames to known_hosts
+  become_user: ubuntu
+  shell: ssh-keyscan -H {{item}} >> ~/.ssh/known_hosts
+  with_items: "{{ hosts.stdout.split(' ') }}"
+  tags:
+    - exec
+
+# # For known_hosts issues, you can use a hammer. Disable host-key checking.
 # - name: Copy over ssh config
 #   become_user: ubuntu
 #   copy: src=ssh_config dest=~/.ssh/config
 #   tags:
 #     - master
 
-# # First run still fails unless we get the key in the key file.
-# # force the issue by doing an scp....
-# - name: Trigger Permanently added 'X.X.X.X' (ECDSA) to the list of known hosts.
-#   become_user: ubuntu
-#   shell: scp /tmp/sched_conf {{item}}:~/foo
-#   with_items: "{{ hosts.stdout.split(' ') }}"
-#   tags:
-#     - master
-
-# - name: Clean up sched_conf, foo
-#   become_user: sgeadmin
-#   file: path={{item}} state=absent
-#   with_items:
-#     - /tmp/sched_conf
-#     - ~/foo
-#   tags:
-#     - master
 
