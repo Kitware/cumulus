@@ -17,6 +17,10 @@
     region: "{{ cluster_region }}"
   register: remote
 
+- name: DEBUG Terminate undefined
+  debug:
+    msg: "remote {{ remote['instances'] }} \nmap {{ remote['instances'] | default([]) | map(attribute='instance_id') }} \nlist {{ remote['instances'] | default([]) | map(attribute='instance_id') | list }}"
+
 # Note: we launch an async job to terminate each of the instances
 # then we wait for each of the jobs to b completed.  This shouldn't
 # be nessisary,  unfortunately because of:
@@ -31,21 +35,21 @@
     zone: "{{ cluster_zone }}"
     state: absent
     wait: yes
-    wait_timeout: "{{ terminate_wait_timeout }}"
-  with_items: "{{ remote['instances'] | default([]) |map(attribute='id') | list }}"
-  async: "{{ terminate_wait_timeout }}"
-  poll: 0
+    wait_timeout: 120
+  with_items: "{{ remote['instances'] | default([]) | map(attribute='instance_id') | list }}"
+  # async: "{{ terminate_wait_timeout }}"
+  # poll: 0
   # Because this is run async,  each return value is actually a 'job'
   # not the return value of the ec2 module.
-  register: terminate_jobs
+  # register: terminate_jobs
 
-- name: Wait for all instances to be terminated
-  async_status: jid="{{ item.ansible_job_id }}"
-  register: job_result
-  until: "{{ job_result.finished }}"
-  retries: "{{ (terminate_wait_timeout / 3) | int}}"
-  delay: 3
-  with_items: "{{ terminate_jobs.results |default([]) }}"
+# - name: Wait for all instances to be terminated
+#   async_status: jid="{{ item.ansible_job_id }}"
+#   register: job_result
+#   until: "{{ job_result.finished }}"
+#   retries: "{{ (terminate_wait_timeout / 3) | int}}"
+#   delay: 3
+#   with_items: "{{ terminate_jobs.results |default([]) }}"
 
 - name: Remove security group
   ec2_group:

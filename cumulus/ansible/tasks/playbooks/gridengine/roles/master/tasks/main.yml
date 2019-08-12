@@ -101,7 +101,7 @@
   ignore_errors: true
   register: qconf_shgrp
   tags:
-  - master
+    - master
 
 - name: Template allhosts host group file
   become_user: sgeadmin
@@ -130,7 +130,7 @@
   ignore_errors: true
   register: qconf_shgrp
   tags:
-  - master
+    - master
 
 - name: Template master host group file
   become_user: sgeadmin
@@ -159,21 +159,21 @@
   ignore_errors: true
   register: qconf_spl
   tags:
-  - master
+    - master
 
 - name: Template parallel environment configuration
   become_user: sgeadmin
   template: src=pe.j2 dest=/tmp/pe
   when: qconf_spl.rc != 0
   tags:
-  - master
+    - master
 
 - name: Create parallel environment
   become_user: sgeadmin
   shell: qconf -Ap /tmp/pe
   when: qconf_spl.rc != 0
   tags:
-  - master
+    - master
 
 - name: Clean up pe configuration
   become_user: root
@@ -194,7 +194,7 @@
   ignore_errors: true
   register: qconf_sq
   tags:
-  - master
+    - master
 
 - name: Create all.q
   become_user: sgeadmin
@@ -229,35 +229,60 @@
   tags:
     - master
 
-- name: Clean up sched_conf
-  become_user: sgeadmin
-  file: path=/tmp/sched_conf state=absent
+- name: Generate SSH key for access between nodes
+  user: name=ubuntu generate_ssh_key=yes
+  # register: keygen_output
   tags:
     - master
 
-- name: Generate SSH key for access between nodes
-  user: name=ubuntu generate_ssh_key=yes
-  tags:
-    - master
+# - name: Set ssh key for master
+#   set_fact:
+#     master_ssh_key: "{{ keygen_output.ssh_public_key }}"
 
 - name: Add key to authorize_key file
   become_user: ubuntu
   shell: cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
   tags:
-  - master
+    - master
 
 - name: Get all resolved hostname in host group
   become_user: ubuntu
   shell: qconf -shgrp_resolved @allhosts
   register: hosts
   tags:
-  - master
+    - master
 
-- name: Add all host keys to known_hosts
-  become_user: ubuntu
-  shell: ssh-keyscan -H {{item}} >> ~/.ssh/known_hosts
-  with_items: "{{ hosts.stdout.split(' ') }}"
-  tags:
-  - master
+# This should allow ssh to all exec nodes, but we still get
+# the message that the host is not in known hosts.
+# - name: Add all host keys to known_hosts
+#   become_user: ubuntu
+#   shell: ssh-keyscan -H {{item}} >> ~/.ssh/known_hosts
+#   with_items: "{{ hosts.stdout.split(' ') }}"
+#   tags:
+#   - master
 
+# # Use a hammer. Disable host-key checking.
+# - name: Copy over ssh config
+#   become_user: ubuntu
+#   copy: src=ssh_config dest=~/.ssh/config
+#   tags:
+#     - master
+
+# # First run still fails unless we get the key in the key file.
+# # force the issue by doing an scp....
+# - name: Trigger Permanently added 'X.X.X.X' (ECDSA) to the list of known hosts.
+#   become_user: ubuntu
+#   shell: scp /tmp/sched_conf {{item}}:~/foo
+#   with_items: "{{ hosts.stdout.split(' ') }}"
+#   tags:
+#     - master
+
+# - name: Clean up sched_conf, foo
+#   become_user: sgeadmin
+#   file: path={{item}} state=absent
+#   with_items:
+#     - /tmp/sched_conf
+#     - ~/foo
+#   tags:
+#     - master
 
