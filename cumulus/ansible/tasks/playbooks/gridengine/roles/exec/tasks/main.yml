@@ -11,19 +11,7 @@
   tags:
     - exec
 
-- name: Stop execd
-  service: name=gridengine-exec state=stopped
-
-
-- name: Template and install act_qmaster configuration file
-  template: src=act_qmaster dest=/var/lib/gridengine/default/common/act_qmaster group=sgeadmin owner=sgeadmin force=yes
-  become_user: root
-  tags:
-    - exec
-
-- name: Start execd
-  service: name=gridengine-exec state=started
-
+# /data wasn't ready on exec node once. Move ahead of sge setup.
 - name: Install NFS client
   apt: name=nfs-common
   become_user: root
@@ -34,7 +22,7 @@
 - name: Mounting data directories from master
   become_user: root
   mount:
-    name: "{{ item }}"
+    path: "{{ item }}"
     src: "{{ hostvars[groups['master'][0]].private_ip }}:{{ item }}"
     fstype: nfs
     state: mounted
@@ -44,3 +32,102 @@
   tags:
     - exec
     - nfs-client
+
+
+- name: Stop execd
+  service: name=gridengine-exec state=stopped
+  tags:
+    - exec
+
+- name: Template and install act_qmaster configuration file
+  template: src=act_qmaster dest=/var/lib/gridengine/default/common/act_qmaster group=sgeadmin owner=sgeadmin force=yes
+  become_user: root
+  tags:
+    - exec
+
+- name: Start execd
+  service: name=gridengine-exec state=started
+  tags:
+    - exec
+
+# Useful info for possible failures
+- name: SGE state
+  become_user: ubuntu
+  shell: qstat -f ; qhost ; qstat -g c ; qconf -sel > /tmp/host_file
+  when:
+    - inventory_hostname == groups['master'][0]
+  tags:
+    - master
+
+# DEBUG
+# - name: NFS state on exec
+#   become_user: ubuntu
+#   shell: nfsstat ; nfsiostat
+#   when:
+#     - inventory_hostname != groups['master'][0]
+#   tags:
+#     - exec
+
+# Try a simple submit. Always works.
+# - name: Master qrsh mpi_hello_world
+#   become_user: ubuntu
+#   shell: qrsh -pe orte 2 mpiexec -n 2 /data/mpi_hello_world
+#   when:
+#     - inventory_hostname == groups['master'][0]
+#   tags:
+#     - master
+
+# - name: Exec mpiexec mpi_hello_world
+#   become_user: ubuntu
+#   shell: mpiexec -f /data/host_file -n 2 /data/mpi_hello_world
+#   when:
+#     - inventory_hostname != groups['master'][0]
+#   tags:
+#     - exec
+
+# DEBUG
+# - name: Copy over ini file.
+#   become_user: ubuntu
+#   copy: src=pyfr.ini dest=/tmp
+#   tags:
+#     - exec
+
+# - name: Copy over mesh file.
+#   become_user: ubuntu
+#   copy: src=couette_flow_2d.pyfrm dest=/tmp
+#   # register: mesh_copy_res
+#   tags:
+#     - exec
+# # - debug:
+# #     var: mesh_copy_res
+
+# - name: Set list of hosts
+#   set_fact:
+#     list_of_hosts: "{{ groups.exec | default([]) + groups.master }}"
+
+# - name: Master mpiexec mpi_hello_world
+#   become_user: ubuntu
+#   shell: mpiexec -f /tmp/host_file -n {{ num_hosts }} /data/mpi_hello_world
+#   when:
+#     - inventory_hostname == groups['master'][0]
+#   vars:
+#     num_hosts: "{{ list_of_hosts | length }}"
+#   tags:
+#     - exec
+
+# Works! Succeeds with 3-4 retries. Small task won't partition many times, though.
+# Retry moved to job commands, inside generated pyfr_run
+# - name: Master submit pyfr with retries.
+#   become_user: ubuntu
+#   # shell: export HYDRA_PROXY_RETRY_COUNT=100; export HYDRA_DEBUG=1; qsub -b y -cwd -pe orte 2 -N pyfr-aaa mpiexec -n 2 pyfr -v run -b openmp /tmp/couette_flow_2d.pyfrm /tmp/pyfr.ini
+#   shell: mpiexec -f /tmp/host_file -n 2 pyfr -v run -b openmp /tmp/couette_flow_2d.pyfrm /tmp/pyfr.ini
+#   register: task_result
+#   until: task_result.rc == 0
+#   retries: 10
+#   delay: 1
+#   args:
+#     chdir: /tmp
+#   when:
+#     - inventory_hostname == groups['master'][0]
+#   tags:
+#     - master

@@ -18,5 +18,7 @@
 #$ -A {{account}}
 {% endif -%}
 
-cd $SGE_O_WORKDIR
+export HYDRA_PROXY_RETRY_COUNT=100
+# export HYDRA_DEBUG=1
 
+cd $SGE_O_WORKDIR
