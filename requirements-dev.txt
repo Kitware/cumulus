@@ -1,7 +1,7 @@
-mock==1.0.1
-httmock==1.2.2
+mock==3.0.5
+httmock==1.3.0
 # temporary, fix error in flake8-doctrings https://gitlab.com/pycqa/flake8-docstrings/issues/36
 pydocstyle<4
 flake8-quotes==2.0.1
 flake8-docstrings==1.3.0
-Flask==0.10.1
+Flask==1.1.1
