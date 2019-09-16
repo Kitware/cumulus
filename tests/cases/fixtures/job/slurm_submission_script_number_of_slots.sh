@@ -10,9 +10,8 @@
 #SBATCH --job-name=dummy-123432423
 #SBATCH --output=dummy-123432423.o%j
 #SBATCH --error=dummy-123432423.e%j
-#SBATCH --workdir=
+#SBATCH --chdir=
 #SBATCH --ntasks=12312312
-#SBATCH --unbuffered
 
 ls
 sleep 20
