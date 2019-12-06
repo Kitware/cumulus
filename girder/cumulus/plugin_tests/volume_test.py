@@ -22,6 +22,7 @@ import json
 import mock
 from cumulus.testing import AssertCallsMixin
 import unittest
+from girder.utility.model_importer import ModelImporter
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
@@ -36,7 +37,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
 
     @mock.patch('cumulus.aws.ec2.tasks.key.generate_key_pair.delay')
     @mock.patch('cumulus.ssh.tasks.key.generate_key_pair.delay')
-    @mock.patch('girder.plugins.cumulus.models.aws.get_ec2_client')
+    @mock.patch('cumulus_plugin.models.aws.get_ec2_client')
     def setUp(self, get_ec2_client, *args):
         super(VolumeTestCase, self).setUp()
 
@@ -60,9 +61,9 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
             'password': 'goodpassword'
         })
         self._cumulus, self._user, self._another_user = \
-            [self.model('user').createUser(**user) for user in users]
+            [ModelImporter.model('user').createUser(**user) for user in users]
 
-        self._group = self.model('group').createGroup('cumulus', self._cumulus)
+        self._group = ModelImporter.model('group').createGroup('cumulus', self._cumulus)
 
         # Create a traditional cluster
         body = {
@@ -298,7 +299,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          user=self._user)
         self.assertStatus(r, 400)
 
-    @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
+    @mock.patch('cumulus_plugin.volume.CloudProvider')
     @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
     @mock.patch('cumulus.ansible.tasks.volume.detach_volume.delay')
     @mock.patch('cumulus.ansible.tasks.volume.delete_volume.delay')
@@ -388,7 +389,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatus(r, 200)
         self.assertEquals(delete_volume.call_count, 1)
 
-    @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
+    @mock.patch('cumulus_plugin.volume.CloudProvider')
     @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
     def test_attach_volume(self, attach_volume, CloudProvider):
 
@@ -530,7 +531,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
                          user=self._user)
         self.assertStatus(r, 400)
 
-    @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
+    @mock.patch('cumulus_plugin.volume.CloudProvider')
     @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
     @mock.patch('cumulus.ansible.tasks.volume.detach_volume.delay')
     def test_detach_volume(self, detach_volume, attach_volume, CloudProvider):
@@ -636,7 +637,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         }
         self.assertEqual(r.json, expected)
 
-    @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
+    @mock.patch('cumulus_plugin.volume.CloudProvider')
     @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
     def test_find_volume(self, attach_volume, CloudProvider):
 
@@ -731,7 +732,7 @@ class VolumeTestCase(AssertCallsMixin, base.TestCase):
         self.assertStatusOk(r)
         self.assertEqual(len(r.json), 1, 'Wrong number of volumes returned')
 
-    @mock.patch('girder.plugins.cumulus.volume.CloudProvider')
+    @mock.patch('cumulus_plugin.volume.CloudProvider')
     @mock.patch('cumulus.ansible.tasks.volume.attach_volume.delay')
     @mock.patch('cumulus.ansible.tasks.volume.detach_volume.delay')
     def test_get_status(self, detach_volume, attach_volume, CloudProvider):

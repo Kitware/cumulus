@@ -52,6 +52,8 @@ def get_task_token(cluster=None):
     return ModelImporter.model('token').createToken(user=user, days=7)
 
 
+# This function should only be called from within the cumulus_plugin
+# Otherwise, the aws model will not be registered.
 def _get_profile(profile_id):
     user = getCurrentUser()
     query = {'userId': user['_id']}

@@ -20,6 +20,7 @@
 from tests import base
 import json
 
+from girder.utility.model_importer import ModelImporter
 
 def setUpModule():
     base.enabledPlugins.append('cumulus')
@@ -49,9 +50,9 @@ class ScriptTestCase(base.TestCase):
             'password': 'goodpassword'
         })
         self._cumulus, self._user = \
-            [self.model('user').createUser(**user) for user in users]
+            [ModelImporter.model('user').createUser(**user) for user in users]
 
-        self._group = self.model('group').createGroup('cumulus', self._cumulus)
+        self._group = ModelImporter.model('group').createGroup('cumulus', self._cumulus)
 
     def test_create(self):
         body = {

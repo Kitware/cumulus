@@ -27,6 +27,7 @@ from tests import base
 import cumulus
 from cumulus.transport.files.download import download_path
 from girder.constants import AssetstoreType
+from girder.utility.module_importer import ModuleImporter
 
 def setUpModule():
     port = 9080
@@ -44,11 +45,11 @@ class DownloadTestCase(base.TestCase):
     def setUp(self):
         super(DownloadTestCase, self).setUp()
 
-        self._user = self.model('user').createUser(
+        self._user = ModelImporter.model('user').createUser(
             email='regularuser@email.com', login='regularuser',
             firstName='First', lastName='Last', password='goodpassword')
 
-        self._folder = six.next(self.model('folder').childFolders(
+        self._folder = six.next(ModelImporter.model('folder').childFolders(
             self._user, parentType='user', force=True, filters={
                 'name': 'Public'
             }))
@@ -59,7 +60,7 @@ class DownloadTestCase(base.TestCase):
             self.paths = json.load(fp)
 
         # Create an SFTP assetstore to hold the files
-        self._assetstore = self.model('assetstore').save({
+        self._assetstore = ModelImporter.model('assetstore').save({
             'type': AssetstoreType.SFTP,
             'name': 'test',
             'sftp': {
@@ -69,7 +70,7 @@ class DownloadTestCase(base.TestCase):
             }
         })
 
-        self._token = self.model('token').createToken(user=self._user)
+        self._token = ModelImporter.model('token').createToken(user=self._user)
 
     def test_download(self):
         cluster_connection = mock.MagicMock()
@@ -81,11 +82,11 @@ class DownloadTestCase(base.TestCase):
         files = []
         folders = []
 
-        for (p, _) in self.model('folder').fileList(self._folder, user=self._user, path='/', data=False):
+        for (p, _) in ModelImporter.model('folder').fileList(self._folder, user=self._user, path='/', data=False):
                 files.append(p)
 
         def traverse_folders(folder, path='/Public'):
-            for f in self.model('folder').childFolders(folder, 'folder', user=self._user):
+            for f in ModelImporter.model('folder').childFolders(folder, 'folder', user=self._user):
                 print('trav: path: %s' % (path))
                 current_path = os.path.join(path, f['name'])
                 print('trav: path: %s' % (path))

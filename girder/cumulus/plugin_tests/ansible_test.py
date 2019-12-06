@@ -4,6 +4,8 @@ import cherrypy
 from tests import base
 from cumulus.constants import ClusterStatus
 
+from girder.utility.model_importer import ModelImporter
+
 AnsibleClusterAdapter = None
 
 def setUpModule():
@@ -13,7 +15,7 @@ def setUpModule():
     cherrypy.server.socket_port = 8081
     base.startServer(mock=False)
 
-    from girder.plugins.cumulus.utility.cluster_adapters import AnsibleClusterAdapter
+    from cumulus_plugin.utility.cluster_adapters import AnsibleClusterAdapter
 
 def tearDownModule():
     base.stopServer()
@@ -38,9 +40,9 @@ class AnsibleTestCase(base.TestCase):
         })
 
         self._cumulus, self._user = \
-            [self.model('user').createUser(**user) for user in users]
+            [ModelImporter.model('user').createUser(**user) for user in users]
 
-        self._group = self.model('group').createGroup('cumulus', self._cumulus)
+        self._group = ModelImporter.model('group').createGroup('cumulus', self._cumulus)
 
 
 
@@ -100,7 +102,7 @@ class AnsibleTestCase(base.TestCase):
         self.assertEquals(ca.status, ClusterStatus.LAUNCHING)
         self.assertEquals(ca.cluster['status'], ClusterStatus.LAUNCHING)
 
-    @mock.patch('girder.plugins.cumulus.models.cluster.Cluster.update_status')
+    @mock.patch('cumulus_plugin.models.cluster.Cluster.update_status')
     def test_cluster_status_public_api(self, update_status):
         update_status.return_value = self.cluster_dict(ClusterStatus.LAUNCHING)
         ca = AnsibleClusterAdapter(self.cluster_dict(ClusterStatus.CREATED))

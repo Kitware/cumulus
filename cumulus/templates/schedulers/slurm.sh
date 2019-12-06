@@ -2,7 +2,7 @@
 #SBATCH --job-name={{job.name}}-{{job._id}}
 #SBATCH --output={{job.name}}-{{job._id}}.o%j
 #SBATCH --error={{job.name}}-{{job._id}}.e%j
-#SBATCH --workdir={{job.dir}}
+#SBATCH --chdir={{job.dir}}
 {% if numberOfSlots -%}
 #SBATCH --ntasks={{numberOfSlots}}
 {% elif numberOfNodes -%}
@@ -28,7 +28,4 @@
 {% endif -%}
 {% if constraint -%}
 #SBATCH --constraint={{constraint}}
-{% endif -%}
-{% if unbuffered is not defined or unbuffered -%}
-#SBATCH --unbuffered
 {% endif -%}

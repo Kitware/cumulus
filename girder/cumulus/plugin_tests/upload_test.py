@@ -26,6 +26,8 @@ from tests import base
 import cumulus
 from cumulus.transport.files.upload import upload_path
 
+from girder.utility.model_importer import ModelImporter
+
 def setUpModule():
     base.enabledPlugins.append('cumulus')
     port = 9080
@@ -43,58 +45,58 @@ class UploadTestCase(base.TestCase):
     def setUp(self):
         super(UploadTestCase, self).setUp()
 
-        self._user = self.model('user').createUser(
+        self._user = ModelImporter.model('user').createUser(
             email='regularuser@email.com', login='regularuser',
             firstName='First', lastName='Last', password='goodpassword')
 
-        self._folder = six.next(self.model('folder').childFolders(
+        self._folder = six.next(ModelImporter.model('folder').childFolders(
             self._user, parentType='user', force=True, filters={
                 'name': 'Public'
             }))
 
-        item = self.model('item').createItem(
+        item = ModelImporter.model('item').createItem(
             name='bob.txt', creator=self._user, folder=self._folder)
 
         path = os.path.abspath('plugins/cumulus/plugin_tests/fixtures/bob.txt')
-        file = self.model('file').createFile(creator=self._user,
+        file = ModelImporter.model('file').createFile(creator=self._user,
                                              item=item, name='bob.txt',
                                              size=os.path.getsize(path),
                                              mimeType='text/plain',
                                              assetstore=self.assetstore)
         file['imported'] = True
         file['path'] = path
-        self.model('file').save(file)
+        ModelImporter.model('file').save(file)
 
         path = os.path.abspath('plugins/cumulus/plugin_tests/fixtures/bill.txt')
-        file = self.model('file').createFile(creator=self._user,
+        file = ModelImporter.model('file').createFile(creator=self._user,
                                              item=item, name='bill.txt',
                                              size=os.path.getsize(path),
                                              mimeType='text/plain',
                                              assetstore=self.assetstore)
         file['imported'] = True
         file['path'] = path
-        self.model('file').save(file)
+        ModelImporter.model('file').save(file)
 
-        self._sub_folder = self.model('folder').createFolder(
+        self._sub_folder = ModelImporter.model('folder').createFolder(
             parentType='folder', parent=self._folder, creator=self._user,
             public=False, name='subfolder')
 
 
-        item = self.model('item').createItem(
+        item = ModelImporter.model('item').createItem(
             name='will.txt', creator=self._user, folder=self._sub_folder)
         path = os.path.abspath('plugins/cumulus/plugin_tests/fixtures/will.txt')
-        file = self.model('file').createFile(creator=self._user,
+        file = ModelImporter.model('file').createFile(creator=self._user,
                                              item=item, name='will.txt',
                                              size=os.path.getsize(path),
                                              mimeType='text/plain',
                                              assetstore=self.assetstore)
         file['imported'] = True
         file['path'] = path
-        self.model('file').save(file)
+        ModelImporter.model('file').save(file)
 
     def test_upload(self):
         cluster_connection = mock.MagicMock()
-        token = self.model('token').createToken(self._user)
+        token = ModelImporter.model('token').createToken(self._user)
         upload_path(cluster_connection, str(token['_id']),
                     self._folder['_id'], '/tmp')
 
