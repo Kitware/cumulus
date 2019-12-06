@@ -17,13 +17,17 @@
 #  limitations under the License.
 ###############################################################################
 
+import re
+
 from .assetstore import NewtAssetstoreAdapter
+import girder
 from girder import events
 from girder.api import access
 from girder.api.v1.assetstore import Assetstore
 from girder.constants import AssetstoreType, AccessType
 from girder.utility.assetstore_utilities import setAssetstoreAdapter
 from girder.models.model_base import ValidationException
+from girder.models.user import User
 from girder.utility import setting_utilities
 from girder.plugin import GirderPlugin
 
@@ -72,3 +76,19 @@ class NewtPlugin(GirderPlugin):
 
         info['apiRoot'].newt = Newt()
         info['apiRoot'].newt_assetstores = NewtAssetstore()
+
+        if hasattr(girder, '__version__') and girder.__version__[0] == '3':
+            # Replace User._validateLogin to accept 3-letter user names
+            def _validateNewtLogin(login):
+                if '@' in login:
+                    # Hard-code this constraint so we can always easily distinguish
+                    # an email address from a login
+                    raise ValidationException('Login may not contain "@".', 'login')
+
+                # For reference, girder's regex is r'^[a-z][\da-z\-\.]{3,}$'
+                if not re.match(r'^[a-z][\da-z_\-\.]{2,}$', login):
+                    raise ValidationException(
+                        'Login must be at least 3 characters, start with a letter, and may only contain '
+                        'letters, numbers, underscores, dashes, and periods.', 'login')
+
+            User()._validateLogin = _validateNewtLogin
