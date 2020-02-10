@@ -28,7 +28,7 @@ from girder.api.rest import RestException, getBodyJson, loadmodel,\
 from girder.api import access
 from girder.api.docs import addModel
 from girder.api.describe import describeRoute, Description
-from girder.constants import AccessType
+from girder.constants import AccessType, TokenScope
 from girder.utility.model_importer import ModelImporter
 import sys
 from bson.objectid import ObjectId
@@ -80,7 +80,7 @@ class TaskFlows(Resource):
         }
     }, 'taskflows')
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_WRITE)
     @filtermodel(model='taskflow', plugin='taskflow')
     @describeRoute(
         Description('Create the taskflow')
@@ -112,7 +112,7 @@ class TaskFlows(Resource):
 
         return taskflow
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_WRITE)
     @filtermodel(model='taskflow', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(
@@ -141,7 +141,7 @@ class TaskFlows(Resource):
 
         return taskflow
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
         Description('Get the taskflow status')
@@ -153,7 +153,7 @@ class TaskFlows(Resource):
     def status(self, taskflow, params):
         return {'status': taskflow['status']}
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_READ)
     @filtermodel(model='taskflow', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
@@ -174,7 +174,7 @@ class TaskFlows(Resource):
 
         return taskflow
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(None)
     def log(self, taskflow, params):
@@ -184,7 +184,7 @@ class TaskFlows(Resource):
 
         self._model.append_to_log(taskflow, json.loads(body))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(
         Description('Terminate the taskflow ')
@@ -212,7 +212,7 @@ class TaskFlows(Resource):
 
         taskflow_instance.terminate()
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(
         Description('Start the taskflow ')
@@ -243,7 +243,7 @@ class TaskFlows(Resource):
 
         workflow.start(**params)
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_WRITE)
     @filtermodel(model='taskflow', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(
@@ -289,7 +289,7 @@ class TaskFlows(Resource):
         cherrypy.response.status = 202
         return taskflow
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_READ)
     @filtermodel(model='task', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
@@ -321,7 +321,7 @@ class TaskFlows(Resource):
         }
     }, 'taskflows')
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @filtermodel(model='task', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
@@ -348,7 +348,7 @@ class TaskFlows(Resource):
 
         return task
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_WRITE)
     @filtermodel(model='taskflow', plugin='taskflow')
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(None)
@@ -366,13 +366,13 @@ class TaskFlows(Resource):
         return self._model.collection.find_one_and_update(
             query, update, return_document=ReturnDocument.AFTER)
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(None)
     def delete_finished(self, taskflow, params):
         self._model.delete(taskflow)
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_READ)
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
         Description('Get log entries for task')
@@ -411,7 +411,7 @@ class TaskFlows(Resource):
         }
     }, 'taskflows')
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(
         Description('Get access list for a taskflow')
@@ -421,7 +421,7 @@ class TaskFlows(Resource):
     def get_access(self, taskflow, params):
         return taskflow.get('access', {'groups': [], 'users': []})
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(
         Description('Set access list for a taskflow given a list of user and \
@@ -437,7 +437,7 @@ class TaskFlows(Resource):
         return self._model.set_access(user, taskflow,
                                       body['users'], body['groups'], True)
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(
         Description('Append access to a taskflow and its tasks')
@@ -452,7 +452,7 @@ class TaskFlows(Resource):
         return self._model.patch_access(user, taskflow,
                                         body['users'], body['groups'])
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='taskflow', plugin='taskflow', level=AccessType.ADMIN)
     @describeRoute(
         Description('Revoke access to a taskflow and its tasks')

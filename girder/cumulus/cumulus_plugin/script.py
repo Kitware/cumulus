@@ -22,7 +22,7 @@ import json
 from girder.api import access
 from girder.api.describe import Description
 from girder.api.docs import addModel
-from girder.constants import AccessType
+from girder.constants import AccessType, TokenScope
 from girder.api.rest import RestException
 from girder.utility.model_importer import ModelImporter
 from .base import BaseResource
@@ -45,7 +45,7 @@ class Script(BaseResource):
 
         return config
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def import_script(self, id, params):
         user = self.getCurrentUser()
         lines = cherrypy.request.body.read().decode('utf8').splitlines()
@@ -72,7 +72,7 @@ class Script(BaseResource):
             required=True, paramType='body')
         .consumes('text/plain'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def create(self, params):
         user = self.getCurrentUser()
 
@@ -111,7 +111,7 @@ class Script(BaseResource):
             'The JSON contain script parameters',
             required=True, paramType='body', dataType='Script'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     def get(self, id, params):
         user = self.getCurrentUser()
 
@@ -129,7 +129,7 @@ class Script(BaseResource):
             'The id of the script to get',
             required=True, paramType='path'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def delete(self, id, params):
         user = self.getCurrentUser()
         script = self._model.load(id, user=user, level=AccessType.ADMIN)
@@ -142,7 +142,7 @@ class Script(BaseResource):
             'id',
             'The script id.', paramType='path', required=True))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def update_access(self, id, params):
         user = self.getCurrentUser()
 
