@@ -20,6 +20,7 @@
 from girder.plugin import GirderPlugin
 from girder.utility.model_importer import ModelImporter
 
+from .assetstore import lookupAssetstore
 from .cluster import Cluster
 from .job import Job
 from .script import Script
@@ -46,5 +47,9 @@ class CumulusPlugin(GirderPlugin):
         info['apiRoot'].jobs = Job()
         info['apiRoot'].scripts = Script()
         info['apiRoot'].volumes = Volume()
+
+        # Add a user route to lookup assetstores by name.
+        info['apiRoot'].assetstore.route('GET', ('lookup', ), lookupAssetstore)
+
         # Augment user resource with aws profiles
         aws.load(info['apiRoot'])
