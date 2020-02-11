@@ -22,7 +22,7 @@ import cumulus
 
 from girder.api import access
 from girder.api.describe import Description, describeRoute
-from girder.constants import AccessType, SortDir
+from girder.constants import AccessType, SortDir, TokenScope
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, loadmodel
 from girder.utility.model_importer import ModelImporter
@@ -57,7 +57,7 @@ class Job(BaseResource):
 
         return job
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def create(self, params):
         user = self.getCurrentUser()
 
@@ -195,7 +195,7 @@ class Job(BaseResource):
             'The job parameters in JSON format.', dataType='JobParameters',
             paramType='body', required=True))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def terminate(self, id, params):
         (user, token) = self.getCurrentUser(returnToken=True)
         job = self._model.load(id, user=user, level=AccessType.ADMIN)
@@ -225,7 +225,7 @@ class Job(BaseResource):
         Description('Terminate a job')
         .param('id', 'The job id', paramType='path'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def update(self, id, params):
         user = self.getCurrentUser()
         body = getBodyJson()
@@ -287,7 +287,7 @@ class Job(BaseResource):
             paramType='body')
         .notes('Internal - Used by Celery tasks'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     def status(self, id, params):
         user = self.getCurrentUser()
 
@@ -314,7 +314,7 @@ class Job(BaseResource):
         .param('id', 'The job id.', paramType='path')
         .responseClass('JobStatus'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def append_to_log(self, id, params):
         user = self.getCurrentUser()
 
@@ -332,7 +332,7 @@ class Job(BaseResource):
 
     append_to_log.description = None
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     def log(self, id, params):
         user = self.getCurrentUser()
         offset = 0
@@ -356,7 +356,7 @@ class Job(BaseResource):
             'The offset to start getting entries at.', required=False,
             paramType='query'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     def output(self, id, params):
         user = self.getCurrentUser()
 
@@ -401,7 +401,7 @@ class Job(BaseResource):
             'The offset to start getting entries at.', required=False,
             paramType='query'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     def get(self, id, params):
         user = self.getCurrentUser()
         job = self._model.load(id, user=user, level=AccessType.READ)
@@ -419,7 +419,7 @@ class Job(BaseResource):
             'id',
             'The job id.', paramType='path', required=True))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='job', plugin='cumulus', level=AccessType.ADMIN)
     @describeRoute(
         Description('Delete a job')
@@ -452,7 +452,7 @@ class Job(BaseResource):
 
         self._model.remove(job)
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     def find(self, params):
         user = self.getCurrentUser()
 

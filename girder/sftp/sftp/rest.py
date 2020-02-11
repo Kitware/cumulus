@@ -24,7 +24,7 @@ from girder.api.describe import Description
 from girder.api.rest import Resource, RestException, getBodyJson, loadmodel
 from girder.api import access
 from girder.settings import SettingKey
-from girder.constants import AssetstoreType, AccessType
+from girder.constants import AssetstoreType, AccessType, TokenScope
 from girder.api.docs import addModel
 from girder.utility.model_importer import ModelImporter
 
@@ -36,7 +36,7 @@ class SftpAssetstoreResource(Resource):
         self.route('POST', (), self.create_assetstore)
         self.route('POST', (':id', 'files'), self.create_file)
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def create_assetstore(self, params):
         """Create a new SFTP assetstore."""
 
@@ -74,7 +74,7 @@ class SftpAssetstoreResource(Resource):
                paramType='body', dataType='CreateAssetstoreParams'))
 
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='assetstore')
     def create_file(self, assetstore, params):
         params = getBodyJson()

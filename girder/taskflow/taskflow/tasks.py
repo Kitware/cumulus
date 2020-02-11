@@ -25,7 +25,7 @@ from girder.api.rest import RestException, loadmodel, filtermodel, getBodyJson,\
 from girder.api.rest import Resource
 from girder.api import access
 from girder.api.describe import Description, describeRoute
-from girder.constants import AccessType
+from girder.constants import AccessType, TokenScope
 from girder.utility.model_importer import ModelImporter
 
 class Tasks(Resource):
@@ -42,7 +42,7 @@ class Tasks(Resource):
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = ModelImporter.model('task', 'taskflow')
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_WRITE)
     @filtermodel(model='task', plugin='taskflow')
     @loadmodel(model='task', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(
@@ -71,7 +71,7 @@ class Tasks(Resource):
 
         return self._model.update_task(user, task, status=status)
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_READ)
     @loadmodel(model='task', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
         Description('Get the task status')
@@ -80,7 +80,7 @@ class Tasks(Resource):
     def status(self, task, params):
         return {'status': task['status']}
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_READ)
     @filtermodel(model='task', plugin='taskflow')
     @loadmodel(model='task', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
@@ -93,7 +93,7 @@ class Tasks(Resource):
     def get(self, task, params):
         return task
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='task', plugin='taskflow', level=AccessType.WRITE)
     @describeRoute(None)
     def log(self, task, params):
@@ -104,7 +104,7 @@ class Tasks(Resource):
 
         self._model.append_to_log(task, json.loads(body))
 
-    @access.token
+    @access.user(scope=TokenScope.DATA_READ)
     @loadmodel(model='task', plugin='taskflow', level=AccessType.READ)
     @describeRoute(
         Description('Get log entries for task')

@@ -29,7 +29,7 @@ from cumulus.aws.ec2 import get_ec2_client
 
 from girder.api import access
 from girder.api.describe import Description
-from girder.constants import AccessType
+from girder.constants import AccessType, TokenScope
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, ModelImporter,\
     getCurrentUser
@@ -49,7 +49,7 @@ def _filter(profile):
     return profile
 
 
-@access.user
+@access.user(scope=TokenScope.DATA_WRITE)
 @loadmodel(model='user', level=AccessType.WRITE)
 def create_profile(user, params):
     body = getBodyJson()
@@ -112,7 +112,7 @@ create_profile.description = (
         required=True, paramType='body'))
 
 
-@access.user
+@access.user(scope=TokenScope.DATA_WRITE)
 @loadmodel(model='user', level=AccessType.READ)
 @loadmodel(model='aws', plugin='cumulus',  map={'profileId': 'profile'},
            level=AccessType.WRITE)
@@ -147,7 +147,7 @@ delete_profile.description = (
            required=True))
 
 
-@access.user
+@access.user(scope=TokenScope.DATA_WRITE)
 @loadmodel(model='user', level=AccessType.READ)
 @loadmodel(model='aws', plugin='cumulus',  map={'profileId': 'profile'},
            level=AccessType.WRITE)
@@ -191,7 +191,7 @@ update_profile.description = (
         required=True, paramType='body'))
 
 
-@access.user
+@access.user(scope=TokenScope.DATA_READ)
 @loadmodel(model='user', level=AccessType.READ)
 def get_profiles(user, params):
     user = getCurrentUser()
@@ -210,7 +210,7 @@ get_profiles.description = (
     .param('id', 'The id of the user', required=True, paramType='path'))
 
 
-@access.user
+@access.user(scope=TokenScope.DATA_READ)
 @loadmodel(model='user', level=AccessType.READ)
 @loadmodel(model='aws', plugin='cumulus',  map={'profileId': 'profile'},
            level=AccessType.WRITE)
@@ -237,7 +237,7 @@ status.description = (
     .responseClass('AwsProfileStatus'))
 
 
-@access.user
+@access.user(scope=TokenScope.DATA_READ)
 @loadmodel(model='user', level=AccessType.READ)
 @loadmodel(model='aws', plugin='cumulus',  map={'profileId': 'profile'},
            level=AccessType.WRITE)
@@ -264,7 +264,7 @@ running_instances.description = (
     .responseClass('AwsProfileRunningInstances'))
 
 
-@access.user
+@access.user(scope=TokenScope.DATA_READ)
 @loadmodel(model='user', level=AccessType.READ)
 @loadmodel(model='aws', plugin='cumulus',  map={'profileId': 'profile'},
            level=AccessType.WRITE)
