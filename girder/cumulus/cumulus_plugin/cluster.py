@@ -24,7 +24,7 @@ from bson.objectid import ObjectId
 
 from girder.api import access
 from girder.api.describe import Description
-from girder.constants import AccessType
+from girder.constants import AccessType, TokenScope
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getBodyJson, loadmodel
 from girder.models.model_base import ValidationException
@@ -59,7 +59,7 @@ class Cluster(BaseResource):
         # TODO Findout how to get plugin name rather than hardcoding it
         self._model = ModelImporter.model('cluster', 'cumulus')
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def handle_log_record(self, id, params):
         user = self.getCurrentUser()
 
@@ -125,7 +125,7 @@ class Cluster(BaseResource):
 
         return cluster
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def create(self, params):
         body = getBodyJson()
         # Default ec2 cluster
@@ -213,7 +213,7 @@ class Cluster(BaseResource):
 
         return body
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='cluster', plugin='cumulus', level=AccessType.ADMIN)
     def start(self, cluster, params):
         body = self._get_body()
@@ -252,7 +252,7 @@ class Cluster(BaseResource):
             'body', 'Parameter used when starting cluster', paramType='body',
             dataType='ClusterStartParams', required=False))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='cluster', plugin='cumulus', level=AccessType.ADMIN)
     def launch(self, cluster, params):
 
@@ -271,7 +271,7 @@ class Cluster(BaseResource):
         'id',
         'The cluster id to start.', paramType='path', required=True))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='cluster', plugin='cumulus', level=AccessType.ADMIN)
     def provision(self, cluster, params):
 
@@ -317,7 +317,7 @@ class Cluster(BaseResource):
 
         return getattr(adapter, process)()
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def update(self, id, params):
         body = getBodyJson()
         user = self.getCurrentUser()
@@ -385,7 +385,7 @@ class Cluster(BaseResource):
             paramType='body')
         .notes('Internal - Used by Celery tasks'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     def status(self, id, params):
         user = self.getCurrentUser()
         cluster = self._model.load(id, user=user, level=AccessType.READ)
@@ -410,7 +410,7 @@ class Cluster(BaseResource):
                'The cluster id to get the status of.', paramType='path')
         .responseClass('ClusterStatus'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def terminate(self, id, params):
         user = self.getCurrentUser()
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
@@ -428,7 +428,7 @@ class Cluster(BaseResource):
             'id',
             'The cluster to terminate.', paramType='path'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     def log(self, id, params):
         user = self.getCurrentUser()
         offset = 0
@@ -453,7 +453,7 @@ class Cluster(BaseResource):
             'The offset to start getting entries at.', required=False,
             paramType='query'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def submit_job(self, id, jobId, params):
         job_id = jobId
         user = self.getCurrentUser()
@@ -499,7 +499,7 @@ class Cluster(BaseResource):
             'The properties to template on submit.', dataType='object',
             paramType='body'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     def get(self, id, params):
         user = self.getCurrentUser()
         cluster = self._model.load(id, user=user, level=AccessType.ADMIN)
@@ -515,7 +515,7 @@ class Cluster(BaseResource):
             'id',
             'The cluster id.', paramType='path', required=True))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def delete(self, id, params):
         user = self.getCurrentUser()
 
@@ -532,7 +532,7 @@ class Cluster(BaseResource):
         Description('Delete a cluster and its configuration')
         .param('id', 'The cluster id.', paramType='path', required=True))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     def find(self, params):
         user = self.getCurrentUser()
         query = {}

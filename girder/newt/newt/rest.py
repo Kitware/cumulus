@@ -25,7 +25,7 @@ from girder.api.rest import Resource, RestException, getCurrentUser, getBodyJson
 from girder.api.rest import loadmodel
 from girder.api import access
 from girder.settings import SettingKey
-from girder.constants import AssetstoreType, AccessType
+from girder.constants import AssetstoreType, AccessType, TokenScope
 from girder.api.docs import addModel
 from girder.models.setting import Setting
 from girder.models.user import User
@@ -139,7 +139,7 @@ class Newt(Resource):
         Description('Authenticate with Girder using a NEWT session id.')
         .param('sessionId', 'The NEWT session id', paramType='path'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     def session_id(self, params):
         user = getCurrentUser()
 
@@ -172,7 +172,7 @@ class NewtAssetstore(Resource):
         self.route('POST', (), self.create)
         self.route('POST', (':id', 'files'), self.create_file)
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='assetstore')
     def create_file(self, assetstore, params):
         params = getBodyJson()
@@ -222,7 +222,7 @@ class NewtAssetstore(Resource):
         .param('body', 'The parameter to create the file with.', required=True,
                paramType='body', dataType='CreateFileParams'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def create(self, params):
         params = getBodyJson()
         self.requireParams(('name', 'machine'), params)

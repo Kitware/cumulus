@@ -134,7 +134,7 @@ def _decode_id(func=None, key='id'):
     return wrapped
 
 
-@access.user
+@access.user(scope=TokenScope.DATA_READ)
 @_decode_id(key='parentId')
 def _folder_before(conn, path, cluster, encoded_id, **rest):
     folders = []
@@ -157,7 +157,7 @@ def _folder_before(conn, path, cluster, encoded_id, **rest):
 
     return folders
 
-@access.user
+@access.user(scope=TokenScope.DATA_READ)
 @_decode_id
 def _folder_id_before(conn, path, cluster, encoded_id):
     for entry in conn.list(path):
@@ -179,7 +179,7 @@ def _folder_id_before(conn, path, cluster, encoded_id):
             }
 
 
-@access.user
+@access.user(scope=TokenScope.DATA_READ)
 @_decode_id(key='folderId')
 def _item_before(conn, path, cluster, encoded_id):
     items = []
@@ -200,7 +200,7 @@ def _item_before(conn, path, cluster, encoded_id):
 
     return items
 
-@access.user
+@access.user(scope=TokenScope.DATA_READ)
 @_decode_id
 def _item_id_before(conn, path, cluster, encoded_id):
     file_stat = conn.stat(path)
@@ -221,7 +221,7 @@ def _item_id_before(conn, path, cluster, encoded_id):
     }
 
 
-@access.user
+@access.user(scope=TokenScope.DATA_READ)
 @_decode_id
 def _item_files_before(conn, path, cluster, encoded_id):
     file_stat = conn.stat(path)
@@ -242,7 +242,7 @@ def _item_files_before(conn, path, cluster, encoded_id):
     }
 
 
-@access.user
+@access.user(scope=TokenScope.DATA_READ)
 def _file_id_before(event):
     return _item_files_before(event)
 
