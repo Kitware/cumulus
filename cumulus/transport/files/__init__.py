@@ -18,7 +18,6 @@
 ###############################################################################
 import requests
 from jsonpath_rw import parse
-import sys
 
 import cumulus
 from cumulus.common import check_status
@@ -72,21 +71,19 @@ def get_assetstore_id(girder_token, cluster):
     elif r.status_code == 400:
         body = r.json()
         if body.get('field') == 'name' and body.get('type') == 'validation':
-            assetstores_url = '%s/assetstore' % (cumulus.config.girder.baseUrl)
-            params = {'limit': sys.maxsize}
+            assetstores_url = '%s/assetstore/lookup' % (
+                cumulus.config.girder.baseUrl)
+            params = {'name': cluster['_id']}
             r = requests.get(assetstores_url, params=params, headers=headers)
             check_status(r)
             assetstores = r.json()
-            assetstore_id = None
-            for assetstore in assetstores:
-                if assetstore.get('name') == cluster['_id']:
-                    assetstore_id = assetstore['_id']
-                    break
-            if assetstore_id is None:
+            if len(assetstores) == 0:
                 raise Exception(
                     'Could not find assetstore with name "%s" even though '
                     'it should already exist.' % cluster['_id']
                 )
+
+            assetstore_id = assetstores[0]['_id']
         else:
             check_status(r)
 
