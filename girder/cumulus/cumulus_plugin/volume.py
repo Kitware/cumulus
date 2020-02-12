@@ -23,7 +23,7 @@ from bson.objectid import ObjectId
 
 from girder.api import access
 from girder.api.describe import Description
-from girder.constants import AccessType
+from girder.constants import AccessType, TokenScope
 from girder.api.docs import addModel
 from girder.api.rest import RestException, getCurrentUser, getBodyJson
 from girder.api.rest import loadmodel
@@ -74,7 +74,7 @@ class Volume(BaseResource):
 
         return self._model.create_ebs(user, profileId, name, zone, size, fs)
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.WRITE)
     def patch(self, volume, params):
         body = getBodyJson()
@@ -106,7 +106,7 @@ class Volume(BaseResource):
             'The properties to use to create the volume.',
             required=True, paramType='body'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def create(self, params):
         body = getBodyJson()
 
@@ -164,7 +164,7 @@ class Volume(BaseResource):
             dataType='VolumeParameters',
             required=True, paramType='body'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.READ)
     def get(self, volume, params):
 
@@ -176,7 +176,7 @@ class Volume(BaseResource):
             'id',
             'The volume id.', paramType='path', required=True))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     def find(self, params):
         user = getCurrentUser()
         query = {}
@@ -200,7 +200,7 @@ class Volume(BaseResource):
         .param('limit', 'The max number of volumes to return',
                paramType='query', required=False, default=50))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(map={'clusterId': 'cluster'}, model='cluster', plugin='cumulus',
                level=AccessType.ADMIN)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
@@ -243,7 +243,7 @@ class Volume(BaseResource):
 
     attach_complete.description = None
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(map={'clusterId': 'cluster'}, model='cluster', plugin='cumulus',
                level=AccessType.ADMIN)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
@@ -317,7 +317,7 @@ class Volume(BaseResource):
             dataType='AttachParameters',
             paramType='body'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def detach(self, volume, params):
 
@@ -374,7 +374,7 @@ class Volume(BaseResource):
             'The id of the attached volume', required=True,
             paramType='path'))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def detach_complete(self, volume, params):
 
@@ -401,7 +401,7 @@ class Volume(BaseResource):
 
     detach_complete.description = None
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def delete(self, volume, params):
         if 'clusterId' in volume:
@@ -452,14 +452,14 @@ class Volume(BaseResource):
         Description('Delete a volume')
         .param('id', 'The volume id.', paramType='path', required=True))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def delete_complete(self, volume, params):
         self._model.remove(volume)
 
     delete_complete.description = None
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     @loadmodel(model='volume', plugin='cumulus', level=AccessType.ADMIN)
     def get_status(self, volume, params):
         return {'status': volume['status']}
@@ -468,7 +468,7 @@ class Volume(BaseResource):
         Description('Get the status of a volume')
         .param('id', 'The volume id.', paramType='path', required=True))
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     def append_to_log(self, id, params):
         user = getCurrentUser()
 
@@ -480,7 +480,7 @@ class Volume(BaseResource):
 
     append_to_log.description = None
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     def log(self, id, params):
         user = getCurrentUser()
         offset = 0
