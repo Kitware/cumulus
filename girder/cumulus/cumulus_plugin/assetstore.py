@@ -16,6 +16,6 @@ def lookupAssetstore(name, params):
         return assetstores
     else:
         safe_only = lambda assetstore : {
-            field: assetstore[field] for field in ('_id', 'name')
+            field: assetstore[field] for field in ('_id', 'name', 'type')
         }
         return list(map(safe_only, assetstores))
