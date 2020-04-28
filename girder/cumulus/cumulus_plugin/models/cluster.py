@@ -54,11 +54,19 @@ class Cluster(BaseModel):
                                           fields=fields, exc=exc)
         return model
 
-    def find(self, query=None, offset=0, limit=0, timeout=None,
-             fields=None, sort=None, **kwargs):
-        return [cluster for cluster in
-                super(Cluster, self).find(query, offset, limit, timeout,
-                                          fields, sort, **kwargs)]
+    def find_cluster(self, params, user, **kwargs):
+        if params is None:
+            params = {}
+
+        query = {}
+        if 'type' in params:
+            query['type'] = params['type']
+
+        limit = int(params.get('limit', 50))
+        clusters = self.findWithPermissions(query, limit=limit, user=user,
+                                            level=AccessType.ADMIN, **kwargs)
+
+        return [self.filter(cluster, user) for cluster in clusters]
 
     def filter(self, cluster, user, passphrase=True):
         cluster = super(Cluster, self).filter(doc=cluster, user=user)
