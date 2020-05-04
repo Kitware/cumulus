@@ -534,21 +534,7 @@ class Cluster(BaseResource):
 
     @access.user(scope=TokenScope.DATA_READ)
     def find(self, params):
-        user = self.getCurrentUser()
-        query = {}
-
-        if 'type' in params:
-            query['type'] = params['type']
-
-        limit = params.get('limit', 50)
-
-        clusters = self._model.find(query=query)
-
-        clusters = self._model.filterResultsByPermission(clusters, user,
-                                                         AccessType.ADMIN,
-                                                         limit=int(limit))
-
-        return [self._model.filter(cluster, user) for cluster in clusters]
+        return self._model.find_cluster(params, user=self.getCurrentUser())
 
     find.description = (
         Description('Search for clusters with certain properties')
