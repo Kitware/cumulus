@@ -22,6 +22,7 @@ import json
 from jsonpath_rw import parse
 from bson.objectid import ObjectId
 
+from girder import events
 from girder.api import access
 from girder.api.describe import Description
 from girder.constants import AccessType, TokenScope
@@ -219,6 +220,7 @@ class Cluster(BaseResource):
         body = self._get_body()
         adapter = get_cluster_adapter(cluster)
         adapter.start(body)
+        events.trigger('cumulus.cluster.started', info=cluster)
 
     addModel('ClusterOnStartParms', {
         'id': 'ClusterOnStartParms',
