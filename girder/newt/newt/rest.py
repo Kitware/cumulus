@@ -114,16 +114,24 @@ class Newt(Resource):
 
         # Now get the use information so we can lookup the Girder user
         username = json_resp['username']
-        r = requests.get('%s/account/user/%s/persons' %
-                         (NEWT_BASE_URL, username), cookies=cookies)
+        account_url = '%s/account/iris' % NEWT_BASE_URL
+
+        query_fields = '{uid, email, name, firstname, lastname}'
+        query_string ='user(username: \\\"%s\\\")%s' % (username, query_fields)
+        query = dict(query=query_string)
+        r = requests.post(account_url, data=query, cookies=cookies)
         json_resp = r.json()
 
-        if len(json_resp['items']) != 1:
+        data = json_resp.get('data')
+        if data is None:
             raise RestException('Authentication failed.', code=403)
 
-        user_info = json_resp['items'][0]
-        user_id = user_info['user_id']
-        username = user_info['uname']
+        user_info = data.get('newt', {}).get('user')
+        if user_info is None:
+            raise RestException('Reply data object missing "{newt:{user}}" object', code=502)
+
+        user_id = user_info['uid']
+        username = user_info['name']
         email = user_info['email']
         firstname = user_info['firstname']
         lastname = user_info['lastname']
